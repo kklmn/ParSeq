@@ -54,6 +54,7 @@ How to test
 -----------
 
 Run `tests\test_mainWindow.py`. It loads a few EXAFS spectra located in `data`.
-Tested with Python 2 and 3, PyQt4 and PyQt5, `matplotlib` and `opengl` backends
-of silx plotter (both have some issues).
+Tested on Windows (10), Linux (Ubuntu 18.10 and Kubuntu 18.04) and macOS
+(10.13), with Python 2 and 3, PyQt4 and PyQt5, `matplotlib` and `opengl`
+backends of silx plotter (both have some issues).
 The folder `tests` has other scripts for testing various parts of ParSeq.
