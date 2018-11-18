@@ -1,0 +1,7 @@
+# ======Naming Convention: note the difference from PEP8 for variables!========
+# * classes MixedUpperCase
+# * constants CAPITAL_UNDERSCORE_SEPARATED
+# * varables lowerUpper *or* just lower
+# * functions and methods underscore_separated (not GUI) *or* lowerUpper (GUI)
+# * PEP8 applies for the rest
+# =============================================================================
