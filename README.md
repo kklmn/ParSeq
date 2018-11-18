@@ -7,6 +7,10 @@ plotter, cross-data analysis and tunable widget work space. It also gives a
 structure to implement particular analysis pipelines as relatively lightweight
 Python packages.
 
+ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
+
+It is in development state, not yet ready for general users.
+
 A screenshot of the Dummy analysis pipeline serving as an application example:
 <p align="center">
   <img src="doc/_images/mainWindow.png" width=1200 />
