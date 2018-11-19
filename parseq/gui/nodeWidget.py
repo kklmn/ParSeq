@@ -176,7 +176,18 @@ class NodeWidget(qt.QWidget):
     def fillSplitterPlot(self):
 #        self.backend = dict(backend='opengl')
         self.backend = dict(backend='matplotlib')
-        self.plot = PlotWindow(self.splitterPlot, **self.backend)
+        try:
+            xLbl = self.node.xQLabel
+        except AttributeError:
+            xLbl = self.node.xName
+        try:
+            yLbl = self.node.yQLabels[0]
+        except AttributeError:
+            yLbl = self.node.yNames[0]
+
+        self.plot = PlotWindow(
+            self.splitterPlot, **self.backend,
+            position=[(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)] )
         self.setupPlot()
 
         self.metadata = qt.QTextEdit(self.splitterPlot)
