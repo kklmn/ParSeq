@@ -23,7 +23,8 @@ dataRootItem = None
 
 withGUI = 'not set yet'
 model = None  # treeModelView.TreeModel()
-modelColumns = []  # (node, yNames) of all nodes as headers in data model
+modelDataColumns = []  # (node, yNames) of all nodes as headers in data model
+modelLeadingColumns = ['data name', u"\U0001F441"]  # eye symbol
 selectionModel = None
 selectedItems, selectedTopItems = [], []  # common for all trees
 recentlyLoadedItems = []

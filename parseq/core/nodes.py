@@ -72,7 +72,7 @@ class Node(object):
         # assigned automatically by transform:
         self.transformIn = None
         csi.nodes[self.name] = self
-        csi.modelColumns.extend([(self, yName) for yName in self.yNames])
+        csi.modelDataColumns.extend([(self, yName) for yName in self.yNames])
 
     def is_between_nodes(self, node1, node2, node1in=True, node2in=False):
         """

@@ -35,6 +35,7 @@ class TreeItem(object):
         self.childItems = []
         self.isExpanded = True
         self.colorTag = 0
+        self.isVisible = True
         self.parentItem = parentItem
         if parentItem is None:
             assert csi.dataRootItem is None, "Data tree already exists."
@@ -79,12 +80,14 @@ class TreeItem(object):
                     return self.madeOf
 
     def data(self, column):
-        if column == 0:
-            return self.alias
-        elif 1 <= column <= len(csi.modelColumns):
+        leadingColumns = len(csi.modelLeadingColumns)
+        if column < leadingColumns:
+            if column == 0:
+                return self.alias
+        elif 0 <= column-leadingColumns < len(csi.modelDataColumns):
             if not hasattr(self, 'plotProps'):
                 return len(self.get_items())
-            node, yName = csi.modelColumns[column-1]
+            node, yName = csi.modelDataColumns[column-leadingColumns]
             return self.color, self.plotProps[node.name][yName]
         else:
             raise ValueError("invalid column")
@@ -98,11 +101,20 @@ class TreeItem(object):
         else:
             raise ValueError("invalid column")
 
-    def get_items(self):
+    def set_visible(self, value):
+        self.isVisible = bool(value)
+        for item in self.get_items(True):
+            item.isVisible = bool(value)
+
+    def get_items(self, alsoGroupHeads=False):
         items = []
         for item in self.childItems:
             if item.childItems:
-                items += [i for i in item.get_items() if i not in items]
+                if alsoGroupHeads:
+                    if item not in items:
+                        items.append(item)
+                items += [i for i in item.get_items(alsoGroupHeads) if i not in
+                          items]
             else:
                 if item not in items:
                     items.append(item)
@@ -205,6 +217,7 @@ class Spectrum(TreeItem):
         self.madeOf = madeOf
         self.parentItem = parentItem
         self.childItems = []
+        self.isVisible = True
         if parentItem is None:
             assert csi.dataRootItem is None, "Data tree already exists."
             csi.dataRootItem = self
@@ -241,9 +254,10 @@ class Spectrum(TreeItem):
                 self.alias = madeOf
 
     def is_good(self, column):
-        if column == 0:
+        leadingColumns = len(csi.modelLeadingColumns)
+        if column < leadingColumns:
             return True
-        node = csi.modelColumns[column-1][0]
+        node = csi.modelDataColumns[column-leadingColumns][0]
         return self.isGood[node.name]
 
     def read_data(self, shouldLoadNow=True, runDownstream=True):
@@ -265,9 +279,15 @@ class Spectrum(TreeItem):
                 lenC = len(self.madeOf)
                 self.alias = "{0}_{1}{2}".format(cs, combineName[what], lenC)
         else:
-            self.dataType = 'column file'
-            if shouldLoadNow:
-                self.read_column_file()
+            if self.madeOf.endswith(('.hdf5', '.h5', '.nxs')):
+                self.dataType = 'hdf5 file'
+                if shouldLoadNow:
+                    self.read_hdf5_file()
+            else:
+                self.dataType = 'column file'
+                if shouldLoadNow:
+                    self.read_column_file()
+
             basename = os.path.basename(self.madeOf)
             if self.alias == 'auto':
                 self.alias = os.path.splitext(basename)[0]
@@ -305,8 +325,10 @@ class Spectrum(TreeItem):
     def insert_item(self, name, insertAt=None, **kwargs):
         return Spectrum(name, self, insertAt, **kwargs)
 
+    def read_hdf5_file(self):
+        raise
+
     def read_column_file(self):
-        """Case of *madeOf* as file name, str"""
         madeOf = self.madeOf
         toNode = self.originNode
         readkwargs = dict(self.dataFormat)

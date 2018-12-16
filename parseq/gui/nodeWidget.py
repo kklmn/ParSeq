@@ -355,6 +355,8 @@ class NodeWidget(qt.QWidget):
                 continue
             if not item.isGood[node.name]:
                 continue
+            if not item.isVisible:
+                continue
             try:
                 x = getattr(item, node.xName)
             except AttributeError:

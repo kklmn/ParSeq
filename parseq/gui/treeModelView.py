@@ -10,7 +10,8 @@ from ..core import commons as cco
 from ..core import singletons as csi
 from .plotOptions import lineStyles, lineSymbols, noSymbols, LineProps
 
-COLUMN_NAME_WIDTH = 100
+COLUMN_NAME_WIDTH = 140
+COLUMN_EYE_WIDTH = 28
 LEGEND_WIDTH = 48
 
 GROUP_BKGND = '#f4f0f0'
@@ -34,7 +35,7 @@ class TreeModel(qt.QAbstractItemModel):
         return parentItem.child_count()
 
     def columnCount(self, parent):
-        return len(csi.modelColumns) + 1
+        return len(csi.modelLeadingColumns) + len(csi.modelDataColumns)
 
     def flags(self, index):
         if not index.isValid():
@@ -42,6 +43,8 @@ class TreeModel(qt.QAbstractItemModel):
         res = super(TreeModel, self).flags(index) | qt.Qt.ItemIsEnabled | \
             qt.Qt.ItemIsSelectable | \
             qt.Qt.ItemIsDragEnabled | qt.Qt.ItemIsDropEnabled
+        if index.column() == 1:
+            res |= qt.Qt.ItemIsUserCheckable
         cond = index.column() == 0  # editable for all items in column 0
 #        item = index.internalPointer()
 #        cond = cond and item.childItems  # editable only if a group
@@ -55,15 +58,20 @@ class TreeModel(qt.QAbstractItemModel):
         item = index.internalPointer()
         if role in (qt.Qt.DisplayRole, qt.Qt.EditRole):
             return item.data(index.column())
+        elif role == qt.Qt.CheckStateRole:
+            if index.column() == 1:
+                return int(
+                    qt.Qt.Checked if item.isVisible else qt.Qt.Unchecked)
         elif role == qt.Qt.ToolTipRole:
-            return item.tooltip()
+            if index.column() == 0:
+                return item.tooltip()
         elif role == qt.Qt.BackgroundRole:
             if item.childItems:  # is a group
                 return qt.QColor(GROUP_BKGND)
             if not item.is_good(index.column()):
                 return qt.QColor(BAD_BKGND)
         elif role == qt.Qt.ForegroundRole:
-            if index.column() == 0:
+            if index.column() < len(csi.modelLeadingColumns):
                 return qt.QColor(FONT_COLOR_TAG[item.colorTag])
             else:
                 return qt.QColor(item.color())
@@ -72,22 +80,29 @@ class TreeModel(qt.QAbstractItemModel):
                 myFont = qt.QFont()
                 myFont.setBold(True)
                 return myFont
+        elif role == qt.Qt.TextAlignmentRole:
+            if index.column() == 1:
+                return qt.Qt.AlignCenter
 
     def headerData(self, section, orientation, role):
         if role == qt.Qt.DisplayRole:
-            if section == 0:
-                return 'data name'
+            leadingColumns = len(csi.modelLeadingColumns)
+            if section < leadingColumns:
+                return csi.modelLeadingColumns[section]
             else:
-                node, yName = csi.modelColumns[section-1]
+                node, yName = csi.modelDataColumns[section-leadingColumns]
                 if hasattr(node, "yQLabels"):
                     ind = node.yNames.index(yName)
                     yName = node.yQLabels[ind]
                 return yName
         elif role == qt.Qt.ToolTipRole:
-            return self.rootItem.tooltip()
+            if section == 0:
+                return self.rootItem.tooltip()
+            elif section == 1:
+                return "toggle visible selected/all"
 #        elif role == qt.Qt.FontRole:
-#            myFont = qt.QFont()
-#            myFont.setBold(True)
+#            myFont = qt.QFont("Courier New")
+##            myFont.setBold(True)
 #            return myFont
         elif role == qt.Qt.TextAlignmentRole:
             if section > 0:
@@ -99,7 +114,31 @@ class TreeModel(qt.QAbstractItemModel):
             item.set_data(index.column(), str(value))
             self.dataChanged.emit(index, index)
             return True
+        if role == qt.Qt.CheckStateRole:
+            item = index.internalPointer()
+            self.setVisible(item, value)
+            return True
         return False
+
+    def setVisible(self, item, value, emit=True):
+        item.set_visible(value)
+        if emit:
+            self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        if item is csi.dataRootItem:  # by click on header
+            for it in csi.selectedItems:
+                self.setVisible(it, True, True)
+            return
+        if item.parentItem is csi.dataRootItem:
+            return
+        # make group (un)checked if all group items are (un)checked:
+        siblingsEqual = False
+        for itemSib in item.parentItem.childItems:
+            if itemSib.isVisible != item.isVisible:
+                break
+        else:
+            siblingsEqual = True
+        if siblingsEqual and (item.parentItem.isVisible != item.isVisible):
+            item.parentItem.set_visible(value)
 
     def index(self, row, column=0, parent=None):
         if parent is None:
@@ -442,29 +481,38 @@ class TreeView(qt.QTreeView):
         self.setModel(csi.model)
         self.setSelectionModel(csi.selectionModel)
 
+        horHeaders = self.header()  # QHeaderView instance
         if 'pyqt4' in qt.BINDING.lower():
-            self.header().setMovable(False)
-            self.header().setResizeMode(0, qt.QHeaderView.Stretch)
+            horHeaders.setMovable(False)
+            horHeaders.setResizeMode(0, qt.QHeaderView.Stretch)
+            horHeaders.setResizeMode(1, qt.QHeaderView.Fixed)
         else:
-            self.header().setSectionsMovable(False)
-            self.header().setSectionResizeMode(0, qt.QHeaderView.Stretch)
-        self.header().setStretchLastSection(False)
+            horHeaders.setSectionsMovable(False)
+            horHeaders.setSectionResizeMode(0, qt.QHeaderView.Stretch)
+            horHeaders.setSectionResizeMode(1, qt.QHeaderView.Fixed)
+        horHeaders.setStretchLastSection(False)
+        horHeaders.setMinimumSectionSize(5)
         self.setColumnWidth(0, COLUMN_NAME_WIDTH)
+        self.setColumnWidth(1, COLUMN_EYE_WIDTH)
         self.node = node
         if node is not None:
-            for i, col in enumerate(csi.modelColumns):
+            leadingColumns = len(csi.modelLeadingColumns)
+            for i, col in enumerate(csi.modelDataColumns):
                 isHidden = col[0] is not node
-                self.setColumnHidden(i+1, isHidden)
-                self.setColumnWidth(i+1, LEGEND_WIDTH)
+                self.setColumnHidden(i+leadingColumns, isHidden)
+                self.setColumnWidth(i+leadingColumns, LEGEND_WIDTH)
                 if 'pyqt4' in qt.BINDING.lower():
-                    self.header().setResizeMode(i+1, qt.QHeaderView.Fixed)
+                    horHeaders.setResizeMode(
+                        i+leadingColumns, qt.QHeaderView.Fixed)
                 else:
-                    self.header().setSectionResizeMode(
-                        i+1, qt.QHeaderView.Fixed)
+                    horHeaders.setSectionResizeMode(
+                        i+leadingColumns, qt.QHeaderView.Fixed)
                 lineStyleDelegate = LineStyleDelegate(self)
-                self.setItemDelegateForColumn(i+1, lineStyleDelegate)
+                self.setItemDelegateForColumn(
+                    i+leadingColumns, lineStyleDelegate)
             self.setMinimumSize(qt.QSize(
-                COLUMN_NAME_WIDTH + len(node.yNames)*LEGEND_WIDTH, 200))
+                COLUMN_NAME_WIDTH + COLUMN_EYE_WIDTH +
+                len(node.yNames)*LEGEND_WIDTH, 250))
 
         self.collapsed.connect(self.collapse)
         self.expanded.connect(self.expand)
@@ -481,20 +529,25 @@ class TreeView(qt.QTreeView):
         self.setDropIndicatorShown(True)
 
 #        self.setHeaderHidden(True)
-        horizontalHeaders = self.header()  # QHeaderView instance
         if "qt4" in qt.BINDING.lower():
-            horizontalHeaders.setClickable(True)
+            horHeaders.setClickable(True)
         else:
-            horizontalHeaders.setSectionsClickable(True)
-        horizontalHeaders.sectionClicked.connect(self.headerClicked)
+            horHeaders.setSectionsClickable(True)
+        horHeaders.sectionClicked.connect(self.headerClicked)
         self.setContextMenuPolicy(qt.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.onCustomContextMenu)
         self.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
 
         self.dataChanged()
 
-    def headerClicked(self):
-        self.selectAll()
+    def headerClicked(self, column):
+        if column == 0:
+            self.selectAll()
+        elif column == 1:
+            self.model().setVisible(
+                csi.dataRootItem, not csi.dataRootItem.isVisible)
+        else:
+            self.setLines(column - len(csi.modelLeadingColumns))
 
     def restoreExpand(self, parent=qt.QModelIndex()):
         for row in range(self.model().rowCount(parent)):
@@ -521,7 +574,6 @@ class TreeView(qt.QTreeView):
         else:
             super(TreeView, self).dataChanged(topLeft, bottomRight)
         self.restoreExpand()
-#        csi.allLoadedItems.clear()
         csi.allLoadedItems[:] = []
         csi.allLoadedItems.extend(self.model().rootItem.get_items())
         self.needReplot.emit()
@@ -545,8 +597,6 @@ class TreeView(qt.QTreeView):
                 menu.addAction("Ungroup", self.ungroup, "Ctrl+U")
         menu.addSeparator()
         menu.addAction("Remove", self.deleteItems, "Del")
-        menu.addSeparator()
-        menu.addAction("Temporarily hide other spectra TODO", self.hideOtherLines)
         menu.addSeparator()
         menu.addAction("Line properties", self.setLines, "Ctrl+L")
         menu.exec_(self.viewport().mapToGlobal(point))
@@ -582,8 +632,6 @@ class TreeView(qt.QTreeView):
         self.model().removeData(csi.selectedTopItems)
         self.selectionModel().clear()
         if self.model().rowCount() == 0:
-#            csi.selectedItems.clear()
-#            csi.selectedTopItems.clear()
             csi.selectedItems[:] = []
             csi.selectedTopItems[:] = []
             if DEBUG > 0:
@@ -598,11 +646,8 @@ class TreeView(qt.QTreeView):
             newInd = self.model().createIndex(0, 0, self.model().rootItem)
         self.setCurrentIndex(newInd)
 
-    def hideOtherLines(self):
-        pass
-
-    def setLines(self):
-        lineDialog = LineProps(self, self.node)
+    def setLines(self, column=0):
+        lineDialog = LineProps(self, self.node, column)
         if (lineDialog.exec_()):
             pass
 
