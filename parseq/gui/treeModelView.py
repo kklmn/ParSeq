@@ -99,9 +99,9 @@ class TreeModel(qt.QAbstractItemModel):
             if section == 0:
                 return self.rootItem.tooltip()
             elif section == 1:
-                return "toggle visible selected/all"
+                return u"toggle visible: selected\u2194all"
 #        elif role == qt.Qt.FontRole:
-#            myFont = qt.QFont("Courier New")
+#            myFont = qt.QFont()
 ##            myFont.setBold(True)
 #            return myFont
         elif role == qt.Qt.TextAlignmentRole:
@@ -472,6 +472,36 @@ class LineStyleDelegate(qt.QItemDelegate):
         painter.restore()
 
 
+class EyeHeader(qt.QHeaderView):
+        def __init__(self, orientation=qt.Qt.Horizontal, parent=None):
+            super(EyeHeader, self).__init__(orientation, parent)
+
+        def paintSection(self, painter, rect, logicalIndex):
+            painter.save()
+            super(EyeHeader, self).paintSection(painter, rect, logicalIndex)
+            painter.restore()
+            if logicalIndex == 1:
+                painter.setRenderHint(qt.QPainter.Antialiasing)
+                color = qt.QColor('#87aecf')
+                painter.setBrush(color)
+                painter.setPen(color)
+                radius0 = 5
+                painter.drawEllipse(rect.center(), radius0, radius0)
+                color = qt.QColor('black')
+                painter.setBrush(color)
+                painter.setPen(color)
+                radius1 = 1.5
+                painter.drawEllipse(rect.center(), radius1, radius1)
+                painter.setPen(qt.QPen(qt.QColor('#999999'), 2))
+                yCenter = rect.center().y()
+                painter.drawArc(rect.x()+2, yCenter-radius0,
+                                rect.width()-5, 3*radius0+1,
+                                25*16, 135*16)
+                painter.drawArc(rect.x()+2, yCenter+radius0,
+                                rect.width()-5, -3*radius0-1,
+                                -25*16, -135*16)
+
+
 class TreeView(qt.QTreeView):
     needReplot = qt.pyqtSignal()
 
@@ -481,6 +511,7 @@ class TreeView(qt.QTreeView):
         self.setModel(csi.model)
         self.setSelectionModel(csi.selectionModel)
 
+        self.setHeader(EyeHeader())
         horHeaders = self.header()  # QHeaderView instance
         if 'pyqt4' in qt.BINDING.lower():
             horHeaders.setMovable(False)
