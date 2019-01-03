@@ -15,7 +15,7 @@ class CombineSpectraWidget(PropWidget):
         self.node = node
         combineDataGroup = self.makeCombineDataGroup()
         layout = qt.QVBoxLayout()
-        layout.setContentsMargins(4, 2, 2, 2)
+        layout.setContentsMargins(4, 2, 2, 0)
         self.stopHereCB = qt.QCheckBox("stop data propagation here (TODO)")
         layout.addWidget(self.stopHereCB)
         layout.addWidget(combineDataGroup)

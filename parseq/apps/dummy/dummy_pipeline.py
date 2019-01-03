@@ -6,7 +6,7 @@ __date__ = "17 Nov 2018"
 import os
 from ...core import singletons as csi
 from ...core import spectra as csp
-from ...gui import treeModelView as tmv
+from ...gui import dataTreeModelView as tmv
 from . import dummy_nodes as dno
 from . import dummy_transforms as dtr
 from . import dummy_widgets as dwi
@@ -27,4 +27,4 @@ def make_pipeline(withGUI=False):
 
     csi.dataRootItem = csp.Spectrum('root')
     if withGUI:
-        csi.model = tmv.TreeModel()
+        csi.model = tmv.DataTreeModel()

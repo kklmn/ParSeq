@@ -10,9 +10,9 @@ from ..core import commons as cco
 from ..core import singletons as csi
 from .plotOptions import lineStyles, lineSymbols, noSymbols, LineProps
 
-COLUMN_NAME_WIDTH = 140
+COLUMN_NAME_WIDTH = 120
 COLUMN_EYE_WIDTH = 28
-LEGEND_WIDTH = 48
+LEGEND_WIDTH = 28
 
 GROUP_BKGND = '#f4f0f0'
 BAD_BKGND = '#f46060'
@@ -23,9 +23,9 @@ RIGHT_SYMBOL = u"\u25ba"  # ►
 DEBUG = 10
 
 
-class TreeModel(qt.QAbstractItemModel):
+class DataTreeModel(qt.QAbstractItemModel):
     def __init__(self, parent=None):
-        super(TreeModel, self).__init__(parent)
+        super(DataTreeModel, self).__init__(parent)
         self.rootItem = csi.dataRootItem
         csi.selectionModel = ItemSelectionModel(self)
 
@@ -40,7 +40,7 @@ class TreeModel(qt.QAbstractItemModel):
     def flags(self, index):
         if not index.isValid():
             return qt.Qt.NoItemFlags
-        res = super(TreeModel, self).flags(index) | qt.Qt.ItemIsEnabled | \
+        res = super(DataTreeModel, self).flags(index) | qt.Qt.ItemIsEnabled | \
             qt.Qt.ItemIsSelectable | \
             qt.Qt.ItemIsDragEnabled | qt.Qt.ItemIsDropEnabled
         if index.column() == 1:
@@ -275,7 +275,7 @@ class TreeModel(qt.QAbstractItemModel):
 
 #    def canDropMimeData(self, data, action, row, column, parent):
 #        print(data.formats())
-#        return super(TreeModel, self).canDropMimeData(
+#        return super(DataTreeModel, self).canDropMimeData(
 #             data, action, row, column, parent)
 
     def dropMimeData(self, mimedata, action, row, column, parent):
@@ -398,7 +398,7 @@ class LineStyleDelegate(qt.QItemDelegate):
             lineColor = qt.QColor(data[0])
             lineProps = data[1]
             lineWidth = lineProps.get('linewidth', 1) * 1.5
-            lineStyle = lineStyles[lineProps.get('style', '-')]
+            lineStyle = lineStyles[lineProps.get('linestyle', '-')]
 
             if lineStyle == qt.Qt.NoPen:
                 painter.setPen(qt.QPen(qt.Qt.lightGray))
@@ -485,29 +485,29 @@ class EyeHeader(qt.QHeaderView):
                 color = qt.QColor('#87aecf')
                 painter.setBrush(color)
                 painter.setPen(color)
-                radius0 = 5
+                radius0 = 4
                 painter.drawEllipse(rect.center(), radius0, radius0)
                 color = qt.QColor('black')
                 painter.setBrush(color)
                 painter.setPen(color)
-                radius1 = 1.5
+                radius1 = 1.2
                 painter.drawEllipse(rect.center(), radius1, radius1)
                 painter.setPen(qt.QPen(qt.QColor('#999999'), 2))
                 yCenter = rect.center().y()
-                painter.drawArc(rect.x()+2, yCenter-radius0,
-                                rect.width()-5, 3*radius0+1,
-                                25*16, 135*16)
-                painter.drawArc(rect.x()+2, yCenter+radius0,
-                                rect.width()-5, -3*radius0-1,
-                                -25*16, -135*16)
+                painter.drawArc(rect.x()+3, yCenter-radius0,
+                                rect.width()-7, 3*(radius0+2),
+                                35*16, 110*16)
+                painter.drawArc(rect.x()+3, yCenter+radius0,
+                                rect.width()-7, -3*(radius0+2),
+                                -35*16, -110*16)
 
 
-class TreeView(qt.QTreeView):
+class DataTreeView(qt.QTreeView):
     needReplot = qt.pyqtSignal()
 
     def __init__(self, node=None, parent=None):
         assert csi.model is not None, "Data model must exist!"
-        super(TreeView, self).__init__(parent)
+        super(DataTreeView, self).__init__(parent)
         self.setModel(csi.model)
         self.setSelectionModel(csi.selectionModel)
 
@@ -589,21 +589,21 @@ class TreeView(qt.QTreeView):
                 self.restoreExpand(ind)
 
     def collapse(self, ind):
-        super(TreeView, self).collapse(ind)
+        super(DataTreeView, self).collapse(ind)
         item = ind.internalPointer()
         item.isExpanded = False
 
     def expand(self, ind):
-        super(TreeView, self).expand(ind)
+        super(DataTreeView, self).expand(ind)
         item = ind.internalPointer()
         item.isExpanded = True
 
     def dataChanged(self, topLeft=qt.QModelIndex(),
                     bottomRight=qt.QModelIndex(), roles=[]):
         if "qt5" in qt.BINDING.lower():
-            super(TreeView, self).dataChanged(topLeft, bottomRight, roles)
+            super(DataTreeView, self).dataChanged(topLeft, bottomRight, roles)
         else:
-            super(TreeView, self).dataChanged(topLeft, bottomRight)
+            super(DataTreeView, self).dataChanged(topLeft, bottomRight)
         self.restoreExpand()
         csi.allLoadedItems[:] = []
         csi.allLoadedItems.extend(self.model().rootItem.get_items())
@@ -690,4 +690,4 @@ class TreeView(qt.QTreeView):
 
     def dropEvent(self, event):
         csi.currentNodeToDrop = self.node
-        super(TreeView, self).dropEvent(event)
+        super(DataTreeView, self).dropEvent(event)

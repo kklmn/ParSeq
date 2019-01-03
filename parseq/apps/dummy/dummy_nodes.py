@@ -20,8 +20,10 @@ class Node1(cno.Node):
     yQLabels, yPlotLabels = ['I0', 'I1'], [r'$I_0$', r'$I_1$']
     yQUnits, yPlotUnits = ['counts']*2, ['counts']*2
 
-    plotParams = {'linewidth': [3, 1], 'style': ['-', '-'],
-                  'symbol': [None, 'd'], 'symbolsize': [None, 5],
+    plotParams = {'linewidth': [3, 1],
+                  'linestyle': ['-', '-'],
+                  'symbol': [None, 'd'],
+                  'symbolsize': [None, 5],
                   'yaxis': ['left', 'right']}
 
 

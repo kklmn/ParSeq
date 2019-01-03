@@ -14,22 +14,20 @@ class ColumnFormatWidget(PropWidget):
     def __init__(self, parent=None, node=None):
         super(ColumnFormatWidget, self).__init__(parent)
         self.node = node
-        headerGroup = self.makeHeaderGroup()
-        dataGroup = self.makeDataGroup()
-        headerLayout = qt.QVBoxLayout()
-        headerLayout.setContentsMargins(0, 0, 0, 0)
-        headerLayout.addWidget(headerGroup)
-        dataLayout = qt.QVBoxLayout()
-        dataLayout.setContentsMargins(0, 0, 0, 0)
-        dataLayout.addWidget(dataGroup)
+
+        self.tabWidget = qt.QTabWidget(self)
+        headerTab = self.makeHeaderTab()
+        self.tabWidget.addTab(headerTab, 'file header')
+        dataLocationTab = self.makeDataLocationTab()
+        self.tabWidget.addTab(dataLocationTab, 'data location')
+
         layout = qt.QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.addLayout(headerLayout)
-        layout.addLayout(dataLayout)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.tabWidget)
         layout.addStretch()
         self.setLayout(layout)
 
-    def makeHeaderGroup(self):
+    def makeHeaderTab(self):
         self.headerNRB = qt.QRadioButton("has")
         self.headerNEdit = QLineEditSelectRB(rb=self.headerNRB)
         self.headerNEdit.setFixedWidth(28)
@@ -69,17 +67,17 @@ class ColumnFormatWidget(PropWidget):
         headerLayout.addLayout(headerLayoutS)
         headerLayout.addLayout(headerLayoutE)
 
-        headerGroup = qt.QGroupBox('column file header')
-        headerGroup.setLayout(headerLayout)
-        headerGroup.setSizePolicy(
-            qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+        headerTab = qt.QWidget(self)
+        headerTab.setLayout(headerLayout)
+        headerTab.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
 
         self.headerKW = 'skiprows', 'comments', 'lastSkipRowContains'
         self.radioButtons = self.headerNRB, self.headerSRB, self.headerERB
         self.edits = self.headerNEdit, self.headerSEdit, self.headerEEdit
-        return headerGroup
 
-    def makeDataGroup(self):
+        return headerTab
+
+    def makeDataLocationTab(self):
         if self.node is None:
             return
 
@@ -137,10 +135,11 @@ class ColumnFormatWidget(PropWidget):
         dataLayout.addLayout(dataLayoutY)
 #        dataLayout.addStretch()
 
-        dataGroup = qt.QGroupBox('column file data')
-        dataGroup.setLayout(dataLayout)
-        dataGroup.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
-        return dataGroup
+        dataLocationTab = qt.QWidget(self)
+        dataLocationTab.setLayout(dataLayout)
+        dataLocationTab.setSizePolicy(
+            qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+        return dataLocationTab
 
     def setUIFromData(self):
         self.setRButtonGroupWithEditsFromData(

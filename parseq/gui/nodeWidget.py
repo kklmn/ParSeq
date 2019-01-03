@@ -8,25 +8,24 @@ import os
 import webbrowser
 
 from silx.gui import qt
-from silx.gui.plot.PlotWindow import PlotWindow
+#from silx.gui.plot.PlotWindow import PlotWindow
+from silx.gui.plot import Plot1D
 
 from ..core import singletons as csi
 from ..core import commons as cco
-from ..gui.treeModelView import TreeView
+from ..gui.fileTreeModelView import FileTreeView
+from ..gui.dataTreeModelView import DataTreeView
 from ..gui.webWidget import QWebView
-from ..gui.containerFileWidget import ContainerFileWidget
 from ..gui.columnFormatWidget import ColumnFormatWidget
 from ..gui.combineSpectraWidget import CombineSpectraWidget
 
-SPLITTER_WIDTH = 10
-SPLITTER_BUTTON_SIZE = 86, SPLITTER_WIDTH+1
-SPLITTER_HELP_BUTTON_SIZE = 86, SPLITTER_WIDTH+1
-
+SPLITTER_WIDTH, SPLITTER_BUTTON_MARGIN = 10, 25
 DEBUG = 10
 
 
 class QSplitterButton(qt.QPushButton):
-    def __init__(self, text, parent, isVertical=False):
+    def __init__(self, text, parent, isVertical=False,
+                 margin=SPLITTER_BUTTON_MARGIN):
         super(QSplitterButton, self).__init__(text, parent)
         self.rawText = str(text)
         self.isVertical = isVertical
@@ -42,6 +41,14 @@ class QSplitterButton(qt.QPushButton):
             QPushButton:pressed {
                 background-color: qlineargradient(
                 """ + grad + """, stop: 0 #cacbce, stop: 1 #e6e7ea);} """)
+        myFont = qt.QFont()
+        myFont.setPointSize(int(float(fontSize)))
+        fm = qt.QFontMetrics(myFont)
+        width = fm.width(text) + 2*margin
+        if isVertical:
+            self.setFixedSize(SPLITTER_WIDTH+1, width)
+        else:
+            self.setFixedSize(width, SPLITTER_WIDTH+1)
 
     def paintEvent(self, event):
         if not self.isVertical:
@@ -105,7 +112,7 @@ class NodeWidget(qt.QWidget):
         self.splitter.setStretchFactor(2, 1)
         self.splitter.setStretchFactor(3, 0)
         self.splitter.setSizes([1, 1, 1, 1])
-        self.splitterButtons['files'].clicked.emit(False)
+        self.splitterButtons[u'files && containers'].clicked.emit(False)
 
         # sharing tree selections among nodes:
         if csi.selectionModel is None:
@@ -135,34 +142,31 @@ class NodeWidget(qt.QWidget):
         qWidget = qt.QWidget(self.splitterFiles)
         layout = qt.QVBoxLayout(self.splitterFiles)
         layout.setContentsMargins(2, 0, 0, 0)
-        self.files = qt.QTreeView(self)
+        self.files = FileTreeView(self)
+        self.files.setStyleSheet("QTreeView {border: none;}")
+        self.files.header().resizeSection(0, 400)
+        self.files.setColumnWidth(0, 180)
+        self.files.setIndentation(10)
+        self.files.setSortingEnabled(True)
+        self.files.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
+        self.files.model().setRootPath('')
+#        self.files.doubleClicked.connect(self.loadFiles)
+        self.files.setContextMenuPolicy(qt.Qt.CustomContextMenu)
+        self.files.customContextMenuRequested.connect(
+            self.onFilesCustomContextMenu)
+
         self.filesAutoAddCB = qt.QCheckBox("auto append fresh file TODO", self)
         layout.addWidget(self.files)
         layout.addWidget(self.filesAutoAddCB)
         qWidget.setLayout(layout)
 
-        self.files.setStyleSheet("QTreeView {border: none;}")
-        self.fileModel = qt.QFileSystemModel()
-        self.fileModel.setRootPath('')
-        self.files.setModel(self.fileModel)
-        self.files.setIndentation(10)
-        self.files.setSortingEnabled(True)
-        self.files.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
-        self.files.doubleClicked.connect(self.loadFiles)
-        self.files.setContextMenuPolicy(qt.Qt.CustomContextMenu)
-        self.files.customContextMenuRequested.connect(
-            self.onFilesCustomContextMenu)
-        self.files.setColumnWidth(0, 180)
-
-        self.containerFile = ContainerFileWidget(self.splitterFiles, self.node)
         self.columnFormat = ColumnFormatWidget(self.splitterFiles, self.node)
 
         self.splitterFiles.setStretchFactor(0, 1)
-        self.splitterFiles.setStretchFactor(1, 0.5)
-        self.splitterFiles.setStretchFactor(2, 0)
+        self.splitterFiles.setStretchFactor(1, 0)
 
     def fillSplitterData(self):
-        self.tree = TreeView(self.node, self.splitterData)
+        self.tree = DataTreeView(self.node, self.splitterData)
         self.tree.setStyleSheet("QTreeView {border: none;}")
         self.tree.needReplot.connect(self.replot)
         if DEBUG > 0 and self.mainWindow is None:  # only for test purpose
@@ -185,9 +189,13 @@ class NodeWidget(qt.QWidget):
         except AttributeError:
             yLbl = self.node.yNames[0]
 
-        self.plot = PlotWindow(
-            self.splitterPlot, **self.backend,
-            position=[(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)] )
+#        self.plot = PlotWindow(
+        self.plot = Plot1D(
+            self.splitterPlot, **self.backend
+#            position=[(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)]
+            )
+        self.plot.getXAxis().setLabel(xLbl)
+        self.plot.getYAxis().setLabel(yLbl)
         self.setupPlot()
 
         self.metadata = qt.QTextEdit(self.splitterPlot)
@@ -241,15 +249,13 @@ class NodeWidget(qt.QWidget):
     def makeSplitterButtons(self):
         self.splitterButtons = {}
         self.makeSplitterButton(
-            'files', self.splitter, 1, 0, qt.Qt.LeftArrow)
+            u'files && containers', self.splitter, 1, 0, qt.Qt.LeftArrow)
         self.makeSplitterButton(
             'data', self.splitter, 2, 1, qt.Qt.LeftArrow)
         self.makeSplitterButton(
             'transform', self.splitter, 3, 3, qt.Qt.RightArrow)
         self.makeSplitterButton(
-            'container', self.splitterFiles, 1, 1, qt.Qt.DownArrow)
-        self.makeSplitterButton(
-            'columns', self.splitterFiles, 2, 2, qt.Qt.DownArrow)
+            'columns', self.splitterFiles, 1, 1, qt.Qt.DownArrow)
         self.makeSplitterButton(
             'combine', self.splitterData, 1, 1, qt.Qt.DownArrow)
         self.makeSplitterButton(
@@ -275,10 +281,6 @@ class NodeWidget(qt.QWidget):
         button = QSplitterButton(name, handle, isVerical)
         self.setArrowType(button, orientation)
         splitter.setHandleWidth(SPLITTER_WIDTH)
-        if orientation in (qt.Qt.UpArrow, qt.Qt.DownArrow):
-            button.setFixedSize(*SPLITTER_BUTTON_SIZE)
-        else:
-            button.setFixedSize(*reversed(SPLITTER_BUTTON_SIZE))
         po = qt.QSizePolicy(qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
         button.setSizePolicy(po)
         button.clicked.connect(
@@ -298,8 +300,7 @@ class NodeWidget(qt.QWidget):
         handle = splitter.handle(indHandle)
         if handle is None:
             return
-        button = QSplitterButton("open in browser", handle)
-        button.setFixedSize(*SPLITTER_HELP_BUTTON_SIZE)
+        button = QSplitterButton("open in browser", handle, margin=5)
         button.clicked.connect(lambda: self.handleSplitterHelpButton())
         sLayout = handle.layout()
         sLayout.addWidget(button)
@@ -367,14 +368,14 @@ class NodeWidget(qt.QWidget):
                 except AttributeError:
                     continue
                 curveLabel = item.alias + '.' + yN
-                plotProps = item.plotProps[node.name][yN]
-                self.plot.addCurve(x, y, legend=curveLabel, color=item.color,
-                                   **plotProps)
+                plotProps = dict(item.plotProps[node.name][yN])
+                symbolsize = plotProps.pop('symbolsize', 2)
+                self.plot.addCurve(
+                    x, y, legend=curveLabel, color=item.color, **plotProps)
                 symbol = plotProps.get('symbol', None)
                 if symbol is not None:
                     curve = self.plot.getCurve(curveLabel)
                     if curve is not None:
-                        symbolsize = plotProps.get('symbolsize', 2)
                         if self.backend['backend'] == 'opengl':
                             # don't know why it is small with opengl
                             symbolsize *= 2
@@ -440,7 +441,7 @@ class NodeWidget(qt.QWidget):
         self.updateSplittersForSelectedItems()
         fname = self.shouldUpdateFileModel()
         if fname:
-            ind = self.fileModel.index(fname)
+            ind = self.files.model().indexFileName(fname)
             self.files.setCurrentIndex(ind)
             self.files.scrollTo(ind)
         self.updateMeta()
