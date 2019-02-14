@@ -181,6 +181,7 @@ class LineProps(qt.QDialog):
         self.tabs = []
         for yN in yNs:
             tab = qt.QWidget()
+            tab.color = 'k'
             self.tabWidget.addTab(tab, yN)
             self.tabUI(tab)
             self.tabs.append(tab)

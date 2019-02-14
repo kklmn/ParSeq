@@ -24,7 +24,7 @@ def test(withGUI=True, withTestData=True):
         mainWindow.show()
         # select the 1st item (it is a group)
         node0 = list(csi.nodes.values())[0]
-        node0.nodeWidget.tree.setCurrentIndex(csi.model.index(0))
+        node0.widget.tree.setCurrentIndex(csi.model.index(0))
         app.exec_()
     else:
         import matplotlib.pyplot as plt

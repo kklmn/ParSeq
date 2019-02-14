@@ -142,8 +142,7 @@ if __name__ == '__main__':
 #    test_TreeItem(withGUI=True)
 #    test_TreeItem(withGUI=False)
 
-#    test_Spectrum1(withGUI=True)
+    test_Spectrum1(withGUI=True)
 #    test_Spectrum1(withGUI=False)
 
-    test_Spectrum2(withGUI=True)
-#    test_Spectrum2(withGUI=False)
+#    test_Spectrum2(withGUI=True)

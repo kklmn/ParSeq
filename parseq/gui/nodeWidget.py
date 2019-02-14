@@ -159,9 +159,7 @@ class NodeWidget(qt.QWidget):
     def fillSplitterData(self):
         self.tree = DataTreeView(self.node, self.splitterData)
         self.tree.needReplot.connect(self.replot)
-#        if DEBUG > 0 and self.mainWindow is None:  # only for test purpose
-#            self.tree.selectionModel().selectionChanged.connect(
-#                self.selChanged)
+        self.tree.selectionModel().selectionChanged.connect(self.selChanged)
         self.combiner = CombineSpectraWidget(self.splitterData, self.node)
 
         self.splitterData.setStretchFactor(0, 1)  # don't remove
@@ -418,11 +416,12 @@ class NodeWidget(qt.QWidget):
             axisLabel += u" ({0})".format(yUnit0)
         return axisLabel
 
-#    def selChanged(self):
-#        selNames = ', '.join([it.alias for it in csi.selectedItems])
-#        dataCount = len(csi.allLoadedItems)
-#        self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
-#        self.updateNodeForSelectedItems()
+    def selChanged(self):
+        self.updateNodeForSelectedItems()
+        if DEBUG > 0 and self.mainWindow is None:  # only for test purpose
+            selNames = ', '.join([it.alias for it in csi.selectedItems])
+            dataCount = len(csi.allLoadedItems)
+            self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
 
     def updateNodeForSelectedItems(self):
         self.updateSplittersForSelectedItems()

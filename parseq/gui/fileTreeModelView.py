@@ -266,7 +266,7 @@ class FileSystemWithHdf5Model(ModelBase):
         return False
 
     def stateLoadColDataset(self, indexFS):
-        cf = self.transformNode.nodeWidget.columnFormat
+        cf = self.transformNode.widget.columnFormat
         df = cf.getDataFormat()
         if not df:
             return LOAD_CANNOT
@@ -301,7 +301,7 @@ class FileSystemWithHdf5Model(ModelBase):
         nodeH5 = self.h5Model.nodeFromIndex(indexH5)
         if not nodeH5.isGroupObj():
             return LOAD_NA
-        cf = self.transformNode.nodeWidget.columnFormat
+        cf = self.transformNode.widget.columnFormat
 
         txt = cf.dataXEdit.text()
         if len(txt) == 0:
@@ -650,7 +650,7 @@ class FileTreeView(qt.QTreeView):
     def updateForSelectedFiles(self, indexes):
         if self.transformNode is None:
             return
-        cf = self.transformNode.nodeWidget.columnFormat
+        cf = self.transformNode.widget.columnFormat
         for index in indexes:
             nodeType = self.model().nodeType(index)
             if nodeType == NODE_FS:
@@ -666,6 +666,8 @@ class FileTreeView(qt.QTreeView):
                 return
 
     def onCustomContextMenu(self, point):
+        if self.transformNode is None:
+            return
         selectedIndexes = self.selectionModel().selectedRows()
         lenSelectedIndexes = len(selectedIndexes)
         if lenSelectedIndexes == 0:
@@ -711,8 +713,8 @@ class FileTreeView(qt.QTreeView):
         else:
             isEnabled = True
 
-        action = menu.addAction("Load data",
-                                self.transformNode.nodeWidget.loadFiles)
+        action = menu.addAction(
+            "Load data", self.transformNode.widget.loadFiles)
         action.setEnabled(isEnabled)
         if lenSelectedIndexes > 1:
             actionN = menu.addAction(
@@ -721,7 +723,7 @@ class FileTreeView(qt.QTreeView):
             actionN.setEnabled(isEnabled)
 
         menu.exec_(
-            self.transformNode.nodeWidget.files.viewport().mapToGlobal(point))
+            self.transformNode.widget.files.viewport().mapToGlobal(point))
 
     def setAsArray(self, iArray, paths):
         subpaths = []
@@ -736,7 +738,7 @@ class FileTreeView(qt.QTreeView):
                 return
             subpaths.append(subpath)
 
-        cf = self.transformNode.nodeWidget.columnFormat
+        cf = self.transformNode.widget.columnFormat
         if iArray == 0:
             edit = cf.dataXEdit
         else:

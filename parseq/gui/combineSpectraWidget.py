@@ -84,6 +84,8 @@ class CombineSpectraWidget(PropWidget):
         self.createCombined()
 
     def createCombined(self):
+        if self.node is None:
+            return
         ind = self.combineType.currentIndex()
         if ind == 0:
             return

@@ -102,8 +102,8 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.setStyleSheet("""QDockWidget
                {font: bold; font-size: """+fs+"""pt; padding-left: 5px}""")
             self.addDockWidget(qt.Qt.TopDockWidgetArea, dock)
-            node.nodeWidget = NodeWidget(node, self)
-            dock.setWidget(node.nodeWidget)
+            nodeWidget = NodeWidget(node, self)
+            dock.setWidget(nodeWidget)
             if i == 0:
                 dock0 = dock
                 node0 = node
@@ -118,7 +118,7 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def dataChanged(self):
         for node in csi.nodes.values():
-            node.nodeWidget.tree.dataChanged()
+            node.widget.tree.dataChanged()
 
     def selChanged(self):
         selNames = ', '.join([it.alias for it in csi.selectedItems])
@@ -129,8 +129,6 @@ class MainWindowParSeq(qt.QMainWindow):
             sellen, 'um' if sellen == 1 else 'a', selNames))
         self.statusBarRight.setText('{0} spectr{1}'.format(
             dataCount, 'um' if dataCount == 1 else 'a'))
-        for node in csi.nodes.values():
-            node.nodeWidget.updateNodeForSelectedItems()
 
     def slotUndo(self):
         if len(cun.get_undo_str()):

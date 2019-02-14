@@ -334,10 +334,11 @@ class DataTreeModel(qt.QAbstractItemModel):
             if csi.currentNodeToDrop is None:
                 return False
             node = csi.currentNodeToDrop
-            items = node.nodeWidget.loadFiles(urls, parentItem, insertAt)
+            items = node.widget.loadFiles(urls, parentItem, insertAt)
             if DEBUG > 0:
-                for item in items:
-                    item.colorTag = 3
+                if items is not None:
+                    for item in items:
+                        item.colorTag = 3
             return True
         else:
             return False
@@ -558,7 +559,8 @@ class DataTreeView(qt.QTreeView):
         self.setUniformRowHeights(True)
 
         self.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
-#        self.selectionModel().selectionChanged.connect(self.selChanged)
+        if DEBUG > 0 and self.parent() is None:  # only for test purpose
+            self.selectionModel().selectionChanged.connect(self.selChanged)
 
         self.setDragDropMode(qt.QAbstractItemView.DragDrop)
         self.isInnerDragNDropAllowed = False
@@ -689,11 +691,11 @@ class DataTreeView(qt.QTreeView):
         if (lineDialog.exec_()):
             pass
 
-#    def selChanged(self):
-#        if DEBUG > 0 and self.parent() is None:  # only for test purpose
-#            selNames = ', '.join([i.alias for i in csi.selectedItems])
-#            dataCount = len(csi.allLoadedItems)
-#            self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
+    def selChanged(self):
+        if DEBUG > 0 and self.parent() is None:  # only for test purpose
+            selNames = ', '.join([i.alias for i in csi.selectedItems])
+            dataCount = len(csi.allLoadedItems)
+            self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
 
     def dropEvent(self, event):
         csi.currentNodeToDrop = self.node
