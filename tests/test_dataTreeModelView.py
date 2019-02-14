@@ -80,13 +80,15 @@ def test_Spectrum1(withGUI):  # without convenience functions
         for i in range(3):
             group0, = model.importData('metal')
 # or        group0, = model.rootItem.insert_data('metal')
-            dataFormat = dict(usecols=fNames[0][1], lastSkipRowContains='Col ')
+            dataFormat = dict(
+                dataSource=fNames[0][1], lastSkipRowContains='Col ')
             data = [fn[0] for fn in fNames[:4]]
             items0 = model.importData(data, group0, dataFormat=dataFormat)
 # or        items0 = group0.insert_data(data, dataFormat=dataFormat)
             group1, = model.importData('oxides')
 # or        group1, = model.rootItem.insert_data('oxides')
-            dataFormat = dict(usecols=fNames[4][1], lastSkipRowContains='Col ')
+            dataFormat = dict(
+                dataSource=fNames[4][1], lastSkipRowContains='Col ')
             data = [fn[0] for fn in fNames[4:7]]
             items1 = model.importData(data, group1, dataFormat=dataFormat)
 # or        items1 = group1.insert_data(data, dataFormat=dataFormat)
@@ -101,11 +103,13 @@ def test_Spectrum1(withGUI):  # without convenience functions
     else:
         for i in range(3):
             group0, = rootItem.insert_data('metal')
-            dataFormat = dict(usecols=fNames[0][1], lastSkipRowContains='Col ')
+            dataFormat = dict(
+                dataSource=fNames[0][1], lastSkipRowContains='Col ')
             data = [fn[0] for fn in fNames[:4]]
             items0 = group0.insert_data(data, dataFormat=dataFormat)
             group1, = rootItem.insert_data('oxides')
-            dataFormat = dict(usecols=fNames[4][1], lastSkipRowContains='Col ')
+            dataFormat = dict(
+                dataSource=fNames[4][1], lastSkipRowContains='Col ')
             data = [fn[0] for fn in fNames[4:7]]
             items1 = group1.insert_data(data, dataFormat=dataFormat)
 

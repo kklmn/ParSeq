@@ -10,9 +10,9 @@ from ..core import commons as cco
 from ..core import singletons as csi
 from .plotOptions import lineStyles, lineSymbols, noSymbols, LineProps
 
-COLUMN_NAME_WIDTH = 120
+COLUMN_NAME_WIDTH = 140
 COLUMN_EYE_WIDTH = 28
-LEGEND_WIDTH = 28
+LEGEND_WIDTH = 48  # '|FT(χ)|' fits into 48
 
 GROUP_BKGND = '#f4f0f0'
 BAD_BKGND = '#f46060'
@@ -100,6 +100,8 @@ class DataTreeModel(qt.QAbstractItemModel):
                 return self.rootItem.tooltip()
             elif section == 1:
                 return u"toggle visible: selected\u2194all"
+            else:
+                return "line properties"
 #        elif role == qt.Qt.FontRole:
 #            myFont = qt.QFont()
 ##            myFont.setBold(True)
@@ -264,13 +266,14 @@ class DataTreeModel(qt.QAbstractItemModel):
         return qt.Qt.MoveAction | qt.Qt.CopyAction
 
     def mimeTypes(self):
-        return ['parseq-model-items', 'text/uri-list']
+        return [cco.MIME_TYPE_DATA, cco.MIME_TYPE_TEXT, cco.MIME_TYPE_HDF5]
 
-    def mimeData(self, indices):
+    def mimeData(self, indexes):
+        indexes0 = [index for index in indexes if index.column() == 0]
         mimedata = qt.QMimeData()
-        items = self.getTopItems(indices)
+        items = self.getTopItems(indexes0)
         bstream = pickle.dumps([item.climb_rows() for item in items])
-        mimedata.setData('parseq-model-items', bstream)
+        mimedata.setData(cco.MIME_TYPE_DATA, bstream)
         return mimedata
 
 #    def canDropMimeData(self, data, action, row, column, parent):
@@ -279,13 +282,12 @@ class DataTreeModel(qt.QAbstractItemModel):
 #             data, action, row, column, parent)
 
     def dropMimeData(self, mimedata, action, row, column, parent):
-        mimeTypes = self.mimeTypes()
-        if mimedata.hasFormat(mimeTypes[0]):
+        if mimedata.hasFormat(cco.MIME_TYPE_DATA):
             toItem = parent.internalPointer()
             if toItem.parentItem is None:
                 return False
             newParentItem, newRow = toItem.parentItem, toItem.row()
-            rowss = pickle.loads(mimedata.data(mimeTypes[0]))
+            rowss = pickle.loads(mimedata.data(cco.MIME_TYPE_DATA))
             dropedItems = []
             for rows in rowss:
                 parentItem = self.rootItem
@@ -318,9 +320,13 @@ class DataTreeModel(qt.QAbstractItemModel):
             self.endResetModel()
             self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
             return True
-        elif mimedata.hasFormat(mimeTypes[1]):
+        elif mimedata.hasFormat(cco.MIME_TYPE_TEXT) or \
+                mimedata.hasFormat(cco.MIME_TYPE_HDF5):
             toItem = parent.internalPointer()
-            urls = [url.toLocalFile() for url in reversed(mimedata.urls())]
+            if mimedata.hasFormat(cco.MIME_TYPE_TEXT):
+                urls = [url.toLocalFile() for url in reversed(mimedata.urls())]
+            else:
+                urls = pickle.loads(mimedata.data(cco.MIME_TYPE_HDF5))[::-1]
             if toItem.child_count() > 0:  # is a group
                 parentItem, insertAt = toItem, 0
             else:
@@ -374,10 +380,11 @@ class LineStyleDelegate(qt.QItemDelegate):
         painter.setRenderHint(qt.QPainter.Antialiasing)
 
         painter.setPen(qt.Qt.NoPen)
-        if (option.state & qt.QStyle.State_Selected and
+        if ((option.state & qt.QStyle.State_Selected or
+             option.state & qt.QStyle.State_MouseOver) and
                 bknd != qt.QColor(BAD_BKGND)):
             color = self.parent().palette().highlight().color()
-            color.setAlphaF(0.175)
+            color.setAlphaF(0.1)
             painter.setBrush(color)
             painter.drawRect(rect)
         else:
@@ -551,7 +558,7 @@ class DataTreeView(qt.QTreeView):
         self.setUniformRowHeights(True)
 
         self.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
-        self.selectionModel().selectionChanged.connect(self.selChanged)
+#        self.selectionModel().selectionChanged.connect(self.selChanged)
 
         self.setDragDropMode(qt.QAbstractItemView.DragDrop)
         self.isInnerDragNDropAllowed = False
@@ -606,7 +613,7 @@ class DataTreeView(qt.QTreeView):
             super(DataTreeView, self).dataChanged(topLeft, bottomRight)
         self.restoreExpand()
         csi.allLoadedItems[:] = []
-        csi.allLoadedItems.extend(self.model().rootItem.get_items())
+        csi.allLoadedItems.extend(csi.dataRootItem.get_items())
         self.needReplot.emit()
 
     def onCustomContextMenu(self, point):
@@ -682,11 +689,11 @@ class DataTreeView(qt.QTreeView):
         if (lineDialog.exec_()):
             pass
 
-    def selChanged(self):
-        if DEBUG > 0 and self.parent() is None:  # only for test purpose
-            selNames = ', '.join([i.alias for i in csi.selectedItems])
-            dataCount = len(csi.allLoadedItems)
-            self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
+#    def selChanged(self):
+#        if DEBUG > 0 and self.parent() is None:  # only for test purpose
+#            selNames = ', '.join([i.alias for i in csi.selectedItems])
+#            dataCount = len(csi.allLoadedItems)
+#            self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
 
     def dropEvent(self, event):
         csi.currentNodeToDrop = self.node

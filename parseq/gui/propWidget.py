@@ -160,7 +160,7 @@ class PropWidget(qt.QWidget):
         if props is None:
             props = [None] * len(csi.selectedItems)
         for prop, it in zip(props, csi.selectedItems):
-            if prop != txt:  # should update
+            if str(prop) != str(txt):  # should update
                 propDict = getattr(it, dataPropName)
                 propDict[kwProp] = txt
                 for whatT in kwProps:
@@ -183,7 +183,7 @@ class PropWidget(qt.QWidget):
         if props is None:
             props = [None] * len(csi.selectedItems)
         for prop, it in zip(props, csi.selectedItems):
-            if prop != txt:  # should update
+            if str(prop) != str(txt):  # should update
                 if kwProp is None:
                     setattr(it, dataPropName, txt)
                 else:

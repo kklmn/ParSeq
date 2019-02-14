@@ -2,22 +2,47 @@
 __author__ = "Konstantin Klementiev"
 __date__ = "01 Jan 2019"
 # !!! SEE CODERULES.TXT !!!
+import re
+from functools import partial
+import pickle
+import numpy as np
+import silx
+from distutils.version import LooseVersion, StrictVersion
+assert LooseVersion(silx.version) >= LooseVersion("0.9.0")
 from silx.gui import qt
 import silx.io as silx_io
 from silx.gui.hdf5.Hdf5TreeModel import Hdf5TreeModel
 from silx.gui.hdf5.NexusSortFilterProxyModel import NexusSortFilterProxyModel
 
-NODE_FS, NODE_HDF5, NODE_HDF5_HEAD = range(3)
+from ..core import commons as cco
 
 if True:
     ModelBase = qt.QFileSystemModel
 else:  # for test purpose
     ModelBase = qt.QAbstractItemModel
-
 useProxyModel = True  # only for decoration, sorting doesn't work so far
 
-HDF5_GROUP_PARENT_COLOR = '#22A7F0'
-HDF5_DATASET_PARENT_COLOR = '#22A7F0'
+NODE_FS, NODE_HDF5, NODE_HDF5_HEAD = range(3)
+LOAD_DATASET_ROLE = Hdf5TreeModel.USER_ROLE
+USE_HDF5_ARRAY_ROLE = Hdf5TreeModel.USER_ROLE + 1
+LOAD_CANNOT, LOAD_CAN, LOAD_NA = range(3)
+
+COLUMN_NAME_WIDTH = 240
+NODE_INDENTATION = 12
+
+COLOR_HDF5_HEAD = '#22A7F0'
+COLOR_FS_COLUMN_FILE = '#67C012'
+COLOR_LOAD_CAN = '#44C044'
+COLOR_LOAD_CANNOT = '#C04444'
+
+
+def is_text_file(file_name):
+    try:
+        with open(file_name, 'tr') as check_file:  # try open file in text mode
+            check_file.read()
+            return True
+    except:  # if fail then file is non-text (binary)
+        return False
 
 
 class MyHdf5TreeModel(Hdf5TreeModel):
@@ -27,14 +52,33 @@ class MyHdf5TreeModel(Hdf5TreeModel):
     def findIndex(self, hdf5Obj):
         return self.index(self.h5pyObjectRow(hdf5Obj.obj), 0)
 
+    def indexFromPath(self, parent, path):
+        if path.startswith('/'):
+            pathList = path[1:].split('/')
+        else:
+            pathList = path.split('/')
+        return self._indexFromPathList(parent, pathList)
+
+    def _indexFromPathList(self, parent, pathList):
+        for row in range(self.rowCount(parent)):
+            ind = self.index(row, 0, parent)
+            name = self.nodeFromIndex(ind).obj.name
+            if name.split('/')[-1] == pathList[0]:
+                if len(pathList) == 1:
+                    return ind
+                return self._indexFromPathList(ind, pathList[1:])
+        else:
+            return qt.QModelIndex()
+
 
 class FileSystemWithHdf5Model(ModelBase):
     resetRootPath = qt.pyqtSignal(qt.QModelIndex)
     requestSaveExpand = qt.pyqtSignal()
     requestRestoreExpand = qt.pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, transformNode=None, parent=None):
         super(FileSystemWithHdf5Model, self).__init__(parent)
+        self.transformNode = transformNode
         if ModelBase == qt.QFileSystemModel:
             self.fsModel = self
         elif ModelBase == qt.QAbstractItemModel:
@@ -74,6 +118,14 @@ class FileSystemWithHdf5Model(ModelBase):
             return super(FileSystemWithHdf5Model, self).headerData(
                 section, orientation, role)
         return self.fsModel.headerData(section, orientation, role)
+
+    def flags(self, index):
+        if not index.isValid():
+            return qt.Qt.NoItemFlags
+        res = super(FileSystemWithHdf5Model, self).flags(index) | \
+            qt.Qt.ItemIsEnabled | qt.Qt.ItemIsSelectable | \
+            qt.Qt.ItemIsDragEnabled
+        return res
 
     def _mapIndex(self, indexFrom, modelFrom, modelTo):
         if modelFrom is modelTo:
@@ -169,14 +221,168 @@ class FileSystemWithHdf5Model(ModelBase):
             return self.fsModel.hasChildren(self.mapToFS(parent))
         return self.rowCount(parent) > 0
 
+    def canLoadColDataset(self, indexFS):
+        return True
+
+    def canInterpretArrayFormula(self, colStr, treeObj):
+        keys = re.findall(r'\[(.*?)\]', colStr)
+        if len(keys) == 0:
+            keys = colStr,
+            colStr = 'd["{0}"]'.format(colStr)
+        else:
+            # remove outer quotes:
+            keys = [k[1:-1] if k.startswith(('"', "'")) else k for k in keys]
+        d = {}
+        if hasattr(treeObj, 'isGroupObj'):  # is Hdf5Item
+            for k in keys:
+                if not self.hasChildPath(treeObj, k):
+                    return False
+                d[k] = np.ones(2)
+        else:  # arrays from column file
+            for k in keys:
+                kl = k.lower()
+                if "col" in kl:
+                    kn = int(kl[kl.find('col')+3])
+                else:
+                    kn = int(k)
+                d[k] = treeObj[kn]
+                d[kn] = d[k]
+                locals()[k] = k
+        try:
+            eval(colStr)
+            return True
+        except:
+            return False
+
+    def hasChildPath(self, node, path):
+        nodeNames = path.split('/')
+        for ichild in range(node.childCount()):
+            child = node.child(ichild)
+            if child.dataName(qt.Qt.DisplayRole) == nodeNames[0]:
+                if len(nodeNames) > 1:
+                    return self.hasChildPath(child, '/'.join(nodeNames[1:]))
+                else:
+                    return True
+        return False
+
+    def stateLoadColDataset(self, indexFS):
+        cf = self.transformNode.nodeWidget.columnFormat
+        df = cf.getDataFormat()
+        if not df:
+            return LOAD_CANNOT
+        fileInfo = self.fsModel.fileInfo(indexFS)
+        fname = fileInfo.filePath()
+        try:
+            cco.get_header(fname, df)
+            df['skip_header'] = df.pop('skiprows', 0)
+            df.pop('dataSource', None)
+            with np.warnings.catch_warnings():
+                np.warnings.simplefilter("ignore")
+                arrs = np.genfromtxt(fname, unpack=True, max_rows=2, **df)
+            if len(arrs) == 0:
+                return LOAD_CANNOT
+
+            txt = cf.dataXEdit.text()
+            if len(txt) == 0:
+                return LOAD_CANNOT
+            if not self.canInterpretArrayFormula(txt, arrs):
+                return LOAD_CANNOT
+            for yEdit in cf.dataYEdits:
+                txt = yEdit.text()
+                if len(txt) == 0:
+                    return LOAD_CANNOT
+                if not self.canInterpretArrayFormula(txt, arrs):
+                    return LOAD_CANNOT
+            return LOAD_CAN
+        except:
+            return LOAD_CANNOT
+
+    def stateLoadHDF5Dataset(self, indexH5):
+        nodeH5 = self.h5Model.nodeFromIndex(indexH5)
+        if not nodeH5.isGroupObj():
+            return LOAD_NA
+        cf = self.transformNode.nodeWidget.columnFormat
+
+        txt = cf.dataXEdit.text()
+        if len(txt) == 0:
+            return LOAD_CANNOT
+        if not self.canInterpretArrayFormula(txt, nodeH5):
+            return LOAD_CANNOT
+
+        for yEdit in cf.dataYEdits:
+            txt = yEdit.text()
+            if len(txt) == 0:
+                return LOAD_CANNOT
+            if not self.canInterpretArrayFormula(txt, nodeH5):
+                return LOAD_CANNOT
+        return LOAD_CAN
+
+    def stateLoadDataset(self, index):
+        nodeType = self.nodeType(index)
+        if nodeType == NODE_FS:
+            indexFS = self.mapToFS(index)
+            fileInfo = self.fsModel.fileInfo(indexFS)
+            if not is_text_file(fileInfo.filePath()):
+                return LOAD_NA
+            return self.stateLoadColDataset(indexFS)
+        if nodeType == NODE_HDF5_HEAD:
+            indexFS = self.mapToFS(index)
+            indexH5 = self.mapFStoH5(indexFS)
+        elif nodeType == NODE_HDF5:
+            indexH5 = self.mapToH5(index)
+        return self.stateLoadHDF5Dataset(indexH5)
+
+    def getHDF5ArrayPath(self, index):
+        nodeType = self.nodeType(index)
+        if nodeType not in (NODE_HDF5_HEAD, NODE_HDF5):
+            return
+        if nodeType == NODE_HDF5_HEAD:
+            indexFS = self.mapToFS(index)
+            indexH5 = self.mapFStoH5(indexFS)
+        elif nodeType == NODE_HDF5:
+            indexH5 = self.mapToH5(index)
+
+        class_ = self.h5Model.nodeFromIndex(indexH5).h5Class
+        if class_ == silx_io.utils.H5Type.DATASET:
+            obj = self.h5Model.nodeFromIndex(indexH5).obj
+            try:
+                if (len(obj.shape) == 1) and (obj.shape[0] > 1):
+                    return obj.name
+            except:
+                pass
+        return
+
+    def getHDF5FullPath(self, index):
+        nodeType = self.nodeType(index)
+        if nodeType not in (NODE_HDF5_HEAD, NODE_HDF5):
+            return
+        if nodeType == NODE_HDF5_HEAD:
+            indexFS = self.mapToFS(index)
+            indexH5 = self.mapFStoH5(indexFS)
+        elif nodeType == NODE_HDF5:
+            indexH5 = self.mapToH5(index)
+
+        return 'silx:' + '::'.join(
+            (self.h5Model.nodeFromIndex(indexH5).obj.file.filename,
+             self.h5Model.nodeFromIndex(indexH5).obj.name))
+
     def data(self, index, role=qt.Qt.DisplayRole):
         if not index.isValid():
             return None
         nodeType = self.nodeType(index)
+        if role == LOAD_DATASET_ROLE:
+            return self.stateLoadDataset(index)
+        if role == USE_HDF5_ARRAY_ROLE:
+            return self.getHDF5ArrayPath(index)
         if nodeType == NODE_FS:
+            indexFS = self.mapToFS(index)
+            if role == qt.Qt.ForegroundRole:
+                fileInfo = self.fsModel.fileInfo(indexFS)
+                if is_text_file(fileInfo.filePath()):
+                    return qt.QColor(COLOR_FS_COLUMN_FILE)
             if self.fsModel is self:
                 return super(FileSystemWithHdf5Model, self).data(index, role)
-            return self.fsModel.data(self.mapToFS(index), role)
+            return self.fsModel.data(indexFS, role)
         elif nodeType == NODE_HDF5:
             indexH5 = self.mapToH5(index)
             if useProxyModel:
@@ -185,21 +391,22 @@ class FileSystemWithHdf5Model(ModelBase):
             else:
                 return self.h5Model.data(indexH5, role)
         elif nodeType == NODE_HDF5_HEAD:
-            fileInfo = self.fsModel.fileInfo(self.mapToFS(index))
-            buddy = self.hdf5buddies[fileInfo.filePath()]
+            indexFS = self.mapToFS(index)
+            fileInfo = self.fsModel.fileInfo(indexFS)
+#            buddy = self.hdf5buddies[fileInfo.filePath()]
             if role == qt.Qt.ToolTipRole:
-                return buddy['tooltip']
+                indexH5 = self.mapFStoH5(indexFS)
+                return self.h5Model.data(indexH5, role)
             elif role == qt.Qt.ForegroundRole:
-                return buddy['color']
+                return qt.QColor(COLOR_HDF5_HEAD)
             elif role == qt.Qt.DecorationRole:
                 if useProxyModel and \
                         index.column() == self.h5Model.NAME_COLUMN:
-                    indexH5 = self.mapFStoH5(self.mapToFS(index))
                     ic = super(FileSystemWithHdf5Model, self).data(index, role)
                     return self.h5ProxyModel.getNxIcon(ic)
             if self.fsModel is self:
                 return super(FileSystemWithHdf5Model, self).data(index, role)
-            return self.fsModel.data(self.mapToFS(index), role)
+            return self.fsModel.data(indexFS, role)
         else:
             return
 
@@ -227,7 +434,7 @@ class FileSystemWithHdf5Model(ModelBase):
             return qt.QModelIndex()
         parentType = self.nodeType(parent)
         if parentType in (NODE_HDF5, NODE_HDF5_HEAD):
-            if False:  # useProxyModel:
+            if False:  # useProxyModel: !!! doesn't help in sorting !!!
                 if parentType == NODE_HDF5:
                     parentProxyH5 = self.h5ProxyModel.mapFromSource(
                         self.mapToH5(parent))
@@ -262,38 +469,15 @@ class FileSystemWithHdf5Model(ModelBase):
                 with silx_io.open(fileInfo.filePath()) as h5f:
                     if not silx_io.is_file(h5f):
                         raise IOError()
-                    gs = [silx_io.is_group(it) for it in h5f.values()]
-                    groupsN = gs.count(True)
-                    out = ''
-                    if groupsN > 0:
-                        out = '{0} group{1}'.format(
-                            groupsN, 's' if groupsN > 1 else '')
-                    else:
-                        ds = [silx_io.is_dataset(it) for it in
-                              h5f.values()]
-                        datasN = ds.count(True)
-                        if datasN > 0:
-                            out = '{0} dataset{1}'.format(
-                                datasN, 's' if datasN > 1 else '')
-                    color = 'black'
-                    if groupsN > 0:
-                        color = HDF5_GROUP_PARENT_COLOR
-                    elif datasN > 0:
-                        color = HDF5_DATASET_PARENT_COLOR
-
                     self.beginInsertRows(parent, row, row)
                     self.h5Model.appendFile(fileInfo.filePath())
                     self.endInsertRows()
-
 #                    hdf5Obj = self.h5Model.index(-1,0).internalPointer()
                     root = self.h5Model.nodeFromIndex(qt.QModelIndex())
                     hdf5Obj = root.child(-1)
-                    buddy = dict(
-                        tooltip=out, color=qt.QColor(color), hdf5Obj=hdf5Obj,
-                        FilePath=fileInfo.filePath())
+                    buddy = dict(hdf5Obj=hdf5Obj, FilePath=fileInfo.filePath())
                     self.hdf5buddies[fileInfo.filePath()] = buddy
                     hdf5Obj.headInfo = buddy
-#                    print(fileInfo.filePath())
                     if index.internalId() not in self.nodesHeads:
                         self.nodesHeads.append(index.internalId())
                     self.layoutChanged.emit()
@@ -309,11 +493,95 @@ class FileSystemWithHdf5Model(ModelBase):
         else:
             return self.fsModel.index(fName)
 
+    def indexFromH5Path(self, path):
+        fNameStart = path.find("silx:")
+        if fNameStart < 0:
+            return qt.QModelIndex()
+        fNameEnd = path.find("::/")
+        if fNameEnd < 0:
+            return qt.QModelIndex()
+        fnameH5 = path[fNameStart+5:fNameEnd]
+        fnameH5sub = path[fNameEnd+3:]
+
+        headIndexFS = self.indexFileName(fnameH5)
+        headIndexH5 = self.mapFStoH5(headIndexFS)
+        indexH5 = self.h5Model.indexFromPath(headIndexH5, fnameH5sub)
+        return self.mapFromH5(indexH5)
+
+    def mimeData(self, indexes):
+        indexes0 = [index for index in indexes if index.column() == 0]
+        nodeTypes = [self.nodeType(index) for index in indexes0]
+        if nodeTypes.count(nodeTypes[0]) != len(nodeTypes):  # not all equal
+            return 0
+        if nodeTypes[0] in (NODE_HDF5_HEAD, NODE_FS):
+            indexesFS = [self.mapToFS(index) for index in indexes0]
+            if ModelBase == qt.QFileSystemModel:
+                return super(FileSystemWithHdf5Model, self).mimeData(indexesFS)
+            else:
+                return self.fsModel.mimeData(indexesFS)
+        elif nodeTypes[0] == NODE_HDF5:
+            paths = []
+            for index in indexes0:
+                indexH5 = self.mapToH5(index)
+                if self.stateLoadHDF5Dataset(indexH5) != LOAD_CAN:
+                    return 0
+                try:
+                    path = 'silx:' + '::'.join(
+                        (self.h5Model.nodeFromIndex(indexH5).obj.file.filename,
+                         self.h5Model.nodeFromIndex(indexH5).obj.name))
+                    paths.append(path)
+                except:
+                    return 0
+            mimedata = qt.QMimeData()
+            mimedata.setData(cco.MIME_TYPE_HDF5, pickle.dumps(paths))
+            return mimedata
+
+
+class SelectionDelegate(qt.QItemDelegate):
+    def __init__(self, parent=None):
+        qt.QItemDelegate.__init__(self, parent)
+        self.pen2Width = 3
+
+    def paint(self, painter, option, index):
+        loadState = index.data(LOAD_DATASET_ROLE)
+        if option.state & qt.QStyle.State_MouseOver:
+            color = self.parent().palette().highlight().color()
+            if loadState == LOAD_CAN:
+                color = qt.QColor(COLOR_LOAD_CAN)
+            elif loadState == LOAD_CANNOT:
+                color = qt.QColor(COLOR_LOAD_CANNOT)
+            color.setAlphaF(0.2)
+            painter.fillRect(option.rect, color)
+
+        painter.save()
+        color = None
+        active = (option.state & qt.QStyle.State_Selected or
+                  option.state & qt.QStyle.State_MouseOver)
+        if active:
+            if loadState == LOAD_CAN:
+                color = qt.QColor(COLOR_LOAD_CAN)
+            elif loadState == LOAD_CANNOT:
+                color = qt.QColor(COLOR_LOAD_CANNOT)
+        if color is not None:
+            color.setAlphaF(0.2)
+            option.palette.setColor(qt.QPalette.Highlight, color)
+        super(SelectionDelegate, self).paint(painter, option, index)
+        path = index.data(USE_HDF5_ARRAY_ROLE)
+        if path is not None and active:
+            pen = qt.QPen(qt.QColor(COLOR_LOAD_CAN))
+            pen.setWidth(self.pen2Width)
+            painter.setPen(pen)
+            painter.drawRect(option.rect.x() + self.pen2Width//2,
+                             option.rect.y() + self.pen2Width//2,
+                             option.rect.width() - self.pen2Width,
+                             option.rect.height() - self.pen2Width)
+        painter.restore()
+
 
 class FileTreeView(qt.QTreeView):
-    def __init__(self, parent=None, roothPath=None):
+    def __init__(self, transformNode=None, parent=None, roothPath=None):
         super(FileTreeView, self).__init__(parent)
-        model = FileSystemWithHdf5Model(self)
+        model = FileSystemWithHdf5Model(transformNode, self)
 #        model = qt.QFileSystemModel(self)  # for test purpose
         self.setModel(model)
         if isinstance(model, FileSystemWithHdf5Model):
@@ -322,9 +590,30 @@ class FileTreeView(qt.QTreeView):
             model.requestRestoreExpand.connect(self.restoreExpand)
         else:
             model.indexFileName = model.index
-        if roothPath is not None:
-            rootIndex = model.setRootPath(roothPath)
-            self.setRootIndex(rootIndex)
+        self.transformNode = transformNode
+        if transformNode is not None:
+            self.setItemDelegateForColumn(0, SelectionDelegate(self))
+            self.parent().setMouseTracking(True)
+
+        if roothPath is None:
+            roothPath = ''
+        rootIndex = model.setRootPath(roothPath)
+        self.setRootIndex(rootIndex)
+
+        self.setMinimumSize(qt.QSize(COLUMN_NAME_WIDTH, 250))
+        self.setColumnWidth(0, COLUMN_NAME_WIDTH)
+        self.setIndentation(NODE_INDENTATION)
+        self.setSortingEnabled(True)
+        self.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
+
+        self.setDragDropMode(qt.QAbstractItemView.DragOnly)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(False)
+        self.setDropIndicatorShown(True)
+
+        self.setContextMenuPolicy(qt.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.onCustomContextMenu)
+        self.selectionModel().selectionChanged.connect(self.selChanged)
 
     def _resetRootPath(self, rtIndex):
         self.setRootIndex(rtIndex)
@@ -343,9 +632,120 @@ class FileTreeView(qt.QTreeView):
         if parent == qt.QModelIndex():
             if len(self._expandedNodes) == 0:
                 return
-        for row in range(self.model().rowCount(parent)):
-            ind = self.model().index(row, 0, parent)
-            if self.model().rowCount(ind) > 0:
-                if ind.data() in self._expandedNodes:
-                    self.setExpanded(ind, True)
-                self.restoreExpand(ind)
+        try:
+            for row in range(self.model().rowCount(parent)):
+                ind = self.model().index(row, 0, parent)
+                if self.model().rowCount(ind) > 0:
+                    if ind.data() in self._expandedNodes:
+                        self.setExpanded(ind, True)
+                    self.restoreExpand(ind)
+        except:
+            pass
+
+    def selChanged(self, selected, deselected):
+        # self.updateForSelectedFiles(selected.indexes()) #  × num of columns
+        selectedIndexes = self.selectionModel().selectedRows()
+        self.updateForSelectedFiles(selectedIndexes)
+
+    def updateForSelectedFiles(self, indexes):
+        if self.transformNode is None:
+            return
+        cf = self.transformNode.nodeWidget.columnFormat
+        for index in indexes:
+            nodeType = self.model().nodeType(index)
+            if nodeType == NODE_FS:
+                indexFS = self.model().mapToFS(index)
+                fileInfo = self.model().fsModel.fileInfo(indexFS)
+                if is_text_file(fileInfo.filePath()):
+                    cf.setHeaderEnabled(True)
+                else:
+                    cf.setHeaderEnabled(False)
+                    return
+            else:
+                cf.setHeaderEnabled(False)
+                return
+
+    def onCustomContextMenu(self, point):
+        selectedIndexes = self.selectionModel().selectedRows()
+        lenSelectedIndexes = len(selectedIndexes)
+        if lenSelectedIndexes == 0:
+            return
+        menu = qt.QMenu()
+
+        if lenSelectedIndexes >= 1:
+            paths = []
+            for index in selectedIndexes:
+                path = index.data(USE_HDF5_ARRAY_ROLE)
+                if path is not None:
+                    paths.append(path)
+                else:
+                    paths = []
+                    break
+
+            if len(paths) == 1:
+                strSum = ''
+            else:
+                strSum = 'the sum '
+
+            if len(paths) > 0:
+                try:
+                    xLbl = self.transformNode.xQLabel
+                except AttributeError:
+                    xLbl = self.transformNode.xName
+                menu.addAction("Set {0}as {1} array".format(strSum, xLbl),
+                               partial(self.setAsArray, 0, paths))
+
+                try:
+                    yLbls = self.transformNode.yQLabels
+                except AttributeError:
+                    yLbls = self.transformNode.yNames
+                for iLbl, yLbl in enumerate(yLbls):
+                    menu.addAction("Set {0}as {1} array".format(strSum, yLbl),
+                                   partial(self.setAsArray, iLbl+1, paths))
+                menu.addSeparator()
+
+        isEnabled = False
+        for index in selectedIndexes:
+            if not index.data(LOAD_DATASET_ROLE) == LOAD_CAN:
+                break
+        else:
+            isEnabled = True
+
+        action = menu.addAction("Load data",
+                                self.transformNode.nodeWidget.loadFiles)
+        action.setEnabled(isEnabled)
+        if lenSelectedIndexes > 1:
+            actionN = menu.addAction(
+                "Concatenate {0} datasets and load as one".format(
+                    lenSelectedIndexes))
+            actionN.setEnabled(isEnabled)
+
+        menu.exec_(
+            self.transformNode.nodeWidget.files.viewport().mapToGlobal(point))
+
+    def setAsArray(self, iArray, paths):
+        subpaths = []
+        for path in paths:
+            slashC = path.count('/')
+            if slashC == 1:
+                subpath = path[1:]  # without leading "/"
+            elif slashC > 1:
+                pos2 = path.find('/', path.find('/')+1)  # 2nd occurrence
+                subpath = path[pos2+1:]  # without leading "/"
+            else:
+                return
+            subpaths.append(subpath)
+
+        cf = self.transformNode.nodeWidget.columnFormat
+        if iArray == 0:
+            edit = cf.dataXEdit
+        else:
+            edit = cf.dataYEdits[iArray-1]
+
+        if len(subpaths) == 1:
+            txt = subpaths[0]
+        elif len(subpaths) > 1:
+            txt = ' + '.join(['d["{0}"]'.format(sp) for sp in subpaths])
+        else:
+            return
+        edit.setText(txt)

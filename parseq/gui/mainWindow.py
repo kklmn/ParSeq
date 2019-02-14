@@ -14,6 +14,8 @@ from parseq.gui.nodeWidget import NodeWidget
 from parseq.core import singletons as csi
 from parseq.core import undoredo as cun
 
+mainWindowWidth, mainWindowHeight = 1600, 768
+
 
 class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
     def closeEvent(self, evt):
@@ -43,6 +45,10 @@ class MainWindowParSeq(qt.QMainWindow):
         self.statusBarRight = qt.QLabel("")
         self.statusBar.addWidget(self.statusBarLeft)
         self.statusBar.addPermanentWidget(self.statusBarRight)
+
+        self.setMinimumSize(qt.QSize(mainWindowWidth, mainWindowHeight))
+        self.move(qt.QApplication.desktop().screen().rect().center() -
+                  self.rect().center())
 
     def initToolbar(self):
         saveAction = qt.QAction(

@@ -13,7 +13,8 @@ from silx.gui.plot import Plot1D
 
 from ..core import singletons as csi
 from ..core import commons as cco
-from ..gui.fileTreeModelView import FileTreeView
+from ..core import spectra as csp
+from ..gui.fileTreeModelView import FileTreeView, NODE_FS
 from ..gui.dataTreeModelView import DataTreeView
 from ..gui.webWidget import QWebView
 from ..gui.columnFormatWidget import ColumnFormatWidget
@@ -142,18 +143,8 @@ class NodeWidget(qt.QWidget):
         qWidget = qt.QWidget(self.splitterFiles)
         layout = qt.QVBoxLayout(self.splitterFiles)
         layout.setContentsMargins(2, 0, 0, 0)
-        self.files = FileTreeView(self)
-        self.files.setStyleSheet("QTreeView {border: none;}")
-        self.files.header().resizeSection(0, 400)
-        self.files.setColumnWidth(0, 180)
-        self.files.setIndentation(10)
-        self.files.setSortingEnabled(True)
-        self.files.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
-        self.files.model().setRootPath('')
+        self.files = FileTreeView(self.node, self.splitterFiles)
 #        self.files.doubleClicked.connect(self.loadFiles)
-        self.files.setContextMenuPolicy(qt.Qt.CustomContextMenu)
-        self.files.customContextMenuRequested.connect(
-            self.onFilesCustomContextMenu)
 
         self.filesAutoAddCB = qt.QCheckBox("auto append fresh file TODO", self)
         layout.addWidget(self.files)
@@ -162,19 +153,18 @@ class NodeWidget(qt.QWidget):
 
         self.columnFormat = ColumnFormatWidget(self.splitterFiles, self.node)
 
-        self.splitterFiles.setStretchFactor(0, 1)
+        self.splitterFiles.setStretchFactor(0, 1)  # don't remove
         self.splitterFiles.setStretchFactor(1, 0)
 
     def fillSplitterData(self):
         self.tree = DataTreeView(self.node, self.splitterData)
-        self.tree.setStyleSheet("QTreeView {border: none;}")
         self.tree.needReplot.connect(self.replot)
-        if DEBUG > 0 and self.mainWindow is None:  # only for test purpose
-            self.tree.selectionModel().selectionChanged.connect(
-                self.selChanged)
+#        if DEBUG > 0 and self.mainWindow is None:  # only for test purpose
+#            self.tree.selectionModel().selectionChanged.connect(
+#                self.selChanged)
         self.combiner = CombineSpectraWidget(self.splitterData, self.node)
 
-        self.splitterData.setStretchFactor(0, 1)
+        self.splitterData.setStretchFactor(0, 1)  # don't remove
         self.splitterData.setStretchFactor(1, 0)
 
     def fillSplitterPlot(self):
@@ -211,7 +201,7 @@ class NodeWidget(qt.QWidget):
             qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
 
         self.splitterPlot.setCollapsible(0, False)
-        self.splitterPlot.setStretchFactor(0, 1)
+        self.splitterPlot.setStretchFactor(0, 1)  # don't remove
         self.splitterPlot.setStretchFactor(1, 0)
         self.splitterPlot.setSizes([1, 1])
 
@@ -222,7 +212,7 @@ class NodeWidget(qt.QWidget):
         self.help.setMinimumSize(qt.QSize(200, 200))
 
         self.splitterTransform.setCollapsible(0, False)
-        self.splitterTransform.setStretchFactor(0, 0)
+        self.splitterTransform.setStretchFactor(0, 0)  # don't remove
         self.splitterTransform.setStretchFactor(1, 1)
 
     def makeTransformWidget(self, parent):
@@ -308,9 +298,6 @@ class NodeWidget(qt.QWidget):
 
     def handleSplitterButton(self, orientation, indSizes):
         button = self.sender()
-#        if button is self.splitterButtons['columns']:
-#            if not self.shouldShowColumnDialog():
-#                return
         splitter = button.parent().splitter()
         sizes = splitter.sizes()
         if sizes[indSizes]:
@@ -431,17 +418,20 @@ class NodeWidget(qt.QWidget):
             axisLabel += u" ({0})".format(yUnit0)
         return axisLabel
 
-    def selChanged(self):
-        selNames = ', '.join([it.alias for it in csi.selectedItems])
-        dataCount = len(csi.allLoadedItems)
-        self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
-        self.updateNodeForSelectedItems()
+#    def selChanged(self):
+#        selNames = ', '.join([it.alias for it in csi.selectedItems])
+#        dataCount = len(csi.allLoadedItems)
+#        self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
+#        self.updateNodeForSelectedItems()
 
     def updateNodeForSelectedItems(self):
         self.updateSplittersForSelectedItems()
-        fname = self.shouldUpdateFileModel()
-        if fname:
-            ind = self.files.model().indexFileName(fname)
+        fobj = self.shouldUpdateFileModel()
+        if fobj:
+            if fobj[1] == csp.DATA_COLUMN_FILE:
+                ind = self.files.model().indexFileName(fobj[0])
+            else:  # fobj[1] == csp.DATA_DATASET:
+                ind = self.files.model().indexFromH5Path(fobj[0])
             self.files.setCurrentIndex(ind)
             self.files.scrollTo(ind)
         self.updateMeta()
@@ -452,16 +442,10 @@ class NodeWidget(qt.QWidget):
 
     def shouldUpdateFileModel(self):
         for it in csi.selectedItems:
-            if 'file' in it.dataType and it.originNode is self.node:
-                return it.madeOf
-        return False
-
-    def onFilesCustomContextMenu(self, point):
-        menu = qt.QMenu()
-#        if len(csi.selectedTopItems) == 0:
-#            return
-        menu.addAction("Load files", self.loadFiles, "Ctrl+O")
-        menu.exec_(self.files.viewport().mapToGlobal(point))
+            if it.dataType in (csp.DATA_COLUMN_FILE, csp.DATA_DATASET) and\
+                    it.originNode is self.node:
+                return it.madeOf, it.dataType
+        return
 
     def loadFiles(self, fileNamesFull=None, parentItem=None, insertAt=None):
         if isinstance(fileNamesFull, qt.QModelIndex):
@@ -471,7 +455,14 @@ class NodeWidget(qt.QWidget):
             fileNamesFull = None
         if fileNamesFull is None:
             sIndexes = self.files.selectionModel().selectedRows()
-            fileNamesFull = [self.files.model().filePath(i) for i in sIndexes]
+            nodeType = self.files.model().nodeType(sIndexes[0])
+            if nodeType == NODE_FS:
+                fileNamesFull = \
+                    [self.files.model().filePath(i) for i in sIndexes]
+            else:  # FileTreeView.NODE_HDF5, FileTreeView.NODE_HDF5_HEAD
+                fileNamesFull = \
+                    [self.files.model().getHDF5FullPath(i) for i in sIndexes]
+
         fileNames = [os.path.normcase(i) for i in fileNamesFull]
         duplicates, duplicatesNorm = [], []
         for data in csi.allLoadedItems:
@@ -503,22 +494,23 @@ class NodeWidget(qt.QWidget):
         # here the column format is taken from the present state of
         # ColumnFormatWidget. Should be automatically detected from
         # file format
-        fd = self.columnFormat.getFormatDict()
-        if not fd:
+        df = self.columnFormat.getDataFormat()
+        if not df:
             return
         return csi.model.importData(
-            fileNamesFull, parentItem, insertAt, dataFormat=fd,
+            fileNamesFull, parentItem, insertAt, dataFormat=df,
             originNode=self.node)
 
     def shouldShowColumnDialog(self):
         for it in csi.selectedItems:
-            if it.dataType.startswith('column') and it.originNode is self.node:
+            if it.dataType in (csp.DATA_COLUMN_FILE, csp.DATA_DATASET) and\
+                    it.originNode is self.node:
                 return True
         return False
 
     def updateSplittersForSelectedItems(self):
         showColumnDialog = self.shouldShowColumnDialog()
-        self.splitterFiles.setSizes([1, 1, int(showColumnDialog)])
+        self.splitterFiles.setSizes([1, int(showColumnDialog)])
         self.setArrowType(
             self.splitterButtons['columns'],
             qt.Qt.DownArrow if showColumnDialog else qt.Qt.UpArrow)

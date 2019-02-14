@@ -6,7 +6,7 @@ __date__ = "17 Nov 2018"
 from silx.gui import qt
 
 from ..core import singletons as csi
-from ..core import spectra as csp
+from ..core import commons as cco
 from .propWidget import QLineEditSelectRB, PropWidget
 
 
@@ -19,20 +19,24 @@ class ColumnFormatWidget(PropWidget):
         headerTab = self.makeHeaderTab()
         self.tabWidget.addTab(headerTab, 'file header')
         dataLocationTab = self.makeDataLocationTab()
-        self.tabWidget.addTab(dataLocationTab, 'data location')
-
+        ind = self.tabWidget.addTab(dataLocationTab, 'data location')
+        self.tabWidget.setTabToolTip(
+            ind, "Use context menu on one or more HDF5/SPEC datasets.\n"
+            "For column files use functions of ColN variables.")
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.tabWidget)
         layout.addStretch()
         self.setLayout(layout)
 
+        self.tabWidget.setCurrentIndex(1)
+
     def makeHeaderTab(self):
         self.headerNRB = qt.QRadioButton("has")
         self.headerNEdit = QLineEditSelectRB(rb=self.headerNRB)
         self.headerNEdit.setFixedWidth(28)
         self.headerNEdit.setValidator(
-            qt.QIntValidator(0, csp.MAX_HEADER_LINES, self))
+            qt.QIntValidator(0, cco.MAX_HEADER_LINES, self))
         self.headerNLabel2 = qt.QLabel("lines")
 
         self.headerSRB = qt.QRadioButton("has lines beginning with")
@@ -93,6 +97,8 @@ class ColumnFormatWidget(PropWidget):
         self.dataXLabel = qt.QLabel(u"{0}{1} =".format(xLbl, xUnt))
         self.dataXEdit = qt.QLineEdit()
         self.dataXEdit.setMinimumWidth(62)
+        self.dataXEdit.textChanged.connect(self.changeTooltip)
+
         self.dataXLabelTimes = qt.QLabel(u"×")
         self.dataXEditTimes = qt.QLineEdit()
         self.dataXEditTimes.setFixedWidth(36)
@@ -113,6 +119,7 @@ class ColumnFormatWidget(PropWidget):
             dataYEdit = qt.QLineEdit()
             dataYEdit.setSizePolicy(
                 qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+            dataYEdit.textChanged.connect(self.changeTooltip)
             self.dataYLabels.append(dataYLabel)
             self.dataYEdits.append(dataYEdit)
 
@@ -141,12 +148,25 @@ class ColumnFormatWidget(PropWidget):
             qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
         return dataLocationTab
 
+    def changeTooltip(self, txt):
+        fm = qt.QFontMetrics(self.font())
+        edit = self.sender()
+        if (fm.width(txt) > edit.width()) and (edit.width() > 0):
+            edit.setToolTip(txt)
+        else:
+            edit.setToolTip('')
+
+    def setHeaderEnabled(self, enabled=True):
+        self.tabWidget.setTabEnabled(0, enabled)
+        if self.tabWidget.currentIndex() == 0:
+            self.tabWidget.setCurrentIndex(1)
+
     def setUIFromData(self):
         self.setRButtonGroupWithEditsFromData(
             self.radioButtons, self.edits, 'dataFormat', self.headerKW)
-        self.setEditFromData(self.dataXEdit, 'dataFormat', 'usecols', 0)
+        self.setEditFromData(self.dataXEdit, 'dataFormat', 'dataSource', 0)
         for iC, edit in enumerate(self.dataYEdits):
-            self.setEditFromData(edit, 'dataFormat', 'usecols', iC+1)
+            self.setEditFromData(edit, 'dataFormat', 'dataSource', iC+1)
         self.setEditFromData(self.dataXEditTimes, 'dataFormat', 'xFactor',
                              textFormat='strip0', skipDefault=1)
 
@@ -154,11 +174,9 @@ class ColumnFormatWidget(PropWidget):
         self.updateDataFromRButtonGroupWithEdits(
             self.radioButtons, self.edits, 'dataFormat', self.headerKW)
 
-        self.updateDataFromEdit(self.dataXEdit, 'dataFormat', 'usecols', 0,
-                                fieldType=int, textReplace=("Col", ""))
+        self.updateDataFromEdit(self.dataXEdit, 'dataFormat', 'dataSource', 0)
         for iC, edit in enumerate(self.dataYEdits):
-            self.updateDataFromEdit(edit, 'dataFormat', 'usecols', iC+1,
-                                    fieldType=int, textReplace=("Col", ""))
+            self.updateDataFromEdit(edit, 'dataFormat', 'dataSource', iC+1)
         self.updateDataFromEdit(self.dataXEditTimes, 'dataFormat', 'xFactor',
                                 fieldType=float)
         needReplot = False
@@ -172,7 +190,7 @@ class ColumnFormatWidget(PropWidget):
             for subnode in self.node.downstreamNodes:
                 subnode.widget.replot()
 
-    def getFormatDict(self):
+    def getDataFormat(self):
         res = {}
         try:
             for rb, ed, kw in zip(
@@ -183,10 +201,10 @@ class ColumnFormatWidget(PropWidget):
                         txt = int(txt)
                     res[kw] = txt
 
-            cols = [int(self.dataXEdit.text().replace("Col", ""))]
+            cols = [self.dataXEdit.text()]
             for edit in self.dataYEdits:
-                cols.append(int(edit.text().replace("Col", "")))
-            res['usecols'] = cols
+                cols.append(edit.text())
+            res['dataSource'] = cols
 
             txt = self.dataXEditTimes.text()
             if txt:

@@ -4,13 +4,17 @@ __date__ = "17 Nov 2018"
 # !!! SEE CODERULES.TXT !!!
 
 import os
+import re
 import time
+import copy
 import numpy as np
+import silx.io as silx_io
 
 from . import singletons as csi
-from .commons import common_substring
+from . import commons as cco
 
-MAX_HEADER_LINES = 256
+DATA_COLUMN_FILE, DATA_DATASET, DATA_COMBINATION, DATA_FUNCTION, DATA_GROUP =\
+    range(5)
 COMBINE_NONE, COMBINE_AVE, COMBINE_SUM, COMBINE_PCA, COMBINE_RMS = range(5)
 combineName = '', 'ave', 'sum', 'PCA', 'RMS'
 
@@ -224,7 +228,7 @@ class Spectrum(TreeItem):
             return
 
         self.alias = kwargs.get('alias', 'auto')
-        self.dataFormat = dict(kwargs.get('dataFormat', {}))
+        self.dataFormat = copy.deepcopy(kwargs.get('dataFormat', {}))
         originNode = kwargs.get('originNode', None)
         if originNode is None:
             originNode = list(csi.nodes.values())[0]
@@ -249,7 +253,7 @@ class Spectrum(TreeItem):
             if csi.withGUI:
                 self.init_plot_props()
         else:  # i.e. is a group
-            self.dataType = 'group'
+            self.dataType = DATA_GROUP
             if self.alias == 'auto':
                 self.alias = madeOf
 
@@ -262,31 +266,29 @@ class Spectrum(TreeItem):
 
     def read_data(self, shouldLoadNow=True, runDownstream=True):
         if callable(self.madeOf):
-            self.dataType = 'function'
+            self.dataType = DATA_FUNCTION
             if shouldLoadNow:
                 self.create_data()
             if self.alias == 'auto':
                 self.alias = "generated_{0}".format(self.madeOf.__name__)
         elif isinstance(self.madeOf, (list, tuple)):
-            self.dataType = 'combination'
+            self.dataType = DATA_COMBINATION
             if shouldLoadNow:
                 self.calc_combined()
             if self.alias == 'auto':
                 cs = self.madeOf[0].alias
                 for data in self.madeOf[1:]:
-                    cs = common_substring(cs, data.alias)
+                    cs = cco.common_substring(cs, data.alias)
                 what = self.dataFormat['combine']
                 lenC = len(self.madeOf)
                 self.alias = "{0}_{1}{2}".format(cs, combineName[what], lenC)
         else:
-            if self.madeOf.endswith(('.hdf5', '.h5', '.nxs')):
-                self.dataType = 'hdf5 file'
-                if shouldLoadNow:
-                    self.read_hdf5_file()
+            if self.madeOf.startswith('silx:'):
+                self.dataType = DATA_DATASET
             else:
-                self.dataType = 'column file'
-                if shouldLoadNow:
-                    self.read_column_file()
+                self.dataType = DATA_COLUMN_FILE
+            if shouldLoadNow:
+                self.read_file()
 
             basename = os.path.basename(self.madeOf)
             if self.alias == 'auto':
@@ -325,74 +327,119 @@ class Spectrum(TreeItem):
     def insert_item(self, name, insertAt=None, **kwargs):
         return Spectrum(name, self, insertAt, **kwargs)
 
-    def read_hdf5_file(self):
-        raise
-
-    def read_column_file(self):
+    def read_file(self):
         madeOf = self.madeOf
         toNode = self.originNode
-        readkwargs = dict(self.dataFormat)
+        df = dict(self.dataFormat)
 
-        # define header
-        skipUntil = readkwargs.pop('lastSkipRowContains', '')
-        headerLen = -1
-        if 'skiprows' not in readkwargs:
-            if skipUntil:
-                with open(madeOf, 'r') as f:
-                    for il, line in enumerate(f):
-                        if skipUntil in line:
-                            headerLen = il
-                        if il == MAX_HEADER_LINES:
-                            break
-                if headerLen >= 0:
-                    readkwargs['skiprows'] = headerLen + 1
+        if self.dataType == DATA_COLUMN_FILE:
+            header = cco.get_header(madeOf, df)
+        elif self.dataType == DATA_DATASET:
+            header = []
+            try:
+                header.append(silx_io.get_data(madeOf + "/title"))
+            except ValueError:
+                pass
+            try:
+                header.append(silx_io.get_data(madeOf + "/start_time"))
+                header.append(silx_io.get_data(madeOf + "/end_time"))
+            except ValueError:
+                pass
         else:
-            headerLen = readkwargs['skiprows']
-        header = []
-        with open(madeOf, 'r') as f:
-            for il, line in enumerate(f):
-                if il == MAX_HEADER_LINES:
-                    break
-                if ((headerLen >= 0) and (il <= headerLen)) or \
-                        line.startswith('#'):
-                    header.append(line)
+            raise TypeError('wrong datafile type')
+        xF = df.pop('xFactor') if 'xFactor' in df else None
 
-        xF = readkwargs.pop('xFactor') if 'xFactor' in readkwargs else None
-
-        # read data
         try:
-            arr = np.loadtxt(madeOf, unpack=True, **readkwargs)
+            df['skip_header'] = df.pop('skiprows', 0)
+            dataSource = df.pop('dataSource', None)
+            if dataSource is None:
+                raise ValueError('bad dataSource settings')
+            if self.dataType == DATA_COLUMN_FILE:
+                with np.warnings.catch_warnings():
+                    np.warnings.simplefilter("ignore")
+                    arrs = np.genfromtxt(madeOf, unpack=True, **df)
+                if len(arrs) == 0:
+                    raise ValueError('bad data file')
+
+            txt = dataSource[0]
+            if self.dataType == DATA_COLUMN_FILE:
+                if isinstance(txt, int):
+                    arr = arrs[txt]
+                else:
+                    arr = self.interpretArrayFormula(txt, arrs)
+            else:
+                arr = self.interpretArrayFormula(txt)
+            if arr is None:
+                raise ValueError('bad dataSource settings')
+            if hasattr(toNode, 'xNameRaw'):
+                setattr(self, toNode.xNameRaw, arr)
+            else:
+                setattr(self, toNode.xName, arr)
+            if xF is not None:
+                x = getattr(self, toNode.xName)
+                x *= xF
+
+            if hasattr(toNode, 'yNamesRaw'):
+                yNames = toNode.yNamesRaw
+            else:
+                yNames = toNode.yNames
+            for iy, yName in enumerate(yNames):
+                txt = dataSource[iy+1]
+                if self.dataType == DATA_COLUMN_FILE:
+                    if isinstance(txt, int):
+                        arr = arrs[txt]
+                    else:
+                        arr = self.interpretArrayFormula(txt, arrs)
+                else:
+                    arr = self.interpretArrayFormula(txt)
+                try:
+                    setattr(self, yName, arr)
+                except:
+                    setattr(self, yName, None)
+
             self.isGood[toNode.name] = True
         except:
             self.isGood[toNode.name] = False
             csi.model.invalidateData()
             return
 
-        if hasattr(toNode, 'xNameRaw'):
-            setattr(self, toNode.xNameRaw, arr[0])
-        else:
-            setattr(self, toNode.xName, arr[0])
-        if xF is not None:
-            x = getattr(self, toNode.xName)
-            x *= xF
-
-        if hasattr(toNode, 'yNamesRaw'):
-            yNames = toNode.yNamesRaw
-        else:
-            yNames = toNode.yNames
-        for iy, yName in enumerate(yNames):
-            try:
-                setattr(self, yName, arr[iy+1])
-            except IndexError:
-                setattr(self, yName, None)
-
         # define metadata
-        self.meta['text'] = ''.join(header)
-#        self.meta['modified'] = os.path.getmtime(madeOf)
-        self.meta['modified'] = time.strftime(
-            "%a, %d %b %Y %H:%M:%S", time.gmtime(os.path.getmtime(madeOf)))
-        self.meta['size'] = os.path.getsize(madeOf)
-        self.meta['length'] = len(arr[0])
+        if self.dataType == DATA_COLUMN_FILE:
+            self.meta['text'] = r''.join(header)
+            self.meta['modified'] = time.strftime(
+                "%a, %d %b %Y %H:%M:%S", time.gmtime(os.path.getmtime(madeOf)))
+            self.meta['size'] = os.path.getsize(madeOf)
+        else:
+            if isinstance(header[0], bytes):
+                self.meta['text'] = '\n'.join(
+                    h.decode("utf-8") for h in header)
+            else:
+                self.meta['text'] = '\n'.join(header)
+        self.meta['length'] = len(arr)
+
+    def interpretArrayFormula(self, colStr, treeObj=None):
+        keys = re.findall(r'\[(.*?)\]', colStr)
+        if len(keys) == 0:
+            keys = colStr,
+            colStr = 'd["{0}"]'.format(colStr)
+        else:
+            # remove outer quotes:
+            keys = [k[1:-1] if k.startswith(('"', "'")) else k for k in keys]
+        d = {}
+        if treeObj is None:  # is Hdf5Item
+            for k in keys:
+                d[k] = silx_io.get_data('/'.join((self.madeOf, k)))
+        else:  # arrays from column file
+            for k in keys:
+                kl = k.lower()
+                if "col" in kl:
+                    kn = int(kl[kl.find('col')+3])
+                else:
+                    kn = int(k)
+                d[k] = treeObj[kn]
+                d[kn] = d[k]
+                locals()[k] = k
+        return eval(colStr)
 
     def calc_combined(self):
         """Case of *madeOf* as list of Spectrum instances. self.dataFormat is
@@ -441,7 +488,7 @@ class Spectrum(TreeItem):
         self.isGood[toNode.name] = True
         # define metadata
         self.meta['text'] = '{0} of {1}'.format(
-            combineName[what], ', '.join([it.alias for it in madeOf]))
+            combineName[what], ', '.join(it.alias for it in madeOf))
 #        self.meta['modified'] = os.path.getmtime(madeOf)
         self.meta['modified'] = time.strftime("%a, %d %b %Y %H:%M:%S")
         self.meta['size'] = -1
