@@ -99,7 +99,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             if section == 0:
                 return self.rootItem.tooltip()
             elif section == 1:
-                return u"toggle visible: selected\u2194all"
+                return u"toggle visible: dynamic\u2194static"
             else:
                 return "line properties"
 #        elif role == qt.Qt.FontRole:
@@ -357,12 +357,22 @@ class ItemSelectionModel(qt.QItemSelectionModel):
         items = self.model().getItems(selectedIndexes)
         if len(items) == 0:
             return
+
+        if not csi.dataRootItem.isVisible:
+            for it in csi.selectedItems:
+                self.model().setVisible(it, False, False)
+
 #        csi.selectedItems.clear()
 #        csi.selectedTopItems.clear()
         csi.selectedItems[:] = []
         csi.selectedTopItems[:] = []
         csi.selectedItems.extend(items)
         csi.selectedTopItems.extend(self.model().getTopItems(selectedIndexes))
+
+        if not csi.dataRootItem.isVisible:
+            for it in csi.selectedItems:
+                self.model().setVisible(it, True, True)
+
         if csi.mainWindow is not None:
             csi.mainWindow.selChanged()
 
@@ -481,33 +491,37 @@ class LineStyleDelegate(qt.QItemDelegate):
 
 
 class EyeHeader(qt.QHeaderView):
-        def __init__(self, orientation=qt.Qt.Horizontal, parent=None):
-            super(EyeHeader, self).__init__(orientation, parent)
+    EYE_BLUE = '#87aecf'
+    EYE_BROW = '#999999'
 
-        def paintSection(self, painter, rect, logicalIndex):
-            painter.save()
-            super(EyeHeader, self).paintSection(painter, rect, logicalIndex)
-            painter.restore()
-            if logicalIndex == 1:
-                painter.setRenderHint(qt.QPainter.Antialiasing)
-                color = qt.QColor('#87aecf')
-                painter.setBrush(color)
-                painter.setPen(color)
-                radius0 = 4
-                painter.drawEllipse(rect.center(), radius0, radius0)
-                color = qt.QColor('black')
-                painter.setBrush(color)
-                painter.setPen(color)
-                radius1 = 1.2
-                painter.drawEllipse(rect.center(), radius1, radius1)
-                painter.setPen(qt.QPen(qt.QColor('#999999'), 2))
-                yCenter = rect.center().y()
-                painter.drawArc(rect.x()+3, yCenter-radius0,
-                                rect.width()-7, 3*(radius0+2),
-                                35*16, 110*16)
-                painter.drawArc(rect.x()+3, yCenter+radius0,
-                                rect.width()-7, -3*(radius0+2),
-                                -35*16, -110*16)
+    def __init__(self, orientation=qt.Qt.Horizontal, parent=None):
+        super(EyeHeader, self).__init__(orientation, parent)
+
+    def paintSection(self, painter, rect, logicalIndex):
+        painter.save()
+        super(EyeHeader, self).paintSection(painter, rect, logicalIndex)
+        painter.restore()
+        if logicalIndex == 1:
+            painter.setRenderHint(qt.QPainter.Antialiasing)
+            color = qt.QColor(self.EYE_BLUE)
+            painter.setBrush(color)
+            painter.setPen(color)
+            radius0 = 4
+            painter.drawEllipse(rect.center(), radius0, radius0)
+            color = qt.QColor('black')
+            painter.setBrush(color)
+            painter.setPen(color)
+            radius1 = 2.3 if csi.dataRootItem.isVisible else 1.2
+            painter.drawEllipse(rect.center(), radius1, radius1)
+            painter.setPen(qt.QPen(qt.QColor(self.EYE_BROW), 2))
+            rf = 1.3 if csi.dataRootItem.isVisible else 1
+            yCenter = rect.center().y()
+            painter.drawArc(rect.x()+3, yCenter-(radius0-0.5)*rf,
+                            rect.width()-7, 3*(radius0*rf+2),
+                            35*16, 110*16)
+            painter.drawArc(rect.x()+3, yCenter+radius0*rf+0.5,
+                            rect.width()-7, -3*(radius0*rf+2),
+                            -35*16, -110*16)
 
 
 class DataTreeView(qt.QTreeView):
