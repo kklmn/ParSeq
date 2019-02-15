@@ -243,7 +243,7 @@ class NodeWidget(qt.QWidget):
         self.makeSplitterButton(
             'transform', self.splitter, 3, 3, qt.Qt.RightArrow)
         self.makeSplitterButton(
-            'columns', self.splitterFiles, 1, 1, qt.Qt.DownArrow)
+            'data format', self.splitterFiles, 1, 1, qt.Qt.DownArrow)
         self.makeSplitterButton(
             'combine', self.splitterData, 1, 1, qt.Qt.DownArrow)
         self.makeSplitterButton(
@@ -288,7 +288,7 @@ class NodeWidget(qt.QWidget):
         handle = splitter.handle(indHandle)
         if handle is None:
             return
-        button = QSplitterButton("open in browser", handle, margin=5)
+        button = QSplitterButton("open in browser", handle, margin=10)
         button.clicked.connect(lambda: self.handleSplitterHelpButton())
         sLayout = handle.layout()
         sLayout.addWidget(button)
@@ -511,7 +511,7 @@ class NodeWidget(qt.QWidget):
         showColumnDialog = self.shouldShowColumnDialog()
         self.splitterFiles.setSizes([1, int(showColumnDialog)])
         self.setArrowType(
-            self.splitterButtons['columns'],
+            self.splitterButtons['data format'],
             qt.Qt.DownArrow if showColumnDialog else qt.Qt.UpArrow)
 
     def updateMeta(self):
