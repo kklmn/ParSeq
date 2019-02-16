@@ -9,13 +9,13 @@ import webbrowser
 from collections import Counter
 
 from silx.gui import qt
-from silx.gui.plot import Plot1D
 
 from ..core import singletons as csi
 from ..core import commons as cco
 from ..core import spectra as csp
 from ..gui.fileTreeModelView import FileTreeView, NODE_FS
 from ..gui.dataTreeModelView import DataTreeView
+from ..gui.plot import Plot1D
 from ..gui.webWidget import QWebView
 from ..gui.columnFormatWidget import ColumnFormatWidget
 from ..gui.combineSpectraWidget import CombineSpectraWidget

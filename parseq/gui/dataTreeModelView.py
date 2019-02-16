@@ -154,6 +154,9 @@ class DataTreeModel(qt.QAbstractItemModel):
             return qt.QModelIndex()
         return self.createIndex(row, column, rowItem)
 
+    def indexFromItem(self, item):
+        return self.createIndex(item.row(), 0, item)
+
     def parent(self, index):
         if not index.isValid():
             return qt.QModelIndex()
