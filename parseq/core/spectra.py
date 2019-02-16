@@ -8,6 +8,7 @@ import re
 import time
 import copy
 import numpy as np
+from collections import Counter
 import silx.io as silx_io
 
 from . import singletons as csi
@@ -149,9 +150,6 @@ class TreeItem(object):
             if i is None:
                 return False
 
-    def insert_item(self, name, insertAt=None, **kwargs):
-        return TreeItem(name, self, insertAt, **kwargs)
-
     def delete(self):
         parentItem = self.parentItem
         try:
@@ -160,6 +158,9 @@ class TreeItem(object):
                 parentItem.delete()
         except (AttributeError, ValueError):
             pass
+
+    def insert_item(self, name, insertAt=None, **kwargs):
+        return TreeItem(name, self, insertAt, **kwargs)
 
     def insert_data(self, data, insertAt=None, **kwargs):
         items = []
@@ -293,6 +294,13 @@ class Spectrum(TreeItem):
             basename = os.path.basename(self.madeOf)
             if self.alias == 'auto':
                 self.alias = os.path.splitext(basename)[0]
+                # check duplicates:
+                if True:  # should check duplicates
+                    allLoadedItemsCount = Counter(
+                        os.path.normcase(d.madeOf) for d in csi.allLoadedItems)
+                    n = allLoadedItemsCount[os.path.normcase(self.madeOf)]
+                    if n > 0:
+                        self.alias += " ({0})".format(n)
 
 #        csi.undo.append([self, insertAt, lenData])
 

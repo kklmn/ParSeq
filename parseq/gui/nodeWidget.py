@@ -6,9 +6,9 @@ __date__ = "17 Nov 2018"
 import sys
 import os
 import webbrowser
+from collections import Counter
 
 from silx.gui import qt
-#from silx.gui.plot.PlotWindow import PlotWindow
 from silx.gui.plot import Plot1D
 
 from ..core import singletons as csi
@@ -447,6 +447,9 @@ class NodeWidget(qt.QWidget):
         return
 
     def loadFiles(self, fileNamesFull=None, parentItem=None, insertAt=None):
+        def times(n):
+            return " ({0} times)".format(n) if n > 1 else ""
+
         if isinstance(fileNamesFull, qt.QModelIndex):
             if qt.QFileInfo(
                     self.files.model().filePath(fileNamesFull)).isDir():
@@ -463,14 +466,20 @@ class NodeWidget(qt.QWidget):
                     [self.files.model().getHDF5FullPath(i) for i in sIndexes]
 
         fileNames = [os.path.normcase(i) for i in fileNamesFull]
-        duplicates, duplicatesNorm = [], []
-        for data in csi.allLoadedItems:
-            normpath = os.path.normcase(data.madeOf)
-            if normpath in fileNames:
-                if normpath not in duplicatesNorm:
-                    duplicatesNorm.append(normpath)
-                    duplicates.append(data.madeOf)
+        allLoadedItemsCount = Counter(os.path.normcase(data.madeOf) for data in
+                                      csi.allLoadedItems)
+        duplicates, duplicatesNorm, duplicatesN = [], [], []
+        fileNamesFullN = []
+        for fname, fnameFull in zip(fileNames, fileNamesFull):
+            n = allLoadedItemsCount[fname]
+            if n > 0:
+                duplicatesNorm.append(fname)
+                duplicates.append(fnameFull)
+                duplicatesN.append(n)
+            fileNamesFullN.append(n)
         if duplicates:
+            duplicatesNStr =\
+                [dup + times(n) for dup, n in zip(duplicates, duplicatesN)]
             st1, st2, st3, st4 =\
                 ('This', '', 'is', 'it') if len(duplicates) == 1 else\
                 ('These', 's', 'are', 'them')
@@ -478,7 +487,7 @@ class NodeWidget(qt.QWidget):
             msg.setIcon(qt.QMessageBox.Question)
             res = msg.question(self, "Already in the data list",
                                "{0} file{1} {2} already loaded:\n{3}".format(
-                                   st1, st2, st3, '\n'.join(duplicates)) +
+                                   st1, st2, st3, '\n'.join(duplicatesNStr)) +
                                "\nDo you want to load {0} gain?".format(st4),
                                qt.QMessageBox.Yes | qt.QMessageBox.No,
                                qt.QMessageBox.Yes)
