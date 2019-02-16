@@ -179,10 +179,7 @@ class FileSystemWithHdf5Model(ModelBase):
     def mapH5toFS(self, indexH5):
         hdf5Obj = self.h5Model.nodeFromIndex(indexH5)
         if hasattr(hdf5Obj, 'headInfo'):
-            if self.fsModel is self:
-                return super(FileSystemWithHdf5Model, self).index(
-                    hdf5Obj.headInfo['FilePath'])
-            return self.fsModel.index(hdf5Obj.headInfo['FilePath'])
+            return self.indexFileName(hdf5Obj.headInfo['FilePath'])
         else:
             return qt.QModelIndex()
 
