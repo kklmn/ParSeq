@@ -67,6 +67,7 @@ class LineStyleDelegate(qt.QItemDelegate):
             return
         lineStyle = lineStyles[lineStylesText[txt]]
         painter.save()
+        painter.setRenderHint(qt.QPainter.Antialiasing, True)
         rect = option.rect
         rect.adjust(+5, 0, -5, 0)
         pen = qt.QPen()
@@ -93,6 +94,7 @@ class LineStyleComboBox(qt.QComboBox):
         p.drawComplexControl(qt.QStyle.CC_ComboBox, opt)
         painter = qt.QPainter(self)
         painter.save()
+        painter.setRenderHint(qt.QPainter.Antialiasing, True)
         rect = p.style().subElementRect(
             qt.QStyle.SE_ComboBoxFocusRect, opt, self)
         rect.adjust(+5, 0, -5, 0)
@@ -114,6 +116,7 @@ class SymbolDelegate(qt.QItemDelegate):
             return
         lineSymbol = lineSymbols[lineSymbolsText[txt]]
         painter.save()
+        painter.setRenderHint(qt.QPainter.Antialiasing, True)
         rect = option.rect
         rect.adjust(+5, 0, -5, 0)
 
@@ -149,6 +152,7 @@ class SymbolComboBox(qt.QComboBox):
         p.drawComplexControl(qt.QStyle.CC_ComboBox, opt)
         painter = qt.QPainter(self)
         painter.save()
+        painter.setRenderHint(qt.QPainter.Antialiasing, True)
         rect = p.style().subElementRect(
             qt.QStyle.SE_ComboBoxFocusRect, opt, self)
         rect.adjust(+5, 0, -5, 0)

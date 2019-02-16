@@ -392,7 +392,6 @@ class LineStyleDelegate(qt.QItemDelegate):
         rect = option.rect
         painter.save()
         painter.setRenderHint(qt.QPainter.Antialiasing)
-
         painter.setPen(qt.Qt.NoPen)
         if ((option.state & qt.QStyle.State_Selected or
              option.state & qt.QStyle.State_MouseOver) and
@@ -504,6 +503,7 @@ class EyeHeader(qt.QHeaderView):
         painter.save()
         super(EyeHeader, self).paintSection(painter, rect, logicalIndex)
         painter.restore()
+        painter.setRenderHint(qt.QPainter.Antialiasing, True)
         if logicalIndex == 1:
             painter.setRenderHint(qt.QPainter.Antialiasing)
             color = qt.QColor(self.EYE_BLUE)
