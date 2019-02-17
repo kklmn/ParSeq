@@ -509,7 +509,7 @@ class FileSystemWithHdf5Model(ModelBase):
         indexes0 = [index for index in indexes if index.column() == 0]
         nodeTypes = [self.nodeType(index) for index in indexes0]
         if nodeTypes.count(nodeTypes[0]) != len(nodeTypes):  # not all equal
-            return 0
+            return
         if nodeTypes[0] in (NODE_HDF5_HEAD, NODE_FS):
             indexesFS = [self.mapToFS(index) for index in indexes0]
             if ModelBase == qt.QFileSystemModel:
@@ -521,14 +521,14 @@ class FileSystemWithHdf5Model(ModelBase):
             for index in indexes0:
                 indexH5 = self.mapToH5(index)
                 if self.stateLoadHDF5Dataset(indexH5) != LOAD_CAN:
-                    return 0
+                    return
                 try:
                     path = 'silx:' + '::'.join(
                         (self.h5Model.nodeFromIndex(indexH5).obj.file.filename,
                          self.h5Model.nodeFromIndex(indexH5).obj.name))
                     paths.append(path)
-                except:
-                    return 0
+                except:  # noqa
+                    return
             mimedata = qt.QMimeData()
             mimedata.setData(cco.MIME_TYPE_HDF5, pickle.dumps(paths))
             return mimedata
@@ -603,8 +603,8 @@ class FileTreeView(qt.QTreeView):
         self.setSortingEnabled(True)
         self.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
 
-        self.setDragDropMode(qt.QAbstractItemView.DragOnly)
         self.setDragEnabled(True)
+        self.setDragDropMode(qt.QAbstractItemView.DragOnly)
         self.setAcceptDrops(False)
         self.setDropIndicatorShown(True)
 
