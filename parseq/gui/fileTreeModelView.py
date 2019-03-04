@@ -601,6 +601,7 @@ class FileTreeView(qt.QTreeView):
         self.setColumnWidth(0, COLUMN_NAME_WIDTH)
         self.setIndentation(NODE_INDENTATION)
         self.setSortingEnabled(True)
+        self.sortByColumn(0, qt.Qt.AscendingOrder)
         self.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
 
         self.setDragEnabled(True)
