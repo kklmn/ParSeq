@@ -167,6 +167,13 @@ class TreeItem(object):
 
     def insert_data(self, data, insertAt=None, isRecursive=False, **kwargs):
         items = []
+        if hasattr(self, 'alias'):
+            alias = self.alias
+        elif hasattr(self, 'madeOf'):
+            alias = self.madeOf
+        elif hasattr(self, 'name'):
+            alias = self.name
+
         if isinstance(data, type("")):
             item = self.insert_item(data, insertAt, **kwargs)
             if item not in items:  # inclusion check that keeps the order
@@ -185,13 +192,12 @@ class TreeItem(object):
                 else:
                     raise ValueError(
                         "data in '{0}' must be a sequence or a string, not {1}"
-                        " of type {2}".format(
-                            self.alias, subdata, type(subdata)))
+                        " of type {2}".format(alias, subdata, type(subdata)))
                 items += [it for it in subItems if it not in items]
         else:
             raise ValueError(
                 "data in {0} must be a sequence or a string, not {1}"
-                " of type {2}".format(self.alias, data, type(data)))
+                " of type {2}".format(alias, data, type(data)))
 #        csi.recentlyLoadedItems.clear()
         csi.recentlyLoadedItems[:] = []
         csi.recentlyLoadedItems.extend(items)

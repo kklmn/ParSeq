@@ -339,12 +339,14 @@ class DataTreeModel(qt.QAbstractItemModel):
         elif mimedata.hasFormat(cco.MIME_TYPE_TEXT) or \
                 mimedata.hasFormat(cco.MIME_TYPE_HDF5):
             toItem = parent.internalPointer()
-            if toItem is None:
-                toItem = csi.dataRootItem
             if mimedata.hasFormat(cco.MIME_TYPE_TEXT):
                 urls = [url.toLocalFile() for url in reversed(mimedata.urls())]
             else:
                 urls = pickle.loads(mimedata.data(cco.MIME_TYPE_HDF5))[::-1]
+            if toItem is None:
+                toItem = csi.dataRootItem
+                urls = urls[::-1]
+
             if toItem.child_count() > 0:  # is a group
                 parentItem, insertAt = toItem, None
             else:
