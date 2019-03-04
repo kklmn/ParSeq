@@ -295,12 +295,15 @@ class DataTreeModel(qt.QAbstractItemModel):
     def dropMimeData(self, mimedata, action, row, column, parent):
         if mimedata.hasFormat(cco.MIME_TYPE_DATA):
             toItem = parent.internalPointer()
-            if toItem.parentItem is None:
-                return False
-            newParentItem, newRow = toItem.parentItem, toItem.row()
+            if toItem is None:
+                toItem = csi.dataRootItem
+                newParentItem, newRow = toItem, toItem.child_count()
+                parents = []
+            else:
+                newParentItem, newRow = toItem.parentItem, toItem.row()
+                parents = [toItem.parentItem]
             rowss = pickle.loads(mimedata.data(cco.MIME_TYPE_DATA))
             dropedItems = []
-            parents = [toItem.parentItem]
             for rows in rowss:
                 parentItem = self.rootItem
                 for r in reversed(rows):
@@ -320,7 +323,11 @@ class DataTreeModel(qt.QAbstractItemModel):
                     return False
 
             self.beginResetModel()
-            for item in reversed(dropedItems):
+            if toItem is csi.dataRootItem:
+                rdropedItems = dropedItems
+            else:
+                rdropedItems = reversed(dropedItems)
+            for item in rdropedItems:
                 oldParentItem, oldRow = item.parentItem, item.row()
                 if newParentItem is oldParentItem:
                     sibl = newParentItem.childItems
