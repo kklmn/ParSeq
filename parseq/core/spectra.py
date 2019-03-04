@@ -369,8 +369,12 @@ class Spectrum(TreeItem):
         else:
             if self.madeOf.startswith('silx:'):
                 self.dataType = DATA_DATASET
+                if self.colorTag == 0:
+                    self.colorTag = 1
             else:
                 self.dataType = DATA_COLUMN_FILE
+                if self.colorTag == 0:
+                    self.colorTag = 2
             if shouldLoadNow:
                 self.read_file()
 

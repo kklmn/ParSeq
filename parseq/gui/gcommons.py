@@ -14,6 +14,11 @@ colorCycle2 = ['#0000ff', '#00ee00', '#ff0000', '#00ffff', '#ff00ff',
 COLOR_POLICY_INDIVIDUAL, COLOR_POLICY_LOOP1, COLOR_POLICY_LOOP2,\
     COLOR_POLICY_GRADIENT = range(4)
 
+COLOR_HDF5_HEAD = '#22A7F0'
+COLOR_FS_COLUMN_FILE = '#67C012'
+COLOR_LOAD_CAN = '#44C044'
+COLOR_LOAD_CANNOT = '#C04444'
+
 
 def makeGradientCollection(color1, color2, ncolor=8):
     c1 = np.array(qt.QColor(color1).getHsvF())

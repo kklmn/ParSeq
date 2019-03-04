@@ -8,6 +8,7 @@ import pickle
 from silx.gui import qt
 from ..core import commons as cco
 from ..core import singletons as csi
+from . import gcommons as gco
 from .plotOptions import lineStyles, lineSymbols, noSymbols, LineProps
 
 COLUMN_NAME_WIDTH = 140
@@ -16,7 +17,8 @@ LEGEND_WIDTH = 48  # '|FT(χ)|' fits into 48
 
 GROUP_BKGND = '#f4f0f0'
 BAD_BKGND = '#f46060'
-FONT_COLOR_TAG = ['black', 'blue', 'green', 'red', 'magenta', 'cyan']
+FONT_COLOR_TAG = ['black', gco.COLOR_HDF5_HEAD, gco.COLOR_FS_COLUMN_FILE,
+                  'red', 'magenta', 'cyan']
 LEFT_SYMBOL = u"\u25c4"  # ◄
 RIGHT_SYMBOL = u"\u25ba"  # ►
 

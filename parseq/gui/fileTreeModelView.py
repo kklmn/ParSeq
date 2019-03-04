@@ -15,6 +15,7 @@ from silx.gui.hdf5.Hdf5TreeModel import Hdf5TreeModel
 from silx.gui.hdf5.NexusSortFilterProxyModel import NexusSortFilterProxyModel
 
 from ..core import commons as cco
+from . import gcommons as gco
 
 if True:
     ModelBase = qt.QFileSystemModel
@@ -29,11 +30,6 @@ LOAD_CANNOT, LOAD_CAN, LOAD_NA = range(3)
 
 COLUMN_NAME_WIDTH = 240
 NODE_INDENTATION = 12
-
-COLOR_HDF5_HEAD = '#22A7F0'
-COLOR_FS_COLUMN_FILE = '#67C012'
-COLOR_LOAD_CAN = '#44C044'
-COLOR_LOAD_CANNOT = '#C04444'
 
 
 def is_text_file(file_name):
@@ -376,7 +372,7 @@ class FileSystemWithHdf5Model(ModelBase):
             if role == qt.Qt.ForegroundRole:
                 fileInfo = self.fsModel.fileInfo(indexFS)
                 if is_text_file(fileInfo.filePath()):
-                    return qt.QColor(COLOR_FS_COLUMN_FILE)
+                    return qt.QColor(gco.COLOR_FS_COLUMN_FILE)
             if self.fsModel is self:
                 return super(FileSystemWithHdf5Model, self).data(index, role)
             return self.fsModel.data(indexFS, role)
@@ -395,7 +391,7 @@ class FileSystemWithHdf5Model(ModelBase):
                 indexH5 = self.mapFStoH5(indexFS)
                 return self.h5Model.data(indexH5, role)
             elif role == qt.Qt.ForegroundRole:
-                return qt.QColor(COLOR_HDF5_HEAD)
+                return qt.QColor(gco.COLOR_HDF5_HEAD)
             elif role == qt.Qt.DecorationRole:
                 if useProxyModel and \
                         index.column() == self.h5Model.NAME_COLUMN:
@@ -544,9 +540,9 @@ class SelectionDelegate(qt.QItemDelegate):
         if option.state & qt.QStyle.State_MouseOver:
             color = self.parent().palette().highlight().color()
             if loadState == LOAD_CAN:
-                color = qt.QColor(COLOR_LOAD_CAN)
+                color = qt.QColor(gco.COLOR_LOAD_CAN)
             elif loadState == LOAD_CANNOT:
-                color = qt.QColor(COLOR_LOAD_CANNOT)
+                color = qt.QColor(gco.COLOR_LOAD_CANNOT)
             color.setAlphaF(0.2)
             painter.fillRect(option.rect, color)
 
@@ -556,16 +552,16 @@ class SelectionDelegate(qt.QItemDelegate):
                   option.state & qt.QStyle.State_MouseOver)
         if active:
             if loadState == LOAD_CAN:
-                color = qt.QColor(COLOR_LOAD_CAN)
+                color = qt.QColor(gco.COLOR_LOAD_CAN)
             elif loadState == LOAD_CANNOT:
-                color = qt.QColor(COLOR_LOAD_CANNOT)
+                color = qt.QColor(gco.COLOR_LOAD_CANNOT)
         if color is not None:
             color.setAlphaF(0.2)
             option.palette.setColor(qt.QPalette.Highlight, color)
         super(SelectionDelegate, self).paint(painter, option, index)
         path = index.data(USE_HDF5_ARRAY_ROLE)
         if path is not None and active:
-            pen = qt.QPen(qt.QColor(COLOR_LOAD_CAN))
+            pen = qt.QPen(qt.QColor(gco.COLOR_LOAD_CAN))
             pen.setWidth(self.pen2Width)
             painter.setPen(pen)
             painter.drawRect(option.rect.x() + self.pen2Width//2,
