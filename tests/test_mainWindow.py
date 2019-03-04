@@ -3,21 +3,20 @@ __author__ = "Konstantin Klementiev"
 __date__ = "20 Sep 2018"
 # !!! SEE CODERULES.TXT !!!
 
-from silx.gui import qt
-
 import os, sys; sys.path.append('..')  # analysis:ignore
 import parseq.core.singletons as csi
-from parseq.gui.mainWindow import MainWindowParSeq
 import parseq.apps.dummy as myapp
 
 
 def test(withGUI=True, withTestData=True):
-    myapp.make_pipeline(withGUI=True)
+    myapp.make_pipeline(withGUI)
 
     if withTestData:
         myapp.load_test_data()
 
     if withGUI:
+        from silx.gui import qt
+        from parseq.gui.mainWindow import MainWindowParSeq
         app = qt.QApplication(sys.argv)
         mainWindow = MainWindowParSeq()
         mainWindow.dataChanged()

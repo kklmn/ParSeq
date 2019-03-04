@@ -231,6 +231,9 @@ class DataTreeModel(qt.QAbstractItemModel):
         else:
             siblings[row-to], siblings[row] = siblings[row], siblings[row-to]
         self.endResetModel()
+        item.parentItem.init_colors()
+        if not (parentItem is item.parentItem):
+            parentItem.init_colors()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
     def groupItems(self, items):
@@ -252,6 +255,9 @@ class DataTreeModel(qt.QAbstractItemModel):
             if parentItem.child_count() == 0:
                 parentItem.delete()
         self.endResetModel()
+        group.colorAutoUpdate = group.parentItem.colorAutoUpdate
+        group.init_colors()
+        group.parentItem.init_colors()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
         return group
 
@@ -263,6 +269,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             item.parentItem = parentItem
         parentItem.childItems.remove(group)
         self.endResetModel()
+        parentItem.init_colors()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
     def supportedDropActions(self):
@@ -292,12 +299,15 @@ class DataTreeModel(qt.QAbstractItemModel):
             newParentItem, newRow = toItem.parentItem, toItem.row()
             rowss = pickle.loads(mimedata.data(cco.MIME_TYPE_DATA))
             dropedItems = []
+            parents = [toItem.parentItem]
             for rows in rowss:
                 parentItem = self.rootItem
                 for r in reversed(rows):
                     item = parentItem.child(r)
                     parentItem = item
                 dropedItems.append(item)
+                if item.parentItem not in parents:
+                    parents.append(item.parentItem)
             for item in dropedItems:
                 if item.is_ancestor_of(toItem):
                     msg = qt.QMessageBox()
@@ -321,6 +331,8 @@ class DataTreeModel(qt.QAbstractItemModel):
                     if oldParentItem.child_count() == 0:
                         oldParentItem.delete()
             self.endResetModel()
+            for parent in parents:
+                parent.init_colors()
             self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
             return True
         elif mimedata.hasFormat(cco.MIME_TYPE_TEXT) or \
@@ -331,17 +343,17 @@ class DataTreeModel(qt.QAbstractItemModel):
             else:
                 urls = pickle.loads(mimedata.data(cco.MIME_TYPE_HDF5))[::-1]
             if toItem.child_count() > 0:  # is a group
-                parentItem, insertAt = toItem, 0
+                parentItem, insertAt = toItem, None
             else:
                 parentItem, insertAt = toItem.parentItem, toItem.row()
             if csi.currentNodeToDrop is None:
                 return False
             node = csi.currentNodeToDrop
             items = node.widget.loadFiles(urls, parentItem, insertAt)
-            if DEBUG > 0:
-                if items is not None:
-                    for item in items:
-                        item.colorTag = 3
+#            if DEBUG > 0:
+#                if items is not None:
+#                    for item in items:
+#                        item.colorTag = 3
             return True
         else:
             return False
@@ -365,11 +377,9 @@ class ItemSelectionModel(qt.QItemSelectionModel):
             for it in csi.selectedItems:
                 self.model().setVisible(it, False, False)
 
-#        csi.selectedItems.clear()
-#        csi.selectedTopItems.clear()
         csi.selectedItems[:] = []
-        csi.selectedTopItems[:] = []
         csi.selectedItems.extend(items)
+        csi.selectedTopItems[:] = []
         csi.selectedTopItems.extend(self.model().getTopItems(selectedIndexes))
 
         if not csi.dataRootItem.isVisible:
@@ -391,7 +401,7 @@ class LineStyleDelegate(qt.QItemDelegate):
             return
         rect = option.rect
         painter.save()
-        painter.setRenderHint(qt.QPainter.Antialiasing)
+        painter.setRenderHint(qt.QPainter.Antialiasing, False)
         painter.setPen(qt.Qt.NoPen)
         if ((option.state & qt.QStyle.State_Selected or
              option.state & qt.QStyle.State_MouseOver) and
@@ -465,6 +475,7 @@ class LineStyleDelegate(qt.QItemDelegate):
             if symbol in noSymbols:
                 symbol = None
             if symbol:
+                painter.setRenderHint(qt.QPainter.Antialiasing, True)
 #                symbolFC = lineProps.get(
 #                    'fc', lineProps.get('facecolor', qt.Qt.black))
 #                symbolEC = lineProps.get(
@@ -505,7 +516,6 @@ class EyeHeader(qt.QHeaderView):
         painter.restore()
         painter.setRenderHint(qt.QPainter.Antialiasing, True)
         if logicalIndex == 1:
-            painter.setRenderHint(qt.QPainter.Antialiasing)
             color = qt.QColor(self.EYE_BLUE)
             painter.setBrush(color)
             painter.setPen(color)
@@ -647,20 +657,48 @@ class DataTreeView(qt.QTreeView):
         menu.addAction("Move down", partial(self.moveItems, -1), "Ctrl+Down")
         menu.addSeparator()
 
+        isGroupSelected = False
         if len(csi.selectedTopItems) > 1:
             menu.addAction("Make group", self.groupItems, "Ctrl+G")
         elif len(csi.selectedTopItems) == 1:
             if csi.selectedTopItems[0].child_count() > 0:
+                isGroupSelected = True
                 menu.addAction("Ungroup", self.ungroup, "Ctrl+U")
         menu.addSeparator()
         menu.addAction("Remove", self.deleteItems, "Del")
+
         menu.addSeparator()
+        if isGroupSelected or \
+                csi.selectedTopItems == csi.dataRootItem.get_nongroups():
+            aucc = menu.addAction("Auto update collective colors",
+                                  self.autoUpdateColors)
+            aucc.setCheckable(True)
+            item = csi.selectedTopItems[0]
+            if hasattr(item, 'colorAutoUpdate'):
+                cond = item.colorAutoUpdate
+            else:
+                cond = item.parentItem.colorAutoUpdate
+            aucc.setChecked(cond)
         menu.addAction("Line properties", self.setLines, "Ctrl+L")
+
         menu.exec_(self.viewport().mapToGlobal(point))
 
     def allowDND(self):
         self.isInnerDragNDropAllowed = not self.isInnerDragNDropAllowed
         self.setDragEnabled(self.isInnerDragNDropAllowed)
+
+    def autoUpdateColors(self):
+        it = csi.selectedTopItems[0]
+        if hasattr(it, 'colorAutoUpdate'):
+            parentItem = it
+        else:
+            parentItem = it.parentItem
+        parentItem.colorAutoUpdate = not parentItem.colorAutoUpdate
+        shouldUpdateModel = parentItem.colorAutoUpdate
+        if shouldUpdateModel:
+            parentItem.init_colors()
+            self.model().dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            self.node.widget.replot()
 
     def moveItems(self, to):
         for topItem in csi.selectedTopItems[::to]:

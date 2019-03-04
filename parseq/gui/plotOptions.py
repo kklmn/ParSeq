@@ -6,6 +6,8 @@ __date__ = "17 Nov 2018"
 from collections import OrderedDict
 from functools import partial
 from silx.gui import qt
+from ..core import singletons as csi
+from ..gui import gcommons as gco
 
 lineStyles = {
     None: qt.Qt.NoPen,
@@ -15,6 +17,7 @@ lineStyles = {
     ' ': qt.Qt.NoPen,
     '-': qt.Qt.SolidLine,
     '--': qt.Qt.DashLine,
+    '.': qt.Qt.DotLine,
     ':': qt.Qt.DotLine,
     '-.': qt.Qt.DashDotLine
 }
@@ -67,12 +70,12 @@ class LineStyleDelegate(qt.QItemDelegate):
             return
         lineStyle = lineStyles[lineStylesText[txt]]
         painter.save()
-        painter.setRenderHint(qt.QPainter.Antialiasing, True)
+        painter.setRenderHint(qt.QPainter.Antialiasing, False)
         rect = option.rect
         rect.adjust(+5, 0, -5, 0)
         pen = qt.QPen()
         pen.setColor(qt.QColor(self.parent().color))
-        pen.setWidth(self.parent().widthSpinBox.value())
+        pen.setWidth(self.parent().widthSpinBox.value() * 1.5)
         pen.setStyle(lineStyle)
         painter.setPen(pen)
         middle = (rect.bottom() + rect.top()) / 2
@@ -94,13 +97,13 @@ class LineStyleComboBox(qt.QComboBox):
         p.drawComplexControl(qt.QStyle.CC_ComboBox, opt)
         painter = qt.QPainter(self)
         painter.save()
-        painter.setRenderHint(qt.QPainter.Antialiasing, True)
+        painter.setRenderHint(qt.QPainter.Antialiasing, False)
         rect = p.style().subElementRect(
             qt.QStyle.SE_ComboBoxFocusRect, opt, self)
         rect.adjust(+5, 0, -5, 0)
         pen = qt.QPen()
         pen.setColor(qt.QColor(self.parent().color))
-        pen.setWidth(self.parent().widthSpinBox.value())
+        pen.setWidth(self.parent().widthSpinBox.value() * 1.5)
         pen.setStyle(lineStyle)
         painter.setPen(pen)
         middle = (rect.bottom() + rect.top()) / 2
@@ -175,22 +178,87 @@ class SymbolComboBox(qt.QComboBox):
         painter.restore()
 
 
+class QColorLoop(qt.QPushButton):
+    LINE_WIDTH = 4
+
+    def __init__(self, parent, colorCycle=[]):
+        self.colorCycle = colorCycle
+        super(QColorLoop, self).__init__(parent)
+        self.setFixedHeight(self.LINE_WIDTH*len(colorCycle)+2*self.LINE_WIDTH)
+        self.setMinimumWidth(20)
+
+    def paintEvent(self, e):
+        super(QColorLoop, self).paintEvent(e)
+        rect = e.rect()
+        painter = qt.QPainter(self)
+        painter.setRenderHint(qt.QPainter.Antialiasing, False)
+        painter.save()
+        pen = qt.QPen()
+        pen.setWidth(self.LINE_WIDTH)
+        pen.setStyle(qt.Qt.SolidLine)
+        for ic, color in enumerate(self.colorCycle):
+            pen.setColor(qt.QColor(color))
+            painter.setPen(pen)
+            pos = (ic+1.5) * self.LINE_WIDTH
+            painter.drawLine(rect.left() + 2*self.LINE_WIDTH, pos,
+                             rect.right() - 2*self.LINE_WIDTH, pos)
+        painter.restore()
+
+
 class LineProps(qt.QDialog):
     def __init__(self, parent, node, activeTab=None):
         super(LineProps, self).__init__(parent)
+        self.setWindowTitle("Line properties of...")
 
-        self.tabWidget = qt.QTabWidget()
+        self.isGroupSelected = False
+        self.isTopGroupSelected = False
+        for topItem in csi.selectedTopItems:
+            if topItem.child_count() == 0:
+                break
+        else:
+            self.isGroupSelected = True  # all selected items are groups
+
+        lsi = len(csi.selectedTopItems)
+        if self.isGroupSelected:
+            if lsi == 1:
+                group = csi.selectedTopItems[0]
+                txt = '...group "{0}" with {1} spectra'.format(
+                    group.alias, group.child_count())
+            elif lsi > 1:
+                txt = "...{0} selected groups".format(lsi)
+            else:
+                txt = ''
+        else:
+            if csi.selectedTopItems == csi.dataRootItem.get_nongroups():
+                self.isTopGroupSelected = True
+                txt = "...all top level spectra"
+            elif len(csi.allLoadedItems) == len(csi.selectedItems):
+                txt = "...all spectra"
+            else:
+                txt = "...{0} selected spectr{1}".format(
+                    lsi, 'um' if lsi == 1 else 'a')
+        nSpectraLabel = qt.QLabel(txt)
+
+        self.color = self.color1 = self.color2 = 'k'
+        self.colorSeq = 0  # controls which color to edit 1 or 2 for Gradient
+        self.colorPolicy = gco.COLOR_POLICY_LOOP1
+        groupColor = self.makeColorGroup()
+        self.initColorOption(self.colorPolicy)
+
+        self.tabWidget = qt.QTabWidget(parent=self)
         self.tabs = []
+        self.node = node
         yNs = node.yQLabels if hasattr(node, "yQLabels") else node.yNames
-        self.tabs = []
         for yN in yNs:
-            tab = qt.QWidget()
-            tab.color = 'k'
+            tab = self.makeTab()
             self.tabWidget.addTab(tab, yN)
-            self.tabUI(tab)
             self.tabs.append(tab)
-        self.setWindowTitle("Line properties")
+        if activeTab is not None:
+            self.tabWidget.setCurrentIndex(activeTab)
+
         mainLayout = qt.QVBoxLayout()
+        mainLayout.addWidget(nSpectraLabel)
+        mainLayout.addWidget(groupColor)
         mainLayout.addWidget(self.tabWidget)
         buttonBox = qt.QDialogButtonBox(
             qt.QDialogButtonBox.Ok | qt.QDialogButtonBox.Cancel)
@@ -200,23 +268,67 @@ class LineProps(qt.QDialog):
         mainLayout.addWidget(buttonBox)
         self.setLayout(mainLayout)
         self.setSizePolicy(qt.QSizePolicy.Minimum, qt.QSizePolicy.Minimum)
-        if activeTab is not None:
-            self.tabWidget.setCurrentIndex(activeTab)
 
-    def tabUI(self, tab):
-        layout1 = qt.QHBoxLayout()
-        layout1.addWidget(qt.QLabel('Color:'))
-        tab.colorButton = qt.QPushButton()
-        tab.colorButton.clicked.connect(partial(self.openColorDialog, tab))
-        layout1.addWidget(tab.colorButton, 1)
+        self.initColorsFromItems()
+        self.initLinesFromItems()
+
+    def makeColorGroup(self):
+        self.colorIndividual = qt.QRadioButton("individual")
+        self.colorIndividualButton = QColorLoop(self, [self.color])
+        self.colorIndividualButton.clicked.connect(
+            partial(self.openColorDialog, gco.COLOR_POLICY_INDIVIDUAL))
+        self.colorLoop1 = qt.QRadioButton("loop1")
+        self.colorLoop1Button = QColorLoop(self, gco.colorCycle1)
+        self.colorLoop1Button.clicked.connect(
+            partial(self.openColorDialog, gco.COLOR_POLICY_LOOP1))
+        self.colorLoop2 = qt.QRadioButton("loop2")
+        self.colorLoop2Button = QColorLoop(self, gco.colorCycle2)
+        self.colorLoop2Button.clicked.connect(
+            partial(self.openColorDialog, gco.COLOR_POLICY_LOOP2))
+        self.colorGradient = qt.QRadioButton("gradient")
+        gradient = gco.makeGradientCollection(self.color1, self.color2)
+        self.colorGradientButton = QColorLoop(self, gradient)
+        self.colorGradientButton.clicked.connect(
+            partial(self.openColorDialog, gco.COLOR_POLICY_GRADIENT))
+        self.colorAutoCollective = qt.QCheckBox(
+            "keep collective color rule\nwhen data model changes")
+        self.colorAutoCollective.setEnabled(
+            self.isGroupSelected or self.isTopGroupSelected)
+
+        layoutC = qt.QVBoxLayout()
+        layoutC.setContentsMargins(10, 0, 2, 2)
+        layoutH = qt.QHBoxLayout()
+        layoutH.addWidget(self.colorIndividual)
+        layoutH.addWidget(self.colorIndividualButton)
+        layoutC.addLayout(layoutH)
+        layoutH = qt.QHBoxLayout()
+        layoutH.addWidget(self.colorLoop1)
+        layoutH.addWidget(self.colorLoop1Button)
+        layoutC.addLayout(layoutH)
+        layoutH = qt.QHBoxLayout()
+        layoutH.addWidget(self.colorLoop2)
+        layoutH.addWidget(self.colorLoop2Button)
+        layoutC.addLayout(layoutH)
+        layoutH = qt.QHBoxLayout()
+        layoutH.addWidget(self.colorGradient)
+        layoutH.addWidget(self.colorGradientButton)
+        layoutC.addLayout(layoutH)
+        layoutC.addWidget(self.colorAutoCollective)
+
+        groupColor = qt.QGroupBox('Color:')
+        groupColor.setLayout(layoutC)
+        return groupColor
+
+    def makeTab(self):
+        tab = qt.QWidget()
+        tab.color = self.color
 
         layout2 = qt.QHBoxLayout()
         layout2.addWidget(qt.QLabel('Symbol:'))
         tab.symbolComboBox = SymbolComboBox(tab)
         symbolDelegate = SymbolDelegate(tab)
         tab.symbolComboBox.setItemDelegate(symbolDelegate)
-        for symbol in tuple(lineSymbolsText.keys()):
-            tab.symbolComboBox.addItem(symbol)
+        tab.symbolComboBox.addItems(tuple(lineSymbolsText.keys()))
         tab.symbolComboBox.currentIndexChanged.connect(
             partial(self.comboBoxChanged, tab, "size"))
         layout2.addWidget(tab.symbolComboBox, 1)
@@ -229,15 +341,14 @@ class LineProps(qt.QDialog):
         tab.sizeSpinBox.setSingleStep(1)
         tab.sizeSpinBox.valueChanged.connect(
             partial(self.updateFromSpinBox, tab, "size"))
-        layout2.addWidget(tab.sizeSpinBox, 1)
+        layout2.addWidget(tab.sizeSpinBox, 0)
 
         layout3 = qt.QHBoxLayout()
         layout3.addWidget(qt.QLabel('Style:'))
         tab.styleComboBox = LineStyleComboBox(tab)
         lineStyleDelegate = LineStyleDelegate(tab)
         tab.styleComboBox.setItemDelegate(lineStyleDelegate)
-        for style in tuple(lineStylesText.keys()):
-            tab.styleComboBox.addItem(style)
+        tab.styleComboBox.addItems(tuple(lineStylesText.keys()))
         tab.styleComboBox.currentIndexChanged.connect(
             partial(self.comboBoxChanged, tab, "width"))
         layout3.addWidget(tab.styleComboBox, 1)
@@ -250,14 +361,136 @@ class LineProps(qt.QDialog):
         tab.widthSpinBox.setSingleStep(0.5)
         tab.widthSpinBox.valueChanged.connect(
             partial(self.updateFromSpinBox, tab, "width"))
-        layout3.addWidget(tab.widthSpinBox, 1)
+        layout3.addWidget(tab.widthSpinBox, 0)
 
-        layout = qt.QVBoxLayout(tab)
-        layout.addLayout(layout1)
-        layout.addLayout(layout2)
+        layout4 = qt.QHBoxLayout()
+        tab.yAxisLabel = qt.QLabel("Y Axis:")
+        tab.yAxisLeft = qt.QRadioButton("left")
+        tab.yAxisRight = qt.QRadioButton("right")
+        layout4.addWidget(tab.yAxisLabel)
+        layout4.addWidget(tab.yAxisLeft)
+        layout4.addWidget(tab.yAxisRight)
+        layout4.addStretch()
+
+        layout = qt.QVBoxLayout()
         layout.addLayout(layout3)
+        layout.addLayout(layout2)
+        layout.addLayout(layout4)
         tab.setLayout(layout)
-#        self.setFixedSize(vLayout.minimumSize())
+        return tab
+
+    def initColorOption(self, policy):
+        if policy == gco.COLOR_POLICY_INDIVIDUAL:
+            self.colorIndividual.setChecked(True)
+        elif policy == gco.COLOR_POLICY_LOOP1:
+            self.colorLoop1.setChecked(True)
+        elif policy == gco.COLOR_POLICY_LOOP2:
+            self.colorLoop2.setChecked(True)
+        elif policy == gco.COLOR_POLICY_GRADIENT:
+            self.colorGradient.setChecked(True)
+        else:
+            raise ValueError("wrong choice of color type")
+
+    def initColorsFromItems(self):
+        if len(csi.selectedItems) == 0:
+            return
+        parentItem = csi.selectedItems[0].parentItem
+        if hasattr(parentItem, "colorPolicy"):
+            self.colorPolicy = parentItem.colorPolicy
+        else:
+            self.colorPolicy = gco.COLOR_POLICY_LOOP1
+        self.initColorOption(self.colorPolicy)
+
+        self.color = csi.selectedItems[0].color
+        self.colorIndividualButton.colorCycle = [self.color]
+        if hasattr(parentItem, "color1"):
+            self.color1 = parentItem.color1
+        else:
+            self.color1 = csi.selectedItems[0].color
+        if hasattr(parentItem, "color2"):
+            self.color2 = parentItem.color2
+        else:
+            self.color2 = csi.selectedItems[-1].color
+        self.colorGradientButton.colorCycle = \
+            gco.makeGradientCollection(self.color1, self.color2)
+
+        for tab in self.tabs:
+            tab.color = self.color
+
+        item = csi.selectedTopItems[0]
+        if hasattr(item, 'colorAutoUpdate'):
+            cond = item.colorAutoUpdate
+        else:
+            cond = item.parentItem.colorAutoUpdate
+        self.colorAutoCollective.setChecked(cond)
+
+    def initLinesFromItems(self):
+        if len(csi.selectedItems) == 0:
+            return
+        item = csi.selectedItems[0]
+        for yName, tab in zip(self.node.yNames, self.tabs):
+            lineProps = item.plotProps[self.node.name][yName]
+
+            lineWidth = lineProps.get('linewidth', 1)
+            tab.widthSpinBox.setValue(lineWidth)
+            lineStyle = lineProps.get('linestyle', '-')
+            tab.styleComboBox.setCurrentIndex(
+                tuple(lineStylesText.values()).index(lineStyle))
+
+            symbol = lineProps.get('symbol', None)
+            if symbol in noSymbols:
+                symbol = None
+            if symbol:
+                symbolSize = lineProps.get('symbolsize', 2)
+                tab.sizeSpinBox.setValue(symbolSize)
+                tab.symbolComboBox.setCurrentIndex(
+                    tuple(lineSymbolsText.values()).index(symbol))
+
+            axisY = lineProps.get('yaxis', -1)
+            if isinstance(axisY, type("")):
+                axisY = -1 if axisY.startswith("l") else 1
+            tab.yAxisLeft.setChecked(axisY == -1)
+            tab.yAxisRight.setChecked(axisY != -1)
+
+    def setButtonColor(self, color, policy):
+        if policy == gco.COLOR_POLICY_INDIVIDUAL:
+            self.color = color
+            self.colorIndividualButton.colorCycle = [color]
+        elif policy == gco.COLOR_POLICY_GRADIENT:
+            if self.colorSeq % 2 == 0:
+                self.color1 = color
+            else:
+                self.color2 = color
+            colorCycle = gco.makeGradientCollection(self.color1, self.color2)
+            self.colorGradientButton.colorCycle = colorCycle
+        else:
+            raise ValueError("wrong choice of color type")
+
+    def openColorDialog(self, policy):
+        title = 'Select Color'
+        self.initColorOption(policy)
+        if policy == gco.COLOR_POLICY_INDIVIDUAL:
+            initialColor = self.color
+        elif policy == gco.COLOR_POLICY_GRADIENT:
+            if self.colorSeq % 2 == 0:
+                initialColor = self.color1
+                title += ' 1'
+            else:
+                initialColor = self.color2
+                title += ' 2'
+        else:
+            return
+
+        initialColor = qt.QColor(initialColor)
+        color = qt.QColorDialog.getColor(
+            title=title, parent=self, initial=initialColor,
+            options=qt.QColorDialog.ShowAlphaChannel)
+        if color.isValid():
+            self.setButtonColor(color, policy)
+            if policy == gco.COLOR_POLICY_GRADIENT:
+                self.colorSeq += 1
+            for tab in self.tabs:
+                tab.color = color
 
     def updateFromSpinBox(self, tab, what):
         if what == "size":
@@ -273,52 +506,89 @@ class LineProps(qt.QDialog):
             tab.widthLabel.setVisible(ind != 0)
             tab.widthSpinBox.setVisible(ind != 0)
 
-    def setColor(self, tab, color):
-        tab.color = color
-        tab.colorButton.setStyleSheet("background-color: %s" % color)
+    def setColorOptions(self):
+        def delColorIndividual(item):
+            try:
+                del item.colorIndividual
+            except AttributeError:
+                pass
 
-    def openColorDialog(self, tab):
-        color = qt.QColorDialog().getColor()
-        if color.isValid():
-            self.setColor(tab, str(color.name()))
+        if self.colorIndividual.isChecked():
+            policy = gco.COLOR_POLICY_INDIVIDUAL
+        elif self.colorLoop1.isChecked():
+            policy = gco.COLOR_POLICY_LOOP1
+        elif self.colorLoop2.isChecked():
+            policy = gco.COLOR_POLICY_LOOP2
+        elif self.colorGradient.isChecked():
+            policy = gco.COLOR_POLICY_GRADIENT
 
-    def setLineProperties(self, tabInd=0, color=None, symbol=None,
-                          symbolsize=5, style=None, width=1):
-        tab = self.tabs[tabInd]
-        if color is not None:
-            self.setColor(tab, color)
+        parentItem = None
+        if self.isGroupSelected:
+            parentItem = csi.selectedTopItems[0]
+        elif self.isTopGroupSelected:
+            parentItem = csi.dataRootItem
+        if parentItem:
+            parentItem.colorPolicy = policy
 
-        if symbol is not None:
-            assert symbol in lineSymbolsText.values()
-            index = list(lineSymbolsText.values()).index(symbol)
-            tab.symbolComboBox.setCurrentIndex(index)
-            self.comboBoxChanged(tab, "size", index)
+        if policy == gco.COLOR_POLICY_INDIVIDUAL:
+            colorn = gco.getColorName(self.color)
+            if parentItem:
+                parentItem.color = colorn
+            else:
+                for item in csi.selectedItems:
+                    item.colorIndividual = colorn
+                    item.color = colorn
+        elif policy == gco.COLOR_POLICY_LOOP1:
+            if parentItem:
+                for item in parentItem.childItems:
+                    delColorIndividual(item)
+            else:
+                for i, item in enumerate(csi.selectedItems):
+                    color = gco.colorCycle1[i % len(gco.colorCycle1)]
+#                    item.colorIndividual = color
+                    item.color = color
+        elif policy == gco.COLOR_POLICY_LOOP2:
+            if parentItem:
+                for item in parentItem.childItems:
+                    delColorIndividual(item)
+            else:
+                for i, item in enumerate(csi.selectedItems):
+                    color = gco.colorCycle2[i % len(gco.colorCycle2)]
+#                    item.colorIndividual = color
+                    item.color = color
+        elif policy == gco.COLOR_POLICY_GRADIENT:
+            if parentItem:
+                parentItem.color1 = self.color1
+                parentItem.color2 = self.color2
+                for item in parentItem.childItems:
+                    delColorIndividual(item)
+            else:
+                colorCycle = gco.makeGradientCollection(
+                    self.color1, self.color2)
+                for item, color in zip(csi.selectedItems, colorCycle):
+#                    item.colorIndividual = color
+                    item.color = color
 
-        if symbolsize < tab.sizeSpinBox.minimum():
-            symbolsize = tab.sizeSpinBox.minimum()
-        if symbolsize > tab.sizeSpinBox.maximum():
-            symbolsize = tab.sizeSpinBox.maximum()
-        tab.sizeSpinBox.setValue(symbolsize)
+        if parentItem:
+            parentItem.init_colors(parentItem.childItems)
 
-        if style is not None:
-            assert style in lineStylesText.values()
-            index = list(lineStylesText.values()).index(style)
-            tab.styleComboBox.setCurrentIndex(index)
-            self.comboBoxChanged(tab, "width", index)
+    def setLineOptions(self):
+        for yName, tab in zip(self.node.yNames, self.tabs):
+            props = {
+                'symbol': lineSymbolsText[tab.symbolComboBox.currentText()],
+                'symbolsize': tab.sizeSpinBox.value(),
+                'linestyle': lineStylesText[tab.styleComboBox.currentText()],
+                'linewidth': tab.widthSpinBox.value(),
+                'yaxis': 'left' if tab.yAxisLeft.isChecked() else 'right'
+                }
+            for item in csi.selectedItems:
+                lineProps = item.plotProps[self.node.name][yName]
+                for prop in props:
+                    lineProps[prop] = props[prop]
+        csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.node.widget.replot()
 
-        if width < tab.widthSpinBox.minimum():
-            width = tab.widthSpinBox.minimum()
-        if width > tab.widthSpinBox.maximum():
-            width = tab.widthSpinBox.maximum()
-        tab.widthSpinBox.setValue(width)
-
-    def getLineProperties(self, tabInd=0):
-        tab = self.tabs[tabInd]
-        properties = {
-            'color': tab.color,
-            'symbol': lineSymbolsText[tab.symbolComboBox.currentText()],
-            'symbolsize': tab.sizeSpinBox.value(),
-            'linestyle': lineStylesText[tab.styleComboBox.currentText()],
-            'linewidth': tab.widthSpinBox.value()
-            }
-        return properties
+    def accept(self):
+        self.setColorOptions()
+        self.setLineOptions()
+        super(LineProps, self).accept()

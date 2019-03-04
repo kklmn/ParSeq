@@ -22,7 +22,7 @@ def load_test_data():
               [osp.join(dirname, 'data', 'CuO_lnt.fio'), [0, 5, 6]]]
 
     h5base = "silx:{0}".format(osp.join(dirname, 'data', 'Cu-flyScans.h5'))
-    h5Names = ['entry737', 'entry738', 'entry739']
+    h5Names = ['entry737', 'entry738']
     h5Format = [
         'measurement/mono1_energy',
         'd["measurement/albaem01_ch1"] + d["measurement/albaem01_ch4"]',
@@ -30,18 +30,23 @@ def load_test_data():
 
     rootItem = csi.dataRootItem
 
-    group0 = rootItem.insert_item('metal')
+#    group0 = rootItem
+    group0 = rootItem.insert_item('metal', colorPolicy='loop1')
     dataFormat = dict(dataSource=fNames[0][1], lastSkipRowContains='Col ')
 #    dataFormat['xFactor'] = 1e-3
     data = [fn[0] for fn in fNames[:4]]
     group0.insert_data(data, dataFormat=dataFormat)
 
-    group1, = rootItem.insert_data('oxides')  # another way to insert, res=list
+    # another way to make a group, res=list:
+    group1, = rootItem.insert_data('oxides', colorPolicy='loop2')
+#    group1, = rootItem.insert_data('oxides', color='green')
     dataFormat = dict(dataSource=fNames[4][1], lastSkipRowContains='Col ')
     data = [fn[0] for fn in fNames[4:7]]
     group1.insert_data(data, dataFormat=dataFormat)
 
-    group2 = rootItem.insert_item('metal-flyScan')
+    group2 = rootItem.insert_item(
+        'metal-flyScan', colorPolicy='gradient', color1='red', color2='blue',
+        colorAutoUpdate=True)
     data = ['::/'.join([h5base, e]) for e in h5Names]
     dataFormat = dict(dataSource=h5Format)
     group2.insert_data(data, dataFormat=dataFormat)

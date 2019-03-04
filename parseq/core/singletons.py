@@ -26,6 +26,6 @@ model = None  # dataTreeModelView.DataTreeModel()
 modelDataColumns = []  # (node, yNames) of all nodes as headers in data model
 modelLeadingColumns = ['data name', '']
 selectionModel = None
-selectedItems, selectedTopItems = [], []  # common for all trees
+selectedItems, selectedTopItems = [], []  # common for all data trees
 recentlyLoadedItems = []
 allLoadedItems = []

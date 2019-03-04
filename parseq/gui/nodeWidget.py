@@ -141,7 +141,7 @@ class NodeWidget(qt.QWidget):
 
     def fillSplitterFiles(self):
         qWidget = qt.QWidget(self.splitterFiles)
-        layout = qt.QVBoxLayout(self.splitterFiles)
+        layout = qt.QVBoxLayout()
         layout.setContentsMargins(2, 0, 0, 0)
         self.files = FileTreeView(self.node, self.splitterFiles)
 #        self.files.doubleClicked.connect(self.loadFiles)

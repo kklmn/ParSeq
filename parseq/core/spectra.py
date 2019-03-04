@@ -14,15 +14,12 @@ import silx.io as silx_io
 from . import singletons as csi
 from . import commons as cco
 
+DEFAULT_COLOR_AUTO_UPDATE = False
+
 DATA_COLUMN_FILE, DATA_DATASET, DATA_COMBINATION, DATA_FUNCTION, DATA_GROUP =\
     range(5)
 COMBINE_NONE, COMBINE_AVE, COMBINE_SUM, COMBINE_PCA, COMBINE_RMS = range(5)
 combineName = '', 'ave', 'sum', 'PCA', 'RMS'
-
-colorCycle = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-              '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-colorCycle2 = ['#0000ff', '#00ee00', '#ff0000', '#00ffff', '#ff00ff',
-               '#ffff00', '#000000']
 
 
 class TreeItem(object):
@@ -125,6 +122,12 @@ class TreeItem(object):
                     items.append(item)
         return items
 
+    def get_nongroups(self):
+        return [item for item in self.childItems if len(item.childItems) == 0]
+
+    def get_groups(self):
+        return [item for item in self.childItems if len(item.childItems) > 0]
+
     def has_groups(self):
         for item in self.childItems:
             if item.childItems:
@@ -162,7 +165,7 @@ class TreeItem(object):
     def insert_item(self, name, insertAt=None, **kwargs):
         return TreeItem(name, self, insertAt, **kwargs)
 
-    def insert_data(self, data, insertAt=None, **kwargs):
+    def insert_data(self, data, insertAt=None, isRecursive=False, **kwargs):
         items = []
         if isinstance(data, type("")):
             item = self.insert_item(data, insertAt, **kwargs)
@@ -177,7 +180,8 @@ class TreeItem(object):
                 elif isinstance(subdata, (list, tuple)):
                     if si in items:
                         items.remove(si)
-                    subItems = si.insert_data(subdata, **kwargs)  # no insertAt
+                    subItems = si.insert_data(
+                        subdata, isRecursive=True, **kwargs)  # no insertAt
                 else:
                     raise ValueError(
                         "data in '{0}' must be a sequence or a string, not {1}"
@@ -191,7 +195,36 @@ class TreeItem(object):
 #        csi.recentlyLoadedItems.clear()
         csi.recentlyLoadedItems[:] = []
         csi.recentlyLoadedItems.extend(items)
+        shouldMakeColor = (not isRecursive  # *items* is the full list of data
+                           and ('dataFormat' in kwargs)  # data, not a group
+                           and csi.withGUI)
+        if shouldMakeColor:
+            self.init_colors(items)
         return items
+
+    def init_colors(self, items=None):
+        from ..gui import gcommons as gco
+        citems = self.childItems if self.colorAutoUpdate else items
+        if citems is None:
+            return
+
+        if self.colorPolicy == gco.COLOR_POLICY_GRADIENT:
+            colors = gco.makeGradientCollection(
+                self.color1, self.color2, len(citems))
+        for i, item in enumerate(citems):
+            if hasattr(item, 'colorIndividual'):
+                item.color = item.colorIndividual
+                continue
+            if self.colorPolicy == gco.COLOR_POLICY_INDIVIDUAL:
+                item.color = gco.getColorName(self.color)
+            elif self.colorPolicy == gco.COLOR_POLICY_LOOP1:
+                item.color = gco.colorCycle1[item.row() % len(gco.colorCycle1)]
+            elif self.colorPolicy == gco.COLOR_POLICY_LOOP2:
+                item.color = gco.colorCycle2[item.row() % len(gco.colorCycle2)]
+            elif self.colorPolicy == gco.COLOR_POLICY_GRADIENT:
+                item.color = colors[i].name()  # in the format "#RRGGBB"
+            else:
+                raise ValueError("wrong choice of color type")
 
 
 class Spectrum(TreeItem):
@@ -226,6 +259,10 @@ class Spectrum(TreeItem):
         if parentItem is None:
             assert csi.dataRootItem is None, "Data tree already exists."
             csi.dataRootItem = self
+            if csi.withGUI:
+                from ..gui import gcommons as gco
+                self.colorPolicy = gco.COLOR_POLICY_LOOP1
+                self.colorAutoUpdate = DEFAULT_COLOR_AUTO_UPDATE
             return
 
         self.alias = kwargs.get('alias', 'auto')
@@ -255,8 +292,46 @@ class Spectrum(TreeItem):
                 self.init_plot_props()
         else:  # i.e. is a group
             self.dataType = DATA_GROUP
+            if csi.withGUI:
+                from ..gui import gcommons as gco
+                cp = (kwargs.pop('colorPolicy', 'loop1')).lower()
+                if 'color' in kwargs:
+                    cp = 'individual'
+                if cp.startswith('ind'):  # individual
+                    self.colorPolicy = gco.COLOR_POLICY_INDIVIDUAL
+                    self.color = kwargs.pop('color', 'k')
+                elif cp.startswith('loop1'):
+                    self.colorPolicy = gco.COLOR_POLICY_LOOP1
+                elif cp.startswith('loop2'):
+                    self.colorPolicy = gco.COLOR_POLICY_LOOP2
+                elif cp.startswith('grad'):
+                    self.colorPolicy = gco.COLOR_POLICY_GRADIENT
+                    self.color1 = kwargs.pop('color1', 'r')
+                    self.color2 = kwargs.pop('color2', 'g')
+                else:
+                    raise ValueError("wrong choice of color type")
+                self.colorAutoUpdate = bool(kwargs.pop(
+                        'colorAutoUpdate', DEFAULT_COLOR_AUTO_UPDATE))
             if self.alias == 'auto':
                 self.alias = madeOf
+
+    def init_plot_props(self):
+        row = self.row()
+        if row is None:
+            row = 0
+        self.color = 'k'
+        self.plotProps = {}
+        for node in csi.nodes.values():
+            self.plotProps[node.name] = {}
+            for ind, yName in enumerate(node.yNames):
+                plotParams = {'symbolsize': 2}
+                for k, v in node.plotParams.items():
+                    if isinstance(v, (list, tuple)):
+                        pv = v[ind]
+                    else:
+                        pv = v
+                    plotParams[k] = pv
+                self.plotProps[node.name][yName] = plotParams
 
     def is_good(self, column):
         leadingColumns = len(csi.modelLeadingColumns)
@@ -312,25 +387,6 @@ class Spectrum(TreeItem):
         if runDownstream:
             for tr in self.originNode.transformsOut:
                 tr.run(dataItems=[self])
-
-    def init_plot_props(self):
-        row = self.row()
-        if row is None:
-            row = 0
-        self.color = colorCycle[row % len(colorCycle)] if self.colorTag == 0\
-            else colorCycle2[row % len(colorCycle2)]
-        self.plotProps = {}
-        for node in csi.nodes.values():
-            self.plotProps[node.name] = {}
-            for ind, yName in enumerate(node.yNames):
-                plotParams = {'symbolsize': 2}
-                for k, v in node.plotParams.items():
-                    if isinstance(v, (list, tuple)):
-                        pv = v[ind]
-                    else:
-                        pv = v
-                    plotParams[k] = pv
-                self.plotProps[node.name][yName] = plotParams
 
     def insert_item(self, name, insertAt=None, **kwargs):
         return Spectrum(name, self, insertAt, **kwargs)

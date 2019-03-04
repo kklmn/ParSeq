@@ -710,8 +710,10 @@ class FileTreeView(qt.QTreeView):
         else:
             isEnabled = True
 
-        action = menu.addAction(
-            "Load data", self.transformNode.widget.loadFiles)
+        strLoad = "Load data"
+        if isEnabled:
+            strLoad += " (you can also drag it to the data tree)"
+        action = menu.addAction(strLoad, self.transformNode.widget.loadFiles)
         action.setEnabled(isEnabled)
         if lenSelectedIndexes > 1:
             actionN = menu.addAction(
