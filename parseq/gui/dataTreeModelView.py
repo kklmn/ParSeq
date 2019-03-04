@@ -339,6 +339,8 @@ class DataTreeModel(qt.QAbstractItemModel):
         elif mimedata.hasFormat(cco.MIME_TYPE_TEXT) or \
                 mimedata.hasFormat(cco.MIME_TYPE_HDF5):
             toItem = parent.internalPointer()
+            if toItem is None:
+                toItem = csi.dataRootItem
             if mimedata.hasFormat(cco.MIME_TYPE_TEXT):
                 urls = [url.toLocalFile() for url in reversed(mimedata.urls())]
             else:
@@ -758,6 +760,14 @@ class DataTreeView(qt.QTreeView):
             selNames = ', '.join([i.alias for i in csi.selectedItems])
             dataCount = len(csi.allLoadedItems)
             self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
+
+    def dragMoveEvent(self, event):
+        super(DataTreeView, self).dragMoveEvent(event)
+        mimedata = event.mimeData()
+        if (mimedata.hasFormat(cco.MIME_TYPE_DATA) or
+            mimedata.hasFormat(cco.MIME_TYPE_TEXT) or
+                mimedata.hasFormat(cco.MIME_TYPE_HDF5)):
+            event.accept()
 
     def dropEvent(self, event):
         csi.currentNodeToDrop = self.node

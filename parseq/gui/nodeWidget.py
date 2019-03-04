@@ -113,7 +113,11 @@ class NodeWidget(qt.QWidget):
         self.splitter.setStretchFactor(2, 1)
         self.splitter.setStretchFactor(3, 0)
         self.splitter.setSizes([1, 1, 1, 1])
+
+        if not os.path.exists(self.helpFile):
+            self.splitterTransform.setSizes([1, 0])
         self.splitterButtons[u'files && containers'].clicked.emit(False)
+        self.splitterButtons[u'transform'].clicked.emit(False)
 
         # sharing tree selections among nodes:
         if csi.selectionModel is None:
@@ -215,15 +219,12 @@ class NodeWidget(qt.QWidget):
 
     def makeTransformWidget(self, parent):
         tr = self.node.transformIn
-        if tr is not None:
+        try:
             self.transformWidget = tr.widgetClass(parent=parent, transform=tr)
-        else:
-            self.transformWidget = None
+        except:  # noqa
+            self.transformWidget = qt.QWidget(parent)
 
     def fillHelpWidget(self):
-        if not os.path.exists(self.helpFile):
-            # self.splitterButtons['help'].click()  # doesn't work
-            self.handleHideHelp()
         self.makeSplitterHelpButton(self.splitterTransform, 1)
 
         ipath = os.path.join(os.path.dirname(self.helpFile), r'_images')
@@ -318,10 +319,6 @@ class NodeWidget(qt.QWidget):
 
     def handleSplitterHelpButton(self):
         webbrowser.open(self.helpFile)
-
-    def handleHideHelp(self):
-        self.splitterTransform.setSizes([1, 0])
-        self.setArrowType(self.splitterButtons['help'], qt.Qt.UpArrow)
 
     def setupPlot(self):
         try:
@@ -505,9 +502,14 @@ class NodeWidget(qt.QWidget):
         df = self.columnFormat.getDataFormat()
         if not df:
             return
-        return csi.model.importData(
+        items = csi.model.importData(
             fileNamesFull, parentItem, insertAt, dataFormat=df,
             originNode=self.node)
+        mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
+        for item in items:
+            row = item.row()
+            index = csi.model.createIndex(row, 0, item)
+            csi.selectionModel.select(index, mode)
 
     def shouldShowColumnDialog(self):
         for it in csi.selectedItems:
@@ -545,5 +547,7 @@ class NodeWidget(qt.QWidget):
                     curve._updated()
 
     def updateTransforms(self):
-        if self.transformWidget:
+        try:
             self.transformWidget.setUIFromData()
+        except:  # noqa
+            pass
