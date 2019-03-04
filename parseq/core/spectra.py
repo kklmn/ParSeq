@@ -204,6 +204,8 @@ class TreeItem(object):
 
     def init_colors(self, items=None):
         from ..gui import gcommons as gco
+        if not hasattr(self, 'colorAutoUpdate'):
+            return
         citems = self.childItems if self.colorAutoUpdate else items
         if citems is None:
             return

@@ -586,7 +586,8 @@ class LineProps(qt.QDialog):
                 for prop in props:
                     lineProps[prop] = props[prop]
         csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-        self.node.widget.replot()
+        if hasattr(self.node, 'widget'):
+            self.node.widget.replot()
 
     def accept(self):
         self.setColorOptions()

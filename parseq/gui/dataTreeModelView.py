@@ -255,7 +255,8 @@ class DataTreeModel(qt.QAbstractItemModel):
             if parentItem.child_count() == 0:
                 parentItem.delete()
         self.endResetModel()
-        group.colorAutoUpdate = group.parentItem.colorAutoUpdate
+        if hasattr(group.parentItem, 'colorAutoUpdate'):
+            group.colorAutoUpdate = group.parentItem.colorAutoUpdate
         group.init_colors()
         group.parentItem.init_colors()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
@@ -349,7 +350,8 @@ class DataTreeModel(qt.QAbstractItemModel):
             if csi.currentNodeToDrop is None:
                 return False
             node = csi.currentNodeToDrop
-            items = node.widget.loadFiles(urls, parentItem, insertAt)
+            if hasattr(node, 'widget'):
+                items = node.widget.loadFiles(urls, parentItem, insertAt)
 #            if DEBUG > 0:
 #                if items is not None:
 #                    for item in items:
@@ -670,15 +672,18 @@ class DataTreeView(qt.QTreeView):
         menu.addSeparator()
         if isGroupSelected or \
                 csi.selectedTopItems == csi.dataRootItem.get_nongroups():
-            aucc = menu.addAction("Auto update collective colors",
-                                  self.autoUpdateColors)
-            aucc.setCheckable(True)
             item = csi.selectedTopItems[0]
-            if hasattr(item, 'colorAutoUpdate'):
-                cond = item.colorAutoUpdate
-            else:
-                cond = item.parentItem.colorAutoUpdate
-            aucc.setChecked(cond)
+            try:
+                if hasattr(item, 'colorAutoUpdate'):
+                    cond = item.colorAutoUpdate
+                else:
+                    cond = item.parentItem.colorAutoUpdate
+                aucc = menu.addAction("Auto update collective colors",
+                                      self.autoUpdateColors)
+                aucc.setCheckable(True)
+                aucc.setChecked(cond)
+            except AttributeError:
+                pass
         menu.addAction("Line properties", self.setLines, "Ctrl+L")
 
         menu.exec_(self.viewport().mapToGlobal(point))
@@ -698,7 +703,8 @@ class DataTreeView(qt.QTreeView):
         if shouldUpdateModel:
             parentItem.init_colors()
             self.model().dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-            self.node.widget.replot()
+            if hasattr(self.node, 'widget'):
+                self.node.widget.replot()
 
     def moveItems(self, to):
         for topItem in csi.selectedTopItems[::to]:
@@ -742,9 +748,10 @@ class DataTreeView(qt.QTreeView):
         self.setCurrentIndex(newInd)
 
     def setLines(self, column=0):
+        if self.node is None:
+            return
         lineDialog = LineProps(self, self.node, column)
-        if (lineDialog.exec_()):
-            pass
+        lineDialog.exec_()
 
     def selChanged(self):
         if DEBUG > 0 and self.parent() is None:  # only for test purpose
