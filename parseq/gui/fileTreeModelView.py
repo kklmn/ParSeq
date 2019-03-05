@@ -609,55 +609,21 @@ class FileTreeView(qt.QTreeView):
         self.customContextMenuRequested.connect(self.onCustomContextMenu)
         self.selectionModel().selectionChanged.connect(self.selChanged)
 
+        strLoad = "Load data (you can also drag it to the data tree)"
+        self.actionLoad = self._addAction(
+            strLoad, self.transformNode.widget.loadFiles, "Ctrl+O")
+
+    def _addAction(self, text, slot, shortcut=None):
+        action = qt.QAction(text, self)
+        action.triggered.connect(slot)
+        if shortcut:
+            action.setShortcut(qt.QKeySequence(shortcut))
+        action.setShortcutContext(qt.Qt.WidgetWithChildrenShortcut)
+        self.addAction(action)
+        return action
+
     def _resetRootPath(self, rtIndex):
         self.setRootIndex(rtIndex)
-
-    def saveExpand(self, parent=qt.QModelIndex()):
-        if parent == qt.QModelIndex():
-            self._expandedNodes = []
-        for row in range(self.model().rowCount(parent)):
-            ind = self.model().index(row, 0, parent)
-            if self.model().rowCount(ind) > 0:
-                if self.isExpanded(ind):
-                    self._expandedNodes.append(ind.data())
-                self.saveExpand(ind)
-
-    def restoreExpand(self, parent=qt.QModelIndex()):
-        if parent == qt.QModelIndex():
-            if len(self._expandedNodes) == 0:
-                return
-        try:
-            for row in range(self.model().rowCount(parent)):
-                ind = self.model().index(row, 0, parent)
-                if self.model().rowCount(ind) > 0:
-                    if ind.data() in self._expandedNodes:
-                        self.setExpanded(ind, True)
-                    self.restoreExpand(ind)
-        except:
-            pass
-
-    def selChanged(self, selected, deselected):
-        # self.updateForSelectedFiles(selected.indexes()) #  × num of columns
-        selectedIndexes = self.selectionModel().selectedRows()
-        self.updateForSelectedFiles(selectedIndexes)
-
-    def updateForSelectedFiles(self, indexes):
-        if self.transformNode is None:
-            return
-        cf = self.transformNode.widget.columnFormat
-        for index in indexes:
-            nodeType = self.model().nodeType(index)
-            if nodeType == NODE_FS:
-                indexFS = self.model().mapToFS(index)
-                fileInfo = self.model().fsModel.fileInfo(indexFS)
-                if is_text_file(fileInfo.filePath()):
-                    cf.setHeaderEnabled(True)
-                else:
-                    cf.setHeaderEnabled(False)
-                    return
-            else:
-                cf.setHeaderEnabled(False)
-                return
 
     def onCustomContextMenu(self, point):
         if self.transformNode is None:
@@ -707,11 +673,8 @@ class FileTreeView(qt.QTreeView):
         else:
             isEnabled = True
 
-        strLoad = "Load data"
-        if isEnabled:
-            strLoad += " (you can also drag it to the data tree)"
-        action = menu.addAction(strLoad, self.transformNode.widget.loadFiles)
-        action.setEnabled(isEnabled)
+        menu.addAction(self.actionLoad)
+        self.actionLoad.setEnabled(isEnabled)
         if lenSelectedIndexes > 1:
             actionN = menu.addAction(
                 "Concatenate {0} datasets and load as one".format(
@@ -720,6 +683,53 @@ class FileTreeView(qt.QTreeView):
 
         menu.exec_(
             self.transformNode.widget.files.viewport().mapToGlobal(point))
+
+    def saveExpand(self, parent=qt.QModelIndex()):
+        if parent == qt.QModelIndex():
+            self._expandedNodes = []
+        for row in range(self.model().rowCount(parent)):
+            ind = self.model().index(row, 0, parent)
+            if self.model().rowCount(ind) > 0:
+                if self.isExpanded(ind):
+                    self._expandedNodes.append(ind.data())
+                self.saveExpand(ind)
+
+    def restoreExpand(self, parent=qt.QModelIndex()):
+        if parent == qt.QModelIndex():
+            if len(self._expandedNodes) == 0:
+                return
+        try:
+            for row in range(self.model().rowCount(parent)):
+                ind = self.model().index(row, 0, parent)
+                if self.model().rowCount(ind) > 0:
+                    if ind.data() in self._expandedNodes:
+                        self.setExpanded(ind, True)
+                    self.restoreExpand(ind)
+        except:
+            pass
+
+    def selChanged(self, selected, deselected):
+        # self.updateForSelectedFiles(selected.indexes()) #  × num of columns
+        selectedIndexes = self.selectionModel().selectedRows()
+        self.updateForSelectedFiles(selectedIndexes)
+
+    def updateForSelectedFiles(self, indexes):
+        if self.transformNode is None:
+            return
+        cf = self.transformNode.widget.columnFormat
+        for index in indexes:
+            nodeType = self.model().nodeType(index)
+            if nodeType == NODE_FS:
+                indexFS = self.model().mapToFS(index)
+                fileInfo = self.model().fsModel.fileInfo(indexFS)
+                if is_text_file(fileInfo.filePath()):
+                    cf.setHeaderEnabled(True)
+                else:
+                    cf.setHeaderEnabled(False)
+                    return
+            else:
+                cf.setHeaderEnabled(False)
+                return
 
     def setAsArray(self, iArray, paths):
         subpaths = []

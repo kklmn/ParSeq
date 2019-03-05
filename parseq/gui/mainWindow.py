@@ -125,8 +125,11 @@ class MainWindowParSeq(qt.QMainWindow):
         dataCount = len(csi.allLoadedItems)
 #        self.statusbar.showMessage('{0}; {1}'.format(dataCount, selNames))
         sellen = len(csi.selectedItems)
-        self.statusBarLeft.setText('{0} selected spectr{1}: {2}'.format(
-            sellen, 'um' if sellen == 1 else 'a', selNames))
+        if sellen:
+            self.statusBarLeft.setText('{0} selected spectr{1}: {2}'.format(
+                sellen, 'um' if sellen == 1 else 'a', selNames))
+        else:
+            self.statusBarLeft.setText('')
         self.statusBarRight.setText('{0} spectr{1}'.format(
             dataCount, 'um' if dataCount == 1 else 'a'))
 

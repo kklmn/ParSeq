@@ -13,7 +13,8 @@ from silx.gui import qt
 from ..core import singletons as csi
 from ..core import commons as cco
 from ..core import spectra as csp
-from ..gui.fileTreeModelView import FileTreeView, NODE_FS
+from ..gui import fileTreeModelView as gft
+from ..gui.fileTreeModelView import FileTreeView
 from ..gui.dataTreeModelView import DataTreeView
 from ..gui.plot import Plot1D
 from ..gui.webWidget import QWebView
@@ -447,15 +448,20 @@ class NodeWidget(qt.QWidget):
         def times(n):
             return " ({0} times)".format(n) if n > 1 else ""
 
+        selectedIndexes = self.files.selectionModel().selectedRows()
+        for index in selectedIndexes:
+            if not index.data(gft.LOAD_DATASET_ROLE) == gft.LOAD_CAN:
+                return
+
         if isinstance(fileNamesFull, qt.QModelIndex):
             if qt.QFileInfo(
                     self.files.model().filePath(fileNamesFull)).isDir():
                 return
             fileNamesFull = None
-        if fileNamesFull is None:
+        if not fileNamesFull:
             sIndexes = self.files.selectionModel().selectedRows()
             nodeType = self.files.model().nodeType(sIndexes[0])
-            if nodeType == NODE_FS:
+            if nodeType == gft.NODE_FS:
                 fileNamesFull = \
                     [self.files.model().filePath(i) for i in sIndexes]
             else:  # FileTreeView.NODE_HDF5, FileTreeView.NODE_HDF5_HEAD

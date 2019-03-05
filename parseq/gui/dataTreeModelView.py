@@ -620,7 +620,79 @@ class DataTreeView(qt.QTreeView):
         self.customContextMenuRequested.connect(self.onCustomContextMenu)
         self.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
 
+        self.makeActions()
         self.dataChanged()
+
+    def makeActions(self):
+        self.actionDND = self._addAction(
+            "Allow internal drag-and-drop", self.allowDND)  # , "Ctrl+D")
+        self.actionDND.setCheckable(True)
+
+        self.actionMoveUp = self._addAction(
+            "Move up", partial(self.moveItems, +1), "Ctrl+Up")
+        self.actionMoveDown = self._addAction(
+            "Move down", partial(self.moveItems, -1), "Ctrl+Down")
+
+        self.actionMakeGroup = self._addAction(
+            "Make group", self.groupItems, "Ctrl+G")
+        self.actionUngroup = self._addAction("Ungroup", self.ungroup, "Ctrl+U")
+
+        self.actionRemove = self._addAction("Remove", self.deleteItems, "Del")
+
+        self.actionAUCC = self._addAction(
+            "Auto update collective colors", self.autoUpdateColors)
+        self.actionAUCC.setCheckable(True)
+
+        self.actionLines = self._addAction(
+            "Line properties", self.setLines, "Ctrl+L")
+
+    def _addAction(self, text, slot, shortcut=None):
+        action = qt.QAction(text, self)
+        action.triggered.connect(slot)
+        if shortcut:
+            action.setShortcut(qt.QKeySequence(shortcut))
+        action.setShortcutContext(qt.Qt.WidgetWithChildrenShortcut)
+        self.addAction(action)
+        return action
+
+    def onCustomContextMenu(self, point):
+        menu = qt.QMenu()
+        if len(csi.selectedTopItems) == 0:
+            return
+
+        menu.addAction(self.actionDND)
+        self.actionDND.setChecked(self.isInnerDragNDropAllowed)
+        menu.addAction(self.actionMoveUp)
+        menu.addAction(self.actionMoveDown)
+        menu.addSeparator()
+
+        isGroupSelected = False
+        if len(csi.selectedTopItems) > 1:
+            menu.addAction(self.actionMakeGroup)
+        elif len(csi.selectedTopItems) == 1:
+            if csi.selectedTopItems[0].child_count() > 0:
+                isGroupSelected = True
+                menu.addAction(self.actionUngroup)
+
+        menu.addSeparator()
+        menu.addAction(self.actionRemove)
+
+        menu.addSeparator()
+        if isGroupSelected or \
+                csi.selectedTopItems == csi.dataRootItem.get_nongroups():
+            item = csi.selectedTopItems[0]
+            try:
+                if hasattr(item, 'colorAutoUpdate'):
+                    cond = item.colorAutoUpdate
+                else:
+                    cond = item.parentItem.colorAutoUpdate
+                menu.addAction(self.actionAUCC)
+                self.actionAUCC.setChecked(cond)
+            except AttributeError:
+                pass
+        menu.addAction(self.actionLines)
+
+        menu.exec_(self.viewport().mapToGlobal(point))
 
     def headerClicked(self, column):
         if column == 0:
@@ -660,50 +732,10 @@ class DataTreeView(qt.QTreeView):
         csi.allLoadedItems.extend(csi.dataRootItem.get_items())
         self.needReplot.emit()
 
-    def onCustomContextMenu(self, point):
-        menu = qt.QMenu()
-        if len(csi.selectedTopItems) == 0:
-            return
-        #  TODO accelerators do not work
-        dnd = menu.addAction("Allow internal drag-and-drop", self.allowDND)
-        dnd.setCheckable(True)
-        dnd.setChecked(self.isInnerDragNDropAllowed)
-        menu.addAction("Move up", partial(self.moveItems, +1), "Ctrl+Up")
-        menu.addAction("Move down", partial(self.moveItems, -1), "Ctrl+Down")
-        menu.addSeparator()
-
-        isGroupSelected = False
-        if len(csi.selectedTopItems) > 1:
-            menu.addAction("Make group", self.groupItems, "Ctrl+G")
-        elif len(csi.selectedTopItems) == 1:
-            if csi.selectedTopItems[0].child_count() > 0:
-                isGroupSelected = True
-                menu.addAction("Ungroup", self.ungroup, "Ctrl+U")
-        menu.addSeparator()
-        menu.addAction("Remove", self.deleteItems, "Del")
-
-        menu.addSeparator()
-        if isGroupSelected or \
-                csi.selectedTopItems == csi.dataRootItem.get_nongroups():
-            item = csi.selectedTopItems[0]
-            try:
-                if hasattr(item, 'colorAutoUpdate'):
-                    cond = item.colorAutoUpdate
-                else:
-                    cond = item.parentItem.colorAutoUpdate
-                aucc = menu.addAction("Auto update collective colors",
-                                      self.autoUpdateColors)
-                aucc.setCheckable(True)
-                aucc.setChecked(cond)
-            except AttributeError:
-                pass
-        menu.addAction("Line properties", self.setLines, "Ctrl+L")
-
-        menu.exec_(self.viewport().mapToGlobal(point))
-
     def allowDND(self):
         self.isInnerDragNDropAllowed = not self.isInnerDragNDropAllowed
         self.setDragEnabled(self.isInnerDragNDropAllowed)
+        self.actionDND.setChecked(self.isInnerDragNDropAllowed)
 
     def autoUpdateColors(self):
         it = csi.selectedTopItems[0]
@@ -727,12 +759,18 @@ class DataTreeView(qt.QTreeView):
         self.setCurrentIndex(newInd)
 
     def groupItems(self):
+        if len(csi.selectedTopItems) <= 1:
+            return
         group = self.model().groupItems(csi.selectedTopItems)
         row = group.row()
         newInd = self.model().createIndex(row, 0, group)
         self.setCurrentIndex(newInd)
 
     def ungroup(self):
+        if len(csi.selectedTopItems) != 1:
+            return
+        if csi.selectedTopItems[0].child_count() == 0:
+            return
         self.model().ungroup(csi.selectedTopItems[0])
         mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
         for item in csi.selectedItems:
@@ -748,6 +786,8 @@ class DataTreeView(qt.QTreeView):
         if self.model().rowCount() == 0:
             csi.selectedItems[:] = []
             csi.selectedTopItems[:] = []
+            if csi.mainWindow is not None:
+                csi.mainWindow.selChanged()
             if DEBUG > 0:
                 self.setWindowTitle('')
             return
