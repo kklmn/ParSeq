@@ -62,7 +62,7 @@ class PropWidget(qt.QWidget):
                 if isinstance(prop, type('')):
                     ed.setText(prop)
                 else:
-                    ed.setText(repr(prop))
+                    ed.setText(str(prop))
             else:
                 rb.setAutoExclusive(False)
                 rb.setChecked(False)

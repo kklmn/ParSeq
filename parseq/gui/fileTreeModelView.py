@@ -34,7 +34,7 @@ NODE_INDENTATION = 12
 
 def is_text_file(file_name):
     try:
-        with open(file_name, 'tr') as check_file:  # try open file in text mode
+        with open(file_name, 'r') as check_file:  # try open file in text mode
             check_file.read()
             return True
     except:  # if fail then file is non-text (binary)
@@ -507,7 +507,12 @@ class FileSystemWithHdf5Model(ModelBase):
         if nodeTypes.count(nodeTypes[0]) != len(nodeTypes):  # not all equal
             return
         if nodeTypes[0] in (NODE_HDF5_HEAD, NODE_FS):
-            indexesFS = [self.mapToFS(index) for index in indexes0]
+            indexesFS = []
+            for index in indexes0:
+                indexFS = self.mapToFS(index)
+                if self.stateLoadColDataset(indexFS) != LOAD_CAN:
+                    return
+                indexesFS.append(indexFS)
             if ModelBase == qt.QFileSystemModel:
                 return super(FileSystemWithHdf5Model, self).mimeData(indexesFS)
             else:
@@ -757,3 +762,16 @@ class FileTreeView(qt.QTreeView):
         else:
             return
         edit.setText(txt)
+
+    def startDrag(self, supportedActions):
+#        # the default method in PyQt4 crashes at dragging
+#        if qt.BINDING == "PyQt5":
+#            return super(FileTreeView, self).startDrag(supportedActions)
+
+        listsQModelIndex = self.selectedIndexes()
+        if listsQModelIndex:
+            dataQMimeData = self.model().mimeData(listsQModelIndex)
+            dragQDrag = qt.QDrag(self)
+            dragQDrag.setMimeData(dataQMimeData)
+            defaultDropAction = qt.Qt.IgnoreAction
+            dragQDrag.exec_(supportedActions, defaultDropAction)
