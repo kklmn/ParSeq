@@ -442,7 +442,6 @@ class NodeWidget(qt.QWidget):
             if it.dataType in (csp.DATA_COLUMN_FILE, csp.DATA_DATASET) and\
                     it.originNode is self.node:
                 return it.madeOf, it.dataType
-        return
 
     def loadFiles(self, fileNamesFull=None, parentItem=None, insertAt=None):
         def times(n):

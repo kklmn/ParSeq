@@ -3,14 +3,9 @@ __author__ = "Konstantin Klementiev"
 __date__ = "20 Sep 2018"
 # !!! SEE CODERULES.TXT !!!
 
-from silx.gui import qt
-
 import os, sys; sys.path.append('..')  # analysis:ignore
 import parseq.core.singletons as csi
 import parseq.core.spectra as csp
-from parseq.gui.dataTreeModelView import DataTreeModel, DataTreeView
-
-MyTreeView = DataTreeView
 
 
 def test_TreeItem(withGUI):
@@ -29,6 +24,10 @@ def test_TreeItem(withGUI):
 #    testdata = []
 
     if withGUI:
+        from silx.gui import qt
+        from parseq.gui.dataTreeModelView import DataTreeModel, DataTreeView
+        MyTreeView = DataTreeView
+
         app = qt.QApplication(sys.argv)
         model = DataTreeModel()
         csi.model = model
@@ -71,6 +70,10 @@ def test_Spectrum1(withGUI):  # without convenience functions
               ['../data/CuO_lnt.fio', (0, 5, 6)]]
 
     if withGUI:
+        from silx.gui import qt
+        from parseq.gui.dataTreeModelView import DataTreeView
+        MyTreeView = DataTreeView
+
         app = qt.QApplication(sys.argv)
         model = csi.model
         node = list(csi.nodes.values())[0]
@@ -124,6 +127,10 @@ def test_Spectrum2(withGUI):  # with convenience functions
     myapp.load_test_data()
 
     if withGUI:
+        from silx.gui import qt
+        from parseq.gui.dataTreeModelView import DataTreeView
+        MyTreeView = DataTreeView
+
         app = qt.QApplication(sys.argv)
         node = list(csi.nodes.values())[0]
         view1 = MyTreeView(node)
@@ -142,7 +149,7 @@ if __name__ == '__main__':
 #    test_TreeItem(withGUI=True)
 #    test_TreeItem(withGUI=False)
 
-    test_Spectrum1(withGUI=True)
+#    test_Spectrum1(withGUI=True)
 #    test_Spectrum1(withGUI=False)
 
-#    test_Spectrum2(withGUI=True)
+    test_Spectrum2(withGUI=True)
