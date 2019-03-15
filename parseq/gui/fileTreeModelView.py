@@ -2,6 +2,7 @@
 __author__ = "Konstantin Klementiev"
 __date__ = "01 Jan 2019"
 # !!! SEE CODERULES.TXT !!!
+import os
 import re
 from functools import partial
 import pickle
@@ -101,6 +102,7 @@ class FileSystemWithHdf5Model(ModelBase):
         # this won't handle renames, deletes, and moves:
         self.nodesH5 = []
         self.nodesHead = []
+        self.nodesNoHead = []
         self._roothPath = None
         self.layoutAboutToBeChanged.connect(self._resetModel)
         self.layoutChanged.connect(self._restoreExpand)
@@ -480,20 +482,24 @@ class FileSystemWithHdf5Model(ModelBase):
         fileInfo = self.fsModel.fileInfo(indexFS)
         filename = fileInfo.filePath()
         index = self.mapFromFS(indexFS)
-        if index.internalId() not in self.nodesHead:
+        if (index.internalId() not in self.nodesHead and
+                index.internalId() not in self.nodesNoHead):
             try:
+                if os.path.splitext(filename)[1] not in \
+                        silx_io.utils.NEXUS_HDF5_EXT:
+                    # = [".h5", ".nx5", ".nxs",  ".hdf", ".hdf5", ".cxi"]
+                    raise IOError()
                 with silx_io.open(filename) as h5f:
                     if not silx_io.is_file(h5f):
                         raise IOError()
-
                     self.beginInsertRows(parent, row, row)
-                    self.h5Model.appendFile(filename)
+#                    self.h5Model.appendFile(filename)
+                    self.h5Model.insertFileAsync(filename)
                     self.endInsertRows()
-
                     self.nodesHead.append(index.internalId())
                     self.layoutChanged.emit()
             except IOError:
-                pass
+                self.nodesNoHead.append(index.internalId())
         return index
 
     def synchronizeHdf5Index(self, index):
@@ -831,14 +837,12 @@ class FileTreeView(qt.QTreeView):
         edit.setText(txt)
 
     def startDrag(self, supportedActions):
-#        # the default method in PyQt4 crashes at dragging
-#        if qt.BINDING == "PyQt5":
-#            return super(FileTreeView, self).startDrag(supportedActions)
-
         listsQModelIndex = self.selectedIndexes()
         if listsQModelIndex:
-            dataQMimeData = self.model().mimeData(listsQModelIndex)
+            mimeData = self.model().mimeData(listsQModelIndex)
+            if mimeData is None:
+                return
             dragQDrag = qt.QDrag(self)
-            dragQDrag.setMimeData(dataQMimeData)
+            dragQDrag.setMimeData(mimeData)
             defaultDropAction = qt.Qt.IgnoreAction
             dragQDrag.exec_(supportedActions, defaultDropAction)
