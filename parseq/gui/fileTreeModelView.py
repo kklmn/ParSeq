@@ -665,7 +665,7 @@ class FileTreeView(qt.QTreeView):
                 strLoad, self.transformNode.widget.loadFiles, "Ctrl+O")
         self.actionSynchronize = self._addAction(
             "Synchronize container", self.synchronizeHDF5, "Ctrl+R")
-#        self.testModel = self._addAction("Test Model", self.testModel)
+        self.testModel = self._addAction("Test Model", self.testModel)
 
     def _addAction(self, text, slot, shortcut=None):
         action = qt.QAction(text, self)
@@ -741,14 +741,16 @@ class FileTreeView(qt.QTreeView):
         self.actionSynchronize.setEnabled(
             nodeType0 in (NODE_HDF5_HEAD, NODE_HDF5))
 
-#        menu.addSeparator()
-#        menu.addAction(self.testModel)
+        if hasattr(self, 'ModelTest'):
+            menu.addSeparator()
+            menu.addAction(self.testModel)
 
         menu.exec_(
             self.transformNode.widget.files.viewport().mapToGlobal(point))
 
-#    def testModel(self):
-#        self.ModelTest(self.model(), self)
+    def testModel(self):
+        if hasattr(self, 'ModelTest'):
+            self.ModelTest(self.model(), self)
 
     def synchronizeHDF5(self):
         selectedIndexes = self.selectionModel().selectedRows()

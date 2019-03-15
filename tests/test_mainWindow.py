@@ -25,8 +25,8 @@ def test(withGUI=True, withTestData=True):
         node0 = list(csi.nodes.values())[0]
         node0.widget.tree.setCurrentIndex(csi.model.index(0))
 
-#        from modeltest import ModelTest
-#        node0.widget.files.ModelTest = ModelTest
+        from modeltest import ModelTest
+        node0.widget.files.ModelTest = ModelTest
 
         app.exec_()
     else:
