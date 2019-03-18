@@ -21,6 +21,26 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
     def closeEvent(self, evt):
         evt.setAccepted(not evt.spontaneous())
 
+    def changeWindowFlags(self, evt):
+        if self.isFloating():
+            # The dockWidget will automatically regain it's Qt::widget flag
+            # when it becomes docked again
+            self.setWindowFlags(qt.Qt.Window |
+                                qt.Qt.CustomizeWindowHint |
+                                qt.Qt.WindowMaximizeButtonHint)
+            # setWindowFlags calls setParent() when changing the flags for a
+            # window, causing the widget to be hidden, so:
+            self.show()
+            # Custom title bar:
+#            title_bar = qt.QWidget()
+#            layout = qt.QHBoxLayout()
+#            title_bar.setLayout(layout)
+#            layout.addStretch()
+#            layout.addWidget(qt.QPushButton('UU'), 0)  # to re-dock
+#            self.setTitleBarWidget(title_bar)
+        else:
+            self.setTitleBarWidget(None)
+
 
 class MainWindowParSeq(qt.QMainWindow):
     def __init__(self, parent=None):
@@ -113,6 +133,7 @@ class MainWindowParSeq(qt.QMainWindow):
             self.docks.append(dock)
 #            dock.visibilityChanged.connect(
 #                partial(self.nodeChanged, dock, node))
+            dock.topLevelChanged.connect(dock.changeWindowFlags)
         dock0.raise_()
         # restore after configure all widgets
 #        self.restorePerspective()
