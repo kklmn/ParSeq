@@ -659,6 +659,7 @@ class FileTreeView(qt.QTreeView):
         self.setContextMenuPolicy(qt.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.onCustomContextMenu)
         self.selectionModel().selectionChanged.connect(self.selChanged)
+        self.prevSelectedIndexes = []
 
         if transformNode is not None:
             strLoad = "Load data (you can also drag it to the data tree)"
@@ -755,6 +756,10 @@ class FileTreeView(qt.QTreeView):
 
     def synchronizeHDF5(self):
         selectedIndexes = self.selectionModel().selectedRows()
+        if len(selectedIndexes) == 0:
+            selectedIndexes = self.prevSelectedIndexes
+        if len(selectedIndexes) == 0:
+            return
         ind = selectedIndexes[0]
         row = ind.row()
         nodeType0 = self.model().nodeType(ind)
@@ -792,6 +797,8 @@ class FileTreeView(qt.QTreeView):
     def selChanged(self, selected, deselected):
         # self.updateForSelectedFiles(selected.indexes()) #  × num of columns
         selectedIndexes = self.selectionModel().selectedRows()
+        if selectedIndexes:
+            self.prevSelectedIndexes = selectedIndexes  # in case selction is gone  # noqa
         self.updateForSelectedFiles(selectedIndexes)
 
     def updateForSelectedFiles(self, indexes):
