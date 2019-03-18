@@ -494,8 +494,8 @@ class FileSystemWithHdf5Model(ModelBase):
                     if not silx_io.is_file(h5f):
                         raise IOError()
                     self.beginInsertRows(parent, row, row)
-#                    self.h5Model.appendFile(filename)
-                    self.h5Model.insertFileAsync(filename)
+                    self.h5Model.appendFile(filename)
+#                    self.h5Model.insertFileAsync(filename)  # not any better
                     self.endInsertRows()
                     self.nodesHead.append(index.internalId())
                     self.layoutChanged.emit()
