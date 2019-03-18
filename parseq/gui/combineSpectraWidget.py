@@ -4,6 +4,7 @@ __date__ = "17 Nov 2018"
 # !!! SEE CODERULES.TXT !!!
 
 from silx.gui import qt
+
 from ..core import spectra as csp
 from ..core import singletons as csi
 from .propWidget import PropWidget

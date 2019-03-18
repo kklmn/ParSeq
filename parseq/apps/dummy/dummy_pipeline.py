@@ -3,7 +3,6 @@ __author__ = "Konstantin Klementiev"
 __date__ = "17 Nov 2018"
 # !!! SEE CODERULES.TXT !!!
 
-import os
 from ...core import singletons as csi
 from ...core import spectra as csp
 from . import dummy_nodes as dno
@@ -11,8 +10,6 @@ from . import dummy_transforms as dtr
 
 
 def make_pipeline(withGUI=False):
-    csi.pipelineName = 'Dummy'
-    csi.appPath = os.path.dirname(os.path.abspath(__file__))
     csi.withGUI = withGUI
 
     node1 = dno.Node1()

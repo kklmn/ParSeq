@@ -6,6 +6,7 @@ __date__ = "17 Nov 2018"
 from collections import OrderedDict
 from functools import partial
 from silx.gui import qt
+
 from ..core import singletons as csi
 from ..gui import gcommons as gco
 

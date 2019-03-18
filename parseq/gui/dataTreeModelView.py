@@ -6,6 +6,7 @@ __date__ = "17 Nov 2018"
 from functools import partial
 import pickle
 from silx.gui import qt
+
 from ..core import commons as cco
 from ..core import singletons as csi
 from . import gcommons as gco

@@ -5,14 +5,13 @@ __date__ = "17 Nov 2018"
 
 import os
 import sys
-# path to ParSeq:
-import os, sys; sys.path.append(os.path.join('..', '..'))  # analysis:ignore
-
 from silx.gui import qt
 
-from parseq.gui.nodeWidget import NodeWidget
-from parseq.core import singletons as csi
-from parseq.core import undoredo as cun
+# path to ParSeq:
+import os, sys; sys.path.append(os.path.join('..', '..'))  # analysis:ignore
+from .nodeWidget import NodeWidget
+from ..core import singletons as csi
+from ..core import undoredo as cun
 
 mainWindowWidth, mainWindowHeight = 1600, 768
 
@@ -26,7 +25,7 @@ class MainWindowParSeq(qt.QMainWindow):
     def __init__(self, parent=None):
         super(MainWindowParSeq, self).__init__(parent)
         selfDir = os.path.dirname(__file__)
-        self.iconDir = os.path.join(selfDir, 'icons')
+        self.iconDir = os.path.join(selfDir, '_images')
 
         csi.mainWindow = self
         self.setWindowTitle(u"ParSeq  \u2014  " + csi.pipelineName)
@@ -76,7 +75,8 @@ class MainWindowParSeq(qt.QMainWindow):
         infoAction = qt.QAction(
             qt.QIcon(os.path.join(self.iconDir, "readme.png")),
             "About ParSeq…", self)
-#        saveAction.triggered.connect(self.slot_about)
+        infoAction.setShortcut('Ctrl+?')
+        infoAction.triggered.connect(self.slotAbout)
 
         self.toolbar = self.addToolBar("Toolbar")
         self.toolbar.addAction(saveAction)
@@ -146,6 +146,11 @@ class MainWindowParSeq(qt.QMainWindow):
             self.updateGraphs()
         else:
             print("redo deque is empty.")
+
+    def slotAbout(self):
+        from .aboutDialog import AboutDialog
+        lineDialog = AboutDialog(self)
+        lineDialog.exec_()
 
     def restorePerspective(self):
         try:

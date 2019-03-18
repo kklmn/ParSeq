@@ -12,6 +12,12 @@ redo = deque(maxlen=MAX_LEN_REDO)
 
 pipelineName = "must be defined by the app"
 appPath = "must be defined by the app"
+appIconPath = None
+appIconScale = 1.
+appSynopsis = None
+appDescription = None
+appAuthor = None
+appLicense = None
 
 nodes = OrderedDict()
 transforms = OrderedDict()

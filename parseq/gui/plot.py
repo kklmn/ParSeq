@@ -6,6 +6,7 @@ __date__ = "16 Feb 2019"
 import os
 from silx.gui import qt
 from silx.gui import plot
+
 from ..core import singletons as csi
 
 
