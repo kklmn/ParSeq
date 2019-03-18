@@ -11,6 +11,7 @@ from silx.gui import qt
 import os, sys; sys.path.append(os.path.join('..', '..'))  # analysis:ignore
 from .nodeWidget import NodeWidget
 from ..core import singletons as csi
+from ..core import commons as cco
 from ..core import undoredo as cun
 
 mainWindowWidth, mainWindowHeight = 1600, 768
@@ -121,9 +122,17 @@ class MainWindowParSeq(qt.QMainWindow):
             node.widget.tree.dataChanged()
 
     def selChanged(self):
-        selNames = ', '.join([it.alias for it in csi.selectedItems])
+        try:
+            cs = csi.selectedItems[0].alias
+            for it in csi.selectedItems[1:]:
+                cs = cco.common_substring(cs, it.alias)
+            csN = len(cs)
+            suff = [it.alias[csN:] for it in csi.selectedItems]
+            selNames = cs + cco.make_int_ranges(suff)
+        except:  # noqa
+            selNames = ', '.join([it.alias for it in csi.selectedItems])
+
         dataCount = len(csi.allLoadedItems)
-#        self.statusbar.showMessage('{0}; {1}'.format(dataCount, selNames))
         sellen = len(csi.selectedItems)
         if sellen:
             self.statusBarLeft.setText('{0} selected spectr{1}: {2}'.format(
