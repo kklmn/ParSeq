@@ -313,7 +313,7 @@ class FileSystemWithHdf5Model(ModelBase):
         d = {}
         if hasattr(treeObj, 'isGroupObj'):  # is Hdf5Item
             for k in keys:
-                if not self.hasChildPath(treeObj, k):
+                if not self.hasH5ChildPath(treeObj, k):
                     return False
                 d[k] = np.ones(2)
         else:  # arrays from column file
@@ -332,23 +332,13 @@ class FileSystemWithHdf5Model(ModelBase):
         except:
             return False
 
-    def hasChildPath(self, node, path):
+    def hasH5ChildPath(self, node, path):
         pathInH5 = '/'.join((node.obj.name, path))
         try:
             node.obj[pathInH5]  # test for existence
             return True
         except KeyError:
             return False
-
-        nodeNames = path.split('/')
-        for ichild in range(node.childCount()):
-            child = node.child(ichild)
-            if child.dataName(qt.Qt.DisplayRole) == nodeNames[0]:
-                if len(nodeNames) > 1:
-                    return self.hasChildPath(child, '/'.join(nodeNames[1:]))
-                else:
-                    return True
-        return False
 
     def stateLoadColDataset(self, indexFS):
         if not indexFS.isValid():
