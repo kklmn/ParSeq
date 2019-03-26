@@ -40,7 +40,7 @@ def is_text_file(file_name):
         with open(file_name, 'r') as check_file:  # try open file in text mode
             check_file.read()
             return True
-    except:  # if fail then file is non-text (binary)
+    except:  # if fails then file is non-text (binary)
         return False
 
 
@@ -76,11 +76,14 @@ class MyHdf5TreeModel(Hdf5TreeModel):
         node = self.nodeFromIndex(parent)
         if node is None:
             return
-        for row in range(node.childCount()):
-            node.child(row)
-            ind = self.index(row, 0, parent)
-            if ind.internalId() not in self.nodesH5:
-                self.nodesH5.append(ind.internalId())
+        try:
+            for row in range(node.childCount()):
+                node.child(row)
+                ind = self.index(row, 0, parent)
+                if ind.internalId() not in self.nodesH5:
+                    self.nodesH5.append(ind.internalId())
+        except RuntimeError:
+            pass
 
     def findIndex(self, hdf5Obj):
         return self.index(self.h5pyObjectRow(hdf5Obj.obj), 0)
