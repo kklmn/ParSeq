@@ -25,10 +25,10 @@ transformWidgets = OrderedDict()
 mainWindow = None
 currentNodeToDrop = None
 
-dataRootItem = None
-
 withGUI = 'not set yet'
-model = None  # dataTreeModelView.DataTreeModel()
+
+dataRootItem = None
+smodel = None  # dataTreeModelView.DataTreeModel()
 modelDataColumns = []  # (node, yNames) of all nodes as headers in data model
 modelLeadingColumns = ['data name', '']
 selectionModel = None

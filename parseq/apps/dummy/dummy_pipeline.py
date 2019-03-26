@@ -17,12 +17,15 @@ def make_pipeline(withGUI=False):
     node3 = dno.Node3()
 
     if withGUI:
+        csi.fileNameFilters = []
         from . import dummy_widgets as dwi
+
     dtr.Tr0(node1, node1, dwi.Tr0Widget if withGUI else None)
     dtr.Tr1(node1, node2, dwi.Tr1Widget if withGUI else None)
     dtr.Tr2(node2, node3, dwi.Tr2Widget if withGUI else None)
 
     csi.dataRootItem = csp.Spectrum('root')
     if withGUI:
+        node1.fileNameFilters = []
         from ...gui import dataTreeModelView as tmv
         csi.model = tmv.DataTreeModel()

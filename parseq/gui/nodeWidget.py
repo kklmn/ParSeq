@@ -146,12 +146,22 @@ class NodeWidget(qt.QWidget):
 
     def fillSplitterFiles(self):
         qWidget = qt.QWidget(self.splitterFiles)
+        labelFilter = qt.QLabel('file filter')
+        self.editFileFilter = qt.QLineEdit()
+        self.editFileFilter.returnPressed.connect(self.setFileFilter)
+        if hasattr(self.node, 'fileNameFilters'):
+            self.editFileFilter.setText(', '.join(self.node.fileNameFilters))
+        self.files = FileTreeView(self.node)
+#        self.files.doubleClicked.connect(self.loadFiles)
+        self.filesAutoAddCB = qt.QCheckBox("auto append fresh file TODO", self)
+
+        fileFilterLayout = qt.QHBoxLayout()
+        fileFilterLayout.addWidget(labelFilter)
+        fileFilterLayout.addWidget(self.editFileFilter, 1)
+
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(2, 0, 0, 0)
-        self.files = FileTreeView(self.node, self.splitterFiles)
-#        self.files.doubleClicked.connect(self.loadFiles)
-
-        self.filesAutoAddCB = qt.QCheckBox("auto append fresh file TODO", self)
+        layout.addLayout(fileFilterLayout)
         layout.addWidget(self.files)
         layout.addWidget(self.filesAutoAddCB)
         qWidget.setLayout(layout)
@@ -320,6 +330,18 @@ class NodeWidget(qt.QWidget):
 
     def handleSplitterHelpButton(self):
         webbrowser.open(self.helpFile)
+
+    def setFileFilter(self):
+        txt = self.editFileFilter.text()
+        if not txt:
+            return
+        lst = txt.split(',')
+        if hasattr(self.node, 'fileNameFilters'):
+            if lst == self.node.fileNameFilters:
+                return
+        self.files.setCurrentIndex(qt.QModelIndex())
+        self.node.fileNameFilters = lst
+        self.files.model().fsModel.setNameFilters(lst)
 
     def setupPlot(self):
         try:

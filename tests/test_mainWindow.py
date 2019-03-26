@@ -15,6 +15,9 @@ def test(withGUI=True, withTestData=True):
         myapp.load_test_data()
 
     if withGUI:
+        node0 = list(csi.nodes.values())[0]
+        node0.fileNameFilters = ['*.fio', '*.h5']
+
         from silx.gui import qt
         from parseq.gui.mainWindow import MainWindowParSeq
         app = qt.QApplication(sys.argv)
@@ -22,7 +25,6 @@ def test(withGUI=True, withTestData=True):
         mainWindow.dataChanged()
         mainWindow.show()
         # select the 1st item (it is a group)
-        node0 = list(csi.nodes.values())[0]
         node0.widget.tree.setCurrentIndex(csi.model.index(0))
 
         from modeltest import ModelTest

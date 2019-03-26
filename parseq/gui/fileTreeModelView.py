@@ -48,6 +48,40 @@ class MyHdf5TreeModel(Hdf5TreeModel):
     TYPE_COLUMN = 2
     SHAPE_COLUMN = 1
 
+    def rowCount(self, parent=qt.QModelIndex()):
+        node = self.nodeFromIndex(parent)
+        if node is None:
+            return 0
+        if node._Hdf5Node__child is None:
+            return 0
+        return node.childCount()
+
+    def hasChildren(self, parent=qt.QModelIndex()):
+        node = self.nodeFromIndex(parent)
+        if node is None:
+            return False
+        return node.isGroupObj()
+
+    def canFetchMore(self, parent):
+        node = self.nodeFromIndex(parent)
+        if node is None:
+            return 0
+        if not node.isGroupObj():
+            return False
+        if node._Hdf5Node__child is None:
+            return True
+        return True
+
+    def fetchMore(self, parent):
+        node = self.nodeFromIndex(parent)
+        if node is None:
+            return
+        for row in range(node.childCount()):
+            node.child(row)
+            ind = self.index(row, 0, parent)
+            if ind.internalId() not in self.nodesH5:
+                self.nodesH5.append(ind.internalId())
+
     def findIndex(self, hdf5Obj):
         return self.index(self.h5pyObjectRow(hdf5Obj.obj), 0)
 
@@ -69,9 +103,12 @@ class MyHdf5TreeModel(Hdf5TreeModel):
         return self._indexFromPathList(parent, pathList)
 
     def _indexFromPathList(self, parent, pathList):
-        for row in range(self.rowCount(parent)):
+        parentNode = self.nodeFromIndex(parent)
+        self.fetchMore(parent)
+        for row in range(parentNode.childCount()):
             ind = self.index(row, 0, parent)
-            name = self.nodeFromIndex(ind).obj.name
+            node = self.nodeFromIndex(ind)
+            name = node.obj.name
             if name.split('/')[-1] == pathList[0]:
                 if len(pathList) == 1:
                     return ind
@@ -101,7 +138,7 @@ class FileSystemWithHdf5Model(ModelBase):
                 self.h5ProxyModel._NexusSortFilterProxyModel__getNxIcon
         self.h5Model.setFileMoveEnabled(False)
         # this won't handle renames, deletes, and moves:
-        self.nodesH5 = []
+        self.h5Model.nodesH5 = []
         self.nodesHead = []
         self.nodesNoHead = []
         self._roothPath = None
@@ -167,7 +204,7 @@ class FileSystemWithHdf5Model(ModelBase):
         if not index.isValid():
             return NODE_FS
         id0 = index.internalId()
-        if id0 in self.nodesH5:
+        if id0 in self.h5Model.nodesH5:
             return NODE_HDF5
         elif id0 in self.nodesHead:
             return NODE_HDF5_HEAD
@@ -194,28 +231,28 @@ class FileSystemWithHdf5Model(ModelBase):
 
     def rowCount(self, parent=qt.QModelIndex()):
         nodeType = self.nodeType(parent)
-        if nodeType == NODE_HDF5:
-            return self.h5Model.rowCount(self.mapToH5(parent))
-        elif nodeType == NODE_FS:
+        if nodeType == NODE_FS:
             if self.fsModel is self:
                 return super(FileSystemWithHdf5Model, self).rowCount(parent)
             return self.fsModel.rowCount(self.mapToFS(parent))
         elif nodeType == NODE_HDF5_HEAD:
             return self.h5Model.rowCount(self.mapFStoH5(self.mapToFS(parent)))
+        elif nodeType == NODE_HDF5:
+            return self.h5Model.rowCount(self.mapToH5(parent))
         else:
             raise ValueError('unknown node type in `rowCount`')
 
     def columnCount(self, parent=qt.QModelIndex()):
         nodeType = self.nodeType(parent)
-        if nodeType == NODE_HDF5:
-            return self.h5Model.columnCount(self.mapToH5(parent))
-        elif nodeType == NODE_FS:
+        if nodeType == NODE_FS:
             if self.fsModel is self:
                 return super(FileSystemWithHdf5Model, self).columnCount(parent)
             return self.fsModel.columnCount(self.mapToFS(parent))
         elif nodeType == NODE_HDF5_HEAD:
             return self.h5Model.columnCount(
                 self.mapFStoH5(self.mapToFS(parent)))
+        elif nodeType == NODE_HDF5:
+            return self.h5Model.columnCount(self.mapToH5(parent))
         else:
             raise ValueError('unknown node type in `columnCount`')
 
@@ -225,7 +262,42 @@ class FileSystemWithHdf5Model(ModelBase):
             if self.fsModel is self:
                 return super(FileSystemWithHdf5Model, self).hasChildren(parent)
             return self.fsModel.hasChildren(self.mapToFS(parent))
-        return self.rowCount(parent) > 0
+        elif nodeType == NODE_HDF5_HEAD:
+            return True
+        if nodeType == NODE_HDF5:
+            return self.h5Model.hasChildren(self.mapToH5(parent))
+        else:
+            raise ValueError('unknown node type in `hasChildren`')
+
+    def canFetchMore(self, parent):
+        nodeType = self.nodeType(parent)
+        if nodeType == NODE_FS:
+            if self.fsModel is self:
+                return \
+                    super(FileSystemWithHdf5Model, self).canFetchMore(parent)
+            return self.fsModel.canFetchMore(self.mapToFS(parent))
+        elif nodeType == NODE_HDF5_HEAD:
+            return self.h5Model.canFetchMore(
+                self.mapFStoH5(self.mapToFS(parent)))
+        if nodeType == NODE_HDF5:
+            return self.h5Model.canFetchMore(self.mapToH5(parent))
+        else:
+            raise ValueError('unknown node type in `canFetchMore`')
+
+    def fetchMore(self, parent):
+        nodeType = self.nodeType(parent)
+        if nodeType == NODE_FS:
+            if self.fsModel is self:
+                return \
+                    super(FileSystemWithHdf5Model, self).fetchMore(parent)
+            return self.fsModel.fetchMore(self.mapToFS(parent))
+        elif nodeType == NODE_HDF5_HEAD:
+            return self.h5Model.fetchMore(
+                self.mapFStoH5(self.mapToFS(parent)))
+        if nodeType == NODE_HDF5:
+            return self.h5Model.fetchMore(self.mapToH5(parent))
+        else:
+            raise ValueError('unknown node type in `fetchMore`')
 
     def canLoadColDataset(self, indexFS):
         return True
@@ -261,6 +333,13 @@ class FileSystemWithHdf5Model(ModelBase):
             return False
 
     def hasChildPath(self, node, path):
+        pathInH5 = '/'.join((node.obj.name, path))
+        try:
+            node.obj[pathInH5]  # test for existence
+            return True
+        except KeyError:
+            return False
+
         nodeNames = path.split('/')
         for ichild in range(node.childCount()):
             child = node.child(ichild)
@@ -387,11 +466,12 @@ class FileSystemWithHdf5Model(ModelBase):
     def data(self, index, role=qt.Qt.DisplayRole):
         if not index.isValid():
             return
-        nodeType = self.nodeType(index)
         if role == LOAD_DATASET_ROLE:
             return self.stateLoadDataset(index)
         if role == USE_HDF5_ARRAY_ROLE:
             return self.getHDF5ArrayPath(index)
+
+        nodeType = self.nodeType(index)
         if nodeType == NODE_FS:
             indexFS = self.mapToFS(index)
             if role == qt.Qt.ForegroundRole:
@@ -425,7 +505,7 @@ class FileSystemWithHdf5Model(ModelBase):
                 return super(FileSystemWithHdf5Model, self).data(index, role)
             return self.fsModel.data(indexFS, role)
         else:
-            return
+            raise ValueError('unknown node type in `data`')
 
     def parent(self, index):
         if not index.isValid():
@@ -471,8 +551,8 @@ class FileSystemWithHdf5Model(ModelBase):
                 indexH5 = self.h5Model.index(row, column, parentH5)
                 index = self.mapFromH5(indexH5)
 
-            if index.internalId() not in self.nodesH5:
-                self.nodesH5.append(index.internalId())
+            if indexH5.internalId() not in self.h5Model.nodesH5:
+                self.h5Model.nodesH5.append(indexH5.internalId())
             return index
 
         if self.fsModel is self:
@@ -627,6 +707,10 @@ class FileTreeView(qt.QTreeView):
         super(FileTreeView, self).__init__(parent)
         model = FileSystemWithHdf5Model(transformNode, self)
 #        model = qt.QFileSystemModel(self)  # for test purpose
+        if hasattr(transformNode, 'fileNameFilters'):
+#            model.setFilter(qt.QDir.NoDotAndDotDot | qt.QDir.Files)
+            model.fsModel.setNameFilters(transformNode.fileNameFilters)
+            model.fsModel.setNameFilterDisables(False)
         self.setModel(model)
         if isinstance(model, FileSystemWithHdf5Model):
             model.resetRootPath.connect(self._resetRootPath)
@@ -637,7 +721,8 @@ class FileTreeView(qt.QTreeView):
         self.transformNode = transformNode
         if transformNode is not None:
             self.setItemDelegateForColumn(0, SelectionDelegate(self))
-            self.parent().setMouseTracking(True)
+            if parent is not None:
+                self.parent().setMouseTracking(True)
 
         if roothPath is None:
             roothPath = ''

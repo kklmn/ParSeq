@@ -21,5 +21,6 @@ def make_pipeline(withGUI=False):
 
     csi.dataRootItem = csp.Spectrum('root')
     if withGUI:
+        node1.fileNameFilters = ['*.h5', '*.dat']
         from ...gui import dataTreeModelView as tmv
         csi.model = tmv.DataTreeModel()
