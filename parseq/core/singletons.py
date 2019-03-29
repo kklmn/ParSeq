@@ -28,6 +28,7 @@ currentNodeToDrop = None
 withGUI = 'not set yet'
 
 dataRootItem = None
+extraDataFormat = {}
 smodel = None  # dataTreeModelView.DataTreeModel()
 modelDataColumns = []  # (node, yNames) of all nodes as headers in data model
 modelLeadingColumns = ['data name', '']

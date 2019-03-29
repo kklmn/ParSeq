@@ -34,6 +34,7 @@ class TreeItem(object):
                 self.alias = os.path.splitext(base)[0]
             else:
                 self.alias = alias
+        self.aliasExtra = None
         self.childItems = []
         self.isExpanded = True
         self.colorTag = 0
@@ -79,7 +80,10 @@ class TreeItem(object):
                     return self.name
             elif hasattr(self, 'madeOf'):
                 if isinstance(self.madeOf, type("")):
-                    return self.madeOf
+                    res = self.madeOf
+                    if self.aliasExtra:
+                        res += ': {0}'.format(self.aliasExtra)
+                    return res
 
     def data(self, column):
         leadingColumns = len(csi.modelLeadingColumns)
@@ -285,6 +289,7 @@ class Spectrum(TreeItem):
         self.colorTag = kwargs.get('colorTag', 0)
         self.hasChanged = False
         self.isGood = dict((node.name, False) for node in csi.nodes.values())
+        self.aliasExtra = None
         self.meta = {}
         self.combinesTo = []  # list of instances of Spectrum if not empty
         self.transformParams = {}  # each transform will add dicts to this dict
@@ -381,6 +386,8 @@ class Spectrum(TreeItem):
             basename = os.path.basename(self.madeOf)
             if self.alias == 'auto':
                 self.alias = os.path.splitext(basename)[0]
+                if self.aliasExtra:
+                    self.alias += ': {0}'.format(self.aliasExtra)
                 # check duplicates:
                 if True:  # should check duplicates
                     allLoadedItemsCount = Counter(
@@ -407,19 +414,26 @@ class Spectrum(TreeItem):
         madeOf = self.madeOf
         toNode = self.originNode
         df = dict(self.dataFormat)
+        df.update(csi.extraDataFormat)
 
         if self.dataType == DATA_COLUMN_FILE:
             header = cco.get_header(madeOf, df)
         elif self.dataType == DATA_DATASET:
             header = []
             try:
+                label = silx_io.get_data(madeOf + "/" + df["labelName"])
+                self.aliasExtra = label.decode("utf-8")
+                header.append(label)
+            except (ValueError, KeyError):
+                pass
+            try:
                 header.append(silx_io.get_data(madeOf + "/title"))
-            except ValueError:
+            except (ValueError, KeyError):
                 pass
             try:
                 header.append(silx_io.get_data(madeOf + "/start_time"))
                 header.append(silx_io.get_data(madeOf + "/end_time"))
-            except ValueError:
+            except (ValueError, KeyError):
                 pass
         else:
             raise TypeError('wrong datafile type')

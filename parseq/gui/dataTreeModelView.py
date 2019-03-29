@@ -117,6 +117,7 @@ class DataTreeModel(qt.QAbstractItemModel):
         if role == qt.Qt.EditRole:
             item = index.internalPointer()
             item.set_data(index.column(), str(value))
+#            item.aliasExtra = None
             self.dataChanged.emit(index, index)
             return True
         if role == qt.Qt.CheckStateRole:

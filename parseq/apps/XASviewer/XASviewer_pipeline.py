@@ -20,6 +20,7 @@ def make_pipeline(withGUI=False):
     dtr.Tr1(node1, node2)
 
     csi.dataRootItem = csp.Spectrum('root')
+    csi.extraDataFormat['labelName'] = 'label'
     if withGUI:
         node1.fileNameFilters = ['*.h5', '*.dat']
         from ...gui import dataTreeModelView as tmv
