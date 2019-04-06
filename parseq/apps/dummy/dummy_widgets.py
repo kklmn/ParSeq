@@ -7,6 +7,7 @@ import sys
 from functools import partial
 from silx.gui import qt
 from ...gui.propWidget import PropWidget
+from ...gui import propsOfData as gpd
 
 
 class QLimitButton(qt.QPushButton):
@@ -238,18 +239,18 @@ class Tr1Widget(PropWidget):
         self.setLayout(layout)
 
     def setUIFromData(self):
-        self.setSpinBoxFromData(self.e0DSB.spinBox, 'transformParams',
-                                self.transform.name, 'E0')
-        self.setSpinBoxFromData(self.kminDSB.spinBox, 'transformParams',
-                                self.transform.name, 'kmin')
-        self.setSpinBoxFromData(self.kmaxDSB.spinBox, 'transformParams',
-                                self.transform.name, 'kmax')
-        self.setSpinBoxFromData(self.dkDSB.spinBox, 'transformParams',
-                                self.transform.name, 'dk')
-        self.setSpinBoxFromData(self.smDSB.spinBox, 'transformParams',
-                                self.transform.name, 'smoothing')
-        self.setComboBoxFromData(self.kwCB, 'transformParams',
-                                 self.transform.name, 'kw')
+        gpd.setSpinBoxFromData(self.e0DSB.spinBox, 'transformParams',
+                               self.transform.name, 'E0')
+        gpd.setSpinBoxFromData(self.kminDSB.spinBox, 'transformParams',
+                               self.transform.name, 'kmin')
+        gpd.setSpinBoxFromData(self.kmaxDSB.spinBox, 'transformParams',
+                               self.transform.name, 'kmax')
+        gpd.setSpinBoxFromData(self.dkDSB.spinBox, 'transformParams',
+                               self.transform.name, 'dk')
+        gpd.setSpinBoxFromData(self.smDSB.spinBox, 'transformParams',
+                               self.transform.name, 'smoothing')
+        gpd.setComboBoxFromData(self.kwCB, 'transformParams',
+                                self.transform.name, 'kw')
 
 
 class Tr2Widget(PropWidget):
@@ -274,5 +275,5 @@ class Tr2Widget(PropWidget):
         self.setLayout(layout)
 
     def setUIFromData(self):
-        self.setSpinBoxFromData(self.rmaxDSB.spinBox, 'transformParams',
-                                self.transform.name, 'rmax')
+        gpd.setSpinBoxFromData(self.rmaxDSB.spinBox, 'transformParams',
+                               self.transform.name, 'rmax')

@@ -8,7 +8,9 @@ from functools import partial
 from silx.gui import qt
 
 from ..core import singletons as csi
+from ..core import commons as cco
 from ..gui import gcommons as gco
+from . import propsOfData as gpd
 
 lineStyles = {
     None: qt.Qt.NoPen,
@@ -25,7 +27,7 @@ lineStyles = {
 
 lineStylesText = OrderedDict([
     ('no line', ' '), ('solid', '-'), ('dashed', '--'), ('dash-dot', '-.'),
-    ('dotted', ':')])
+    ('dotted', ':'), ('', '')])
 
 # Build all lineSymbols, from pyqtgraph
 lineSymbols = dict([(name, qt.QPainterPath())
@@ -56,11 +58,12 @@ lineSymbols['x'].translate(qt.QPointF(-0.5, -0.5))
 lineSymbols['x'] = tr.map(lineSymbols['x'])
 lineSymbols['x'].translate(qt.QPointF(0.5, 0.5))
 
-noSymbols = (None, 'None', 'none', '', ' ')
+noSymbols = ('None', 'none', '', ' ')
 
 lineSymbolsText = OrderedDict([
-    ('no symbol', ''), ('circle', 'o'), ('point', '.'), ('pixel', ','),
-    ('cross', '+'), ('x-cross', 'x'), ('diamond', 'd'), ('square', 's')])
+    ('no symbol', 'None'), ('circle', 'o'), ('point', '.'), ('pixel', ','),
+    ('cross', '+'), ('x-cross', 'x'), ('diamond', 'd'), ('square', 's'),
+    ('', '')])
 
 
 class LineStyleDelegate(qt.QItemDelegate):
@@ -115,6 +118,8 @@ class LineStyleComboBox(qt.QComboBox):
 class SymbolDelegate(qt.QItemDelegate):
     def paint(self, painter, option, index):
         txt = index.model().data(index, qt.Qt.DisplayRole)
+        if txt == '':
+            return
         if txt.startswith('no'):
             super(SymbolDelegate, self).paint(painter, option, index)
             return
@@ -145,6 +150,8 @@ class SymbolDelegate(qt.QItemDelegate):
 class SymbolComboBox(qt.QComboBox):
     def paintEvent(self, e):
         txt = self.currentText()
+        if txt == '':
+            return
         if txt.startswith('no'):
             super(SymbolComboBox, self).paintEvent(e)
             return
@@ -244,7 +251,6 @@ class LineProps(qt.QDialog):
         self.colorSeq = 0  # controls which color to edit 1 or 2 for Gradient
         self.colorPolicy = gco.COLOR_POLICY_LOOP1
         groupColor = self.makeColorGroup()
-        self.initColorOption(self.colorPolicy)
 
         self.tabWidget = qt.QTabWidget(parent=self)
         self.tabs = []
@@ -270,8 +276,7 @@ class LineProps(qt.QDialog):
         self.setLayout(mainLayout)
         self.setSizePolicy(qt.QSizePolicy.Minimum, qt.QSizePolicy.Minimum)
 
-        self.initColorsFromItems()
-        self.initLinesFromItems()
+        self.setUIFromData()
 
     def makeColorGroup(self):
         self.colorIndividual = qt.QRadioButton("individual")
@@ -295,6 +300,8 @@ class LineProps(qt.QDialog):
             "keep collective color rule\nwhen data model changes")
         self.colorAutoCollective.setEnabled(
             self.isGroupSelected or self.isTopGroupSelected)
+        self.colorRadioButtons = (self.colorIndividualButton, self.colorLoop1,
+                                  self.colorLoop2, self.colorGradient)
 
         layoutC = qt.QVBoxLayout()
         layoutC.setContentsMargins(10, 0, 2, 2)
@@ -392,18 +399,16 @@ class LineProps(qt.QDialog):
         else:
             raise ValueError("wrong choice of color type")
 
-    def initColorsFromItems(self):
-        if len(csi.selectedItems) == 0:
-            return
-        parentItem = csi.selectedItems[0].parentItem
-        if hasattr(parentItem, "colorPolicy"):
-            self.colorPolicy = parentItem.colorPolicy
-        else:
-            self.colorPolicy = gco.COLOR_POLICY_LOOP1
-        self.initColorOption(self.colorPolicy)
-
-        self.color = csi.selectedItems[0].color
+    def setUIFromData(self):
+        gpd.setRButtonGroupFromData(
+            self.colorRadioButtons, 'parentItem.colorPolicy')
+        color = gpd.getCommonPropInSelectedItems('color')
+        self.color = color if color is not None else 'black'
+        for tab in self.tabs:
+            tab.color = self.color
         self.colorIndividualButton.colorCycle = [self.color]
+
+        parentItem = csi.selectedItems[0].parentItem
         if hasattr(parentItem, "color1"):
             self.color1 = parentItem.color1
         else:
@@ -415,9 +420,6 @@ class LineProps(qt.QDialog):
         self.colorGradientButton.colorCycle = \
             gco.makeGradientCollection(self.color1, self.color2)
 
-        for tab in self.tabs:
-            tab.color = self.color
-
         item = csi.selectedTopItems[0]
         if hasattr(item, 'colorAutoUpdate'):
             cond = item.colorAutoUpdate
@@ -425,33 +427,44 @@ class LineProps(qt.QDialog):
             cond = item.parentItem.colorAutoUpdate
         self.colorAutoCollective.setChecked(cond)
 
-    def initLinesFromItems(self):
-        if len(csi.selectedItems) == 0:
-            return
-        item = csi.selectedItems[0]
         for yName, tab in zip(self.node.yNames, self.tabs):
-            lineProps = item.plotProps[self.node.name][yName]
+            lineStyle = gpd.getCommonPropInSelectedItems(
+                'plotProps', [self.node.name, yName, 'linestyle'])
+            if lineStyle is not None:
+                tab.styleComboBox.setCurrentIndex(
+                    tuple(lineStylesText.values()).index(lineStyle))
+            else:
+                defaultIndex = tab.styleComboBox.count() - 1
+                tab.styleComboBox.setCurrentIndex(defaultIndex)
 
-            lineWidth = lineProps.get('linewidth', 1)
-            tab.widthSpinBox.setValue(lineWidth)
-            lineStyle = lineProps.get('linestyle', '-')
-            tab.styleComboBox.setCurrentIndex(
-                tuple(lineStylesText.values()).index(lineStyle))
+            gpd.setSpinBoxFromData(tab.widthSpinBox, 'plotProps',
+                                   [self.node.name, yName, 'linewidth'])
 
-            symbol = lineProps.get('symbol', None)
-            if symbol in noSymbols:
-                symbol = None
+            symbol = gpd.getCommonPropInSelectedItems(
+                'plotProps', [self.node.name, yName, 'symbol'])
             if symbol:
-                symbolSize = lineProps.get('symbolsize', 2)
-                tab.sizeSpinBox.setValue(symbolSize)
+                if symbol in noSymbols:
+                    symbol = ''
                 tab.symbolComboBox.setCurrentIndex(
                     tuple(lineSymbolsText.values()).index(symbol))
+            else:
+                defaultIndex = tab.symbolComboBox.count() - 1
+                tab.symbolComboBox.setCurrentIndex(defaultIndex)
+            gpd.setSpinBoxFromData(tab.sizeSpinBox, 'plotProps',
+                                   [self.node.name, yName, 'symbolsize'])
 
-            axisY = lineProps.get('yaxis', -1)
-            if isinstance(axisY, type("")):
-                axisY = -1 if axisY.startswith("l") else 1
-            tab.yAxisLeft.setChecked(axisY == -1)
-            tab.yAxisRight.setChecked(axisY != -1)
+            axisY = gpd.getCommonPropInSelectedItems(
+                'plotProps', [self.node.name, yName, 'yaxis'])
+            if axisY is not None:
+                if isinstance(axisY, type("")):
+                    axisY = -1 if axisY.startswith("l") else 1
+                tab.yAxisLeft.setChecked(axisY == -1)
+                tab.yAxisRight.setChecked(axisY != -1)
+            else:
+                for rb in (tab.yAxisLeft, tab.yAxisRight):
+                    rb.setAutoExclusive(False)
+                    rb.setChecked(False)
+                    rb.setAutoExclusive(True)
 
     def setButtonColor(self, color, policy):
         if policy == gco.COLOR_POLICY_INDIVIDUAL:
@@ -522,6 +535,8 @@ class LineProps(qt.QDialog):
             policy = gco.COLOR_POLICY_LOOP2
         elif self.colorGradient.isChecked():
             policy = gco.COLOR_POLICY_GRADIENT
+        else:
+            return
 
         parentItem = None
         if self.isGroupSelected:
@@ -546,7 +561,6 @@ class LineProps(qt.QDialog):
             else:
                 for i, item in enumerate(csi.selectedItems):
                     color = gco.colorCycle1[i % len(gco.colorCycle1)]
-#                    item.colorIndividual = color
                     item.color = color
         elif policy == gco.COLOR_POLICY_LOOP2:
             if parentItem:
@@ -555,7 +569,6 @@ class LineProps(qt.QDialog):
             else:
                 for i, item in enumerate(csi.selectedItems):
                     color = gco.colorCycle2[i % len(gco.colorCycle2)]
-#                    item.colorIndividual = color
                     item.color = color
         elif policy == gco.COLOR_POLICY_GRADIENT:
             if parentItem:
@@ -567,7 +580,6 @@ class LineProps(qt.QDialog):
                 colorCycle = gco.makeGradientCollection(
                     self.color1, self.color2)
                 for item, color in zip(csi.selectedItems, colorCycle):
-#                    item.colorIndividual = color
                     item.color = color
 
         if parentItem:
@@ -575,22 +587,31 @@ class LineProps(qt.QDialog):
 
     def setLineOptions(self):
         for yName, tab in zip(self.node.yNames, self.tabs):
-            props = {
-                'symbol': lineSymbolsText[tab.symbolComboBox.currentText()],
-                'symbolsize': tab.sizeSpinBox.value(),
-                'linestyle': lineStylesText[tab.styleComboBox.currentText()],
-                'linewidth': tab.widthSpinBox.value(),
-                'yaxis': 'left' if tab.yAxisLeft.isChecked() else 'right'
-                }
+            props = {}
+            txt = tab.symbolComboBox.currentText()
+            if cco.str_not_blank(txt):
+                props['symbol'] = lineSymbolsText[txt]
+            txt = tab.sizeSpinBox.text()
+            if cco.str_not_blank(txt):
+                props['symbolsize'] = tab.sizeSpinBox.value()
+            txt = tab.styleComboBox.currentText()
+            if cco.str_not_blank(txt):
+                props['linestyle'] = lineStylesText[txt]
+            txt = tab.widthSpinBox.text()
+            if cco.str_not_blank(txt):
+                props['linewidth'] = tab.widthSpinBox.value()
+            if tab.yAxisLeft.isChecked() or tab.yAxisRight.isChecked():
+                props['yaxis'] = 'left' if tab.yAxisLeft.isChecked() else \
+                    'right'
             for item in csi.selectedItems:
                 lineProps = item.plotProps[self.node.name][yName]
                 for prop in props:
                     lineProps[prop] = props[prop]
         csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-        if hasattr(self.node, 'widget'):
-            self.node.widget.replot()
 
     def accept(self):
         self.setColorOptions()
         self.setLineOptions()
+        if hasattr(self.node, 'widget'):
+            self.node.widget.replot()
         super(LineProps, self).accept()

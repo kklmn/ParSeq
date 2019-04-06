@@ -8,6 +8,7 @@ from silx.gui import qt
 from ..core import spectra as csp
 from ..core import singletons as csi
 from .propWidget import PropWidget
+from . import propsOfData as gpd
 
 
 class CombineSpectraWidget(PropWidget):
@@ -74,12 +75,12 @@ class CombineSpectraWidget(PropWidget):
         self.combineStop.setVisible(state == qt.Qt.Checked)
 
     def setUIFromData(self):
-        self.setCButtonFromData(self.stopHereCB, 'terminalNode',
-                                compareWith=self.node)
-        self.setComboBoxFromData(self.combineType, 'dataFormat', 'combine')
-        self.setCButtonFromData(self.combineStopCB, 'terminalNode')
-        self.setComboBoxFromData(self.combineStop, 'terminalNode',
-                                 compareWith=list(csi.nodes.values()))
+        gpd.setCButtonFromData(self.stopHereCB, 'terminalNode',
+                               compareWith=self.node)
+        gpd.setComboBoxFromData(self.combineType, ['dataFormat', 'combine'])
+        gpd.setCButtonFromData(self.combineStopCB, 'terminalNode')
+        gpd.setComboBoxFromData(self.combineStop, 'terminalNode',
+                                compareWith=list(csi.nodes.values()))
 
     def updateDataFromUI(self):
         self.createCombined()

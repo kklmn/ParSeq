@@ -11,6 +11,27 @@ MIME_TYPE_TEXT = 'text/uri-list'
 MIME_TYPE_HDF5 = 'parseq-hdf5-model-items'
 
 
+def getDotAttr(obj, attr):
+    for name in attr.split("."):
+        obj = getattr(obj, name)
+    return obj
+
+
+def setDotAttr(obj, attr, val):
+    attrList = attr.split(".")
+    if attrList > 1:
+        for name in attrList[:-1]:
+            obj = getattr(obj, name)
+        attr = attrList[-1]
+    setattr(obj, attr, val)
+
+
+def str_not_blank(s):
+    """https://stackoverflow.com/questions/9573244/
+    most-elegant-way-to-check-if-the-string-is-empty-in-python"""
+    return bool(s and s.strip())
+
+
 def common_substring(sa, sb):
     """finds the longest common substring from the beginning of sa and sb"""
     def _iter():

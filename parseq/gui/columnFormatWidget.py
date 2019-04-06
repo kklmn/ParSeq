@@ -8,6 +8,7 @@ from silx.gui import qt
 from ..core import singletons as csi
 from ..core import commons as cco
 from .propWidget import QLineEditSelectRB, PropWidget
+from . import propsOfData as gpd
 
 
 class ColumnFormatWidget(PropWidget):
@@ -162,23 +163,23 @@ class ColumnFormatWidget(PropWidget):
             self.tabWidget.setCurrentIndex(1)
 
     def setUIFromData(self):
-        self.setRButtonGroupWithEditsFromData(
+        gpd.setRButtonGroupWithEditsFromData(
             self.radioButtons, self.edits, 'dataFormat', self.headerKW)
-        self.setEditFromData(self.dataXEdit, 'dataFormat', 'dataSource', 0)
+        gpd.setEditFromData(self.dataXEdit, 'dataFormat', ['dataSource', 0])
         for iC, edit in enumerate(self.dataYEdits):
-            self.setEditFromData(edit, 'dataFormat', 'dataSource', iC+1)
-        self.setEditFromData(self.dataXEditTimes, 'dataFormat', 'xFactor',
-                             textFormat='strip0', skipDefault=1)
+            gpd.setEditFromData(edit, 'dataFormat', ['dataSource', iC+1])
+        gpd.setEditFromData(self.dataXEditTimes, 'dataFormat', 'xFactor',
+                            textFormat='strip0', skipDefault=1)
 
     def updateDataFromUI(self):
-        self.updateDataFromRButtonGroupWithEdits(
+        gpd.updateDataFromRButtonGroupWithEdits(
             self.radioButtons, self.edits, 'dataFormat', self.headerKW)
 
-        self.updateDataFromEdit(self.dataXEdit, 'dataFormat', 'dataSource', 0)
+        gpd.updateDataFromEdit(self.dataXEdit, 'dataFormat', ['dataSource', 0])
         for iC, edit in enumerate(self.dataYEdits):
-            self.updateDataFromEdit(edit, 'dataFormat', 'dataSource', iC+1)
-        self.updateDataFromEdit(self.dataXEditTimes, 'dataFormat', 'xFactor',
-                                fieldType=float)
+            gpd.updateDataFromEdit(edit, 'dataFormat', ['dataSource', iC+1])
+        gpd.updateDataFromEdit(self.dataXEditTimes, 'dataFormat', 'xFactor',
+                               fieldType=float)
         needReplot = False
         for it in csi.selectedItems:
             if it.hasChanged:
