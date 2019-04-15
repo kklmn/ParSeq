@@ -191,25 +191,26 @@ class ColumnFormatWidget(PropWidget):
             for subnode in self.node.downstreamNodes:
                 subnode.widget.replot()
 
-    def getDataFormat(self):
-        res = {}
+    def getDataFormat(self, needHeader):
+        dres = {}
         try:
-            for rb, ed, kw in zip(
-                    self.radioButtons, self.edits, self.headerKW):
-                if rb.isChecked():
-                    txt = ed.text()
-                    if kw == 'skiprows':
-                        txt = int(txt)
-                    res[kw] = txt
+            if needHeader:
+                for rb, ed, kw in zip(
+                        self.radioButtons, self.edits, self.headerKW):
+                    if rb.isChecked():
+                        txt = ed.text()
+                        if kw == 'skiprows':
+                            txt = int(txt)
+                        dres[kw] = txt
 
             cols = [self.dataXEdit.text()]
             for edit in self.dataYEdits:
                 cols.append(edit.text())
-            res['dataSource'] = cols
+            dres['dataSource'] = cols
 
             txt = self.dataXEditTimes.text()
             if txt:
-                res['xFactor'] = float(txt)
-        except:
+                dres['xFactor'] = float(txt)
+        except:  # noqa
             return
-        return res
+        return dres

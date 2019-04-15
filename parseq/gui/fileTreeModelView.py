@@ -29,7 +29,6 @@ NODE_FS, NODE_HDF5, NODE_HDF5_HEAD = range(3)
 LOAD_DATASET_ROLE = Hdf5TreeModel.USER_ROLE
 USE_HDF5_ARRAY_ROLE = Hdf5TreeModel.USER_ROLE + 1
 H5PY_OBJECT_ROLE = Hdf5TreeModel.H5PY_OBJECT_ROLE
-LOAD_CANNOT, LOAD_CAN, LOAD_NA = range(3)
 
 COLUMN_NAME_WIDTH = 240
 NODE_INDENTATION = 12
@@ -40,7 +39,7 @@ def is_text_file(file_name):
         with open(file_name, 'r') as check_file:  # try open file in text mode
             check_file.read()
             return True
-    except:  # if fails then file is non-text (binary)
+    except:  # if fails then file is non-text (binary)  # noqa
         return False
 
 
@@ -305,35 +304,53 @@ class FileSystemWithHdf5Model(ModelBase):
     def canLoadColDataset(self, indexFS):
         return True
 
-    def canInterpretArrayFormula(self, colStr, treeObj):
-        keys = re.findall(r'\[(.*?)\]', colStr)
-        if len(keys) == 0:
-            keys = colStr,
-            colStr = 'd["{0}"]'.format(colStr)
-        else:
-            # remove outer quotes:
-            keys = [k[1:-1] if k.startswith(('"', "'")) else k for k in keys]
-        d = {}
-        if hasattr(treeObj, 'isGroupObj'):  # is Hdf5Item
-            for k in keys:
-                if not self.hasH5ChildPath(treeObj, k):
-                    return False
-                d[k] = np.ones(2)
-        else:  # arrays from column file
-            for k in keys:
-                kl = k.lower()
-                if "col" in kl:
-                    kn = int(kl[kl.find('col')+3])
-                else:
-                    kn = int(k)
-                d[k] = treeObj[kn]
-                d[kn] = d[k]
-                locals()[k] = k
+    def interpretArrayFormula(self, dataStr, treeObj):
+        """Returnes a list of pairs (expr, data-keys). *dataStr* may have
+        several expressions with the syntax of a list or a tuple or just one if
+        it is a simple string.
+        """
         try:
-            eval(colStr)
-            return True
-        except:
-            return False
+            # to expand list comprehension or string expressions
+            dataStr = str(eval(dataStr))
+        except:  # noqa
+            pass
+
+        if ((dataStr.startswith('[') and dataStr.endswith(']')) or
+                (dataStr.startswith('(') and dataStr.endswith(')'))):
+            dataStr = dataStr[1:-1]
+        dataStr = [s.strip() for s in dataStr.split(',')]
+        out = []
+        for colStr in dataStr:
+            keys = re.findall(r'\[(.*?)\]', colStr)
+            if len(keys) == 0:
+                keys = colStr,
+                colStr = 'd["{0}"]'.format(colStr)
+            else:
+                # remove outer quotes:
+                keys = [k[1:-1] if k.startswith(('"', "'")) else k
+                        for k in keys]
+            d = {}
+            if hasattr(treeObj, 'isGroupObj'):  # is Hdf5Item
+                for k in keys:
+                    if not self.hasH5ChildPath(treeObj, k):
+                        return
+                    d[k] = np.ones(2)
+            else:  # arrays from column file
+                for k in keys:
+                    kl = k.lower()
+                    if "col" in kl:
+                        kn = int(kl[kl.find('col')+3])
+                    else:
+                        kn = int(k)
+                    d[k] = treeObj[kn]
+                    d[kn] = d[k]
+                    locals()[k] = k
+            try:
+                eval(colStr)
+                out.append((colStr, keys))
+            except:  # noqa
+                return
+        return out
 
     def hasH5ChildPath(self, node, path):
         pathInH5 = '/'.join((node.obj.name, path))
@@ -343,78 +360,78 @@ class FileSystemWithHdf5Model(ModelBase):
         except KeyError:
             return False
 
-    def stateLoadColDataset(self, indexFS):
+    def tryLoadColDataset(self, indexFS):
         if not indexFS.isValid():
-            return LOAD_CANNOT
+            return
         cf = self.transformNode.widget.columnFormat
-        df = cf.getDataFormat()
+        df = cf.getDataFormat(needHeader=True)
         if not df:
-            return LOAD_CANNOT
+            return
         fileInfo = self.fsModel.fileInfo(indexFS)
         fname = fileInfo.filePath()
+        lres = []
         try:
             cco.get_header(fname, df)
             df['skip_header'] = df.pop('skiprows', 0)
-            df.pop('dataSource', None)
+            dataS = df.pop('dataSource', [])  # from dataXEdit and dataYEdits
             with np.warnings.catch_warnings():
                 np.warnings.simplefilter("ignore")
                 arrs = np.genfromtxt(fname, unpack=True, max_rows=2, **df)
             if len(arrs) == 0:
-                return LOAD_CANNOT
+                return
 
-            txt = cf.dataXEdit.text()
-            if len(txt) == 0:
-                return LOAD_CANNOT
-            if not self.canInterpretArrayFormula(txt, arrs):
-                return LOAD_CANNOT
-            for yEdit in cf.dataYEdits:
-                txt = yEdit.text()
-                if len(txt) == 0:
-                    return LOAD_CANNOT
-                if not self.canInterpretArrayFormula(txt, arrs):
-                    return LOAD_CANNOT
-            return LOAD_CAN
-        except:
-            return LOAD_CANNOT
+            for data in dataS:
+                if len(data) == 0:
+                    return
+                colEval = self.interpretArrayFormula(data, arrs)
+                if colEval is None:
+                    return
+                lres.append(colEval)
+        except:  # noqa
+            return
+        return lres, df
 
-    def stateLoadHDF5Dataset(self, indexH5):
+    def tryLoadHDF5Dataset(self, indexH5):
         if not indexH5.isValid():
-            return LOAD_NA
+            return
         nodeH5 = self.h5Model.nodeFromIndex(indexH5)
         if not nodeH5.isGroupObj():
-            return LOAD_NA
+            return
         cf = self.transformNode.widget.columnFormat
+        df = cf.getDataFormat(needHeader=False)
+        if not df:
+            return
 
-        txt = cf.dataXEdit.text()
-        if len(txt) == 0:
-            return LOAD_CANNOT
-        if not self.canInterpretArrayFormula(txt, nodeH5):
-            return LOAD_CANNOT
+        lres = []
+        try:
+            dataS = df.pop('dataSource', [])  # from dataXEdit and dataYEdits
+            for data in dataS:
+                if len(data) == 0:
+                    return
+                colEval = self.interpretArrayFormula(data, nodeH5)
+                if colEval is None:
+                    return
+                lres.append(colEval)
+        except:  # noqa
+            return
+        return lres, df
 
-        for yEdit in cf.dataYEdits:
-            txt = yEdit.text()
-            if len(txt) == 0:
-                return LOAD_CANNOT
-            if not self.canInterpretArrayFormula(txt, nodeH5):
-                return LOAD_CANNOT
-        return LOAD_CAN
-
-    def stateLoadDataset(self, index):
+    def tryLoadDataset(self, index):
         if not index.isValid():
-            return LOAD_NA
+            return
         nodeType = self.nodeType(index)
         if nodeType == NODE_FS:
             indexFS = self.mapToFS(index)
             fileInfo = self.fsModel.fileInfo(indexFS)
             if not is_text_file(fileInfo.filePath()):
-                return LOAD_NA
-            return self.stateLoadColDataset(indexFS)
+                return
+            return self.tryLoadColDataset(indexFS)
         if nodeType == NODE_HDF5_HEAD:
             indexFS = self.mapToFS(index)
             indexH5 = self.mapFStoH5(indexFS)
         elif nodeType == NODE_HDF5:
             indexH5 = self.mapToH5(index)
-        return self.stateLoadHDF5Dataset(indexH5)
+        return self.tryLoadHDF5Dataset(indexH5)
 
     def getHDF5ArrayPath(self, index):
         if not index.isValid():
@@ -436,7 +453,7 @@ class FileSystemWithHdf5Model(ModelBase):
             try:
                 if (len(obj.shape) == 1) and (obj.shape[0] > 1):
                     return obj.name
-            except:
+            except:  # noqa
                 pass
         return
 
@@ -460,7 +477,7 @@ class FileSystemWithHdf5Model(ModelBase):
         if not index.isValid():
             return
         if role == LOAD_DATASET_ROLE:
-            return self.stateLoadDataset(index)
+            return self.tryLoadDataset(index)
         if role == USE_HDF5_ARRAY_ROLE:
             return self.getHDF5ArrayPath(index)
 
@@ -629,7 +646,7 @@ class FileSystemWithHdf5Model(ModelBase):
             indexesFS = []
             for index in indexes0:
                 indexFS = self.mapToFS(index)
-                if self.stateLoadColDataset(indexFS) != LOAD_CAN:
+                if self.tryLoadColDataset(indexFS) is None:
                     return
                 indexesFS.append(indexFS)
             if ModelBase == qt.QFileSystemModel:
@@ -640,7 +657,7 @@ class FileSystemWithHdf5Model(ModelBase):
             paths = []
             for index in indexes0:
                 indexH5 = self.mapToH5(index)
-                if self.stateLoadHDF5Dataset(indexH5) != LOAD_CAN:
+                if self.tryLoadHDF5Dataset(indexH5) is None:
                     return
                 try:
                     path = 'silx:' + '::'.join(
@@ -663,9 +680,9 @@ class SelectionDelegate(qt.QItemDelegate):
         loadState = index.data(LOAD_DATASET_ROLE)
         if option.state & qt.QStyle.State_MouseOver:
             color = self.parent().palette().highlight().color()
-            if loadState == LOAD_CAN:
+            if loadState is not None:
                 color = qt.QColor(gco.COLOR_LOAD_CAN)
-            elif loadState == LOAD_CANNOT:
+            else:
                 color = qt.QColor(gco.COLOR_LOAD_CANNOT)
             color.setAlphaF(0.2)
             painter.fillRect(option.rect, color)
@@ -675,9 +692,9 @@ class SelectionDelegate(qt.QItemDelegate):
         active = (option.state & qt.QStyle.State_Selected or
                   option.state & qt.QStyle.State_MouseOver)
         if active:
-            if loadState == LOAD_CAN:
+            if loadState is not None:
                 color = qt.QColor(gco.COLOR_LOAD_CAN)
-            elif loadState == LOAD_CANNOT:
+            else:
                 color = qt.QColor(gco.COLOR_LOAD_CANNOT)
         if color is not None:
             color.setAlphaF(0.2)
@@ -790,7 +807,6 @@ class FileTreeView(qt.QTreeView):
                     xLbl = self.transformNode.xName
                 menu.addAction("Set {0}as {1} array".format(strSum, xLbl),
                                partial(self.setAsArray, 0, paths))
-
                 try:
                     yLbls = self.transformNode.yQLabels
                 except AttributeError:
@@ -800,9 +816,26 @@ class FileTreeView(qt.QTreeView):
                                    partial(self.setAsArray, iLbl+1, paths))
                 menu.addSeparator()
 
+            if len(paths) > 1:
+                try:
+                    xLbl = self.transformNode.xQLabel
+                except AttributeError:
+                    xLbl = self.transformNode.xName
+                menu.addAction("Set as a list of {0} arrays".format(xLbl),
+                               partial(self.setAsArray, 0, paths, isList=True))
+                try:
+                    yLbls = self.transformNode.yQLabels
+                except AttributeError:
+                    yLbls = self.transformNode.yNames
+                for iLbl, yLbl in enumerate(yLbls):
+                    menu.addAction("Set as a list of {0} arrays".format(yLbl),
+                                   partial(self.setAsArray, iLbl+1, paths,
+                                           isList=True))
+                menu.addSeparator()
+
         isEnabled = False
         for index in selectedIndexes:
-            if not index.data(LOAD_DATASET_ROLE) == LOAD_CAN:
+            if index.data(LOAD_DATASET_ROLE) is None:
                 break
         else:
             isEnabled = True
@@ -869,7 +902,7 @@ class FileTreeView(qt.QTreeView):
                     if ind.data() in self._expandedNodes:
                         self.setExpanded(ind, True)
                     self.restoreExpand(ind)
-        except:
+        except:  # noqa
             pass
 
     def selChanged(self, selected, deselected):
@@ -897,7 +930,7 @@ class FileTreeView(qt.QTreeView):
                 cf.setHeaderEnabled(False)
                 return
 
-    def setAsArray(self, iArray, paths):
+    def setAsArray(self, iArray, paths, isList=False):
         subpaths = []
         for path in paths:
             slashC = path.count('/')
@@ -918,8 +951,20 @@ class FileTreeView(qt.QTreeView):
 
         if len(subpaths) == 1:
             txt = subpaths[0]
-        elif len(subpaths) > 1:
+        elif len(subpaths) == 2:
             txt = ' + '.join(['d["{0}"]'.format(sp) for sp in subpaths])
+            if isList:
+                txt = txt.replace(' + ', ', ')
+        elif len(subpaths) > 2:
+            cs = subpaths[0]
+            for subpath in subpaths[1:]:
+                cs = cco.common_substring(cs, subpath)
+            colNames = [subpath[len(cs):] for subpath in subpaths]
+            txt = '" + ".join([\'d[path]\'.format(i) for i in {0}])'.format(
+                repr(colNames))
+            txt = txt.replace('path', '"'+cs+'{0}"')
+            if isList:
+                txt = txt.replace(' + ', ', ')
         else:
             return
         edit.setText(txt)

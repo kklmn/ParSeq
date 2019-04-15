@@ -73,6 +73,7 @@ class TreeItem(object):
             else:
                 tip = "{0} spectr{1}".format(
                     len(items), 'a' if len(items) > 1 else 'um')
+            tip = ': '.join([self.alias, tip])
             return tip
         else:
             if hasattr(self, 'name'):
@@ -386,6 +387,11 @@ class Spectrum(TreeItem):
             basename = os.path.basename(self.madeOf)
             if self.alias == 'auto':
                 self.alias = os.path.splitext(basename)[0]
+                if '::' in self.madeOf:
+                    h5name = os.path.splitext(os.path.basename(
+                        self.madeOf[:self.madeOf.find('::')]))[0]
+                    self.alias = '/'.join([h5name, self.alias])
+
                 if self.aliasExtra:
                     self.alias += ': {0}'.format(self.aliasExtra)
                 # check duplicates:
@@ -500,14 +506,21 @@ class Spectrum(TreeItem):
                 "%a, %d %b %Y %H:%M:%S", time.gmtime(os.path.getmtime(madeOf)))
             self.meta['size'] = os.path.getsize(madeOf)
         else:
-            if isinstance(header[0], bytes):
-                self.meta['text'] = '\n'.join(
-                    h.decode("utf-8") for h in header)
-            else:
-                self.meta['text'] = '\n'.join(header)
+            if len(header) > 0:
+                if isinstance(header[0], bytes):
+                    self.meta['text'] = '\n'.join(
+                        h.decode("utf-8") for h in header)
+                else:
+                    self.meta['text'] = '\n'.join(header)
         self.meta['length'] = len(arr)
 
     def interpretArrayFormula(self, colStr, treeObj=None):
+        try:
+            # to expand string expressions
+            colStr = str(eval(colStr))
+        except:  # noqa
+            pass
+
         keys = re.findall(r'\[(.*?)\]', colStr)
         if len(keys) == 0:
             keys = colStr,

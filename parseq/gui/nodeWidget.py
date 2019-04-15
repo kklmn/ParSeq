@@ -470,8 +470,21 @@ class NodeWidget(qt.QWidget):
             return " ({0} times)".format(n) if n > 1 else ""
 
         selectedIndexes = self.files.selectionModel().selectedRows()
-        for index in selectedIndexes:
-            if not index.data(gft.LOAD_DATASET_ROLE) == gft.LOAD_CAN:
+        dataStruct = selectedIndexes[0].data(gft.LOAD_DATASET_ROLE)
+        if dataStruct is None:
+            return
+        colRecs, df = dataStruct
+        spectraInOneFile = 1
+        for col in colRecs:  # col is a list of (expr, data-keys)
+            spectraInOneFile = max(spectraInOneFile, len(col))
+        if spectraInOneFile > 1:
+            colMany = []
+            for icol, col in enumerate(colRecs):
+                if len(col) not in [1, spectraInOneFile]:
+                    return
+                if len(col) == spectraInOneFile:
+                    colMany.append(icol)
+            if not colMany:
                 return
 
         if isinstance(fileNamesFull, qt.QModelIndex):
@@ -526,12 +539,34 @@ class NodeWidget(qt.QWidget):
         # here the column format is taken from the present state of
         # ColumnFormatWidget. Should be automatically detected from
         # file format
-        df = self.columnFormat.getDataFormat()
-        if not df:
-            return
-        items = csi.model.importData(
-            fileNamesFull, parentItem, insertAt, dataFormat=df,
-            originNode=self.node)
+        if spectraInOneFile == 1:
+            df['dataSource'] = [col[0][0] for col in colRecs]
+            items = csi.model.importData(
+                fileNamesFull, parentItem, insertAt, dataFormat=df,
+                originNode=self.node)
+        else:
+            keys = [pair[1][0] for pair in colRecs[colMany[0]]]
+            cs = keys[0]
+            for key in keys[1:]:
+                cs = cco.common_substring(cs, key)
+            colNames = [key[len(cs):] for key in keys]
+            for fname in fileNamesFull:
+                basename = os.path.basename(fname)
+                groupName = os.path.splitext(basename)[0]
+                if '::' in fname:
+                    h5name = os.path.splitext(os.path.basename(
+                        fname[:fname.find('::')]))[0]
+                    groupName = '/'.join([h5name, groupName])
+                group, = csi.model.importData(groupName, parentItem, insertAt)
+                for i, colName in enumerate(colNames):
+                    df['dataSource'] = \
+                        [col[i][0] if len(col) > 1 else col[0][0]
+                         for col in colRecs]
+                    csi.model.importData(
+                        fname, group, insertAt, dataFormat=df,
+                        alias=colName, coriginNode=self.node)
+            items = group,
+
         mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
         for item in items:
             row = item.row()
