@@ -230,7 +230,7 @@ class LineProps(qt.QDialog):
         if self.isGroupSelected:
             if lsi == 1:
                 group = csi.selectedTopItems[0]
-                txt = '...group "{0}" with {1} spectra'.format(
+                txt = '...group <b>{0}</b> with {1} spectra'.format(
                     group.alias, group.child_count())
             elif lsi > 1:
                 txt = "...{0} selected groups".format(lsi)
@@ -243,8 +243,11 @@ class LineProps(qt.QDialog):
             elif len(csi.allLoadedItems) == len(csi.selectedItems):
                 txt = "...all spectra"
             else:
-                txt = "...{0} selected spectr{1}".format(
-                    lsi, 'um' if lsi == 1 else 'a')
+                if lsi == 1:
+                    txt = "...1 selected spectrum ({0})".format(
+                        csi.selectedItems[0].alias)
+                else:
+                    txt = "...{0} selected spectra".format(lsi)
         nSpectraLabel = qt.QLabel(txt)
 
         self.color = self.color1 = self.color2 = 'k'
@@ -255,7 +258,7 @@ class LineProps(qt.QDialog):
         self.tabWidget = qt.QTabWidget(parent=self)
         self.tabs = []
         self.node = node
-        yNs = node.yQLabels if hasattr(node, "yQLabels") else node.yNames
+        yNs = node.getPropList('qLabel', plotRole='y')
         for yN in yNs:
             tab = self.makeTab()
             self.tabWidget.addTab(tab, yN)
@@ -427,9 +430,11 @@ class LineProps(qt.QDialog):
             cond = item.parentItem.colorAutoUpdate
         self.colorAutoCollective.setChecked(cond)
 
-        for yName, tab in zip(self.node.yNames, self.tabs):
+        if self.node.columnCount == 0:
+            return
+        for yName, tab in zip(self.node.plotYArrays, self.tabs):
             lineStyle = gpd.getCommonPropInSelectedItems(
-                'plotProps', [self.node.name, yName, 'linestyle'])
+                ['plotProps', self.node.name, yName, 'linestyle'])
             if lineStyle is not None:
                 tab.styleComboBox.setCurrentIndex(
                     tuple(lineStylesText.values()).index(lineStyle))
@@ -437,24 +442,24 @@ class LineProps(qt.QDialog):
                 defaultIndex = tab.styleComboBox.count() - 1
                 tab.styleComboBox.setCurrentIndex(defaultIndex)
 
-            gpd.setSpinBoxFromData(tab.widthSpinBox, 'plotProps',
-                                   [self.node.name, yName, 'linewidth'])
+            gpd.setSpinBoxFromData(
+                tab.widthSpinBox,
+                ['plotProps', self.node.name, yName, 'linewidth'])
 
             symbol = gpd.getCommonPropInSelectedItems(
-                'plotProps', [self.node.name, yName, 'symbol'])
-            if symbol:
-                if symbol in noSymbols:
-                    symbol = ''
-                tab.symbolComboBox.setCurrentIndex(
-                    tuple(lineSymbolsText.values()).index(symbol))
-            else:
-                defaultIndex = tab.symbolComboBox.count() - 1
-                tab.symbolComboBox.setCurrentIndex(defaultIndex)
-            gpd.setSpinBoxFromData(tab.sizeSpinBox, 'plotProps',
-                                   [self.node.name, yName, 'symbolsize'])
+                ['plotProps', self.node.name, yName, 'symbol'])
+            if not symbol or (symbol in noSymbols):
+                symbol = 'None'
+            ind = tuple(lineSymbolsText.values()).index(symbol)
+            tab.symbolComboBox.setCurrentIndex(ind)
+            self.comboBoxChanged(tab, 'size', ind)
+
+            gpd.setSpinBoxFromData(
+                tab.sizeSpinBox,
+                ['plotProps', self.node.name, yName, 'symbolsize'])
 
             axisY = gpd.getCommonPropInSelectedItems(
-                'plotProps', [self.node.name, yName, 'yaxis'])
+                ['plotProps', self.node.name, yName, 'yaxis'])
             if axisY is not None:
                 if isinstance(axisY, type("")):
                     axisY = -1 if axisY.startswith("l") else 1
@@ -586,7 +591,7 @@ class LineProps(qt.QDialog):
             parentItem.init_colors(parentItem.childItems)
 
     def setLineOptions(self):
-        for yName, tab in zip(self.node.yNames, self.tabs):
+        for yName, tab in zip(self.node.plotYArrays, self.tabs):
             props = {}
             txt = tab.symbolComboBox.currentText()
             if cco.str_not_blank(txt):

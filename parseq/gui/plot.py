@@ -31,3 +31,11 @@ class Plot1D(plot.Plot1D):
         csi.selectionModel.setCurrentIndex(
             index, qt.QItemSelectionModel.ClearAndSelect |
             qt.QItemSelectionModel.Rows)
+
+
+class Plot2D(plot.Plot2D):
+    pass
+
+
+class Plot3D(plot.StackView):
+    pass

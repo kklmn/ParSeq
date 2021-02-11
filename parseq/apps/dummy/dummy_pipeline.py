@@ -21,8 +21,15 @@ def make_pipeline(withGUI=False):
         from . import dummy_widgets as dwi
 
     dtr.Tr0(node1, node1, dwi.Tr0Widget if withGUI else None)
-    dtr.Tr1(node1, node2, dwi.Tr1Widget if withGUI else None)
-    dtr.Tr2(node2, node3, dwi.Tr2Widget if withGUI else None)
+    # dtr.Tr1(node1, node2, dwi.Tr1Widget if withGUI else None)
+    # dtr.Tr2(node2, node3, dwi.Tr2Widget if withGUI else None)
+
+    # print([n.name for n in node1.upstreamNodes])
+    # print([n.name for n in node1.downstreamNodes])
+    # print([n.name for n in node2.upstreamNodes])
+    # print([n.name for n in node2.downstreamNodes])
+    # print([n.name for n in node3.upstreamNodes])
+    # print([n.name for n in node3.downstreamNodes])
 
     csi.dataRootItem = csp.Spectrum('root')
     if withGUI:

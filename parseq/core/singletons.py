@@ -29,9 +29,9 @@ withGUI = 'not set yet'
 
 dataRootItem = None
 extraDataFormat = {}
-smodel = None  # dataTreeModelView.DataTreeModel()
-modelDataColumns = []  # (node, yNames) of all nodes as headers in data model
-modelLeadingColumns = ['data name', '']
+model = None  # dataTreeModelView.DataTreeModel()
+modelDataColumns = []  # (node, arrayName)
+modelLeadingColumns = ['data name', '']  # the last one is for view state (eye)
 selectionModel = None
 selectedItems, selectedTopItems = [], []  # common for all data trees
 recentlyLoadedItems = []

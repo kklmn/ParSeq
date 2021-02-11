@@ -28,7 +28,7 @@ class CombineSpectraWidget(PropWidget):
 
     def makeCombineDataGroup(self):
         self.combineType = qt.QComboBox()
-        self.combineType.addItems(csp.combineName)
+        self.combineType.addItems(csp.combineNames)
         self.combineType.currentIndexChanged.connect(self.combineTypeChanged)
         self.combineNLabel = qt.QLabel("N=")
         self.combineN = qt.QSpinBox()
@@ -64,7 +64,7 @@ class CombineSpectraWidget(PropWidget):
 
         group = qt.QGroupBox('combine selected data')
         group.setLayout(layout)
-        group.setSizePolicy(qt.QSizePolicy.Fixed, qt.QSizePolicy.Fixed)
+        # group.setSizePolicy(qt.QSizePolicy.Fixed, qt.QSizePolicy.Fixed)
         return group
 
     def combineTypeChanged(self, ind):
@@ -77,10 +77,10 @@ class CombineSpectraWidget(PropWidget):
     def setUIFromData(self):
         gpd.setCButtonFromData(self.stopHereCB, 'terminalNode',
                                compareWith=self.node)
-        gpd.setComboBoxFromData(self.combineType, ['dataFormat', 'combine'])
+        gpd.setComboBoxFromData(self.combineType, 'dataFormat.combine')
         gpd.setCButtonFromData(self.combineStopCB, 'terminalNode')
         gpd.setComboBoxFromData(self.combineStop, 'terminalNode',
-                                compareWith=list(csi.nodes.values()))
+                                compareWith=list(csi.nodes.keys()))
 
     def updateDataFromUI(self):
         self.createCombined()

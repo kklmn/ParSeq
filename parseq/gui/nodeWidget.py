@@ -16,7 +16,7 @@ from ..core import spectra as csp
 from ..gui import fileTreeModelView as gft
 from ..gui.fileTreeModelView import FileTreeView
 from ..gui.dataTreeModelView import DataTreeView
-from ..gui.plot import Plot1D
+from ..gui.plot import Plot1D, Plot2D, Plot3D
 from ..gui.webWidget import QWebView
 from ..gui.columnFormatWidget import ColumnFormatWidget
 from ..gui.combineSpectraWidget import CombineSpectraWidget
@@ -31,13 +31,13 @@ class QSplitterButton(qt.QPushButton):
         super(QSplitterButton, self).__init__(text, parent)
         self.rawText = str(text)
         self.isVertical = isVertical
-        fontSize = "10" if sys.platform == "darwin" else "6.5"
+        fontSize = "10" if sys.platform == "darwin" else "7"
         grad = "x1: 0, y1: 0, x2: 0, y2: 1"
         self.setStyleSheet("""
             QPushButton {
                 font-size: """ + fontSize + """pt; color: #151575;
-                padding-bottom: 0px; text-align: bottom;
-                border: 2px; border-radius: 4px;
+                padding-bottom: 0px; padding-top: -1px;
+                text-align: bottom; border-radius: 4px;
                 background-color: qlineargradient(
                 """ + grad + """, stop: 0 #e6e7ea, stop: 1 #cacbce);}
             QPushButton:pressed {
@@ -58,7 +58,7 @@ class QSplitterButton(qt.QPushButton):
             return
         painter = qt.QStylePainter(self)
         painter.rotate(270)
-        painter.translate(-1 * self.height(), 0)
+        painter.translate(-self.height(), 0)
         painter.drawControl(qt.QStyle.CE_PushButton, self.getStyleOptions())
 
     def getStyleOptions(self):
@@ -101,6 +101,7 @@ class NodeWidget(qt.QWidget):
         fname = self.node.name + '.html'
         self.helpFile = os.path.join(csi.appPath, 'doc', fname)
         node.widget = self
+        self.pendingPropDialog = None
 
         self.makeSplitters()
         self.fillSplitterFiles()
@@ -145,7 +146,7 @@ class NodeWidget(qt.QWidget):
         self.splitterTransform.setOrientation(qt.Qt.Vertical)
 
     def fillSplitterFiles(self):
-        qWidget = qt.QWidget(self.splitterFiles)
+        splitterInner = qt.QWidget(self.splitterFiles)
         labelFilter = qt.QLabel('file filter')
         self.editFileFilter = qt.QLineEdit()
         self.editFileFilter.returnPressed.connect(self.setFileFilter)
@@ -164,7 +165,7 @@ class NodeWidget(qt.QWidget):
         layout.addLayout(fileFilterLayout)
         layout.addWidget(self.files)
         layout.addWidget(self.filesAutoAddCB)
-        qWidget.setLayout(layout)
+        splitterInner.setLayout(layout)
 
         self.columnFormat = ColumnFormatWidget(self.splitterFiles, self.node)
 
@@ -172,33 +173,63 @@ class NodeWidget(qt.QWidget):
         self.splitterFiles.setStretchFactor(1, 0)
 
     def fillSplitterData(self):
+        splitterInner = qt.QWidget(self.splitterData)
+        self.pickWidget = qt.QWidget(splitterInner)
+        labelPick = qt.QLabel('Pick data')
+        cancelPick = qt.QPushButton('Cancel')
+        cancelPick.setStyleSheet("QPushButton {background-color: tomato;}")
+        cancelPick.clicked.connect(self.cancelPropsToPickedData)
+        applyPick = qt.QPushButton('Apply')
+        applyPick.setStyleSheet("QPushButton {background-color: lightgreen;}")
+        applyPick.clicked.connect(self.applyPropsToPickedData)
+
+        pickLayout = qt.QHBoxLayout()
+        pickLayout.setContentsMargins(0, 0, 0, 0)
+        pickLayout.addWidget(labelPick)
+        pickLayout.addWidget(cancelPick, 0.5)
+        pickLayout.addWidget(applyPick, 0.5)
+        self.pickWidget.setLayout(pickLayout)
+        self.pickWidget.setVisible(False)
+
         self.tree = DataTreeView(self.node, self.splitterData)
         self.tree.needReplot.connect(self.replot)
         self.tree.selectionModel().selectionChanged.connect(self.selChanged)
+
+        layout = qt.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.pickWidget)
+        layout.addWidget(self.tree)
+        splitterInner.setLayout(layout)
+
         self.combiner = CombineSpectraWidget(self.splitterData, self.node)
 
         self.splitterData.setStretchFactor(0, 1)  # don't remove
         self.splitterData.setStretchFactor(1, 0)
 
     def fillSplitterPlot(self):
-#        self.backend = dict(backend='opengl')
+        node = self.node
+        # self.backend = dict(backend='opengl')
         self.backend = dict(backend='matplotlib')
-        try:
-            xLbl = self.node.xQLabel
-        except AttributeError:
-            xLbl = self.node.xName
-        try:
-            yLbl = self.node.yQLabels[0]
-        except AttributeError:
-            yLbl = self.node.yNames[0]
 
-#        self.plot = PlotWindow(
-        self.plot = Plot1D(
-            self.splitterPlot, **self.backend
-#            position=[(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)]
-            )
-        self.plot.getXAxis().setLabel(xLbl)
-        self.plot.getYAxis().setLabel(yLbl)
+        if node.plotDimension == 3:
+            self.plot = Plot3D(
+                self.splitterPlot, **self.backend
+                )
+        elif node.plotDimension == 2:
+            self.plot = Plot2D(
+                self.splitterPlot, **self.backend
+                )
+        elif node.plotDimension == 1:
+            xLbl = node.getPropList('qLabel', plotRole='x')[0]
+            yLbl = node.getPropList('qLabel', plotRole='y')[0]
+            self.plot = Plot1D(
+                self.splitterPlot, **self.backend
+                # position=[(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)]
+                )
+            self.plot.getXAxis().setLabel(xLbl)
+            self.plot.getYAxis().setLabel(yLbl)
+        else:
+            raise ValueError("wrong plot dimension")
         self.setupPlot()
 
         self.metadata = qt.QTextEdit(self.splitterPlot)
@@ -344,48 +375,72 @@ class NodeWidget(qt.QWidget):
         self.files.model().fsModel.setNameFilters(lst)
 
     def setupPlot(self):
-        try:
-            xUnit = u" ({0})".format(self.node.xPlotUnit) \
-                if self.node.xPlotUnit else ""
-        except AttributeError:
-            xUnit = ''
-        self.plot.setGraphXLabel(
-            label=u"{0}{1}".format(self.node.xPlotLabel, xUnit))
+        node = self.node
+        if node.plotDimension == 1:
+            try:
+                unit = self.node.getPropList('plotUnit', plotRole='x')[0]
+                strUnit = u" ({0})".format(unit) if unit else ""
+            except AttributeError:
+                strUnit = ''
+            self.plot.setGraphXLabel(
+                label=u"{0}{1}".format(
+                    node.getProp(node.plotXArray, 'plotLabel'), strUnit))
+
+    def _shouldPlotItem(self, item):
+        if not self.node.is_between_nodes(item.originNode, item.terminalNode,
+                                          node1in=True, node2in=True):
+            return False
+        if not item.isGood[self.node.name]:
+            return False
+        if not item.isVisible:
+            return False
+        return True
 
     def replot(self):
         node = self.node
         self.plot.clear()
-        for item in csi.allLoadedItems:
-            if not node.is_between_nodes(item.originNode, item.terminalNode,
-                                         node1in=True, node2in=True):
-                continue
-            if not item.isGood[node.name]:
-                continue
-            if not item.isVisible:
-                continue
-            try:
-                x = getattr(item, node.xName)
-            except AttributeError:
-                continue
-            for col, yN in enumerate(node.yNames):
+        if node.plotDimension == 1:
+            for item in csi.allLoadedItems:
+                if not self._shouldPlotItem(item):
+                    continue
                 try:
-                    y = getattr(item, yN)
+                    x = getattr(item, node.plotXArray)
                 except AttributeError:
                     continue
-                curveLabel = item.alias + '.' + yN
-                plotProps = dict(item.plotProps[node.name][yN])
-                symbolsize = plotProps.pop('symbolsize', 2)
-                self.plot.addCurve(
-                    x, y, legend=curveLabel, color=item.color, **plotProps)
-                symbol = plotProps.get('symbol', None)
-                if symbol is not None:
-                    curve = self.plot.getCurve(curveLabel)
-                    if curve is not None:
-                        if self.backend['backend'] == 'opengl':
-                            # don't know why it is small with opengl
-                            symbolsize *= 2
-                        curve.setSymbolSize(symbolsize)
-        self.setPlotYLabels()
+                for col, yN in enumerate(node.plotYArrays):
+                    try:
+                        y = getattr(item, yN)
+                    except AttributeError:
+                        continue
+                    curveLabel = item.alias + '.' + yN
+                    plotProps = dict(item.plotProps[node.name][yN])
+                    symbolsize = plotProps.pop('symbolsize', 2)
+                    self.plot.addCurve(
+                        x, y, legend=curveLabel, color=item.color, **plotProps)
+                    symbol = plotProps.get('symbol', None)
+                    if symbol is not None:
+                        curve = self.plot.getCurve(curveLabel)
+                        if curve is not None:
+                            if self.backend['backend'] == 'opengl':
+                                # don't know why it is small with opengl
+                                symbolsize *= 2
+                            curve.setSymbolSize(symbolsize)
+            self.setPlotYLabels()
+        if node.plotDimension == 3:
+            if len(csi.selectedItems) > 0:
+                item = csi.selectedItems[-1]
+            elif len(csi.allLoadedItems) > 0:
+                item = csi.allLoadedItems[-1]
+            else:
+                return
+            try:
+                stack = getattr(item, self.node.plot3DArray)
+            except AttributeError:
+                return
+            self.plot.setColormap("viridis")
+            self.plot.setStack(stack)
+            self.plot.setLabels(self.node.getProp(self.node.plot3DArray,
+                                                  'plotLabel'))
 
     def setPlotYLabels(self):
         node = self.node
@@ -395,49 +450,78 @@ class NodeWidget(qt.QWidget):
             if not node.is_between_nodes(data.originNode, data.terminalNode,
                                          node1in=True, node2in=True):
                 continue
-            for col, yN in enumerate(node.yNames):
-                curveLabel = data.alias + '.' + yN
+            for yName in node.plotYArrays:
+                curveLabel = data.alias + '.' + yName
                 curve = self.plot.getCurve(curveLabel)
                 if curve is None:
                     continue
                 yaxis = curve.getYAxis()
                 if yaxis == 'left':
-                    if col not in leftAxisCols:
-                        leftAxisCols.append(col)
+                    if yName not in leftAxisCols:
+                        leftAxisCols.append(yName)
                 if yaxis == 'right':
-                    if col not in rightAxisCols:
-                        rightAxisCols.append(col)
+                    if yName not in rightAxisCols:
+                        rightAxisCols.append(yName)
         self.plot.setGraphYLabel(
             label=self._makeYLabel(leftAxisCols), axis='left')
         self.plot.setGraphYLabel(
             label=self._makeYLabel(rightAxisCols), axis='right')
 
-    def _makeYLabel(self, cols):
-        if cols == []:
+    def _makeYLabel(self, yNames):
+        if yNames == []:
             return ""
         node = self.node
         equalYUnits = True
-        try:
-            yUnit0 = node.yPlotUnits[cols[0]]
-            for yUnit in [node.yPlotUnits[i] for i in cols[1:]]:
-                if yUnit != yUnit0:
-                    equalYUnits = False
-                    break
-        except AttributeError:
-            yUnit0 = ""
+        yUnits = node.getPropList('plotUnit', keys=yNames)
+        yLabels = node.getPropList('plotLabel', keys=yNames)
+        yUnit0 = yUnits[0]
+        for yUnit in yUnits[1:]:
+            if yUnit != yUnit0:
+                equalYUnits = False
+                break
 
         axisLabel = u""
-        for icol, col in enumerate(cols):
-            spacer = u"" if icol == 0 else u", "
-            unit = u"" if equalYUnits else u" ({0})".format(
-                node.yPlotUnits[col] if node.yPlotUnits[col] else "unitless")
-            axisLabel += spacer + node.yPlotLabels[col] + unit
+        for iu, (yUnit, yLabel) in enumerate(zip(yUnits, yLabels)):
+            spacer = u"" if iu == 0 else u", "
+            strUnit = u" ({0})".format(yUnit) if yUnit and not equalYUnits\
+                else ""
+            axisLabel += spacer + yLabel + strUnit
         if equalYUnits and yUnit0:
             axisLabel += u" ({0})".format(yUnit0)
         return axisLabel
 
+    def updatePlot(self):  # bring the selected curves to the top
+        node = self.node
+        if node.plotDimension == 1:
+            for item in csi.selectedItems:
+                if not node.is_between_nodes(
+                    item.originNode, item.terminalNode,
+                        node1in=True, node2in=True):
+                    continue
+                for col, yN in enumerate(node.plotYArrays):
+                    curveLabel = item.alias + '.' + yN
+                    curve = self.plot.getCurve(curveLabel)
+                    if curve is not None:
+                        curve._updated()
+
+    def preparePickData(self, pendingPropDialog):
+        self.pendingPropDialog = pendingPropDialog
+        self.pickWidget.setVisible(True)
+
+    def cancelPropsToPickedData(self):
+        self.pendingPropDialog = None
+        self.pickWidget.setVisible(False)
+
+    def applyPropsToPickedData(self):
+        if self.pendingPropDialog is not None:
+            self.pendingPropDialog.applyPendingProps()
+            self.pendingPropDialog = None
+        self.pickWidget.setVisible(False)
+        self.selChanged()
+
     def selChanged(self):
-        self.updateNodeForSelectedItems()
+        if not self.pickWidget.isVisible():
+            self.updateNodeForSelectedItems()
         if DEBUG > 0 and self.mainWindow is None:  # only for test purpose
             selNames = ', '.join([it.alias for it in csi.selectedItems])
             dataCount = len(csi.allLoadedItems)
@@ -450,12 +534,13 @@ class NodeWidget(qt.QWidget):
             if fobj[1] == csp.DATA_COLUMN_FILE:
                 ind = self.files.model().indexFileName(fobj[0])
             else:  # fobj[1] == csp.DATA_DATASET:
-                ind = self.files.model().indexFromH5Path(fobj[0])
+                ind = self.files.model().indexFromH5Path(fobj[0], True)
             self.files.setCurrentIndex(ind)
             self.files.scrollTo(ind)
+            self.files.dataChanged(ind, ind)
         self.updateMeta()
-        self.updatePlot()
-        self.columnFormat.setUIFromData()
+        if fobj:
+            self.columnFormat.setUIFromData()
         self.combiner.setUIFromData()
         self.updateTransforms()
 
@@ -470,22 +555,29 @@ class NodeWidget(qt.QWidget):
             return " ({0} times)".format(n) if n > 1 else ""
 
         selectedIndexes = self.files.selectionModel().selectedRows()
-        dataStruct = selectedIndexes[0].data(gft.LOAD_DATASET_ROLE)
+        selectedIndex = selectedIndexes[0]
+        dataStruct = selectedIndex.data(gft.LOAD_DATASET_ROLE)
         if dataStruct is None:
             return
         colRecs, df = dataStruct
-        spectraInOneFile = 1
-        for col in colRecs:  # col is a list of (expr, data-keys)
-            spectraInOneFile = max(spectraInOneFile, len(col))
-        if spectraInOneFile > 1:
-            colMany = []
-            for icol, col in enumerate(colRecs):
-                if len(col) not in [1, spectraInOneFile]:
-                    return
-                if len(col) == spectraInOneFile:
-                    colMany.append(icol)
-            if not colMany:
-                return
+
+        # spectraInOneFile = 1
+        # for col in colRecs:  # col is a list of (expr, d[xx]-expr, data-keys)
+        #     spectraInOneFile = max(spectraInOneFile, len(col))
+        # if spectraInOneFile > 1:
+        #     colMany = []
+        #     for icol, col in enumerate(colRecs):
+        #         if len(col) not in [1, spectraInOneFile]:
+        #             msg = qt.QMessageBox()
+        #             msg.setIcon(qt.QMessageBox.Question)
+        #             res = msg.critical(
+        #                 self, "Cannot load data",
+        #                 "Lists of different lengths found")
+        #             return
+        #         if len(col) == spectraInOneFile:
+        #             colMany.append(icol)
+        #     if not colMany:
+        #         return
 
         if isinstance(fileNamesFull, qt.QModelIndex):
             if qt.QFileInfo(
@@ -530,42 +622,51 @@ class NodeWidget(qt.QWidget):
                                qt.QMessageBox.Yes)
             if res == qt.QMessageBox.No:
                 return
+
         if parentItem is None:
             if csi.selectedItems:
                 parentItem = csi.selectedItems[-1].parentItem
             else:
                 parentItem = csi.dataRootItem
+
         # !!! TODO !!!
         # here the column format is taken from the present state of
         # ColumnFormatWidget. Should be automatically detected from
         # file format
-        if spectraInOneFile == 1:
-            df['dataSource'] = [col[0][0] for col in colRecs]
-            items = csi.model.importData(
-                fileNamesFull, parentItem, insertAt, dataFormat=df,
-                originNode=self.node)
-        else:
-            keys = [pair[1][0] for pair in colRecs[colMany[0]]]
-            cs = keys[0]
-            for key in keys[1:]:
-                cs = cco.common_substring(cs, key)
-            colNames = [key[len(cs):] for key in keys]
-            for fname in fileNamesFull:
-                basename = os.path.basename(fname)
-                groupName = os.path.splitext(basename)[0]
-                if '::' in fname:
-                    h5name = os.path.splitext(os.path.basename(
-                        fname[:fname.find('::')]))[0]
-                    groupName = '/'.join([h5name, groupName])
-                group, = csi.model.importData(groupName, parentItem, insertAt)
-                for i, colName in enumerate(colNames):
-                    df['dataSource'] = \
-                        [col[i][0] if len(col) > 1 else col[0][0]
-                         for col in colRecs]
-                    csi.model.importData(
-                        fname, group, insertAt, dataFormat=df,
-                        alias=colName, coriginNode=self.node)
-            items = group,
+
+        # df['dataSource'] = [col[0][0] for col in colRecs]
+        items = csi.model.importData(
+            fileNamesFull, parentItem, insertAt, dataFormat=df,
+            originNode=self.node)
+
+        # if spectraInOneFile == 1:
+        #     df['dataSource'] = [col[0][0] for col in colRecs]
+        #     items = csi.model.importData(
+        #         fileNamesFull, parentItem, insertAt, dataFormat=df,
+        #         originNode=self.node)
+        # else:
+        #     keys = [col[2][0] for col in colRecs[colMany[0]]]
+        #     cs = keys[0]
+        #     for key in keys[1:]:
+        #         cs = cco.common_substring(cs, key)
+        #     colNames = [key[len(cs):] for key in keys]
+        #     for fname in fileNamesFull:
+        #         basename = os.path.basename(fname)
+        #         groupName = os.path.splitext(basename)[0]
+        #         if '::' in fname:
+        #             h5name = os.path.splitext(os.path.basename(
+        #                 fname[:fname.find('::')]))[0]
+        #             groupName = '/'.join([h5name, groupName])
+        #         group, = csi.model.importData(groupName, parentItem, insertAt)
+        #         for i, colName in enumerate(colNames):
+        #             df['dataSource'] = \
+        #                 [col[i][0] if len(col) > 1 else col[0][0]
+        #                  for col in colRecs]
+        #             csi.model.importData(
+        #                 fname, group, dataFormat=df,
+        #                 alias='{0}_{1}'.format(groupName, colName),
+        #                 originNode=self.node)
+        #     items = group,
 
         mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
         for item in items:
@@ -595,18 +696,6 @@ class NodeWidget(qt.QWidget):
         for item in csi.selectedItems[1:]:
             cs = cco.common_substring(cs, item.meta['text'])
         self.metadata.setText(cs)
-
-    def updatePlot(self):  # bring the selected curves to the top
-        node = self.node
-        for item in csi.selectedItems:
-            if not node.is_between_nodes(item.originNode, item.terminalNode,
-                                         node1in=True, node2in=True):
-                continue
-            for col, yN in enumerate(node.yNames):
-                curveLabel = item.alias + '.' + yN
-                curve = self.plot.getCurve(curveLabel)
-                if curve is not None:
-                    curve._updated()
 
     def updateTransforms(self):
         try:

@@ -13,13 +13,14 @@ import silx.io as silx_io
 
 from . import singletons as csi
 from . import commons as cco
+from .config import configDirs
 
 DEFAULT_COLOR_AUTO_UPDATE = False
 
 DATA_COLUMN_FILE, DATA_DATASET, DATA_COMBINATION, DATA_FUNCTION, DATA_GROUP =\
     range(5)
 COMBINE_NONE, COMBINE_AVE, COMBINE_SUM, COMBINE_PCA, COMBINE_RMS = range(5)
-combineName = '', 'ave', 'sum', 'PCA', 'RMS'
+combineNames = '', 'ave', 'sum', 'PCA', 'RMS'
 
 
 class TreeItem(object):
@@ -73,7 +74,8 @@ class TreeItem(object):
             else:
                 tip = "{0} spectr{1}".format(
                     len(items), 'a' if len(items) > 1 else 'um')
-            tip = ': '.join([self.alias, tip])
+            if hasattr(self, 'alias'):
+                tip = ': '.join([self.alias, tip])
             return tip
         else:
             if hasattr(self, 'name'):
@@ -84,6 +86,11 @@ class TreeItem(object):
                     res = self.madeOf
                     if self.aliasExtra:
                         res += ': {0}'.format(self.aliasExtra)
+                    dataSource = self.dataFormat.get('dataSource', [])
+                    for ds in dataSource:
+                        if isinstance(ds, type("")):
+                            if ds.startswith('silx'):
+                                res += '\n' + ds
                     return res
 
     def data(self, column):
@@ -92,7 +99,7 @@ class TreeItem(object):
             if column == 0:
                 return self.alias
         elif 0 <= column-leadingColumns < len(csi.modelDataColumns):
-            if not hasattr(self, 'plotProps'):
+            if not hasattr(self, 'plotProps'):  # i.e. is a group
                 return len(self.get_items())
             node, yName = csi.modelDataColumns[column-leadingColumns]
             return self.color, self.plotProps[node.name][yName]
@@ -214,7 +221,7 @@ class TreeItem(object):
         return items
 
     def init_colors(self, items=None):
-        from ..gui import gcommons as gco
+        from ..gui import gcommons as gco  # only needed with gui
         if not hasattr(self, 'colorAutoUpdate'):
             return
         citems = self.childItems if self.colorAutoUpdate else items
@@ -256,12 +263,10 @@ class Spectrum(TreeItem):
         The data propagation is between *originNode* and *terminalNode*, both
         ends are included. If *originNode* is None, it defaults to the 0th node
         (head of the pipeline). If *terminalNode* is None, the data propagates
-        down to the end(s) of the pipeline.
-
-        If a node is between *originNode* and *terminalNode* (in the sense of
-        data propagation) then the data is present in the node's data manager
-        as *alias* and is displayed in the plot.
-
+        down to the end(s) of the pipeline. If a node is between *originNode*
+        and *terminalNode* (in the sense of data propagation) then the data is
+        present in the node's data manager as *alias* and is displayed in the
+        plot.
 
         """
         assert len(csi.nodes) > 0, "A data pipeline must be first created."
@@ -269,7 +274,7 @@ class Spectrum(TreeItem):
         self.parentItem = parentItem
         self.childItems = []
         self.isVisible = True
-        if parentItem is None:
+        if parentItem is None:  # self is the root item
             assert csi.dataRootItem is None, "Data tree already exists."
             csi.dataRootItem = self
             if csi.withGUI:
@@ -290,7 +295,7 @@ class Spectrum(TreeItem):
         self.colorTag = kwargs.get('colorTag', 0)
         self.hasChanged = False
         self.isGood = dict((node.name, False) for node in csi.nodes.values())
-        self.aliasExtra = None
+        self.aliasExtra = None  # for extra name qualifier
         self.meta = {}
         self.combinesTo = []  # list of instances of Spectrum if not empty
         self.transformParams = {}  # each transform will add dicts to this dict
@@ -325,7 +330,7 @@ class Spectrum(TreeItem):
                 else:
                     raise ValueError("wrong choice of color type")
                 self.colorAutoUpdate = bool(kwargs.pop(
-                        'colorAutoUpdate', DEFAULT_COLOR_AUTO_UPDATE))
+                    'colorAutoUpdate', DEFAULT_COLOR_AUTO_UPDATE))
             if self.alias == 'auto':
                 self.alias = madeOf
 
@@ -337,15 +342,22 @@ class Spectrum(TreeItem):
         self.plotProps = {}
         for node in csi.nodes.values():
             self.plotProps[node.name] = {}
-            for ind, yName in enumerate(node.yNames):
-                plotParams = {'symbolsize': 2}
-                for k, v in node.plotParams.items():
-                    if isinstance(v, (list, tuple)):
-                        pv = v[ind]
-                    else:
-                        pv = v
-                    plotParams[k] = pv
-                self.plotProps[node.name][yName] = plotParams
+            if node.plotDimension == 1:
+                for ind, yName in enumerate(node.plotYArrays):
+                    plotParams = {'symbolsize': 2}
+                    plotParams['yaxis'] = \
+                        'right' if node.getProp(yName, 'plotRole').endswith(
+                            'right') else 'left'
+                    defPlotParams = node.getProp(yName, 'plotParams')
+                    for k, v in defPlotParams.items():
+                        if isinstance(v, (list, tuple)):
+                            pv = v[ind]
+                        else:
+                            pv = v
+                        plotParams[k] = pv
+                    if 'linestyle' not in plotParams:
+                        plotParams['linestyle'] = '-'
+                    self.plotProps[node.name][yName] = plotParams
 
     def is_good(self, column):
         leadingColumns = len(csi.modelLeadingColumns)
@@ -371,7 +383,7 @@ class Spectrum(TreeItem):
                     cs = cco.common_substring(cs, data.alias)
                 what = self.dataFormat['combine']
                 lenC = len(self.madeOf)
-                self.alias = "{0}_{1}{2}".format(cs, combineName[what], lenC)
+                self.alias = "{0}_{1}{2}".format(cs, combineNames[what], lenC)
         else:
             if self.madeOf.startswith('silx:'):
                 self.dataType = DATA_DATASET
@@ -414,7 +426,59 @@ class Spectrum(TreeItem):
                 tr.run(dataItems=[self])
 
     def insert_item(self, name, insertAt=None, **kwargs):
-        return Spectrum(name, self, insertAt, **kwargs)
+        """This method searches for one ore more sequences in the elements of
+        `dataSource` list. If found, these sequences should be of an equal
+        length and the same number of spectra will be added to the data model
+        in a separate group. If a shorter sequence is found, only its first
+        element will be used for the expansion of this sequence to the length
+        of the longest sequence(s)."""
+
+        df = dict(kwargs.get('dataFormat', {}))
+        if not df:
+            return Spectrum(name, self, insertAt, **kwargs)
+
+        spectraInOneFile = 1
+        dataSource = list(df.get('dataSource', []))
+        dataSourceSplit = []
+        for ds in dataSource:
+            ds = str(ds)
+            try:
+                # to expand list comprehension or string expressions
+                ds = str(eval(ds))
+            except:  # noqa
+                pass
+
+            if ((ds.startswith('[') and ds.endswith(']')) or
+                    (ds.startswith('(') and ds.endswith(')'))):
+                ds = ds[1:-1]
+            els = [el.strip() for el in ds.split(',')]
+            dataSourceSplit.append(els)
+            spectraInOneFile = max(spectraInOneFile, len(els))
+
+        if spectraInOneFile == 1:
+            return Spectrum(name, self, insertAt, **kwargs)
+
+        basename = os.path.basename(name)
+        groupName = os.path.splitext(basename)[0]
+        group = Spectrum(groupName, self, insertAt, colorPolicy='loop1')
+
+        multiDataSource = []
+        for ids, ds in enumerate(dataSourceSplit):
+            if len(ds) < spectraInOneFile:
+                dataSourceSplit[ids] = [ds[0] for i in range(spectraInOneFile)]
+            else:
+                multiDataSource.append(ids)
+
+        for ds in zip(*dataSourceSplit):
+            alias = '{0}_{1}'.format(
+                groupName, '_'.join(ds[i] for i in multiDataSource))
+            df['dataSource'] = list(ds)
+            Spectrum(name, group, dataFormat=df, alias=alias)
+
+        if csi.withGUI:
+            group.init_colors(group.childItems)
+
+        return group
 
     def read_file(self):
         madeOf = self.madeOf
@@ -437,8 +501,10 @@ class Spectrum(TreeItem):
             except (ValueError, KeyError):
                 pass
             try:
-                header.append(silx_io.get_data(madeOf + "/start_time"))
-                header.append(silx_io.get_data(madeOf + "/end_time"))
+                header.append(b"start time " +
+                              silx_io.get_data(madeOf + "/start_time"))
+                header.append(b"end time " +
+                              silx_io.get_data(madeOf + "/end_time"))
             except (ValueError, KeyError):
                 pass
         else:
@@ -457,30 +523,7 @@ class Spectrum(TreeItem):
                 if len(arrs) == 0:
                     raise ValueError('bad data file')
 
-            txt = dataSource[0]
-            if self.dataType == DATA_COLUMN_FILE:
-                if isinstance(txt, int):
-                    arr = arrs[txt]
-                else:
-                    arr = self.interpretArrayFormula(txt, arrs)
-            else:
-                arr = self.interpretArrayFormula(txt)
-            if arr is None:
-                raise ValueError('bad dataSource settings')
-            if hasattr(toNode, 'xNameRaw'):
-                setattr(self, toNode.xNameRaw, arr)
-            else:
-                setattr(self, toNode.xName, arr)
-            if xF is not None:
-                x = getattr(self, toNode.xName)
-                x *= xF
-
-            if hasattr(toNode, 'yNamesRaw'):
-                yNames = toNode.yNamesRaw
-            else:
-                yNames = toNode.yNames
-            for iy, yName in enumerate(yNames):
-                txt = dataSource[iy+1]
+            for aName, txt in zip(toNode.arrays, dataSource):
                 if self.dataType == DATA_COLUMN_FILE:
                     if isinstance(txt, int):
                         arr = arrs[txt]
@@ -488,13 +531,19 @@ class Spectrum(TreeItem):
                         arr = self.interpretArrayFormula(txt, arrs)
                 else:
                     arr = self.interpretArrayFormula(txt)
+
+                if toNode.getProp(aName, 'plotRole').startswith('x') and xF:
+                    arr *= xF
+                setName = toNode.getProp(aName, 'raw')
                 try:
-                    setattr(self, yName, arr)
-                except:
-                    setattr(self, yName, None)
+                    setattr(self, setName, arr)
+                except Exception:
+                    setattr(self, setName, None)
+                # print('{0}.shape = '.format(aName),
+                #       getattr(self, setName).shape)
 
             self.isGood[toNode.name] = True
-        except:
+        except ValueError:
             self.isGood[toNode.name] = False
             csi.model.invalidateData()
             return
@@ -514,6 +563,8 @@ class Spectrum(TreeItem):
                     self.meta['text'] = '\n'.join(header)
         self.meta['length'] = len(arr)
 
+        configDirs.set('Load', toNode.name, madeOf)
+
     def interpretArrayFormula(self, colStr, treeObj=None):
         try:
             # to expand string expressions
@@ -523,15 +574,19 @@ class Spectrum(TreeItem):
 
         keys = re.findall(r'\[(.*?)\]', colStr)
         if len(keys) == 0:
-            keys = colStr,
-            colStr = 'd["{0}"]'.format(colStr)
+            keys = [colStr]
+            colStr = 'd[r"{0}"]'.format(colStr)
         else:
             # remove outer quotes:
             keys = [k[1:-1] if k.startswith(('"', "'")) else k for k in keys]
         d = {}
         if treeObj is None:  # is Hdf5Item
             for k in keys:
-                d[k] = silx_io.get_data('/'.join((self.madeOf, k)))
+                if k.startswith("silx:"):
+                    d[k] = silx_io.get_data(k)
+                    configDirs.set('Load', self.originNode.name+'_silx', k)
+                else:
+                    d[k] = silx_io.get_data('/'.join((self.madeOf, k)))
         else:  # arrays from column file
             for k in keys:
                 kl = k.lower()
@@ -549,64 +604,75 @@ class Spectrum(TreeItem):
         the type of the combination being made: one of COMBINE_XXX constants.
         """
         madeOf = self.madeOf
-        assert isinstance(madeOf, (list, tuple))
-        toNode = self.originNode
         what = self.dataFormat['combine']
-
-        # check equal length of data to combine:
-        len0 = 0
-        for data in madeOf:
-            lenN = len(getattr(data, toNode.xName))
-            if len0 == 0:
-                len0 = lenN
-            else:
-                assert len0 == lenN
-            for yName in toNode.yNames:
-                assert len0 == len(getattr(data, yName))
-
-        for data in madeOf:
-            if self not in data.combinesTo:
-                data.combinesTo.append(self)
-
-        # x is so far taken from the 1st spectrum:  # TODO
-        setattr(self, toNode.xName, np.array(getattr(madeOf[0], toNode.xName)))
-
-        lenC = len(madeOf)
-        for yName in toNode.yNames:
-            if what in (COMBINE_AVE, COMBINE_SUM, COMBINE_RMS):
-                s = sum(getattr(data, yName) for data in madeOf)
-                if what == COMBINE_AVE:
-                    v = s / lenC
-                elif what == COMBINE_SUM:
-                    v = s
-                elif what == COMBINE_RMS:
-                    s2 = sum((getattr(d, yName) - s/lenC)**2 for d in madeOf)
-                    v = (s2 / lenC)**0.5
-            elif what == COMBINE_PCA:
-                raise NotImplementedError  # TODO
-            else:
-                raise ValueError("unknown data combination")
-            setattr(self, yName, v)
-
-        self.isGood[toNode.name] = True
         # define metadata
         self.meta['text'] = '{0} of {1}'.format(
-            combineName[what], ', '.join(it.alias for it in madeOf))
+            combineNames[what], ', '.join(it.alias for it in madeOf))
 #        self.meta['modified'] = os.path.getmtime(madeOf)
         self.meta['modified'] = time.strftime("%a, %d %b %Y %H:%M:%S")
         self.meta['size'] = -1
-        self.meta['length'] = len(v)
+
+        try:
+            assert isinstance(madeOf, (list, tuple))
+            toNode = self.originNode
+
+            xNames = []
+            # check equal length of data to combine:
+            len0 = 0
+            for arrayName in toNode.arrays:
+                if toNode.getProp(arrayName, 'plotRole').startswith('x'):
+                    xNames.append(arrayName)
+                setName = toNode.getProp(arrayName, 'raw')
+                for data in madeOf:
+                    lenN = len(getattr(data, setName))
+                    if len0 == 0:
+                        len0 = lenN
+                    else:
+                        assert len0 == lenN
+
+            for data in madeOf:
+                if self not in data.combinesTo:
+                    data.combinesTo.append(self)
+
+            # x is so far taken from the 1st spectrum:  # TODO
+            for arrayName in xNames:
+                setName = toNode.getProp(arrayName, 'raw')
+                arr = np.array(getattr(madeOf[0], setName))
+                setattr(self, setName, arr)
+
+            lenC = len(madeOf)
+            for arrayName in toNode.arrays:
+                if arrayName in xNames:
+                    continue
+                if what in (COMBINE_AVE, COMBINE_SUM, COMBINE_RMS):
+                    s = sum(getattr(data, arrayName) for data in madeOf)
+                    if what == COMBINE_AVE:
+                        v = s / lenC
+                    elif what == COMBINE_SUM:
+                        v = s
+                    elif what == COMBINE_RMS:
+                        s2 = sum((getattr(d, arrayName) - s/lenC)**2
+                                 for d in madeOf)
+                        v = (s2 / lenC)**0.5
+                elif what == COMBINE_PCA:
+                    raise NotImplementedError  # TODO
+                else:
+                    raise ValueError("unknown data combination")
+                setattr(self, arrayName, v)
+
+            self.meta['length'] = len(v)
+            self.isGood[toNode.name] = True
+        except AssertionError:
+            self.isGood[toNode.name] = False
+            self.meta['text'] += '\nThe conbined arrays have different lengths'
 
     def create_data(self):
         """Case of *madeOf* as callable"""
         toNode = self.originNode
         res = self.madeOf(**self.dataFormat)
-        setattr(self, toNode.xName, res[0])
-        for iy, yName in enumerate(toNode.yNames):
-            try:
-                setattr(self, yName, res[iy+1])
-            except IndexError:
-                setattr(self, yName, None)
+        for arrayName, arr in zip(toNode.arrays, res):
+            setName = toNode.getProp(arrayName, 'raw')
+            setattr(self, setName, arr)
         self.isGood[toNode.name] = True
 
 #    def set_transform_param(self, transformName, key, val):

@@ -1,54 +1,39 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "8 Feb 2021"
 # !!! SEE CODERULES.TXT !!!
 
 from ...core import nodes as cno
+from collections import OrderedDict
 
 
 class Node1(cno.Node):
     name = 'currents'
-
-    xNameRaw = 'eraw'
-    yNamesRaw = ['i0raw', 'i1raw']
-
-    xName = 'e'
-    xQLabel, xPlotLabel = 'E', r'$E$'
-    xQUnit, xPlotUnit = 'eV', 'eV'
-
-    yNames = ['i0', 'i1']
-    yQLabels, yPlotLabels = ['I0', 'I1'], [r'$I_0$', r'$I_1$']
-    yQUnits, yPlotUnits = ['counts']*2, ['counts']*2
-
-    plotParams = {'linewidth': [3, 1],
-                  'linestyle': ['-', '-'],
-                  'symbol': [None, 'd'],
-                  'symbolsize': [None, 5],
-                  'yaxis': ['left', 'right']}
+    arrays = OrderedDict()
+    arrays['e'] = dict(
+        qLabel='E', qUnit='eV', raw='eraw', plotRole='x', plotLabel=r'$E$')
+    arrays['i0'] = dict(
+        qLabel='I0', qUnit='counts', raw='i0raw', plotRole='yleft',
+        plotLabel=r'$I_0$', plotParams=dict(linewidth=3))
+    arrays['i1'] = dict(
+        qLabel='I1', qUnit='counts', raw='i1raw', plotRole='yright',
+        plotLabel=r'$I_1$',
+        plotParams=dict(linewidth=1, linestyle='--', symbol='d', symbolsize=5))
 
 
 class Node2(cno.Node):
     name = 'k-space'
-
-    xName = 'k'
-    xPlotLabel = r'$k$'
-    xQUnit, xPlotUnit = u'Å<sup>-1</sup>', u'Å$^{-1}$'
-
-    yNames = ['chi']
-    yQLabels, yPlotLabels = [u'χ'], [r'$\chi$']
-
-    plotParams = {}
+    arrays = OrderedDict()
+    arrays['k'] = dict(
+        qUnit=u'Å\u207B\u00B9', plotRole='x', plotLabel=r'$k$',
+        plotUnit=r'Å$^{-1}$')
+    arrays['chi'] = dict(qLabel=u'χ', plotRole='yleft', plotLabel=r'$\chi$')
 
 
 class Node3(cno.Node):
     name = 'r-space'
-
-    xName = 'r'
-    xPlotLabel = r'$r$'
-    xQUnit, xPlotUnit = u'Å', u'Å'
-
-    yNames = ['ft']
-    yQLabels, yPlotLabels = [u'|FT(χ)|'], [u'|FT($\chi$)|']
-    yQUnits, yPlotUnits = [u'Å<sup>-1</sup>'], [u'Å$^{-1}$']
-
-    plotParams = {}
+    arrays = OrderedDict()
+    arrays['r'] = dict(qUnit=u'Å', plotRole='x', plotLabel=r'$r$')
+    arrays['ft'] = dict(
+        qLabel=u'|FT(χ)|', qUnit=u'Å\u207B\u00B9', plotRole='yleft',
+        plotLabel=r'|FT($\chi$)|', plotUnit=r'Å$^{-1}$')

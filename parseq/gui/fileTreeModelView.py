@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
 __date__ = "01 Jan 2019"
+u"""
+The `files and containers` model is a file system model (qt.QFileSystemModel)
+extended by the hdf5 model from silx (silx.gui.hdf5.Hdf5TreeModel), so that
+hdf5 containers can be viewed in the same tree. This interconnection of the two
+models is almost complete except for sorting functionality by pressing the
+column headers.
+"""
 # !!! SEE CODERULES.TXT !!!
 
 import os
@@ -8,6 +15,8 @@ import re
 from functools import partial
 import pickle
 import numpy as np
+
+import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 import silx
 from distutils.version import LooseVersion, StrictVersion
 assert LooseVersion(silx.version) >= LooseVersion("0.9.0")
@@ -17,6 +26,7 @@ from silx.gui.hdf5.Hdf5TreeModel import Hdf5TreeModel
 from silx.gui.hdf5.NexusSortFilterProxyModel import NexusSortFilterProxyModel
 
 from ..core import commons as cco
+from ..core.config import configDirs
 from . import gcommons as gco
 
 if True:
@@ -28,6 +38,7 @@ useProxyModel = True  # only for decoration, sorting doesn't work so far
 NODE_FS, NODE_HDF5, NODE_HDF5_HEAD = range(3)
 LOAD_DATASET_ROLE = Hdf5TreeModel.USER_ROLE
 USE_HDF5_ARRAY_ROLE = Hdf5TreeModel.USER_ROLE + 1
+LOAD_ITEM_PATH_ROLE = Hdf5TreeModel.USER_ROLE + 2
 H5PY_OBJECT_ROLE = Hdf5TreeModel.H5PY_OBJECT_ROLE
 
 COLUMN_NAME_WIDTH = 240
@@ -64,7 +75,7 @@ class MyHdf5TreeModel(Hdf5TreeModel):
     def canFetchMore(self, parent):
         node = self.nodeFromIndex(parent)
         if node is None:
-            return 0
+            return False
         if not node.isGroupObj():
             return False
         if node._Hdf5Node__child is None:
@@ -304,10 +315,10 @@ class FileSystemWithHdf5Model(ModelBase):
     def canLoadColDataset(self, indexFS):
         return True
 
-    def interpretArrayFormula(self, dataStr, treeObj):
-        """Returnes a list of pairs (expr, data-keys). *dataStr* may have
-        several expressions with the syntax of a list or a tuple or just one if
-        it is a simple string.
+    def interpretArrayFormula(self, dataStr, treeObj, kind):
+        """Returnes a list of (expr, d[xx]-styled-expr, data-keys, shape).
+        *dataStr* may have several expressions with the syntax of a list or a
+        tuple or just one expression if it is a simple string.
         """
         try:
             # to expand list comprehension or string expressions
@@ -323,18 +334,26 @@ class FileSystemWithHdf5Model(ModelBase):
         for colStr in dataStr:
             keys = re.findall(r'\[(.*?)\]', colStr)
             if len(keys) == 0:
-                keys = colStr,
-                colStr = 'd["{0}"]'.format(colStr)
+                keys = [colStr]
+                colStrD = 'd[r"{0}"]'.format(colStr)
             else:
+                colStrD = colStr
                 # remove outer quotes:
                 keys = [k[1:-1] if k.startswith(('"', "'")) else k
                         for k in keys]
             d = {}
-            if hasattr(treeObj, 'isGroupObj'):  # is Hdf5Item
+            if kind == 'h5':
                 for k in keys:
-                    if not self.hasH5ChildPath(treeObj, k):
+                    if k.startswith("silx:"):
+                        tryInd = self.indexFromH5Path(k)
+                        if tryInd == qt.QModelIndex():  # doesn't exist
+                            return
+                        shape = self.h5Model.nodeFromIndex(tryInd).obj.shape
+                    else:
+                        shape = self.hasH5ChildPath(treeObj, k)
+                    if shape is None:
                         return
-                    d[k] = np.ones(2)
+                    d[k] = np.ones([2 for dim in shape])
             else:  # arrays from column file
                 for k in keys:
                     kl = k.lower()
@@ -345,9 +364,10 @@ class FileSystemWithHdf5Model(ModelBase):
                     d[k] = treeObj[kn]
                     d[kn] = d[k]
                     locals()[k] = k
+                shape = 2,
             try:
-                eval(colStr)
-                out.append((colStr, keys))
+                eval(colStrD)
+                out.append((colStr, colStrD, keys, shape))
             except:  # noqa
                 return
         return out
@@ -355,10 +375,10 @@ class FileSystemWithHdf5Model(ModelBase):
     def hasH5ChildPath(self, node, path):
         pathInH5 = '/'.join((node.obj.name, path))
         try:
-            node.obj[pathInH5]  # test for existence
-            return True
+            test = node.obj[pathInH5]  # test for existence
+            return test.shape
         except KeyError:
-            return False
+            return
 
     def tryLoadColDataset(self, indexFS):
         if not indexFS.isValid():
@@ -371,19 +391,20 @@ class FileSystemWithHdf5Model(ModelBase):
         fname = fileInfo.filePath()
         lres = []
         try:
-            cco.get_header(fname, df)
-            df['skip_header'] = df.pop('skiprows', 0)
-            dataS = df.pop('dataSource', [])  # from dataXEdit and dataYEdits
+            cdf = df.copy()
+            cco.get_header(fname, cdf)
+            cdf['skip_header'] = cdf.pop('skiprows', 0)
+            dataS = cdf.pop('dataSource', [])  # from dataEdits
             with np.warnings.catch_warnings():
                 np.warnings.simplefilter("ignore")
-                arrs = np.genfromtxt(fname, unpack=True, max_rows=2, **df)
+                arrs = np.genfromtxt(fname, unpack=True, max_rows=2, **cdf)
             if len(arrs) == 0:
                 return
 
             for data in dataS:
                 if len(data) == 0:
                     return
-                colEval = self.interpretArrayFormula(data, arrs)
+                colEval = self.interpretArrayFormula(data, arrs, 'col')
                 if colEval is None:
                     return
                 lres.append(colEval)
@@ -404,13 +425,16 @@ class FileSystemWithHdf5Model(ModelBase):
 
         lres = []
         try:
-            dataS = df.pop('dataSource', [])  # from dataXEdit and dataYEdits
-            for data in dataS:
+            dataS = df.get('dataSource', [])  # from dataEdits
+            for data, nd in zip(dataS, self.transformNode.getPropList('ndim')):
                 if len(data) == 0:
                     return
-                colEval = self.interpretArrayFormula(data, nodeH5)
+                colEval = self.interpretArrayFormula(data, nodeH5, 'h5')
                 if colEval is None:
                     return
+                if nd:
+                    if len(colEval[0][3]) != nd:
+                        return
                 lres.append(colEval)
         except:  # noqa
             return
@@ -451,7 +475,7 @@ class FileSystemWithHdf5Model(ModelBase):
         if class_ == silx_io.utils.H5Type.DATASET:
             obj = self.h5Model.nodeFromIndex(indexH5).obj
             try:
-                if (len(obj.shape) == 1) and (obj.shape[0] > 1):
+                if (len(obj.shape) >= 1):
                     return obj.name
             except:  # noqa
                 pass
@@ -484,14 +508,18 @@ class FileSystemWithHdf5Model(ModelBase):
         nodeType = self.nodeType(index)
         if nodeType == NODE_FS:
             indexFS = self.mapToFS(index)
+            if role == LOAD_ITEM_PATH_ROLE:
+                return self.filePath(indexFS)
             if role == qt.Qt.ForegroundRole:
-                fileInfo = self.fsModel.fileInfo(indexFS)
+                fileInfo = self.fsModel.fileInfo(index)
                 if is_text_file(fileInfo.filePath()):
                     return qt.QColor(gco.COLOR_FS_COLUMN_FILE)
             if self.fsModel is self:
                 return super(FileSystemWithHdf5Model, self).data(index, role)
             return self.fsModel.data(indexFS, role)
         elif nodeType == NODE_HDF5:
+            if role == LOAD_ITEM_PATH_ROLE:
+                return self.getHDF5FullPath(index)
             indexH5 = self.mapToH5(index)
             if useProxyModel:
                 return self.h5ProxyModel.data(
@@ -549,10 +577,8 @@ class FileSystemWithHdf5Model(ModelBase):
                 elif parentType == NODE_HDF5_HEAD:
                     parentProxyH5 = self.h5ProxyModel.mapFromSource(
                         self.mapFStoH5(self.mapToFS(parent)))
-                indexProxyH5 = self.h5ProxyModel.index(
-                        row, column, parentProxyH5)
-                index = self.mapFromH5(
-                    self.h5ProxyModel.mapToSource(indexProxyH5))
+                indexH5 = self.h5ProxyModel.index(row, column, parentProxyH5)
+                index = self.mapFromH5(self.h5ProxyModel.mapToSource(indexH5))
             else:
                 if parentType == NODE_HDF5:
                     parentH5 = self.mapToH5(parent)
@@ -622,7 +648,7 @@ class FileSystemWithHdf5Model(ModelBase):
         else:
             return self.fsModel.index(fName)
 
-    def indexFromH5Path(self, path):
+    def indexFromH5Path(self, path, fallbackToHead=False):
         fNameStart = path.find("silx:")
         if fNameStart < 0:
             return qt.QModelIndex()
@@ -634,6 +660,8 @@ class FileSystemWithHdf5Model(ModelBase):
 
         headIndexFS = self.indexFileName(fnameH5)
         headIndexH5 = self.mapFStoH5(headIndexFS)
+        if headIndexH5 == qt.QModelIndex():
+            return headIndexFS if fallbackToHead else qt.QModelIndex()
         indexH5 = self.h5Model.indexFromPath(headIndexH5, fnameH5sub)
         return self.mapFromH5(indexH5)
 
@@ -678,6 +706,20 @@ class SelectionDelegate(qt.QItemDelegate):
 
     def paint(self, painter, option, index):
         loadState = index.data(LOAD_DATASET_ROLE)
+
+        path = index.data(LOAD_ITEM_PATH_ROLE)
+        if path:
+            lastPath = configDirs.get(
+                'Load', self.parent().transformNode.name, fallback='')
+            if lastPath:
+                if os.path.normpath(path) == os.path.normpath(lastPath):
+                    option.font.setWeight(qt.QFont.Bold)
+            lastPathSilx = configDirs.get(
+                'Load', self.parent().transformNode.name+'_silx', fallback='')
+            if lastPathSilx:
+                if os.path.normpath(path) == os.path.normpath(lastPathSilx):
+                    option.font.setWeight(qt.QFont.Bold)
+
         if option.state & qt.QStyle.State_MouseOver:
             color = self.parent().palette().highlight().color()
             if loadState is not None:
@@ -716,9 +758,9 @@ class FileTreeView(qt.QTreeView):
     def __init__(self, transformNode=None, parent=None, roothPath=None):
         super(FileTreeView, self).__init__(parent)
         model = FileSystemWithHdf5Model(transformNode, self)
-#        model = qt.QFileSystemModel(self)  # for test purpose
+        # model = qt.QFileSystemModel(self)  # for test purpose
         if hasattr(transformNode, 'fileNameFilters'):
-#            model.setFilter(qt.QDir.NoDotAndDotDot | qt.QDir.Files)
+            # model.setFilter(qt.QDir.NoDotAndDotDot | qt.QDir.Files)
             model.fsModel.setNameFilters(transformNode.fileNameFilters)
             model.fsModel.setNameFilterDisables(False)
         self.setModel(model)
@@ -785,14 +827,18 @@ class FileTreeView(qt.QTreeView):
             return
         menu = qt.QMenu()
 
+        shape = None
         if lenSelectedIndexes >= 1:
-            paths = []
+            paths, fullPaths = [], []
             for index in selectedIndexes:
                 path = index.data(USE_HDF5_ARRAY_ROLE)
+                fullPath = index.data(LOAD_ITEM_PATH_ROLE)
                 if path is not None:
+                    fullPaths.append(fullPath)
                     paths.append(path)
+                    shape = self.model().h5Model.nodeFromIndex(index).obj.shape
                 else:
-                    paths = []
+                    paths, fullPaths = [], []
                     break
 
             if len(paths) == 1:
@@ -801,35 +847,25 @@ class FileTreeView(qt.QTreeView):
                 strSum = 'the sum '
 
             if len(paths) > 0:
-                try:
-                    xLbl = self.transformNode.xQLabel
-                except AttributeError:
-                    xLbl = self.transformNode.xName
-                menu.addAction("Set {0}as {1} array".format(strSum, xLbl),
-                               partial(self.setAsArray, 0, paths))
-                try:
-                    yLbls = self.transformNode.yQLabels
-                except AttributeError:
-                    yLbls = self.transformNode.yNames
-                for iLbl, yLbl in enumerate(yLbls):
-                    menu.addAction("Set {0}as {1} array".format(strSum, yLbl),
-                                   partial(self.setAsArray, iLbl+1, paths))
+                yLbls = self.transformNode.getPropList('qLabel')
+                ndims = self.transformNode.getPropList('ndim')
+                for iLbl, (yLbl, ndim) in enumerate(zip(yLbls, ndims)):
+                    if shape:
+                        if len(shape) != ndim:
+                            continue
+                    menu.addAction("Set {0}as {1} array".format(
+                        strSum, yLbl),
+                        partial(self.setAsArray, iLbl, paths))
+                    if len(paths) == 1:
+                        menu.addAction("Set full path {0}as {1} array".format(
+                            strSum, yLbl),
+                            partial(self.setAsArray, iLbl, fullPaths))
                 menu.addSeparator()
 
             if len(paths) > 1:
-                try:
-                    xLbl = self.transformNode.xQLabel
-                except AttributeError:
-                    xLbl = self.transformNode.xName
-                menu.addAction("Set as a list of {0} arrays".format(xLbl),
-                               partial(self.setAsArray, 0, paths, isList=True))
-                try:
-                    yLbls = self.transformNode.yQLabels
-                except AttributeError:
-                    yLbls = self.transformNode.yNames
                 for iLbl, yLbl in enumerate(yLbls):
                     menu.addAction("Set as a list of {0} arrays".format(yLbl),
-                                   partial(self.setAsArray, iLbl+1, paths,
+                                   partial(self.setAsArray, iLbl, paths,
                                            isList=True))
                 menu.addSeparator()
 
@@ -931,6 +967,13 @@ class FileTreeView(qt.QTreeView):
                 return
 
     def setAsArray(self, iArray, paths, isList=False):
+        cf = self.transformNode.widget.columnFormat
+        edit = cf.dataEdits[iArray]
+
+        if paths[0].startswith('silx'):
+            edit.setText(paths[0])
+            return
+
         subpaths = []
         for path in paths:
             slashC = path.count('/')
@@ -942,12 +985,6 @@ class FileTreeView(qt.QTreeView):
             else:
                 return
             subpaths.append(subpath)
-
-        cf = self.transformNode.widget.columnFormat
-        if iArray == 0:
-            edit = cf.dataXEdit
-        else:
-            edit = cf.dataYEdits[iArray-1]
 
         if len(subpaths) == 1:
             txt = subpaths[0]

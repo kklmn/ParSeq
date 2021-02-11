@@ -11,17 +11,41 @@ MIME_TYPE_TEXT = 'text/uri-list'
 MIME_TYPE_HDF5 = 'parseq-hdf5-model-items'
 
 
-def getDotAttr(obj, attr):
-    for name in attr.split("."):
-        obj = getattr(obj, name)
-    return obj
+def expandDotAttr(attr):
+    """ *attr* is str or list of str, each str can have a dot notation"""
+    if not isinstance(attr, (tuple, list)):
+        return attr.split(".")
+    expanded = []
+    for subattr in attr:
+        try:
+            expanded.extend(subattr.split("."))
+        except AttributeError:
+            expanded.append(subattr)
+    return expanded
+
+
+def getDotAttr(obj, attr, withContainer=False):
+    """ *attr* is str or list of str, each str can have a dot notation"""
+    for subattr in expandDotAttr(attr):
+        container = obj
+        try:
+            obj = getattr(obj, subattr)
+        except (AttributeError, TypeError):
+            try:
+                obj = obj[subattr]
+            except KeyError:
+                return (container, subattr, None) if withContainer else None
+    return (container, subattr, obj) if withContainer else obj
 
 
 def setDotAttr(obj, attr, val):
-    attrList = attr.split(".")
-    if attrList > 1:
+    attrList = expandDotAttr(attr)
+    if len(attrList) > 1:
         for name in attrList[:-1]:
-            obj = getattr(obj, name)
+            try:
+                obj = getattr(obj, name)
+            except (AttributeError, TypeError):
+                obj = obj[name]
         attr = attrList[-1]
     setattr(obj, attr, val)
 
@@ -69,7 +93,11 @@ def intervals_extract(iterable):
 
 
 def make_int_ranges(iterable):
-    ranges = list(intervals_extract(iterable))
+    try:
+        intit = [int(i) for i in iterable]
+    except Exception:
+        intit = iterable
+    ranges = list(intervals_extract(intit))
     aslist = ["{0[0]}..{0[1]}".format(r) if r[0] < r[1] else "{0[0]}".format(r)
               for r in ranges]
     return "({})".format(', '.join(aslist))

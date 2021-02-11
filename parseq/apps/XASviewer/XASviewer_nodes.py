@@ -4,33 +4,24 @@ __date__ = "04 Mar 2019"
 # !!! SEE CODERULES.TXT !!!
 
 from ...core import nodes as cno
+from collections import OrderedDict
 
 
 class Node1(cno.Node):
     name = 'currents'
-
-    xName = 'e'
-    xQLabel, xPlotLabel = 'E', r'$E$'
-    xQUnit, xPlotUnit = 'eV', 'eV'
-
-    yNames = ['i0', 'i1']
-    yQLabels, yPlotLabels = ['I0', 'I1'], [r'$I_0$', r'$I_1$']
-    yQUnits, yPlotUnits = ['counts']*2, ['counts']*2
-
-    plotParams = {'linewidth': [2, 1],
-                  'linestyle': ['-', '-'],
-#                  'symbol': [None, None],
-                  'yaxis': ['left', 'right']}
+    arrays = OrderedDict()
+    arrays['e'] = dict(qLabel='E', qUnit='eV', plotRole='x', plotLabel=r'$E$')
+    arrays['i0'] = dict(
+        qLabel='I0', qUnit='counts', plotRole='lefty', plotLabel=r'$I_0$',
+        plotParams={'linewidth': 2})
+    arrays['i1'] = dict(
+        qLabel='I1', qUnit='counts', plotRole='righty', plotLabel=r'$I_1$')
 
 
 class Node2(cno.Node):
     name = u'µd'
-
-    xName = 'e'
-    xQLabel, xPlotLabel = 'E', r'$E$'
-    xQUnit, xPlotUnit = 'eV', 'eV'
-
-    yNames = ['mu']
-    yQLabels, yPlotLabels = [u'µd'], [r'$\mu d$']
-
-    plotParams = {'linewidth': 2.0}
+    arrays = OrderedDict()
+    arrays['e'] = dict(qLabel='E', qUnit='eV', plotRole='x', plotLabel=r'$E$')
+    arrays['mu'] = dict(
+        qLabel='E', qUnit=u'µd', plotRole='lefty', plotLabel=r'$\mu d$',
+        plotParams={'linewidth': 2.0})

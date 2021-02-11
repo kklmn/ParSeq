@@ -18,7 +18,7 @@ class Tr0(ctr.Transform):
     params = dict(correctionNeeded=False, Eref=8979., correctionKind='')
 
     def run_main(self, data):
-        data.e = data.eraw + 0.1
+        data.e = data.eraw + 1
         data.i0 = data.i0raw
         data.i1 = data.i1raw
         data.isGood[self.toNode.name] = True
@@ -44,7 +44,8 @@ class Tr1(ctr.Transform):
         data.chi = np.zeros_like(data.k)
 
         try:
-            data.mu = np.log(data.i0 / data.i1)
+            # data.mu = np.log(data.i0 / data.i1)
+            data.mu = data.i1 / data.i0
             data.mu -= data.mu.min()
             e = data.e[data.e >= e0]
             mu = data.mu[data.e >= e0]

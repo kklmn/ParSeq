@@ -10,6 +10,7 @@ from silx.gui import qt
 # path to ParSeq:
 import os, sys; sys.path.append(os.path.join('..', '..'))  # analysis:ignore
 from .nodeWidget import NodeWidget
+from ..core import config
 from ..core import singletons as csi
 from ..core import commons as cco
 from ..core import undoredo as cun
@@ -127,7 +128,7 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.setWidget(nodeWidget)
             if i == 0:
                 dock0 = dock
-                node0 = node
+                # node0 = node
             else:
                 self.tabifyDockWidget(dock0, dock)
             self.docks.append(dock)
@@ -156,12 +157,13 @@ class MainWindowParSeq(qt.QMainWindow):
         dataCount = len(csi.allLoadedItems)
         sellen = len(csi.selectedItems)
         if sellen:
-            self.statusBarLeft.setText('{0} selected spectr{1}: {2}'.format(
-                sellen, 'um' if sellen == 1 else 'a', selNames))
+            # self.statusBarLeft.setText('{0} selected spectr{1}: {2}'.format(
+            #     sellen, 'um' if sellen == 1 else 'a', selNames))
+            self.statusBarLeft.setText('{0} selected: {1}'.format(
+                sellen, selNames))
         else:
             self.statusBarLeft.setText('')
-        self.statusBarRight.setText('{0} spectr{1}'.format(
-            dataCount, 'um' if dataCount == 1 else 'a'))
+        self.statusBarRight.setText('{0} loaded'.format(dataCount))
 
     def slotUndo(self):
         if len(cun.get_undo_str()):
@@ -213,6 +215,8 @@ class MainWindowParSeq(qt.QMainWindow):
 #            self.currentNode = node
 
     def closeEvent(self, event):
+        config.write_configs()
+
 #        self.settings.setValue("currentDock", self.currentDock.objectName())
         self.settings.setValue("geometry", self.saveGeometry())
 #        self.settings.setValue("windowState", self.saveState())

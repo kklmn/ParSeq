@@ -1,6 +1,23 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
 __date__ = "17 Nov 2018"
+u"""
+The `DataTreeModel` implements view model of a collection of data loaded into a
+Parseq app. The model has several columns: the 1st one is the data name
+(or alias), the 2nd is the data view state and the next columns refer to all y
+columns listed over all pipeline nodes and contain their plotting properties.
+For each node, visible in `DataTreeView` are the first two columns plus the y
+column(s) defined for this node. Note again, the model is only one, it includes
+data in _all_ nodes.
+
+The underlying items in the model (obtained by item = index.internalPointer())
+are instances of :class:`core.spectra.Spectrum`. The root item is stored in
+core.singletons.dataRootItem.
+
+The selected items can be accessed by core.singletons.selectedItems and
+core.singletons.selectedTopItems lists.
+
+"""
 # !!! SEE CODERULES.TXT !!!
 
 from functools import partial
@@ -94,10 +111,7 @@ class DataTreeModel(qt.QAbstractItemModel):
                 return csi.modelLeadingColumns[section]
             else:
                 node, yName = csi.modelDataColumns[section-leadingColumns]
-                if hasattr(node, "yQLabels"):
-                    ind = node.yNames.index(yName)
-                    yName = node.yQLabels[ind]
-                return yName
+                return node.getProp(yName, 'qLabel')
         elif role == qt.Qt.ToolTipRole:
             if section == 0:
                 return self.rootItem.tooltip()
@@ -521,8 +535,11 @@ class LineStyleDelegate(qt.QItemDelegate):
 
 
 class EyeHeader(qt.QHeaderView):
-    EYE_BLUE = '#87aecf'
+    EYE_IRIS = '#87aecf'  # blue
+    # EYE_IRIS = '#7B3F00'  # brown
     EYE_BROW = '#999999'
+    pointerCoords = [(0, 0), (11, 11), (6, 11), (8, 16), (6, 17),
+                     (4, 12), (0, 15)]
 
     def __init__(self, orientation=qt.Qt.Horizontal, parent=None):
         super(EyeHeader, self).__init__(orientation, parent)
@@ -533,25 +550,39 @@ class EyeHeader(qt.QHeaderView):
         painter.restore()
         painter.setRenderHint(qt.QPainter.Antialiasing, True)
         if logicalIndex == 1:
-            color = qt.QColor(self.EYE_BLUE)
+            if not csi.dataRootItem.isVisible:
+                pointerPath = qt.QPainterPath()
+                pointerPath.moveTo(*self.pointerCoords[0])
+                for x, y in self.pointerCoords[1:]:
+                    pointerPath.lineTo(x, y)
+                pointerPath.closeSubpath()
+                symbolBrush = qt.QBrush(qt.Qt.white)
+                symbolPen = qt.QPen(qt.Qt.black, 0.75)
+                painter.setPen(symbolPen)
+                painter.setBrush(symbolBrush)
+                pointerPath.translate(rect.x()+7, rect.y()+1)
+                painter.drawPath(pointerPath)
+
+                rect.moveTo(rect.x()+3, rect.y()+9)
+
+            color = qt.QColor(self.EYE_IRIS)
             painter.setBrush(color)
             painter.setPen(color)
-            radius0 = 4
+            radius0 = 5
             painter.drawEllipse(rect.center(), radius0, radius0)
             color = qt.QColor('black')
             painter.setBrush(color)
             painter.setPen(color)
-            radius1 = 2.3 if csi.dataRootItem.isVisible else 1.2
+            radius1 = 1.5
             painter.drawEllipse(rect.center(), radius1, radius1)
-            painter.setPen(qt.QPen(qt.QColor(self.EYE_BROW), 2))
-            rf = 1.3 if csi.dataRootItem.isVisible else 1
-            yCenter = rect.center().y()
-            painter.drawArc(rect.x()+3, yCenter-(radius0-0.5)*rf,
-                            rect.width()-7, 3*(radius0*rf+2),
-                            35*16, 110*16)
-            painter.drawArc(rect.x()+3, yCenter+radius0*rf+0.5,
-                            rect.width()-7, -3*(radius0*rf+2),
-                            -35*16, -110*16)
+            painter.setPen(qt.QPen(qt.QColor(self.EYE_BROW), radius1))
+            c0 = rect.center()
+            x0, y0 = c0.x(), c0.y()
+            ww, hh = min(2.5*radius0, rect.width()//2), radius0
+            painter.drawArc(
+                x0-ww+0.5, y0-radius0-1, ww*2, hh*5+1, 35*16, 110*16)
+            painter.drawArc(
+                x0-ww+0.5, y0+radius0, ww*2, -hh*5+3, -35*16, -110*16)
 
 
 class DataTreeView(qt.QTreeView):
@@ -595,7 +626,7 @@ class DataTreeView(qt.QTreeView):
                     i+leadingColumns, lineStyleDelegate)
             self.setMinimumSize(qt.QSize(
                 COLUMN_NAME_WIDTH + COLUMN_EYE_WIDTH +
-                len(node.yNames)*LEGEND_WIDTH, 250))
+                node.columnCount*LEGEND_WIDTH, 250))
 
         self.collapsed.connect(self.collapse)
         self.expanded.connect(self.expand)
@@ -679,20 +710,21 @@ class DataTreeView(qt.QTreeView):
         menu.addSeparator()
         menu.addAction(self.actionRemove)
 
-        menu.addSeparator()
-        if isGroupSelected or \
-                csi.selectedTopItems == csi.dataRootItem.get_nongroups():
-            item = csi.selectedTopItems[0]
-            try:
-                if hasattr(item, 'colorAutoUpdate'):
-                    cond = item.colorAutoUpdate
-                else:
-                    cond = item.parentItem.colorAutoUpdate
-                menu.addAction(self.actionAUCC)
-                self.actionAUCC.setChecked(cond)
-            except AttributeError:
-                pass
-        menu.addAction(self.actionLines)
+        if self.node.columnCount > 0:
+            menu.addSeparator()
+            if isGroupSelected or \
+                    csi.selectedTopItems == csi.dataRootItem.get_nongroups():
+                item = csi.selectedTopItems[0]
+                try:
+                    if hasattr(item, 'colorAutoUpdate'):
+                        cond = item.colorAutoUpdate
+                    else:
+                        cond = item.parentItem.colorAutoUpdate
+                    menu.addAction(self.actionAUCC)
+                    self.actionAUCC.setChecked(cond)
+                except AttributeError:
+                    pass
+            menu.addAction(self.actionLines)
 
         menu.exec_(self.viewport().mapToGlobal(point))
 

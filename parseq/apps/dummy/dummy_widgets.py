@@ -239,18 +239,18 @@ class Tr1Widget(PropWidget):
         self.setLayout(layout)
 
     def setUIFromData(self):
-        gpd.setSpinBoxFromData(self.e0DSB.spinBox, 'transformParams',
-                               self.transform.name, 'E0')
-        gpd.setSpinBoxFromData(self.kminDSB.spinBox, 'transformParams',
-                               self.transform.name, 'kmin')
-        gpd.setSpinBoxFromData(self.kmaxDSB.spinBox, 'transformParams',
-                               self.transform.name, 'kmax')
-        gpd.setSpinBoxFromData(self.dkDSB.spinBox, 'transformParams',
-                               self.transform.name, 'dk')
-        gpd.setSpinBoxFromData(self.smDSB.spinBox, 'transformParams',
-                               self.transform.name, 'smoothing')
-        gpd.setComboBoxFromData(self.kwCB, 'transformParams',
-                                self.transform.name, 'kw')
+        tname = self.transform.name
+        gpd.setSpinBoxFromData(
+            self.e0DSB.spinBox, ['transformParams', tname, 'E0'])
+        gpd.setSpinBoxFromData(
+            self.kminDSB.spinBox, ['transformParams', tname, 'kmin'])
+        gpd.setSpinBoxFromData(
+            self.kmaxDSB.spinBox, ['transformParams', tname, 'kmax'])
+        gpd.setSpinBoxFromData(
+            self.dkDSB.spinBox, ['transformParams', tname, 'dk'])
+        gpd.setSpinBoxFromData(
+            self.smDSB.spinBox, ['transformParams', tname, 'smoothing'])
+        gpd.setComboBoxFromData(self.kwCB, ['transformParams', tname, 'kw'])
 
 
 class Tr2Widget(PropWidget):
@@ -275,5 +275,6 @@ class Tr2Widget(PropWidget):
         self.setLayout(layout)
 
     def setUIFromData(self):
-        gpd.setSpinBoxFromData(self.rmaxDSB.spinBox, 'transformParams',
-                               self.transform.name, 'rmax')
+        gpd.setSpinBoxFromData(
+            self.rmaxDSB.spinBox,
+            ['transformParams', self.transform.name, 'rmax'])

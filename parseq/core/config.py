@@ -13,10 +13,20 @@ except ImportError:
 iniDir = os.path.expanduser(os.path.join('~', '.parseq'))
 if not os.path.exists(iniDir):
     os.makedirs(iniDir)
-iniTransforms = (os.path.join(iniDir, 'transforms.ini'))
-config = ConfigParser()
+
+iniFileTransforms = (os.path.join(iniDir, 'transforms.ini'))
+configTransforms = ConfigParser()
+configTransforms.read(iniFileTransforms)
+
+iniFileDirs = (os.path.join(iniDir, 'directories.ini'))
+configDirs = ConfigParser()
+configDirs.read(iniFileDirs)
+if not configDirs.has_section('Load'):
+    configDirs.add_section('Load')
 
 
-def write_config():
-    with open(iniTransforms, 'w+') as cf:
-        config.write(cf)
+def write_configs():
+    with open(iniFileTransforms, 'w+') as cf:
+        configTransforms.write(cf)
+    with open(iniFileDirs, 'w+') as cf:
+        configDirs.write(cf)

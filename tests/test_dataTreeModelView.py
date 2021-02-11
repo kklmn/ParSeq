@@ -101,6 +101,9 @@ def test_Spectrum1(withGUI):  # without convenience functions
             from modeltest import ModelTest
             ModelTest(model, view)
 
+        # select the 1st item (it is a group)
+        view.setCurrentIndex(csi.model.index(0))
+
         view.show()
         app.exec_()
     else:
@@ -134,22 +137,24 @@ def test_Spectrum2(withGUI):  # with convenience functions
         app = qt.QApplication(sys.argv)
         node = list(csi.nodes.values())[0]
         view1 = MyTreeView(node)
-
+    
         if "qt5" in qt.BINDING.lower():
             from modeltest import ModelTest
             ModelTest(csi.model, view1)
 
         view1.setWindowTitle("Spectra Tree Model")
+        # select the 1st item (it is a group)
+        view1.setCurrentIndex(csi.model.index(0))
 
         view1.show()
         app.exec_()
 
 
 if __name__ == '__main__':
-#    test_TreeItem(withGUI=True)
-#    test_TreeItem(withGUI=False)
+    # test_TreeItem(withGUI=True)
+    # test_TreeItem(withGUI=False)
 
-#    test_Spectrum1(withGUI=True)
-#    test_Spectrum1(withGUI=False)
+    # test_Spectrum1(withGUI=True)
+    # test_Spectrum1(withGUI=False)
 
     test_Spectrum2(withGUI=True)

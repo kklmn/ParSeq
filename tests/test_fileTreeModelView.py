@@ -3,7 +3,8 @@ __author__ = "Konstantin Klementiev"
 __date__ = "01 Jan 2019"
 # !!! SEE CODERULES.TXT !!!
 
-import sys
+# import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
+
 from silx.gui import qt
 import os, sys; sys.path.append('..')  # analysis:ignore
 from parseq.gui.fileTreeModelView import FileTreeView
@@ -12,7 +13,8 @@ from parseq.gui.fileTreeModelView import FileTreeView
 def test():
     app = qt.QApplication(sys.argv)
     dirname = r'..'
-    view = FileTreeView(roothPath=dirname)
+    # view = FileTreeView(roothPath=dirname)
+    view = FileTreeView(roothPath=dirname+'/..')
     view.setMinimumSize(qt.QSize(700, 600))
     view.header().resizeSection(0, 320)
     ind = view.model().indexFileName('../data/CuO_lnt.fio')

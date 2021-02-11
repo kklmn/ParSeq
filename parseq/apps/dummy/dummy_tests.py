@@ -11,7 +11,7 @@ from os.path import dirname as up
 import parseq.core.singletons as csi
 
 
-def load_test_data():
+def load_test_data1():
     dirname = up(up(up(up(osp.abspath(__file__)))))
     fNames = [[osp.join(dirname, 'data', 'Cu_lnt1.fio'), ['3', 'Col5', 6]],  # fname, data columns
               [osp.join(dirname, 'data', 'Cu_lnt2.fio'), [3, 5, 6]],
@@ -53,3 +53,20 @@ def load_test_data():
 
     csi.allLoadedItems[:] = []
     csi.allLoadedItems.extend(csi.dataRootItem.get_items())
+
+
+def load_test_data2():
+    dirname = up(up(up(up(osp.abspath(__file__)))))
+    fNames = ['Cu-WT_EXAFS_001.dat', 'Cu-WT_EXAFS_002.dat']
+
+    rootItem = csi.dataRootItem
+    dataFormat = dict(dataSource=[1, 'd["3"]+d["4"]', list(range(8, 15))],
+                      lastSkipRowContains='Col ')
+    data = [osp.join(dirname, 'data', fName) for fName in fNames]
+    rootItem.insert_data(data, dataFormat=dataFormat)
+
+    csi.allLoadedItems[:] = []
+    csi.allLoadedItems.extend(csi.dataRootItem.get_items())
+
+
+load_test_data = load_test_data1

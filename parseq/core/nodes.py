@@ -10,59 +10,51 @@ class Node(object):
     """Parental Node class. Must be subclassed to define the following class
     variables:
 
-    *name*: also the section name in ini file
+    *name*: the name of the GUI tab and also the section name in ini file.
 
-    *xName*: str
-        name of x array
+    *arrays*: OrderedDict of dicts
+        describes the arrays operated in this node. The keys are names of these
+        arrays, the values are dictionaries optionally containg these kwargs:
 
-    (*xQLabel*): str
-        if exists, is used in the GUI labels, otherwise *xName* is taken.
+        *qLabel*: str, default = array name (the key in *arrays*)
+            used in the GUI labels
 
-    *xPlotLabel*: str
-        x label for the GUI plot
+        *qUnit*: str, default = None (no displayed units)
+            attached to the GUI labels in parentheses
 
-    (*xQUnit*): str
-        if exists, is attached to the GUI labels in parentheses, otherwise no
-        unit is displayed in the GUI labels.
+        *raw*: str, default = array name
+            can define an intermediate array at the pipeline head when the main
+            array (the key in *arrays*) is supposed to be obtained by an after
+            load transformation. The plotted array is still the main one.
 
-    (*xPlotUnit*): str
-        if exists, is attached to the plot label in parentheses
+        *plotRole*: str, default = '1D' (not plotted)
+            the array's role in ploting, Can be 'x', 'yleft', 'yright' or '1D'
+            for 1D arrays (one and only one x-axis array is required), '2D' for
+            2D plots and '3D' for stacked 2D images.
 
-    *yNames*: list of str
-        names of y arrays
+        *plotLabel*: str, default = qLabel
+            axis label for the GUI plot
 
-    (*yQLabels*): list of str
-        if exist, are used in the GUI labels, otherwise *yNames* are taken.
+        *plotUnit*: str: default = qUnit
+            attached to the plot label in parentheses
 
-    *yPlotLabels*: list of str
-        y labels for the GUI plot
-
-    (*yQUnits*): list of str
-        if exist, are attached to the GUI labels in parentheses, otherwise no
-        units are displayed in the GUI labels.
-
-    (*yPlotUnits*): list of str
-        if exist, are attached to the plot labels in parentheses
-
-    (*xNameRaw*, *yNamesRaw*):
-        can be used instead of *xName* and *yNames* at the pipeline head when
-        *xName* and *yNames* are supposed to be obtained by an after load
-        transformation. The plotted arrays are still *xName* and *yNames*.
-
-    *plotParams*: dict of default parameters for plotting. Can have the
-        following keys: *linewidth* (or *lw*), *style*, *symbol*, *symbolsize*
-        and *yaxis*. The values must correspond to the length of *yNames*.
-        Note that color is set for a data entry and is equal across the nodes,
-        so it is set not here.
+        *plotParams*: dict , default is `{}` that assumes thin solid lines
+            default parameters for plotting. Can have the following keys:
+                *linewidth* (or *lw*), *style*, *symbol* and *symbolsize*.
+            Note that color is set for a data entry and is equal across the
+            nodes, so it is set not here.
 
     """
 
     def __init__(self):
-        for attr in ['name', 'xName', 'xPlotLabel', 'yNames', 'yPlotLabels',
-                     'plotParams']:
+        for attr in ['name', 'arrays']:
             if not hasattr(self, attr):
                 raise NotImplementedError(
                     "The class Node must be properly subclassed!")
+        for array in self.arrays:
+            for key in self.arrays[array]:
+                self.getProp(array, key)  # validate the keys
+
         # filled automatically by transforms after creation of all nodes:
         self.upstreamNodes = []
         # filled automatically by transforms after creation of all nodes:
@@ -72,7 +64,40 @@ class Node(object):
         # assigned automatically by transform:
         self.transformIn = None
         csi.nodes[self.name] = self
-        csi.modelDataColumns.extend([(self, yName) for yName in self.yNames])
+
+        plotRoles = self.getPropList('plotRole')
+        for key, plotRole in zip(self.arrays, plotRoles):
+            prl = plotRole.lower()
+            if prl[0] == '3':
+                self.arrays[key]['ndim'] = 3
+                self.plot3DArray = key
+            elif prl[0] == '2':
+                self.arrays[key]['ndim'] = 2
+                self.plot2DArray = key
+            elif prl[0] in ('x', 'y', '1'):
+                self.arrays[key]['ndim'] = 1
+                if prl[0] == 'x':
+                    if hasattr(self, 'plotXArray'):
+                        raise ValueError(
+                            "there must be only one x array defined")
+                    else:
+                        self.plotXArray = key
+                elif prl[0] == 'y':
+                    if not hasattr(self, 'plotYArrays'):
+                        self.plotYArrays = []
+                    self.plotYArrays.append(key)
+            else:
+                self.arrays[key]['ndim'] = 0
+
+        dims = self.getPropList('ndim')
+        self.plotDimension = max(dims)
+
+        if self.plotDimension == 1:
+            csi.modelDataColumns.extend(
+                [(self, key) for key in self.plotYArrays])
+            self.columnCount = len(self.plotYArrays)
+        else:
+            self.columnCount = 0
 
     def is_between_nodes(self, node1, node2, node1in=True, node2in=False):
         """
@@ -87,3 +112,34 @@ class Node(object):
             ans = (node2 in self.downstreamNodes) or\
                 (node2in and (self is node2))
         return ans
+
+    def getProp(self, arrayName, prop):
+        if prop == 'qLabel':
+            return self.arrays[arrayName].get(prop, arrayName)
+        elif prop == 'qUnit':
+            return self.arrays[arrayName].get(prop, None)
+        elif prop == 'raw':
+            return self.arrays[arrayName].get(prop, arrayName)
+        elif prop == 'plotRole':
+            return self.arrays[arrayName].get(prop, '1D')
+        elif prop == 'plotLabel':
+            return self.arrays[arrayName].get(
+                prop, self.getProp(arrayName, 'qLabel'))
+        elif prop == 'plotUnit':
+            return self.arrays[arrayName].get(
+                prop, self.getProp(arrayName, 'qUnit'))
+        elif prop == 'plotParams':
+            return self.arrays[arrayName].get(prop, {})
+        elif prop == 'ndim':
+            return self.arrays[arrayName].get(prop, 0)
+        else:
+            raise ValueError("unknown prop {0} in arrays['{1}']".format(
+                prop, arrayName))
+
+    def getPropList(self, prop, keys=[], plotRole=''):
+        scope = keys if keys else self.arrays
+        if plotRole:
+            return [self.getProp(key, prop) for key in scope
+                    if self.getProp(key, 'plotRole').startswith(plotRole)]
+        else:
+            return [self.getProp(key, prop) for key in scope]

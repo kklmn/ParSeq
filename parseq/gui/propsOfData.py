@@ -3,46 +3,29 @@ __author__ = "Konstantin Klementiev"
 __date__ = "17 Nov 2018"
 # !!! SEE CODERULES.TXT !!!
 
-from silx.gui import qt
+# from silx.gui import qt
 
 from ..core import singletons as csi
 from ..core import commons as cco
 
-DEBUG = 20
+DEBUG = 40
 
 
-def getPropsInSelectedItems(prop, items=None):
-    """
-    *prop* can have a dot notation for sub-atributes.
-    """
+def getCommonPropInSelectedItems(prop):
+    values = [cco.getDotAttr(it, prop) for it in csi.selectedItems]
     try:
-        objs = [cco.getDotAttr(it, prop) for it in csi.selectedItems]
-        if items is not None:
-            if not isinstance(items, (tuple, list)):
-                items = [items]
-            for item in items:
-                objs = [obj[item] for obj in objs]
-        return objs
-    except (AttributeError, IndexError, KeyError) as e:
+        if values.count(values[0]) == len(values):  # equal in selectedItems
+            return values[0]
+    except (AttributeError, TypeError, IndexError) as e:
         if DEBUG > 30:
-            print('getPropsInSelectedItems', prop, e,
+            print('getCommonPropInSelectedItems', prop, e,
                   [it.alias for it in csi.selectedItems])
-        return
 
 
-def getCommonPropInSelectedItems(dataPropName, items=None):
-    props = getPropsInSelectedItems(dataPropName, items)
-    try:
-        if props.count(props[0]) == len(props):  # equal in all items
-            return props[0]
-    except (AttributeError, TypeError):
-        return
-
-
-def setRButtonGroupFromData(rButtons, dataPropName, items=None):
-    prop = getCommonPropInSelectedItems(dataPropName, items)
-    if prop is not None:
-        rButtons[prop].setChecked(True)  # prop is int index
+def setRButtonGroupFromData(rButtons, prop):
+    common = getCommonPropInSelectedItems(prop)
+    if common is not None:
+        rButtons[common].setChecked(True)  # prop is int index
     else:
         for rb in rButtons:
             rb.setAutoExclusive(False)
@@ -50,15 +33,17 @@ def setRButtonGroupFromData(rButtons, dataPropName, items=None):
             rb.setAutoExclusive(True)
 
 
-def setRButtonGroupWithEditsFromData(rButtons, edits, dataPropName, items):
-    for rb, ed, item in zip(rButtons, edits, items):
-        prop = getCommonPropInSelectedItems(dataPropName, item)
-        if prop is not None:
+def setRButtonGroupWithEditsFromData(rButtons, edits, props):
+    if not (len(rButtons) == len(edits) == len(props)):
+        raise ValueError('these 3 sequences must have equal lengths')
+    for rb, ed, prop in zip(rButtons, edits, props):
+        common = getCommonPropInSelectedItems(prop)
+        if common is not None:
             rb.setChecked(True)
-            if isinstance(prop, type('')):
-                ed.setText(prop)
+            if isinstance(common, type('')):
+                ed.setText(common)
             else:
-                ed.setText(str(prop))
+                ed.setText(str(common))
         else:
             rb.setAutoExclusive(False)
             rb.setChecked(False)
@@ -66,41 +51,40 @@ def setRButtonGroupWithEditsFromData(rButtons, edits, dataPropName, items):
             ed.setText('')
 
 
-def setComboBoxFromData(comboBox, dataPropName, items=None,
-                        compareWith=None, defaultIndex=0):
-    prop = getCommonPropInSelectedItems(dataPropName, items)
-    if prop is not None:
-        ind = compareWith.index(prop) if compareWith is not None else prop
+def setComboBoxFromData(comboBox, prop, compareWith=None, defaultIndex=0):
+    common = getCommonPropInSelectedItems(prop)
+    if common is not None:
+        ind = compareWith.index(common) if compareWith is not None else common
         if isinstance(ind, int):
             comboBox.setCurrentIndex(ind)
         else:
             comboBox.setCurrentIndex(comboBox.findText(ind))
     else:
-        if defaultIndex == 'last':
+        if defaultIndex in ['last', -1]:
             defaultIndex = comboBox.count() - 1
         comboBox.setCurrentIndex(defaultIndex)
 
 
-def setCButtonFromData(cButton, dataPropName, items=None, compareWith=None):
-    prop = getCommonPropInSelectedItems(dataPropName, items)
-    if prop is not None:
+def setCButtonFromData(cButton, prop, compareWith=None):
+    common = getCommonPropInSelectedItems(prop)
+    if common is not None:
         if compareWith is not None:
-            cond = prop == compareWith
+            cond = common == compareWith
         else:
-            cond = True if prop else False
-        cButton.setChecked(cond)  # prop can be not bool
+            cond = True if common else False  # prop can be not bool
+        cButton.setChecked(cond)
     else:
         cButton.setChecked(False)
 
 
-def setEditFromData(edit, dataPropName, items=None, textFormat='',
-                    skipDefault=None):
-    prop = getCommonPropInSelectedItems(dataPropName, items)
-    if prop is None or prop == skipDefault:
+def setEditFromData(edit, prop, textFormat='', skipDefault=None, **kw):
+    common = getCommonPropInSelectedItems(prop)
+    if common is None or common == skipDefault:
         edit.setText('')
-        return
-    if isinstance(prop, type('')):
-        edit.setText(prop)
+        return ''
+    if isinstance(common, type('')):
+        edit.setText(common)
+        return common
     else:
         if textFormat == '':
             sf = '{0}'
@@ -108,7 +92,7 @@ def setEditFromData(edit, dataPropName, items=None, textFormat='',
             sf = '{0:.0e}'
         else:
             sf = '{0:' + textFormat + '}'
-        ss = sf.format(prop)
+        ss = sf.format(common)
         if 'strip' in textFormat:
             ss = ss.lower()
             for r in (("e-0", "e-"), ("e+0", "e+")):
@@ -116,90 +100,95 @@ def setEditFromData(edit, dataPropName, items=None, textFormat='',
         if ss.endswith("e+0") or ss.endswith("e-0"):
             ss = ss[:-3]
         edit.setText(ss)
+        return ss
 
 
-def setSpinBoxFromData(sb, dataPropName, items=None):
-    prop = getCommonPropInSelectedItems(dataPropName, items)
-    if prop is None:
+def setSpinBoxFromData(sb, prop):
+    common = getCommonPropInSelectedItems(prop)
+    if common is None:
         sb.setSpecialValueText(' ')  # can't be ''
         return
-    if isinstance(prop, type("")):
-        sb.lineEdit().setText(prop)
+    if isinstance(common, type("")):
+        sb.lineEdit().setText(common)
     else:
-        sb.setValue(prop)
+        sb.setValue(common)
 
 
-def updateDataFromRButtonGroup(rButtons, dataPropName, items=None):
+def updateDataFromRButtonGroup(rButtons, prop):
     for irb, rb in enumerate(rButtons):
         if rb.isChecked():
             break
     else:
         return
-    props = getPropsInSelectedItems(dataPropName, items)
-    if props is None:
-        props = [None] * len(csi.selectedItems)
-    for prop, it in zip(props, csi.selectedItems):
-        if prop != irb:  # should update
-            if items is None:
-                cco.setDotAttr(it, dataPropName, irb)  # prop is int index
-            else:
-                if not isinstance(items, (tuple, list)):
-                    items = [items]
-                propData = cco.getDotAttr(it, dataPropName)
-                for item in items[:-1]:
-                    propData = propData[item]
-                propData[items[-1]] = irb
+
+    for it in csi.selectedItems:
+        itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)
+        if itValue != irb:
+            # cco.setDotAttr(it, prop, irb)
+            itContainer[itAttr] = irb
             it.hasChanged = True
 
 
-def updateDataFromRButtonGroupWithEdits(rButtons, edits, dataPropName,
-                                        kwProps):
-    for irb, (rb, ed, kwProp) in enumerate(zip(rButtons, edits, kwProps)):
+def updateDataFromRButtonGroupWithEdits(
+        rButtons, edits, props, convertTypes=None):
+    if convertTypes is None:
+        convertTypes = [None] * len(rButtons)
+    if not (len(rButtons) == len(edits) == len(props) == len(convertTypes)):
+        raise ValueError('these 4 sequences must have equal lengths')
+    for irb, (rb, ed, prop, convertType) in enumerate(
+            zip(rButtons, edits, props, convertTypes)):
         if rb.isChecked():
             txt = ed.text()
             if len(txt) == 0:
                 return
-            if kwProp == 'skiprows':
-                txt = int(txt)
+            if convertType is not None:
+                try:
+                    txt = convertType(txt)
+                except ValueError:
+                    pass
             break
     else:
         return
-    props = getPropsInSelectedItems(dataPropName, kwProp)
-    if props is None:
-        props = [None] * len(csi.selectedItems)
-    for prop, it in zip(props, csi.selectedItems):
-        if str(prop) != str(txt):  # should update
-            propDict = cco.getDotAttr(it, dataPropName)
-            propDict[kwProp] = txt
-            for whatT in kwProps:
-                if whatT == kwProp:
+
+    for it in csi.selectedItems:
+        itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)
+        if str(itValue) != str(txt):  # should update
+            itContainer[itAttr] = txt
+            for otherProp in props:
+                if otherProp == prop:
                     continue
-                propDict.pop(whatT, '')
+                itContainer.pop(otherProp, '')
             it.hasChanged = True
 
 
-def updateDataFromEdit(edit, dataPropName, items=None, fieldType=None,
-                       textReplace=None):
+def updateDataFromEdit(edit, prop, convertType=None, textReplace=None, **kw):
     txt = edit.text()
     if len(txt) == 0:
         return
     if textReplace is not None:
         txt = txt.replace(*textReplace)
-    if fieldType is not None:
-        txt = fieldType(txt)
+    if convertType is not None:
+        try:
+            txt = convertType(txt)
+        except ValueError:
+            pass
 
-    props = getPropsInSelectedItems(dataPropName, items)
-    if props is None:
-        props = [None] * len(csi.selectedItems)
-    for prop, it in zip(props, csi.selectedItems):
-        if str(prop) != str(txt):  # should update
-            if items is None:
-                cco.setDotAttr(it, dataPropName, txt)
-            else:
-                if not isinstance(items, (tuple, list)):
-                    items = [items]
-                propData = cco.getDotAttr(it, dataPropName)
-                for item in items[:-1]:
-                    propData = propData[item]
-                propData[items[-1]] = txt
+    for it in csi.selectedItems:
+        itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)
+        if itValue != txt:
+            # cco.setDotAttr(it, prop, irb)
+            itContainer[itAttr] = txt
             it.hasChanged = True
+
+
+def copyProps(source, props):
+    for prop in props:
+        newVal = cco.getDotAttr(source, prop)
+        for it in csi.selectedItems:
+            itContainer, itAttr, oldVal = cco.getDotAttr(it, prop, True)
+            if newVal != oldVal:
+                if newVal is None:
+                    del itContainer[itAttr]
+                else:
+                    itContainer[itAttr] = newVal
+                it.hasChanged = True

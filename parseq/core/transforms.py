@@ -4,7 +4,7 @@ __date__ = "17 Nov 2018"
 # !!! SEE CODERULES.TXT !!!
 
 from . import singletons as csi
-from .config import config, iniTransforms
+from .config import configTransforms
 
 
 #class Param(object):
@@ -37,9 +37,16 @@ class Transform(object):
     *name*: str, used as section in config and key in data.transformParams dict
 
     *params*: dict of default parameters of transform for new data
+
+    Transforms, if several are present, must be instantiated in the order of
+    data flow.
     """
 
     def __init__(self, fromNode, toNode, widgetClass=None):
+        """
+        *fromNode* and *toNode* are instances of :class:`core.nodes.Node`. They
+        may be the same object.
+        """
         if (not hasattr(self, 'name')) or (not hasattr(self, 'params')):
             raise NotImplementedError(
                 "The class Transform must be properly subclassed")
@@ -78,16 +85,19 @@ class Transform(object):
             node.upstreamNodes.sort(key=list(csi.nodes.values()).index)
 
     def get_defaults(self):
-        config.read(iniTransforms)
-        if config.has_section(self.name):
+        if configTransforms.has_section(self.name):
             for key in self.params:
-                self.params[key] = eval(config.get(self.name, key))
+                testStr = configTransforms.get(self.name, key)
+                try:
+                    self.params[key] = eval(testStr)
+                except (SyntaxError, NameError):
+                    self.params[key] = testStr
 
     def set_defaults(self):
-        if not config.has_section(self.name):
-            config.add_section(self.name)
+        if not configTransforms.has_section(self.name):
+            configTransforms.add_section(self.name)
         for key in self.params:
-            config.set(self.name, key, self.params[key])
+            configTransforms.set(self.name, key, str(self.params[key]))
 
     def update_params(self, params, dataItems):
         for data in dataItems:
