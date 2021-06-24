@@ -74,7 +74,8 @@ How to use
 ----------
 
 Either install ParSeq and a ParSeq pipeline application by their installers to
-the standard location or put them to any folder and start the `*_start.py` file
+the standard location or put them to any folder, rename them by their package
+names (`parseq` and e.g. `parseq_XES_scan`) and start the `*_start.py` file
 of the pipeline. You can try it with `--test` to load test data and/or
 `--noGUI` but an assumed pattern is to load a project file; use the test
 project file located at `parseq_XES_scan/saved/NbO2.pspj`.
