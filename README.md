@@ -67,8 +67,8 @@ exemplified by separately installed analysis packages:
 Dependencies
 ------------
 
-silx -- is used for plotting and Qt imports.
-sphinx -- for building html documentation.
+- [silx](https://github.com/silx-kit/silx) -- is used for plotting and Qt imports.
+- [sphinx](https://github.com/sphinx-doc/sphinx) -- for building html documentation.
 
 How to use
 ----------
