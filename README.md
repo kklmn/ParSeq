@@ -1,60 +1,80 @@
 ParSeq
 ======
 
-ParSeq is a python software library for Parallel execution of Sequential data
-analysis. It implements a general analysis framework with a data model,
-plotter, cross-data analysis and tunable widget work space. It also gives a
-structure to implement particular analysis pipelines as relatively lightweight
-Python packages.
+Package ParSeq is a python software library for <ins>Par</ins>allel execution
+of <ins>Seq</ins>uential data analysis. It implements a general analysis
+framework with an adjustable data model (supports grouping, renaming, moving
+and drag-and-drop), plotters for 1D, 2D and 3D data, cross-data analysis
+routines and flexible widget work space suitable for single- and multi-screen
+computers. It also gives a structure to implement particular analysis pipelines
+as relatively lightweight Python packages.
 
 ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
 
-It is in development state, not yet ready for general users.
-
-A screenshot of the Dummy analysis pipeline serving as an application example:
+A screenshot of a scanning XES analysis pipeline as an application example:
 <p align="center">
-  <img src="doc/_images/mainWindow.png" width=1200 />
+  <img src="help/_images/node1.png" width=1200 />
 </p>
 
 Main features
 -------------
 
-- Efficient use of screen area by detachable transformation nodes (parts of
-  analysis pipeline).
+-  ParSeq allows creating analysis pipelines as lightweight modules. The above
+   example (scanning XES) is ~1000 lines with ~50% of them defining the four
+   analysis widgets.
 
-- Two ways of acting from GUI onto multiple data: (a) simultaneous work with
-  multiply selected data and (b) application of a specific parameter to later
-  selected data (TODO).
+-  Flexible use of screen area by detachable/dockable transformation nodes
+   (parts of analysis pipeline).
 
-- Undo and redo for all treatment steps.
+-  Two ways of acting from GUI onto multiple data: (a) simultaneous work with
+   multiply selected data and (b) applying a specific parameter or a group of
+   parameters to a later selected subset of data.
 
-- Entering into the analysis pipeline at any node, not only at the head of the
-  pipeline.
+-  Undo and redo for all treatment steps.
 
-- Creation of cross-data combinations (e.g. averaging, RMS or PCA) and their
-  propagation downstream the pipeline together with the parental data. The
-  possibility of termination of the parental data at any selected downstream
-  node.
+-  Entering into the analysis pipeline at any node, not only at the head of the
+   pipeline.
 
-- Parallel execution of data analysis on GPU (TODO).
+-  Creation of cross-data combinations (e.g. averaging, RMS or PCA) and their
+   propagation downstream the pipeline together with the parental data. The
+   possibility of termination of the parental data at any selected downstream
+   node.
+
+-  Parallel execution of data analysis with multiprocessing or multithreading
+   (can be opted by the piplene application).
+
+-  Export of the workflow into a project file. Export of data into various data
+   formats (so far unstructured) with accompanied Python scripts that visualize
+   the exported data for the user to tune their publication plots.
+
+-  ParSeq understands container files (presently only hdf5) and adds them to
+   the system file tree as subfolders. The file tree, including hdf5
+   containers, is lazy loaded thus enabling big data collections.
+
+-  A web viewer widget near each analysis widget for displaying help pages
+   built from doc strings. The help pages are built by Sphinx at the startup
+   time.
 
 ParSeq creates a data analysis pipeline consisting of nodes and transforms
-which connect the nodes. The pipeline is fed with data (spectra), possibly
-entering the pipeline at various nodes. The pipeline can be operated via
-scripts or GUI. The mechanisms for creating nodes and transforms and connecting
-them together are exemplified by the sub-package `parseq/apps/dummy` (a simple
-pipeline).
+which connect the nodes. The pipeline is fed with data (spectra or images),
+possibly entering the pipeline at various nodes. The pipeline can be operated
+via scripts or GUI. The mechanisms for creating nodes and transforms,
+connecting them together and creating Qt widgets for the transforms are
+exemplified by separately installed analysis packages:
+
+- [ParSeq-XES-scan](https://github.com/kklmn/ParSeq-XES-scan)
 
 Dependencies
 ------------
 
 silx -- is used for plotting and Qt imports.
+sphinx -- for building html documentation.
 
-How to test
------------
+How to use
+----------
 
-Run `tests\test_mainWindow.py`. It loads a few EXAFS spectra located in `data`.
-Tested on Windows (10), Linux (Ubuntu 18.10 and Kubuntu 18.04) and macOS
-(10.13), with Python 2 and 3, PyQt4 and PyQt5, `matplotlib` and `opengl`
-backends of silx plotter (both have some issues).
-The folder `tests` has other scripts for testing various parts of ParSeq.
+Either install ParSeq and a ParSeq pipeline application by their installers to
+the standard location or put them to any folder and start the `*_start.py` file
+of the pipeline. You can try it with `--test` to load test data and/or
+`--noGUI` but an assumed pattern is to load a project file; use the test
+project file located at `parseq_XES_scan/saved/NbO2.pspj`.

@@ -5,10 +5,10 @@ __date__ = "20 Sep 2018"
 
 from silx.gui import qt
 
-import os, sys; sys.path.append('..')  # analysis:ignore
+import sys; sys.path.append('../..')  # analysis:ignore
 import parseq.core.singletons as csi
 from parseq.gui.nodeWidget import NodeWidget
-import parseq.apps.dummy as myapp
+import parseq_XES_scan as myapp
 
 
 def test():
@@ -17,6 +17,7 @@ def test():
     app = qt.QApplication(sys.argv)
     node = list(csi.nodes.values())[0]
     nodeWidget = NodeWidget(node)
+    nodeWidget.splitter.setSizes([1, 1, 1, 1])
 
     # load test data
     myapp.load_test_data()

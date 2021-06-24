@@ -5,11 +5,11 @@ __date__ = "20 Sep 2018"
 
 from silx.gui import qt
 
-import os, sys; sys.path.append('..')  # analysis:ignore
+import sys; sys.path.append('../..')  # analysis:ignore
 import parseq.core.singletons as csi
 from parseq.gui.plotOptions import LineProps
-import parseq.apps.dummy as myapp
-#import time
+import parseq_XES_scan as myapp
+import time
 
 
 def test():
@@ -24,14 +24,14 @@ def test():
     csi.selectedTopItems.extend([group])
 
     app = qt.QApplication(sys.argv)
-    dia = LineProps(None, csi.nodes['currents'])
+    dia = LineProps(None, list(csi.nodes.values())[-1])
     dia.show()
     app.exec_()
 
-#    if dia.result() == qt.QDialog.Accepted:
-#        lineProps = dia.getLineProperties()
-#        print(lineProps)
-#        time.sleep(3)
+    if dia.result() == qt.QDialog.Accepted:
+        lineProps = dia.setLineOptions()
+        print(lineProps)
+        time.sleep(3)
 
 
 if __name__ == '__main__':

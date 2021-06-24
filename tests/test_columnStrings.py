@@ -32,17 +32,18 @@ def test(colStr, isColumn=True):
 
 
 if __name__ == '__main__':
-#    test('d["path1"] + d["path2"]', isColumn=False)
-#    test("d['path1'] + d['path2']", isColumn=False)
+    test('d["path1"] + d["path2"]', isColumn=False)
+    test("d['path1'] + d['path2']", isColumn=False)
     test(' + '.join(['d["path{0}"]'.format(i) for i in range(1, 3)]), isColumn=False)
-#    test('path1', isColumn=False)
-#
-#    test('d["col1"] + d["col2"]')
-#    test('d[col1] + d[col2]')
-#    test('d[1] + d[2]')
-#    test(' + '.join(['d["col{0}"]'.format(i) for i in range(1, 3)]))
-#
-#    test('d[1]')
-#    test('1')
-#    test('col1')
-#    test('Col1')
+
+    test('path1', isColumn=False)
+
+    test('d["col1"] + d["col2"]')
+    test('d[col1] + d[col2]')
+    test('d[1] + d[2]')
+    test(' + '.join(['d["col{0}"]'.format(i) for i in range(1, 3)]))
+
+    test('d[1]')
+    test('1')
+    test('col1')
+    test('Col1')

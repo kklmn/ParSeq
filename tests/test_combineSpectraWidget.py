@@ -5,9 +5,9 @@ __date__ = "20 Sep 2018"
 
 from silx.gui import qt
 
-import os, sys; sys.path.append('..')  # analysis:ignore
+import sys; sys.path.append('../..')  # analysis:ignore
 from parseq.gui.combineSpectraWidget import CombineSpectraWidget
-import parseq.apps.dummy as myapp
+import parseq_XES_scan as myapp
 
 
 def test():

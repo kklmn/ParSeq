@@ -3,9 +3,9 @@ __author__ = "Konstantin Klementiev"
 __date__ = "20 Sep 2018"
 # !!! SEE CODERULES.TXT !!!
 
-import os, sys; sys.path.append('..')  # analysis:ignore
+import sys; sys.path.append('../..')  # analysis:ignore
 import parseq.core.singletons as csi
-import parseq.apps.dummy as myapp
+import parseq_XES_scan as myapp
 
 
 def test(withGUI=True, withTestData=True):
@@ -24,7 +24,8 @@ def test(withGUI=True, withTestData=True):
         mainWindow = MainWindowParSeq()
         mainWindow.dataChanged()
         mainWindow.show()
-        # select the 1st item (it is a group)
+
+        node0.widget.tree.setFocus()  # important
         node0.widget.tree.setCurrentIndex(csi.model.index(0))
 
         from modeltest import ModelTest
@@ -40,5 +41,5 @@ def test(withGUI=True, withTestData=True):
 
 if __name__ == '__main__':
     test(withGUI=True, withTestData=True)
-#    test(withGUI=True, withTestData=False)
-#    test(withGUI=False, withTestData=True)
+    # test(withGUI=True, withTestData=False)
+    # test(withGUI=False, withTestData=True)

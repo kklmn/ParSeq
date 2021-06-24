@@ -6,7 +6,7 @@ __date__ = "01 Jan 2019"
 # import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 
 from silx.gui import qt
-import os, sys; sys.path.append('..')  # analysis:ignore
+import sys; sys.path.append('../..')  # analysis:ignore
 from parseq.gui.fileTreeModelView import FileTreeView
 
 

@@ -146,7 +146,8 @@ class HTMLDelegate(QtWidgets.QStyledItemDelegate):
         is called before our text has actually been loaded into the QTextDocument,
         but apparently seems to Do The Right Thing Anyway.
         """
-        return QtCore.QSize(self.doc.idealWidth(), self.doc.size().height())
+        return QtCore.QSize(int(self.doc.idealWidth()),
+                            int(self.doc.size().height()))
 
 class HTMLComboBox(QtWidgets.QComboBox):
     """
@@ -189,7 +190,7 @@ class HTMLComboBox(QtWidgets.QComboBox):
             # arrow selector
             max_w += self.width_adjust_sizehint
 
-            self.stored_size = QtCore.QSize(max_w, max_h)
+            self.stored_size = QtCore.QSize(int(max_w), int(max_h))
         return self.stored_size
 
     def minimumSizeHint(self):
@@ -230,8 +231,8 @@ class HTMLWidgetHelper(object):
             opt = QtWidgets.QStyleOptionButton()
             self.initStyleOption(opt)
             self.stored_size = QtCore.QSize(
-                    size.width() + opt.iconSize.width() + 4,
-                    max(size.height(), opt.iconSize.height()))
+                    int(size.width() + opt.iconSize.width() + 4),
+                    int(max(size.height(), opt.iconSize.height())))
         return self.stored_size
 
     def minimumSizeHint(self):

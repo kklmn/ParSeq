@@ -31,7 +31,8 @@ else:
     unicode = unicode
     basestring = basestring
 
-import sip
+# import sip
+from PyQt5 import sip
 from PyQt5 import QtCore, QtGui
 
 
