@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "21 Jul 2021"
 # !!! SEE CODERULES.TXT !!!
 
-import os
+import os.path as osp
 import re
 import time
 import copy
@@ -32,8 +32,8 @@ class TreeItem(object):
         else:
             self.name = name
             if alias == 'auto':
-                base = os.path.basename(name)
-                self.alias = os.path.splitext(base)[0]
+                base = osp.basename(name)
+                self.alias = osp.splitext(base)[0]
             else:
                 self.alias = alias
         self.aliasExtra = None
@@ -458,11 +458,11 @@ class Spectrum(TreeItem):
             if shouldLoadNow:
                 self.read_file()
 
-            basename = os.path.basename(self.madeOf)
+            basename = osp.basename(self.madeOf)
             if self.alias == 'auto':
-                self.alias = os.path.splitext(basename)[0]
+                self.alias = osp.splitext(basename)[0]
                 if '::' in self.madeOf:
-                    h5name = os.path.splitext(os.path.basename(
+                    h5name = osp.splitext(osp.basename(
                         self.madeOf[:self.madeOf.find('::')]))[0]
                     self.alias = '/'.join([h5name, self.alias])
 
@@ -472,9 +472,18 @@ class Spectrum(TreeItem):
                     self.alias += self.suffix
             # check duplicates:
             if True:  # should check duplicates
-                allLoadedItemsCount = Counter(
-                    os.path.normcase(d.madeOf) for d in csi.allLoadedItems)
-                n = allLoadedItemsCount[os.path.normcase(self.madeOf)]
+                allLoadedItemNames = []
+                for d in csi.allLoadedItems:
+                    if d is self:
+                        continue
+                    lfn = d.madeOf[5:] if d.madeOf.startswith('silx:') else \
+                        d.madeOf
+                    lfns = osp.normcase(osp.abspath(lfn))
+                    if d.madeOf.startswith('silx:'):
+                        lfns = 'silx:' + lfns
+                    allLoadedItemNames.append(lfns)
+                allLoadedItemsCount = Counter(allLoadedItemNames)
+                n = allLoadedItemsCount[osp.normcase(self.madeOf)]
                 if n > 0:
                     self.alias += " ({0})".format(n)
 
@@ -547,7 +556,7 @@ class Spectrum(TreeItem):
             kwargs = dict(configDict[name]) if name in configDict else {}
 
         df = dict(kwargs.get('dataFormat', {}))
-        if not df:
+        if not df:  # is a group
             return Spectrum(name, self, insertAt, **kwargs)
 
         spectraInOneFile = 1
@@ -556,7 +565,7 @@ class Spectrum(TreeItem):
         for ds in dataSource:
             ds = str(ds)
             try:
-                # to expand list comprehension or string expressions
+                # to expand possible list comprehension or string expressions
                 ds = str(eval(ds))
             except:  # noqa
                 pass
@@ -578,8 +587,8 @@ class Spectrum(TreeItem):
                 else:
                     raise(e)
 
-        basename = os.path.basename(name)
-        groupName = os.path.splitext(basename)[0]
+        basename = osp.basename(name)
+        groupName = osp.splitext(basename)[0]
         group = Spectrum(groupName, self, insertAt, colorPolicy='loop1')
 
         multiDataSource = []
@@ -636,6 +645,7 @@ class Spectrum(TreeItem):
         try:
             df['skip_header'] = df.pop('skiprows', 0)
             dataSource = df.pop('dataSource', None)
+            sliceStrs = df.pop('slices', ['' for ds in dataSource])
             if dataSource is None:
                 raise ValueError('bad dataSource settings')
             if self.dataType == DATA_COLUMN_FILE:
@@ -645,7 +655,8 @@ class Spectrum(TreeItem):
                 if len(arrs) == 0:
                     raise ValueError('bad data file')
 
-            for aName, txt in zip(toNode.arrays, dataSource):
+            for aName, txt, sliceStr in zip(
+                    toNode.arrays, dataSource, sliceStrs):
                 if self.dataType == DATA_COLUMN_FILE:
                     if isinstance(txt, int):
                         arr = arrs[txt]
@@ -653,6 +664,14 @@ class Spectrum(TreeItem):
                         arr = self.interpretArrayFormula(txt, arrs)
                 else:
                     arr = self.interpretArrayFormula(txt)
+                    if sliceStr:
+                        if 'axis' in sliceStr or 'sum' in sliceStr:  # sum axes
+                            sumlst = sliceStr[sliceStr.find('=')+1:].split(',')
+                            arr = arr.sum(axis=[int(ax) for ax in sumlst])
+                        else:
+                            sliceTuple = tuple(cco.parse_slice_str(slc)
+                                               for slc in sliceStr.split(','))
+                            arr = arr[sliceTuple]
 
                 if toNode.getProp(aName, 'role').startswith('x') and xF:
                     arr *= xF
@@ -663,7 +682,7 @@ class Spectrum(TreeItem):
                     setattr(self, setName, None)
 
             self.isGood[toNode.name] = True
-        except (ValueError, OSError) as e:
+        except (ValueError, OSError, IndexError) as e:
             print(e)
             self.isGood[toNode.name] = False
             return
@@ -672,8 +691,8 @@ class Spectrum(TreeItem):
         if self.dataType == DATA_COLUMN_FILE:
             self.meta['text'] = r''.join(header)
             self.meta['modified'] = time.strftime(
-                "%a, %d %b %Y %H:%M:%S", time.gmtime(os.path.getmtime(madeOf)))
-            self.meta['size'] = os.path.getsize(madeOf)
+                "%a, %d %b %Y %H:%M:%S", time.gmtime(osp.getmtime(madeOf)))
+            self.meta['size'] = osp.getsize(madeOf)
         else:
             if len(header) > 0:
                 if isinstance(header[0], bytes):
@@ -729,7 +748,7 @@ class Spectrum(TreeItem):
         # define metadata
         self.meta['text'] = '{0} of {1}'.format(
             combineNames[what], ', '.join(it.alias for it in madeOf))
-#        self.meta['modified'] = os.path.getmtime(madeOf)
+#        self.meta['modified'] = osp.getmtime(madeOf)
         self.meta['modified'] = time.strftime("%a, %d %b %Y %H:%M:%S")
         self.meta['size'] = -1
 
@@ -816,7 +835,7 @@ class Spectrum(TreeItem):
             end = item.madeOf.find('::') if '::' in item.madeOf else None
             path = item.madeOf[start:end]
             madeOfRel = \
-                item.madeOf[:start] + os.path.relpath(path, dirname) +\
+                item.madeOf[:start] + osp.relpath(path, dirname) +\
                 item.madeOf[end:]
             config.put(configProject, item.alias, 'madeOf_relative', madeOfRel)
 
@@ -839,7 +858,7 @@ class Spectrum(TreeItem):
                         end = ds.find('::') if '::' in ds else None
                         path = ds[start:end]
                         madeOfRel = ds[:start] + \
-                            os.path.relpath(path, dirname) + ds[end:]
+                            osp.relpath(path, dirname) + ds[end:]
                         dataSourceRel[ids] = madeOfRel
                 dataFormat = json.dumps(dataFormatRel)
                 config.put(
@@ -857,7 +876,7 @@ class Spectrum(TreeItem):
                 configProject, item.alias, 'colorTag', str(item.colorTag))
             config.put(configProject, item.alias, 'color', str(item.color))
 
-            configProject.set(item.alias, ';transform params')  # ';'=comment out
+            configProject.set(item.alias, ';transform params:')  # ';'=comment out
             dtparams = item.transformParams
             for key in dtparams:
                 if isinstance(dtparams[key], np.ndarray):

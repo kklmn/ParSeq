@@ -212,9 +212,6 @@ class AboutDialog(qt.QDialog):
 
     def linkClicked(self, url):
         strURL = str(url.toString())
-#        if strURL.endswith('tutorial.html') or strURL.endswith('tutorial'):
-#            self.showTutorial(tutorial.__doc__[60:],
-#                              "Using xrtQook for script generation")
         if strURL.startswith('http') or strURL.startswith('ftp'):
             if self.lastBrowserLink == strURL:
                 return

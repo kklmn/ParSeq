@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "01 Jan 2019"
+__date__ = "30 Jun 2021"
 u"""
 The `files and containers` model is a file system model (qt.QFileSystemModel)
 extended by the hdf5 model from silx (silx.gui.hdf5.Hdf5TreeModel), so that
@@ -428,16 +428,29 @@ class FileSystemWithHdf5Model(ModelBase):
 
         lres = []
         try:
-            dataS = df.get('dataSource', [])  # from dataEdits
-            for data, nd in zip(dataS, self.transformNode.getPropList('ndim')):
+            datas = df.get('dataSource', [])  # from dataEdits
+            slices = df.get('slices', [])  # from dataEdits
+            for data, slc, nd in zip(
+                    datas, slices, self.transformNode.getPropList('ndim')):
                 if len(data) == 0:
                     return
                 colEval = self.interpretArrayFormula(data, nodeH5, 'h5')
                 if colEval is None:
                     return
                 if nd:
-                    if len(colEval[0][3]) != nd:
+                    if len(colEval[0][3]) < nd:
                         return
+                    elif len(colEval[0][3]) == nd:
+                        pass
+                    elif len(colEval[0][3]) > nd:
+                        if 'axis' in slc or 'sum' in slc:  # sum axes
+                            sumlist = slc[slc.find('=')+1:].split(',')
+                            if len(colEval[0][3]) - len(sumlist) != nd:
+                                return
+                        else:
+                            slicelist = [i for i in slc.split(',') if ':' in i]
+                            if len(slicelist) != nd:
+                                return
                 lres.append(colEval)
         except:  # noqa
             return
@@ -712,7 +725,6 @@ class SelectionDelegate(qt.QItemDelegate):
 
     def paint(self, painter, option, index):
         loadState = index.data(LOAD_DATASET_ROLE)
-
         path = index.data(LOAD_ITEM_PATH_ROLE)
         if path:
             # lastPath = configDirs.get(
@@ -863,23 +875,39 @@ class FileTreeView(qt.QTreeView):
 
             if len(paths) == 1:
                 strSum = ''
+                strSumOf = ''
             else:
                 strSum = 'the sum '
+                strSumOf = 'of the sum '
 
             if len(paths) > 0:
                 yLbls = self.transformNode.getPropList('qLabel')
                 ndims = self.transformNode.getPropList('ndim')
                 for iLbl, (yLbl, ndim) in enumerate(zip(yLbls, ndims)):
-                    if shape:
-                        if len(shape) != ndim:
-                            continue
-                    menu.addAction("Set {0}as {1} array".format(
-                        strSum, yLbl),
-                        partial(self.setAsArray, iLbl, paths))
-                    if len(paths) == 1:
-                        menu.addAction("Set full path {0}as {1} array".format(
+                    if not shape:
+                        continue
+                    if len(shape) < ndim:
+                        continue
+                    elif len(shape) == ndim:
+                        menu.addAction("Set {0}as {1} array".format(
                             strSum, yLbl),
-                            partial(self.setAsArray, iLbl, fullPaths))
+                            partial(self.setAsArray, iLbl, paths))
+                        if len(paths) == 1:
+                            menu.addAction("Set full path as {0} array".format(
+                                yLbl),
+                                partial(self.setAsArray, iLbl, fullPaths))
+                    elif len(shape) > ndim:
+                        menu.addAction(
+                            "Set a {0}D slice {1}as {2} array".format(
+                                ndim, strSumOf, yLbl),
+                            partial(self.setAsArray, iLbl, paths,
+                                    needSlice=(len(shape), ndim)))
+                        if len(paths) == 1:
+                            menu.addAction(
+                                "Set a {0}D slice {1}of full path as {2} array"
+                                .format(ndim, strSumOf, yLbl),
+                                partial(self.setAsArray, iLbl, fullPaths,
+                                        needSlice=(len(shape), ndim)))
                 menu.addSeparator()
 
             if len(paths) > 1:
@@ -986,9 +1014,18 @@ class FileTreeView(qt.QTreeView):
                 cf.setHeaderEnabled(False)
                 return
 
-    def setAsArray(self, iArray, paths, isList=False):
+    def setAsArray(self, iArray, paths, isList=False, needSlice=None):
         cf = self.transformNode.widget.columnFormat
         edit = cf.dataEdits[iArray]
+        sliceEdit = cf.sliceEdits[iArray]
+        sliceEdit.setVisible(needSlice is not None)
+        if needSlice is not None:
+            dataDims, needDims = needSlice  # dataDims > needDims
+            txt = ', '.join([':']*dataDims)
+            txt = txt.replace(':', '0', dataDims-needDims)
+            sliceEdit.setText(txt)
+        else:
+            sliceEdit.setText('')
 
         if paths[0].startswith('silx'):
             edit.setText(paths[0])

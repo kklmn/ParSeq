@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "23 Jul 2021"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -105,14 +105,15 @@ class NodeWidget(qt.QWidget):
         node.widget = self
         self.pendingPropDialog = None
         self.pendingFile = None
+        self.wasNeverPlotted = True
+        self.onTransform = False
 
         self.makeSplitters()
-        # to be made before the plot:
-        self.makeTransformWidget(self.splitterTransform)
 
         self.fillSplitterFiles()
         self.fillSplitterData()
         self.fillSplitterPlot()
+        self.makeTransformWidget(self.splitterTransform)
         self.fillSplitterTransform()
         self.makeSplitterButtons()
         self.splitter.setStretchFactor(0, 0.1)
@@ -205,7 +206,7 @@ class NodeWidget(qt.QWidget):
         self.pickWidget.setVisible(False)
 
         self.tree = DataTreeView(self.node, splitterInner)
-        self.tree.needReplot.connect(self.replot)
+        self.tree.model().needReplot.connect(self.replot)
         self.tree.selectionModel().selectionChanged.connect(self.selChanged)
 
         layout = qt.QVBoxLayout()
@@ -227,8 +228,9 @@ class NodeWidget(qt.QWidget):
 
         if node.plotDimension == 3:
             self.plot = Plot3D(
-                self.splitterPlot, **self.backend
+                self.splitterPlot, position=Plot3D.posInfo, **self.backend
                 )
+            self.plot.setCustomPosInfo()
         elif node.plotDimension == 2:
             self.plot = Plot2D(
                 self.splitterPlot, **self.backend
@@ -237,8 +239,9 @@ class NodeWidget(qt.QWidget):
             xLbl = node.getPropList('qLabel', role='x')[0]
             yLbl = node.getPropList('qLabel', role='y')[0]
             self.plot = Plot1D(
-                self.splitterPlot, **self.backend
-                # position=[(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)]
+                self.splitterPlot,
+                position=[(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)],
+                **self.backend
                 )
             self.plot.getXAxis().setLabel(xLbl)
             self.plot.getYAxis().setLabel(yLbl)
@@ -281,16 +284,17 @@ class NodeWidget(qt.QWidget):
 
     def makeTransformWidget(self, parent):
         tr = self.node.transformIn
+        tr.sendSignals = csi.mainWindow is not None
         hasWidgetClass = tr is not None
         if hasWidgetClass:
             hasWidgetClass = tr.widgetClass is not None
         if hasWidgetClass:
             self.transformWidget = tr.widgetClass(
                 parent=parent, node=self.node, transform=tr)
-            tr.sendSignals = csi.mainWindow is not None
         else:
             self.transformWidget = qt.QWidget(parent)
-        tr.widget = self.transformWidget
+        if tr is not None:
+            tr.widget = self.transformWidget
 
     def makeSplitterButtons(self):
         "Orientation should be given for the closed state."
@@ -309,7 +313,7 @@ class NodeWidget(qt.QWidget):
         if handle is None:
             return
         isVerical = splitter.orientation() == qt.Qt.Horizontal
-        if name == 'transform':
+        if name == 'transform' and self.node.transformIn is not None:
             nameBut = name + ': ' + self.node.transformIn.name
         else:
             nameBut = name
@@ -400,8 +404,6 @@ class NodeWidget(qt.QWidget):
             labels = node.getProp(node.plot3DArray, 'plotLabel')
             axisLabels = self._makeAxisLabels(labels)
             self.plot.setLabels(axisLabels)
-        if hasattr(self.transformWidget, 'extraPlotSetup'):
-            self.transformWidget.extraPlotSetup()
 
     def getAxisLabels(self):
         plot = self.plot
@@ -425,12 +427,32 @@ class NodeWidget(qt.QWidget):
         return True
 
     def _storePlotState(self):
+        if self.wasNeverPlotted:
+            return
         if self.node.plotDimension == 3:
             self.savedPlotProps['browser.value'] = self.plot._browser.value()
+            xlim = self.plot._plot.getXAxis().getLimits()
+            ylim = self.plot._plot.getYAxis().getLimits()
+        elif self.node.plotDimension in [1, 2]:
+            xlim = self.plot.getXAxis().getLimits()
+            ylim = self.plot.getYAxis().getLimits()
+        else:
+            return
+        self.savedPlotProps['xaxis.range'] = xlim
+        self.savedPlotProps['yaxis.range'] = ylim
 
     def _restorePlotState(self):
+        if self.wasNeverPlotted:
+            return
         if self.node.plotDimension == 3:
             self.plot._browser.setValue(self.savedPlotProps['browser.value'])
+            self.plot._plot.getXAxis().setLimits(
+                *self.savedPlotProps['xaxis.range'])
+            self.plot._plot.getYAxis().setLimits(
+                *self.savedPlotProps['yaxis.range'])
+        elif self.node.plotDimension in [1, 2]:
+            self.plot.getXAxis().setLimits(*self.savedPlotProps['xaxis.range'])
+            self.plot.getYAxis().setLimits(*self.savedPlotProps['yaxis.range'])
 
     def getCalibration(self, item, axisStr):
         arr = None
@@ -449,10 +471,22 @@ class NodeWidget(qt.QWidget):
             return 0, 1
 
     def replot(self):
-        node = self.node
+        if DEBUG > 50:
+            print('enter replot() of {0}'.format(self.node.name))
+
+        if self.onTransform:
+            return
+        if len(csi.allLoadedItems) == 0:
+            return
+
         self._storePlotState()
-        self.plot.clear()
+        node = self.node
+        # # self.plot.clear()
+
         if node.plotDimension == 1:
+            self.plot.clearCurves()
+            self.plot.clearImages()
+            nPlottedItems = 0
             for item in csi.allLoadedItems:
                 if not self.shouldPlotItem(item):
                     continue
@@ -472,6 +506,7 @@ class NodeWidget(qt.QWidget):
                     self.plot.addCurve(
                         x, y, legend=curveLabel, color=item.color, z=z,
                         **plotProps)
+                    nPlottedItems += 1
                     symbol = plotProps.get('symbol', None)
                     if symbol is not None:
                         curve = self.plot.getCurve(curveLabel)
@@ -480,8 +515,12 @@ class NodeWidget(qt.QWidget):
                                 # don't know why it is small with opengl
                                 symbolsize *= 2
                             curve.setSymbolSize(symbolsize)
+            if nPlottedItems == 0:
+                return
             self.setPlotYLabels()
         if node.plotDimension == 2:
+            self.plot.clearCurves()
+            self.plot.clearImages()
             if len(csi.selectedItems) > 0:
                 item = csi.selectedItems[0]  # it could be the last one but
                 # then when goint with arrows up and down in the data tree and
@@ -502,6 +541,8 @@ class NodeWidget(qt.QWidget):
                                origin=(xOrigin, yOrigin),
                                scale=(xScale, yScale))
         if node.plotDimension == 3:
+            self.plot._plot.clearImages()
+            item = None
             if len(csi.selectedItems) > 0:
                 item = csi.selectedItems[0]
             elif len(csi.allLoadedItems) > 0:
@@ -509,16 +550,22 @@ class NodeWidget(qt.QWidget):
             else:
                 return
             try:
-                stack = getattr(item, self.node.plot3DArray)
+                stack = getattr(item, self.node.plot3DArray) if item else None
             except AttributeError:
                 return
-            calibrations = [self.getCalibration(item, ax) for ax in 'xyz']
-            self.plot.setStack(stack, calibrations=calibrations)
+            if item:
+                calibrations = [self.getCalibration(item, ax) for ax in 'xyz']
+                self.plot.setStack(stack, calibrations=calibrations)
 
         self._restorePlotState()
 
         if hasattr(self.transformWidget, 'extraPlot'):
             self.transformWidget.extraPlot()
+        # if self.wasNeverPlotted and node.plotDimension == 1:
+        #     self.plot.resetZoom()
+        self.wasNeverPlotted = False
+        if DEBUG > 50:
+            print('exit replot() of {0}'.format(self.node.name))
 
     def saveGraph(self, fname, i, name):
         if fname.endswith('.pspj'):
@@ -707,15 +754,20 @@ class NodeWidget(qt.QWidget):
                 fileNamesFull = \
                     [self.files.model().getHDF5FullPath(i) for i in sIndexes]
 
-        fileNames = [osp.normcase(i) for i in fileNamesFull]
-        allLoadedItemsCount = Counter(osp.normcase(data.madeOf) for data in
-                                      csi.allLoadedItems)
-        duplicates, duplicatesNorm, duplicatesN = [], [], []
+        fileNames = [osp.normcase(nf) for nf in fileNamesFull]
+        allLoadedItemNames = []
+        for d in csi.allLoadedItems:
+            lfn = d.madeOf[5:] if d.madeOf.startswith('silx:') else d.madeOf
+            lfns = osp.normcase(osp.abspath(lfn))
+            if d.madeOf.startswith('silx:'):
+                lfns = 'silx:' + lfns
+            allLoadedItemNames.append(lfns)
+        allLoadedItemsCount = Counter(allLoadedItemNames)
+        duplicates, duplicatesN = [], []
         fileNamesFullN = []
         for fname, fnameFull in zip(fileNames, fileNamesFull):
-            n = allLoadedItemsCount[fname]
+            n = allLoadedItemsCount[osp.normcase(fnameFull)]
             if n > 0:
-                duplicatesNorm.append(fname)
                 duplicates.append(fnameFull)
                 duplicatesN.append(n)
             fileNamesFullN.append(n)
@@ -809,8 +861,9 @@ class NodeWidget(qt.QWidget):
 
     def updateTransforms(self):
         # try:
-        self.transformWidget.setUIFromData()
-        # except:  # noqa
+        if hasattr(self.transformWidget, 'setUIFromData'):
+            self.transformWidget.setUIFromData()
+        # except AttributeError:  # when transformWidget is QWidget
         #     pass
 
     def linkClicked(self, url):

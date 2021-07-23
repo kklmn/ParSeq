@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "1 Apr 2021"
+__date__ = "23 Jul 2021"
 # !!! SEE CODERULES.TXT !!!
 
 import os
@@ -424,9 +424,11 @@ class MainWindowParSeq(qt.QMainWindow):
                          "Invalid file name {0}".format(fname))
             return
         self.save_project(fname)
-        saveNodes, saveTypes, saveScriptMpl, saveScriptSilx = res[1:5]
         for i, (name, node) in enumerate(csi.nodes.items()):
             node.widget.saveGraph(fname, i, name)
+        if len(res) < 5:
+            return
+        saveNodes, saveTypes, saveScriptMpl, saveScriptSilx = res[1:5]
         plots, h5plots = self.save_data(fname, saveNodes, saveTypes)
         if saveScriptMpl:
             self.save_script(fname, plots, h5plots, 'mpl')
@@ -465,6 +467,7 @@ class MainWindowParSeq(qt.QMainWindow):
             return
         docks, nodeWidgets, tabNames = list(zip(*self.docks))
         i = nodeWidgets.index(nodeWidget)
+
         if docks[i].isFloating():
             docks[i].setFloatingTabColor(state)
         else:

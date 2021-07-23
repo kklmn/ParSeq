@@ -63,6 +63,7 @@ def getDotAttr(obj, attr, withContainer=False):
             try:
                 obj = obj[subattr]
             except (KeyError, TypeError):
+                # print('no {0} attribute in {1}'.format(subattr, obj))
                 return (container, subattr, None) if withContainer else None
     return (container, subattr, obj) if withContainer else obj
 
@@ -213,3 +214,20 @@ def get_header(fname, readkwargs):
                     line.startswith('#'):
                 header.append(line)
     return header
+
+
+def parse_slice_str(slice_str):
+    parts = slice_str.split(':')
+    if len(parts) == 1:
+        try:
+            return int(slice_str)
+        except ValueError:
+            return slice(None)
+    intParts = []
+    for p in parts:
+        try:
+            intp = int(p)
+        except ValueError:
+            intp = None
+        intParts.append(intp)
+    return slice(*intParts)

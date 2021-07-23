@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "23 Jul 2021"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -129,11 +129,11 @@ class Transform(object):
         self.run_pre(params, items, updateUndo)
 
         if isinstance(self.nThreads, type('')):
-            tmp = multiprocessing.cpu_count()
-            self.nThreads = tmp/2 if self.nThreads.startswith('h') else tmp
+            nC = multiprocessing.cpu_count()
+            self.nThreads = nC//2 if self.nThreads.startswith('h') else nC
         if isinstance(self.nProcesses, type('')):
-            tmp = multiprocessing.cpu_count()
-            self.nProcesses = tmp/2 if self.nProcesses.startswith('h') else tmp
+            nC = multiprocessing.cpu_count()
+            self.nProcesses = nC//2 if self.nProcesses.startswith('h') else nC
 
         if self.nThreads > 1:
             workerClass = BackendThread
@@ -160,8 +160,8 @@ class Transform(object):
                     workedItems.append(data)
                     if len(workers) == cpus or idata == len(items)-1:
                         if _DEBUG > 1:
-                            print('run_main in {0} {1}{2} on {3}'.format(
-                                len(workers), workerStr,
+                            print('run {0} in {1} {2}{3} for {4}'.format(
+                                self.name, len(workers), workerStr,
                                 '' if len(workers) == 1 else 's',
                                 [d.alias for d in workedItems]))
                         for worker, item in zip(workers, workedItems):
@@ -187,7 +187,7 @@ class Transform(object):
                     if self.sendSignals:
                         csi.mainWindow.beforeDataTransformSignal.emit([data])
                     if _DEBUG > 1:
-                        print('run_main', self.name, data.alias)
+                        print('run {0} for {1}'.format(self.name, data.alias))
                     args = getargspec(self.run_main)
                     if 'allData' in args[0]:
                         allData = csi.allLoadedItems
@@ -210,6 +210,8 @@ class Transform(object):
             # if updateUndo:
             #     self.push_to_undo_list(params, dataItems)
             self.update_params(params, dataItems)
+        if hasattr(self.toNode, 'widget'):
+            self.toNode.widget.onTransform = True
         if self.sendSignals:
             csi.mainWindow.beforeTransformSignal.emit(self.toNode.widget)
 
@@ -234,6 +236,8 @@ class Transform(object):
 
         if self.sendSignals:
             csi.mainWindow.afterTransformSignal.emit(self.toNode.widget)
+        if hasattr(self.toNode, 'widget'):
+            self.toNode.widget.onTransform = False
 
         if runDownstream:
             for tr in self.toNode.transformsOut:

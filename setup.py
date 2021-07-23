@@ -82,7 +82,7 @@ project file located at `parseq_XES_scan/saved/NbO2.pspj`.
 
 setup(
     name='parseq',
-    version='0.1.0',
+    version='0.2.0',
     description='ParSeq is a python software library for Parallel execution of'
                 ' Sequential data analysis.',
     long_description=long_description,

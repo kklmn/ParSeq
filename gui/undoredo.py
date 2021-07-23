@@ -107,13 +107,13 @@ def pushTransformToUndo(propWidget, dataItems, params, values, strChange=''):
             items.append(data)
             prevValues.append(pvs)
 
-    if len(items) > 0:  # has changed
+    if len(items) > 0 and hasattr(csi.mainWindow, 'undoAction'):  # has changed
         csi.undo.append(
             [propWidget, items, params, prevValues, values, strChange])
         csi.mainWindow.setEnableUredoRedo()
 
 
 def pushDataToUndo(data, parents, rows, strChange=''):
-    if len(data) > 0:
+    if len(data) > 0 and hasattr(csi.mainWindow, 'undoAction'):
         csi.undo.append([data, parents, rows, strChange])
         csi.mainWindow.setEnableUredoRedo()

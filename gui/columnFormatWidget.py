@@ -97,6 +97,7 @@ class ColumnFormatWidget(PropWidget):
             return
 
         self.dataEdits = []
+        self.sliceEdits = []
         dataLayout = qt.QVBoxLayout()
         for ia, arrayName in enumerate(self.node.arrays):
             role = self.node.getProp(arrayName, 'role')
@@ -113,8 +114,15 @@ class ColumnFormatWidget(PropWidget):
             dataEdit.setSizePolicy(
                 qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
             self.dataEdits.append(dataEdit)
+            sliceEdit = qt.QLineEdit()
+            sliceEdit.setSizePolicy(
+                qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+            self.sliceEdits.append(sliceEdit)
+            sliceEdit.textChanged.connect(self._resizeToContent)
+            sliceEdit.hide()
             arrayLayout.addWidget(dataLabel)
             arrayLayout.addWidget(dataEdit, 1)
+            arrayLayout.addWidget(sliceEdit, 0)
             if role.startswith('x'):
                 dataXLabelTimes = qt.QLabel(u"×")
                 self.dataXEditTimes = qt.QLineEdit()
@@ -131,8 +139,11 @@ class ColumnFormatWidget(PropWidget):
             dataLayout.addLayout(arrayLayout)
             self.registerPropWidget(
                 (dataLabel, dataEdit), dataLabel.text(),
-                'dataFormat.dataSource.int({0})'.format(ia), convertType=int)
                 # ('dataFormat.dataSource', ia), convertType=int)
+                'dataFormat.dataSource.int({0})'.format(ia), convertType=int)
+            self.registerPropWidget(
+                sliceEdit, 'slice', 'dataFormat.slices.int({0})'.format(ia),
+                hideEmpty=True)
 
         dataLocationTab = qt.QWidget(self)
         dataLocationTab.setLayout(dataLayout)
@@ -145,6 +156,12 @@ class ColumnFormatWidget(PropWidget):
         self.registerPropGroup(dataLocationTab, edits, 'data location')
 
         return dataLocationTab
+
+    def _resizeToContent(self, text):
+        edit = self.sender()
+        fm = qt.QFontMetrics(edit.font())
+        edit.setFixedWidth(fm.width('['+text+']'))
+        self.adjustSize()
 
     def setHeaderEnabled(self, enabled=True):
         self.tabWidget.setTabEnabled(0, enabled)
@@ -179,6 +196,8 @@ class ColumnFormatWidget(PropWidget):
 
             cols = [edit.text() for edit in self.dataEdits]
             dres['dataSource'] = cols
+            slices = [edit.text() for edit in self.sliceEdits]
+            dres['slices'] = slices
 
             if self.dataXEditTimes is not None:
                 txt = self.dataXEditTimes.text()

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "22 Jul 2021"
 # !!! SEE CODERULES.TXT !!!
 
 # from silx.gui import qt
@@ -13,6 +13,12 @@ DEBUG = 40
 
 def getCommonPropInSelectedItems(prop):
     values = [cco.getDotAttr(it, prop) for it in csi.selectedItems]
+    if prop.startswith('transformParams'):
+        for it in csi.selectedItems:
+            test = cco.getDotAttr(it, prop, True)
+            if test[1] not in test[0]:  # attr in container
+                print("unknown parameter in data's transformParams: {0}"
+                      .format(test[1]))
     try:
         if values.count(values[0]) == len(values):  # equal in selectedItems
             return values[0]
@@ -79,6 +85,9 @@ def setCButtonFromData(cButton, prop, compareWith=None):
 
 def setEditFromData(edit, prop, textFormat='', skipDefault=None, **kw):
     common = getCommonPropInSelectedItems(prop)
+    hideEmpty = kw.get('hideEmpty', False)
+    if hideEmpty:
+        edit.setVisible(common not in ['', None])
     if common is None or common == skipDefault:
         edit.setText('')
         return ''
@@ -181,6 +190,19 @@ def updateDataFromEdit(edit, prop, convertType=None, textReplace=None, **kw):
         itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)
         if itValue != txt:
             # cco.setDotAttr(it, prop, irb)
+            itContainer[itAttr] = txt
+            it.hasChanged = True
+
+
+def updateDataFromComboBox(combobox, prop):
+    if not combobox.isEnabled():
+        return
+    ind = combobox.currentIndex()
+    txt = combobox.currentText()
+    for it in csi.selectedItems:
+        itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)
+        val = ind if type(itValue) == int else txt
+        if itValue != val:
             itContainer[itAttr] = txt
             it.hasChanged = True
 

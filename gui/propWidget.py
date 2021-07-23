@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "23 Jul 2021"
 # !!! SEE CODERULES.TXT !!!
 
 from functools import partial
@@ -13,7 +13,7 @@ from . import undoredo as gur
 from . import propsOfData as gpd
 
 propWidgetTypes = ('edit', 'label', 'spinbox', 'groupbox', 'checkbox',
-                   'pushbutton', 'tableview')
+                   'pushbutton', 'tableview', 'combobox')
 
 _DEBUG = 1
 
@@ -302,11 +302,8 @@ class PropWidget(qt.QWidget):
         self.setUIFromData()
 
     def resetProps(self, props, values, actionName):
-        # print(props)
-        # print(values)
         dataItems = csi.selectedItems
         gur.pushTransformToUndo(self, dataItems, props, values, actionName)
-        print('b', props, values)
         nChanged = gpd.copyProps(dataItems, props, values,
                                  self.shouldRemoveNonesFromProps)
         if not nChanged:
@@ -382,6 +379,8 @@ class PropWidget(qt.QWidget):
                         pass
                     elif iwt == 6:  # 'tableview'
                         pass
+                    elif iwt == 7:  # 'combobox'
+                        pass
                     break
             else:
                 raise ValueError("unknown widgetType {0}".format(className))
@@ -436,8 +435,10 @@ class PropWidget(qt.QWidget):
             if isinstance(key, (list, tuple)):
                 param = key[-1]
             elif isinstance(key, type('')):
-                if '.' in key:
-                    param = key.split('.')[-1]
+                param = key.split('.')[-1] if '.' in key else key
+            else:
+                raise ValueError('unknown key "{0}" of type {1}'.format(
+                    key, type(key)))
             params = {param: value}
         if csi.transformer is not None:
             csi.transformer.prepare(
@@ -447,18 +448,18 @@ class PropWidget(qt.QWidget):
             self.transform.run(params=params)
 
     def _onTransformThreadReady(self, starter, duration=0):
-        self.updateStatusWidgets()
         if starter is not self:
             return
+        self.updateStatusWidgets()
         self.replotAllDownstream()
 
     def replotAllDownstream(self):
         if self.transform is None:
             return
+        csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
         self.transform.toNode.widget.replot()
         for subnode in self.transform.toNode.downstreamNodes:
             subnode.widget.replot()
-        csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
     def updateStatusWidgets(self):
         for widget in self.statusWidgets:
@@ -510,6 +511,8 @@ class PropWidget(qt.QWidget):
                 gpd.setCButtonFromData(widget, dd['prop'])
             elif dd['widgetTypeIndex'] == 4:  # 'checkbox'
                 gpd.setCButtonFromData(widget, dd['prop'])
+            elif dd['widgetTypeIndex'] == 7:  # 'combobox'
+                gpd.setComboBoxFromData(widget, dd['prop'])
         self.updateStatusWidgets()
         self.extraSetUIFromData()
 
@@ -525,6 +528,8 @@ class PropWidget(qt.QWidget):
             dd = self.propWidgets[widget]
             if dd['widgetTypeIndex'] == 0:  # 'edit'
                 gpd.updateDataFromEdit(widget, dd['prop'], **dd['kw'])
+            # if dd['widgetTypeIndex'] == 7:  # 'combobox'
+            #     gpd.updateDataFromComboBox(widget, dd['prop'])
         self.updateProp()
 
     def getNextTansform(self):

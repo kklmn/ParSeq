@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "18 Jul 2021"
 u"""
 The `DataTreeModel` implements view model of a collection of data loaded into a
 Parseq app. The model has several columns: the 1st one is the data name
@@ -46,6 +46,9 @@ DEBUG = 10
 
 
 class DataTreeModel(qt.QAbstractItemModel):
+
+    needReplot = qt.pyqtSignal()
+
     def __init__(self, parent=None):
         super(DataTreeModel, self).__init__(parent)
         self.rootItem = csi.dataRootItem
@@ -121,6 +124,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             item.set_data(index.column(), str(value))
 #            item.aliasExtra = None
             self.dataChanged.emit(index, index)
+            self.needReplot.emit()
             return True
         if role == qt.Qt.CheckStateRole:
             item = index.internalPointer()
@@ -132,6 +136,7 @@ class DataTreeModel(qt.QAbstractItemModel):
         item.set_visible(value)
         if emit:
             self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            self.needReplot.emit()
         if item is csi.dataRootItem:  # by click on header
             for it in csi.selectedItems:
                 self.setVisible(it, True, True)
@@ -228,6 +233,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             item.delete()
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.needReplot.emit()
 
     def undoRemove(self, undoEntry):
         if undoEntry[-1] != 'remove':
@@ -241,6 +247,7 @@ class DataTreeModel(qt.QAbstractItemModel):
                 parentItem.childItems.insert(row, data)
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.needReplot.emit()
 
     def moveItem(self, item, to):  # to = +1(up) or -1(down)
         parentItem = item.parentItem
@@ -381,6 +388,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             for parent in parents:
                 parent.init_colors()
             self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            self.needReplot.emit()
             return True
         elif mimedata.hasFormat(cco.MIME_TYPE_TEXT) or \
                 mimedata.hasFormat(cco.MIME_TYPE_HDF5):
@@ -412,6 +420,7 @@ class DataTreeModel(qt.QAbstractItemModel):
 
     def invalidateData(self):
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.needReplot.emit()
 
 
 class HeaderModel(qt.QAbstractItemModel):
@@ -647,7 +656,6 @@ class EyeHeader(qt.QHeaderView):
 
 
 class DataTreeView(qt.QTreeView):
-    needReplot = qt.pyqtSignal()
 
     def __init__(self, node=None, parent=None):
         super(DataTreeView, self).__init__(parent)
@@ -857,7 +865,6 @@ class DataTreeView(qt.QTreeView):
         csi.allLoadedItems.extend(csi.dataRootItem.get_items())
         if len(csi.allLoadedItems) == 0:
             csi.selectedItems[:] = []
-        self.needReplot.emit()
 
     def allowDND(self):
         self.isInnerDragNDropAllowed = not self.isInnerDragNDropAllowed
@@ -875,7 +882,7 @@ class DataTreeView(qt.QTreeView):
         if shouldUpdateModel:
             parentItem.init_colors()
             self.model().dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-            self.needReplot.emit()
+            self.model().needReplot.emit()
 
     def moveItems(self, to):
         for topItem in csi.selectedTopItems[::to]:
