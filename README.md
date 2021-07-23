@@ -63,6 +63,7 @@ connecting them together and creating Qt widgets for the transforms are
 exemplified by separately installed analysis packages:
 
 - [ParSeq-XES-scan](https://github.com/kklmn/ParSeq-XES-scan)
+- [ParSeq-XES-dispersive](https://github.com/kklmn/ParSeq-XES-dispersive)
 
 Dependencies
 ------------
