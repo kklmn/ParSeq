@@ -67,6 +67,7 @@ Dependencies
 ------------
 
 silx -- is used for plotting and Qt imports.
+hdf5plugin -- provides HDF5 compression filters and makes them usable from h5py.
 sphinx -- for building html documentation.
 
 How to use
@@ -104,7 +105,8 @@ setup(
                    'help/_themes/*/*.*', 'help/_themes/*/*/*.*'],
         'parseq.gui': ['_images/*.*']},
     install_requires=['numpy>=1.8.0', 'scipy>=0.17.0', 'matplotlib>=2.0.0',
-                      'sphinx>=1.6.2', 'autopep8', 'h5py', 'silx'],
+                      'sphinx>=1.6.2', 'autopep8', 'h5py', 'silx',
+                      'hdf5plugin'],
     classifiers=['Development Status :: 3 - Alpha',
                  'Intended Audience :: Science/Research',
                  'Natural Language :: English',
