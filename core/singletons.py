@@ -5,6 +5,7 @@ __date__ = "17 Nov 2018"
 
 from collections import deque, OrderedDict
 
+DEBUG_LEVEL = 1
 
 MAX_LEN_UNDO = 25
 MAX_LEN_REDO = 25
@@ -20,6 +21,7 @@ appSynopsis = None
 appDescription = None
 appAuthor = None
 appLicense = None
+appVersion = None
 
 nodes = OrderedDict()
 transforms = OrderedDict()

@@ -287,6 +287,10 @@ class TreeItem(object):
 
 
 class Spectrum(TreeItem):
+    #  TODO describe configFieldsData and configFieldsGroup
+
+    """ bla """
+
     configFieldsData = (  # to parse ini file section of data
         'madeOf', 'madeOf_relative', 'dataFormat', 'dataFormat_relative',
         'suffix', 'originNode', 'terminalNode', 'colorTag', 'color')
@@ -306,12 +310,14 @@ class Spectrum(TreeItem):
         a spectrum.
 
         The data propagation is between *originNode* and *terminalNode*, both
-        ends are included. If *originNode* is None, it defaults to the 0th node
-        (head of the pipeline). If *terminalNode* is None, the data propagates
-        down to the end(s) of the pipeline. If a node is between *originNode*
-        and *terminalNode* (in the sense of data propagation) then the data is
-        present in the node's data manager as *alias* and is displayed in the
-        plot.
+        ends are included. *originNode* can be int (the ordinal number of the
+        node) or a node instance obtained from the OrderedDict
+        `core.singletons.nodes`. If *originNode* is None, it defaults to the
+        0th node (the head of the pipeline). If *terminalNode* is None, the
+        data propagates down to the end(s) of the pipeline. If a node is
+        between *originNode* and *terminalNode* (in the sense of data
+        propagation) then the data is present in the node's data manager as
+        *alias* and is displayed in the plot.
 
         """
         assert len(csi.nodes) > 0, "A data pipeline must be first created."
@@ -876,7 +882,8 @@ class Spectrum(TreeItem):
                 configProject, item.alias, 'colorTag', str(item.colorTag))
             config.put(configProject, item.alias, 'color', str(item.color))
 
-            configProject.set(item.alias, ';transform params:')  # ';'=comment out
+            configProject.set(
+                item.alias, ';transform params:')  # ';'=comment out
             dtparams = item.transformParams
             for key in dtparams:
                 if isinstance(dtparams[key], np.ndarray):
