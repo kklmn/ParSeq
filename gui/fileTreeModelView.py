@@ -724,7 +724,6 @@ class SelectionDelegate(qt.QItemDelegate):
         self.pen2Width = 3
 
     def paint(self, painter, option, index):
-        loadState = index.data(LOAD_DATASET_ROLE)
         path = index.data(LOAD_ITEM_PATH_ROLE)
         if path:
             # lastPath = configDirs.get(
@@ -751,6 +750,10 @@ class SelectionDelegate(qt.QItemDelegate):
                 if os.path.normpath(path).lower() == \
                         os.path.normpath(lastPathSilx).lower():
                     option.font.setWeight(qt.QFont.Bold)
+
+        if (option.state & qt.QStyle.State_MouseOver or
+                option.state & qt.QStyle.State_Selected):
+            loadState = index.data(LOAD_DATASET_ROLE)
 
         if option.state & qt.QStyle.State_MouseOver:
             color = self.parent().palette().highlight().color()

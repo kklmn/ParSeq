@@ -3,6 +3,8 @@ __author__ = "Konstantin Klementiev"
 __date__ = "17 Nov 2018"
 # !!! SEE CODERULES.TXT !!!
 
+from functools import partial
+
 from silx.gui import qt
 
 from ..core import singletons as csi
@@ -21,12 +23,17 @@ class ColumnFormatWidget(PropWidget):
             # "QTabBar::tab:selected {background: palette(window);}"
             "QTabWidget>QWidget>QWidget{background: palette(window);}")
         self.headerTab = self.makeHeaderTab()
-        self.tabWidget.addTab(self.headerTab, 'file header')
+        self.tabWidget.addTab(self.headerTab, 'header')
         self.dataLocationTab = self.makeDataLocationTab()
-        ind = self.tabWidget.addTab(self.dataLocationTab, 'data location')
+        ind = self.tabWidget.addTab(self.dataLocationTab, 'location')
         self.tabWidget.setTabToolTip(
-            ind, "Use context menu on one or more HDF5/SPEC datasets.\n"
-            "For column files use functions of variables `Col1`, `Col2` etc")
+            ind, "for HDF5/SPEC datasets: use context menu on data arrays\n"
+            "for column files: use expressions of variables `Col1`, `Col2`, …"
+            "/nor give a zero-based int column index")
+        self.conversionTab = self.makeConversionTab()
+        ind = self.tabWidget.addTab(self.conversionTab, 'conversion')
+        self.tabWidget.setTabToolTip(
+            ind, "give either a float factor, a new str unit or leave empty")
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.tabWidget)
@@ -72,14 +79,15 @@ class ColumnFormatWidget(PropWidget):
         headerLayoutE.addStretch()
 
         headerLayout = qt.QVBoxLayout()
-        headerLayout.setContentsMargins(2, 2, 2, 2)
+        headerLayout.setContentsMargins(2, 0, 0, 0)
         headerLayout.addLayout(headerLayoutN)
         headerLayout.addLayout(headerLayoutS)
         headerLayout.addLayout(headerLayoutE)
+        headerLayout.addStretch()
 
-        headerTab = qt.QWidget(self)
-        headerTab.setLayout(headerLayout)
-        headerTab.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+        tab = qt.QWidget(self)
+        tab.setLayout(headerLayout)
+        tab.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
 
         self.headerKW = 'skiprows', 'comments', 'lastSkipRowContains'
         self.fullHeaderKW = ['dataFormat.' + kw for kw in self.headerKW]
@@ -87,10 +95,10 @@ class ColumnFormatWidget(PropWidget):
         self.edits = self.headerNEdit, self.headerSEdit, self.headerEEdit
 
         self.registerExclusivePropGroup(
-            headerTab, [self.radioButtons, self.edits], 'file header',
+            tab, [self.radioButtons, self.edits], 'header',
             props=self.fullHeaderKW, convertTypes=[int, None, None])
 
-        return headerTab
+        return tab
 
     def makeDataLocationTab(self):
         if self.node is None:
@@ -99,6 +107,7 @@ class ColumnFormatWidget(PropWidget):
         self.dataEdits = []
         self.sliceEdits = []
         dataLayout = qt.QVBoxLayout()
+        dataLayout.setContentsMargins(2, 0, 0, 0)
         for ia, arrayName in enumerate(self.node.arrays):
             role = self.node.getProp(arrayName, 'role')
             if role.startswith('0'):
@@ -107,8 +116,9 @@ class ColumnFormatWidget(PropWidget):
             arrayLayout.setContentsMargins(0, 0, 0, 0)
             lbl = self.node.getProp(arrayName, 'qLabel')
             unit = self.node.getProp(arrayName, 'qUnit')
-            strUnit = u"({0})".format(unit) if unit else ""
-            dataLabel = qt.QLabel(u"{0}{1}".format(lbl, strUnit))
+            if unit:
+                lbl += '({0})'.format(unit)
+            dataLabel = qt.QLabel(lbl)
             dataEdit = qt.QLineEdit()
             dataEdit.setMinimumWidth(62)
             dataEdit.setSizePolicy(
@@ -118,24 +128,12 @@ class ColumnFormatWidget(PropWidget):
             sliceEdit.setSizePolicy(
                 qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
             self.sliceEdits.append(sliceEdit)
-            sliceEdit.textChanged.connect(self._resizeToContent)
+            sliceEdit.textChanged.connect(
+                partial(self._resizeToContent, sliceEdit))
             sliceEdit.hide()
             arrayLayout.addWidget(dataLabel)
             arrayLayout.addWidget(dataEdit, 1)
             arrayLayout.addWidget(sliceEdit, 0)
-            if role.startswith('x'):
-                dataXLabelTimes = qt.QLabel(u"×")
-                self.dataXEditTimes = qt.QLineEdit()
-                self.dataXEditTimes.setFixedWidth(36)
-                arrayLayout.addWidget(dataXLabelTimes)
-                arrayLayout.addWidget(self.dataXEditTimes)
-                self.registerPropWidget(
-                    (dataXLabelTimes, self.dataXEditTimes),
-                    dataXLabelTimes.text(),
-                    'dataFormat.xFactor', convertType=float, skipDefault=1,
-                    textFormat='strip0')
-            else:
-                self.dataXEditTimes = None
             dataLayout.addLayout(arrayLayout)
             self.registerPropWidget(
                 (dataLabel, dataEdit), dataLabel.text(),
@@ -145,20 +143,55 @@ class ColumnFormatWidget(PropWidget):
                 sliceEdit, 'slice', 'dataFormat.slices.int({0})'.format(ia),
                 hideEmpty=True)
 
-        dataLocationTab = qt.QWidget(self)
-        dataLocationTab.setLayout(dataLayout)
-        dataLocationTab.setSizePolicy(
-            qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+        tab = qt.QWidget(self)
+        tab.setLayout(dataLayout)
+        tab.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
 
-        edits = self.dataEdits
-        if self.dataXEditTimes is not None:
-            edits += [self.dataXEditTimes]
-        self.registerPropGroup(dataLocationTab, edits, 'data location')
+        self.registerPropGroup(tab, self.dataEdits, 'data location')
 
-        return dataLocationTab
+        return tab
 
-    def _resizeToContent(self, text):
-        edit = self.sender()
+    def makeConversionTab(self):
+        if self.node is None:
+            return
+
+        self.conversionEdits = []
+        dataLayout = qt.QVBoxLayout()
+        dataLayout.setContentsMargins(2, 0, 0, 0)
+        for ia, arrayName in enumerate(self.node.arrays):
+            role = self.node.getProp(arrayName, 'role')
+            if role.startswith('0'):
+                continue
+            arrayLayout = qt.QHBoxLayout()
+            arrayLayout.setContentsMargins(0, 0, 0, 0)
+            lbl = self.node.getProp(arrayName, 'qLabel')
+            unit = self.node.getProp(arrayName, 'qUnit')
+            if unit:
+                lbl += '({0})'.format(unit)
+            dataLabel = qt.QLabel(lbl)
+            conversionEdit = qt.QLineEdit()
+            conversionEdit.setMinimumWidth(62)
+            conversionEdit.setSizePolicy(
+                qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+            self.conversionEdits.append(conversionEdit)
+            arrayLayout.addWidget(dataLabel)
+            arrayLayout.addWidget(conversionEdit, 1)
+            dataLayout.addLayout(arrayLayout)
+            self.registerPropWidget(
+                (dataLabel, conversionEdit), dataLabel.text(),
+                'dataFormat.conversionFactors.int({0})'.format(ia),
+                emptyMeans=None, convertType=float)
+
+        tab = qt.QWidget(self)
+        tab.setLayout(dataLayout)
+        tab.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+
+        self.registerPropGroup(tab, self.conversionEdits, 'data units')
+
+        return tab
+
+    def _resizeToContent(self, edit, text):
+        # edit = self.sender()
         fm = qt.QFontMetrics(edit.font())
         edit.setFixedWidth(fm.width('['+text+']'))
         self.adjustSize()
@@ -177,9 +210,9 @@ class ColumnFormatWidget(PropWidget):
                 it.read_data()
                 it.hasChanged = False
         if needReplot:
-            self.node.widget.replot()
+            self.node.widget.replot(keepExtent=False)
             for subnode in self.node.downstreamNodes:
-                subnode.widget.replot()
+                subnode.widget.replot(keepExtent=False)
         # print([cco.getDotAttr(it, 'dataFormat') for it in csi.selectedItems])
 
     def getDataFormat(self, needHeader):
@@ -197,12 +230,8 @@ class ColumnFormatWidget(PropWidget):
             cols = [edit.text() for edit in self.dataEdits]
             dres['dataSource'] = cols
             slices = [edit.text() for edit in self.sliceEdits]
-            dres['slices'] = slices
-
-            if self.dataXEditTimes is not None:
-                txt = self.dataXEditTimes.text()
-                if txt:
-                    dres['xFactor'] = float(txt)
+            if slices.count('') != len(slices):
+                dres['slices'] = slices
         except:  # noqa
             return
         return dres

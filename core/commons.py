@@ -10,6 +10,9 @@ MIME_TYPE_DATA = 'parseq-data-model-items'
 MIME_TYPE_TEXT = 'text/uri-list'
 MIME_TYPE_HDF5 = 'parseq-hdf5-model-items'
 
+(DATA_STATE_GOOD, DATA_STATE_BAD, DATA_STATE_UNDEFINED, DATA_STATE_NOTFOUND,
+ DATA_STATE_MATHERROR) = 1, 0, -1, -2, -3
+
 
 def expandDotAttr(attr):
     """ *attr* is str or list of str, each str can have a dot notation"""

@@ -24,7 +24,6 @@ from ..gui.combineSpectraWidget import CombineSpectraWidget
 
 SPLITTER_WIDTH, SPLITTER_BUTTON_MARGIN = 13, 6
 COLORMAP = 'viridis'
-DEBUG = 10
 
 
 class QSplitterButton(qt.QPushButton):
@@ -124,8 +123,8 @@ class NodeWidget(qt.QWidget):
         # if not osp.exists(self.helpFile):
         if True:
             self.splitterTransform.setSizes([1, 0])
-        self.splitterButtons['files && containers'].clicked.emit(False)
-        self.splitterButtons['transform'].clicked.emit(False)
+        self.splitterButtons['files && containers'].clicked.emit()
+        self.splitterButtons['transform'].clicked.emit()
 
         # self.splitter.setSizes([1, 1, 1, 1])  # set in MainWindowParSeq
         if len(csi.selectedItems) > 0:
@@ -322,7 +321,8 @@ class NodeWidget(qt.QWidget):
         splitter.setHandleWidth(SPLITTER_WIDTH)
         po = qt.QSizePolicy(qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
         button.setSizePolicy(po)
-        button.clicked.connect(partial(self.handleSplitterButton, indSizes))
+        button.clicked.connect(
+            partial(self.handleSplitterButton, button, indSizes))
         if isVerical:
             sLayout = qt.QVBoxLayout()
         else:
@@ -344,8 +344,7 @@ class NodeWidget(qt.QWidget):
         sLayout.addWidget(button)
         handle.setLayout(sLayout)
 
-    def handleSplitterButton(self, indSizes):
-        button = self.sender()
+    def handleSplitterButton(self, button, indSizes):
         splitter = button.parent().splitter()
         sizes = splitter.sizes()
         if sizes[indSizes]:
@@ -420,7 +419,7 @@ class NodeWidget(qt.QWidget):
         if not self.node.is_between_nodes(item.originNode, item.terminalNode,
                                           node1in=True, node2in=True):
             return False
-        if not item.isGood[self.node.name]:
+        if item.state[self.node.name] != cco.DATA_STATE_GOOD:
             return False
         if not item.isVisible:
             return False
@@ -436,6 +435,9 @@ class NodeWidget(qt.QWidget):
         elif self.node.plotDimension in [1, 2]:
             xlim = self.plot.getXAxis().getLimits()
             ylim = self.plot.getYAxis().getLimits()
+            if self.node.plotDimension == 1:
+                ylimR = self.plot.getYAxis(axis='right').getLimits()
+                self.savedPlotProps['yaxisR.range'] = ylimR
         else:
             return
         self.savedPlotProps['xaxis.range'] = xlim
@@ -453,6 +455,9 @@ class NodeWidget(qt.QWidget):
         elif self.node.plotDimension in [1, 2]:
             self.plot.getXAxis().setLimits(*self.savedPlotProps['xaxis.range'])
             self.plot.getYAxis().setLimits(*self.savedPlotProps['yaxis.range'])
+            if self.node.plotDimension == 1:
+                self.plot.getYAxis(axis='right').setLimits(
+                    *self.savedPlotProps['yaxisR.range'])
 
     def getCalibration(self, item, axisStr):
         arr = None
@@ -470,8 +475,8 @@ class NodeWidget(qt.QWidget):
         else:
             return 0, 1
 
-    def replot(self):
-        if DEBUG > 50:
+    def replot(self, keepExtent=True):
+        if csi.DEBUG_LEVEL > 50:
             print('enter replot() of {0}'.format(self.node.name))
 
         if self.onTransform:
@@ -479,14 +484,19 @@ class NodeWidget(qt.QWidget):
         if len(csi.allLoadedItems) == 0:
             return
 
-        self._storePlotState()
         node = self.node
+        if keepExtent:
+            self._storePlotState()
         # # self.plot.clear()
+        # yUnits = node.getPropList('plotUnit', keys=yNames)
+        # yLabels = node.getPropList('plotLabel', keys=yNames)
 
         if node.plotDimension == 1:
             self.plot.clearCurves()
             self.plot.clearImages()
             nPlottedItems = 0
+            leftAxisColumns, rightAxisColumns = [], []
+            leftAxisUnits, rightAxisUnits = [], []
             for item in csi.allLoadedItems:
                 if not self.shouldPlotItem(item):
                     continue
@@ -494,7 +504,13 @@ class NodeWidget(qt.QWidget):
                     x = getattr(item, node.plotXArray)
                 except AttributeError:
                     continue
-                for col, yN in enumerate(node.plotYArrays):
+                if item.originNode is node:
+                    convs = [cN for (yN, cN) in zip(
+                        node.arrays, item.dataFormat['conversionFactors'])
+                        if yN in node.plotYArrays]
+                else:
+                    convs = [None for yN in node.plotYArrays]
+                for yN, cN in zip(node.plotYArrays, convs):
                     try:
                         y = getattr(item, yN)
                     except AttributeError:
@@ -515,9 +531,40 @@ class NodeWidget(qt.QWidget):
                                 # don't know why it is small with opengl
                                 symbolsize *= 2
                             curve.setSymbolSize(symbolsize)
+                    curve = self.plot.getCurve(curveLabel)
+                    if curve is None:
+                        continue
+                    yaxis = curve.getYAxis()
+                    if yaxis == 'left':
+                        if yN not in leftAxisColumns:
+                            leftAxisColumns.append(yN)
+                        if isinstance(cN, type("")):
+                            if cN not in leftAxisUnits:
+                                leftAxisUnits.append(cN)
+                        else:
+                            unit = node.getProp(yN, 'plotUnit')
+                            if unit:
+                                if unit not in leftAxisUnits:
+                                    leftAxisUnits.append(unit)
+                    if yaxis == 'right':
+                        if yN not in rightAxisColumns:
+                            rightAxisColumns.append(yN)
+                        if isinstance(cN, type("")):
+                            if cN not in rightAxisUnits:
+                                rightAxisUnits.append(cN)
+                        else:
+                            unit = node.getProp(yN, 'plotUnit')
+                            if unit:
+                                if unit not in rightAxisUnits:
+                                    rightAxisUnits.append(unit)
             if nPlottedItems == 0:
                 return
-            self.setPlotYLabels()
+            self.plotLeftYLabel = self._makeYLabel(
+                leftAxisColumns, leftAxisUnits)
+            self.plot.setGraphYLabel(label=self.plotLeftYLabel, axis='left')
+            self.plotRightYLabel = self._makeYLabel(
+                rightAxisColumns, rightAxisUnits)
+            self.plot.setGraphYLabel(label=self.plotRightYLabel, axis='right')
         if node.plotDimension == 2:
             self.plot.clearCurves()
             self.plot.clearImages()
@@ -557,14 +604,15 @@ class NodeWidget(qt.QWidget):
                 calibrations = [self.getCalibration(item, ax) for ax in 'xyz']
                 self.plot.setStack(stack, calibrations=calibrations)
 
-        self._restorePlotState()
+        if keepExtent:
+            self._restorePlotState()
 
         if hasattr(self.transformWidget, 'extraPlot'):
             self.transformWidget.extraPlot()
         # if self.wasNeverPlotted and node.plotDimension == 1:
         #     self.plot.resetZoom()
         self.wasNeverPlotted = False
-        if DEBUG > 50:
+        if csi.DEBUG_LEVEL > 50:
             print('exit replot() of {0}'.format(self.node.name))
 
     def saveGraph(self, fname, i, name):
@@ -576,52 +624,24 @@ class NodeWidget(qt.QWidget):
         elif self.node.plotDimension in [3]:
             self.plot._plot.saveGraph(fname)
 
-    def setPlotYLabels(self):
-        node = self.node
-        leftAxisCols = []
-        rightAxisCols = []
-        for data in csi.allLoadedItems:
-            if not node.is_between_nodes(data.originNode, data.terminalNode,
-                                         node1in=True, node2in=True):
-                continue
-            for yName in node.plotYArrays:
-                curveLabel = data.alias + '.' + yName
-                curve = self.plot.getCurve(curveLabel)
-                if curve is None:
-                    continue
-                yaxis = curve.getYAxis()
-                if yaxis == 'left':
-                    if yName not in leftAxisCols:
-                        leftAxisCols.append(yName)
-                if yaxis == 'right':
-                    if yName not in rightAxisCols:
-                        rightAxisCols.append(yName)
-        self.plotLeftYLabel = self._makeYLabel(leftAxisCols)
-        self.plot.setGraphYLabel(label=self.plotLeftYLabel, axis='left')
-        self.plotRightYLabel = self._makeYLabel(rightAxisCols)
-        self.plot.setGraphYLabel(label=self.plotRightYLabel, axis='right')
-
-    def _makeYLabel(self, yNames):
-        if yNames == []:
+    def _makeYLabel(self, yNames, yUnits):
+        if not yNames:
             return ""
-        node = self.node
-        equalYUnits = True
-        yUnits = node.getPropList('plotUnit', keys=yNames)
-        yLabels = node.getPropList('plotLabel', keys=yNames)
-        yUnit0 = yUnits[0]
-        for yUnit in yUnits[1:]:
-            if yUnit != yUnit0:
-                equalYUnits = False
-                break
-
+        yLabels = self.node.getPropList('plotLabel', keys=yNames)
         axisLabel = u""
-        for iu, (yUnit, yLabel) in enumerate(zip(yUnits, yLabels)):
-            spacer = u"" if iu == 0 else u", "
-            strUnit = u" ({0})".format(yUnit) if yUnit and not equalYUnits\
-                else ""
-            axisLabel += spacer + yLabel + strUnit
-        if equalYUnits and yUnit0:
-            axisLabel += u" ({0})".format(yUnit0)
+        spacer = u""
+        for yLabel in yLabels:
+            if yLabel not in axisLabel:
+                axisLabel += spacer + yLabel
+                spacer = u", "
+        spacer = u""
+        axisUnit = u""
+        for yUnit in yUnits:
+            if yUnit not in axisUnit:
+                axisUnit += spacer + yUnit
+                spacer = u", "
+        if len(axisUnit) > 0:
+            axisLabel += u" ({0})".format(axisUnit)
         return axisLabel
 
     def updatePlot(self):  # bring the selected curves to the top
@@ -660,7 +680,7 @@ class NodeWidget(qt.QWidget):
         if not self.pickWidget.isVisible() and \
                 csi.selectionModel.customSelectionMode:
             self.updateNodeForSelectedItems()
-        if DEBUG > 0 and self.mainWindow is None:  # only for test purpose
+        if csi.DEBUG_LEVEL > 0 and self.mainWindow is None:  # for test purpose
             selNames = ', '.join([it.alias for it in csi.selectedItems])
             dataCount = len(csi.allLoadedItems)
             self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))

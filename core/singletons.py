@@ -5,7 +5,7 @@ __date__ = "17 Nov 2018"
 
 from collections import deque, OrderedDict
 
-DEBUG_LEVEL = 1
+DEBUG_LEVEL = 0
 
 MAX_LEN_UNDO = 25
 MAX_LEN_REDO = 25

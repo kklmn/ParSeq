@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "22 Jul 2021"
+__date__ = "1 Feb 2022"
 # !!! SEE CODERULES.TXT !!!
 
 # from silx.gui import qt
@@ -8,22 +8,21 @@ __date__ = "22 Jul 2021"
 from ..core import singletons as csi
 from ..core import commons as cco
 
-DEBUG = 40
-
 
 def getCommonPropInSelectedItems(prop):
     values = [cco.getDotAttr(it, prop) for it in csi.selectedItems]
-    if prop.startswith('transformParams'):
-        for it in csi.selectedItems:
-            test = cco.getDotAttr(it, prop, True)
-            if test[1] not in test[0]:  # attr in container
-                print("unknown parameter in data's transformParams: {0}"
-                      .format(test[1]))
+    if isinstance(prop, type('')):
+        if prop.startswith('transformParams'):
+            for it in csi.selectedItems:
+                test = cco.getDotAttr(it, prop, True)
+                if test[1] not in test[0]:  # attr in container
+                    print("unknown parameter in data's transformParams: {0}"
+                          .format(test[1]))
     try:
         if values.count(values[0]) == len(values):  # equal in selectedItems
             return values[0]
     except (AttributeError, TypeError, IndexError) as e:
-        if DEBUG > 30:
+        if csi.DEBUG_LEVEL > 30:
             print('getCommonPropInSelectedItems', prop, e,
                   [it.alias for it in csi.selectedItems])
 
@@ -177,14 +176,19 @@ def updateDataFromRButtonGroupWithEdits(
 def updateDataFromEdit(edit, prop, convertType=None, textReplace=None, **kw):
     txt = edit.text()
     if len(txt) == 0:
-        return
-    if textReplace is not None:
-        txt = txt.replace(*textReplace)
-    if convertType is not None:
-        try:
-            txt = convertType(txt)
-        except ValueError:
-            pass
+        if 'emptyMeans' in kw:
+            txt = kw['emptyMeans']
+        else:
+            return
+    else:
+        if textReplace is not None:
+            txt = txt.replace(*textReplace)
+        if convertType is not None:
+            try:
+                txt = convertType(txt)
+            except ValueError as e:
+                # print(e)
+                pass
 
     for it in csi.selectedItems:
         itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)

@@ -207,7 +207,8 @@ class MainWindowParSeq(qt.QMainWindow):
         undoMenu.addSeparator()
         undoMenu.nHeaderActions = len(undoMenu.actions())
         self.undoAction.setMenu(undoMenu)
-        self.undoAction.menu().aboutToShow.connect(self.populateUndoMenu)
+        menu = self.undoAction.menu()
+        menu.aboutToShow.connect(partial(self.populateUndoMenu, menu))
 
         self.redoAction = qt.QAction(
             qt.QIcon(os.path.join(self.iconDir, "icon-redo.png")),
@@ -216,7 +217,8 @@ class MainWindowParSeq(qt.QMainWindow):
         self.redoAction.triggered.connect(partial(self.slotRedo, -1))
         redoMenu = qt.QMenu()
         self.redoAction.setMenu(redoMenu)
-        self.redoAction.menu().aboutToShow.connect(self.populateRedoMenu)
+        menu = self.redoAction.menu()
+        menu.aboutToShow.connect(partial(self.populateRedoMenu, menu))
         self.setEnableUredoRedo()
 
         infoAction = qt.QAction(
@@ -262,10 +264,10 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.setWidget(nodeWidget)
             if i == 0:
                 dock0, node0 = dock, nodeWidget
-                first = 1
             else:
                 self.tabifyDockWidget(dock0, dock)
-                first = 0
+            # the pipeline head(s) with initially opened file tree:
+            first = 1 if len(node.upstreamNodes) == 0 else 0
 
             try:
                 last = 0 if node.widget.transformWidget.hideInitialView \
@@ -369,8 +371,8 @@ class MainWindowParSeq(qt.QMainWindow):
     def undoGroup(self):
         csi.undoGrouping = not csi.undoGrouping
 
-    def populateUndoMenu(self):
-        menu = self.sender()
+    def populateUndoMenu(self, menu):
+        # menu = self.sender()
         for action in menu.actions()[menu.nHeaderActions:]:
             menu.removeAction(action)
         for ientry, entry in reversed(list(enumerate(csi.undo))):
@@ -380,8 +382,8 @@ class MainWindowParSeq(qt.QMainWindow):
             subAction.triggered.connect(partial(self.slotUndo, ientry))
             menu.addAction(subAction)
 
-    def populateRedoMenu(self):
-        menu = self.sender()
+    def populateRedoMenu(self, menu):
+        # menu = self.sender()
         for action in menu.actions():
             menu.removeAction(action)
         for ientry, entry in reversed(list(enumerate(csi.redo))):
@@ -483,8 +485,10 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def displayStatusMessage(self, txt, starter=None, duration=0):
         if 'ready' in txt:
-            self.statusBarLeft.setText(
-                'finished in {0:.1f} s'.format(duration))
+            factor, unit, ff = (1e3, 'ms', '{0:.0f}') if duration < 1 else (
+                1, 's', '{0:.1f}')
+            ss = 'finished in ' + ff + ' {1}'
+            self.statusBarLeft.setText(ss.format(duration*factor, unit))
             return
         self.statusBarLeft.setText(txt)
 

@@ -97,8 +97,17 @@ class AboutDialog(qt.QDialog):
         self.changePage(currentIndex)
 
     def makeTextMain(self):
-        Qt_version = qt.QT_VERSION_STR
-        PyQt_version = qt.PYQT_VERSION_STR
+        if qt.BINDING.lower().startswith('pyside2'):
+            import PySide2.QtCore
+            Qt_version = PySide2.QtCore.qVersion()
+            PyQt_version = PySide2.__version__
+        elif qt.BINDING.lower().startswith('pyside6'):
+            import PySide6.QtCore
+            Qt_version = PySide6.QtCore.qVersion()
+            PyQt_version = PySide6.__version__
+        else:
+            Qt_version = qt.QT_VERSION_STR
+            PyQt_version = qt.PYQT_VERSION_STR
         locos = pythonplatform.platform(terse=True)
         if 'Linux' in locos:
             locos = " ".join(pythonplatform.linux_distribution())

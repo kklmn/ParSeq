@@ -18,6 +18,7 @@ import threading
 import errno
 
 from . import singletons as csi
+from . import commons as cco
 from .config import configTransforms
 
 
@@ -164,7 +165,7 @@ class Transform(object):
             workers, workedItems = [], []
 
         for idata, data in enumerate(items):
-            if (data.isGood[self.fromNode.name] and
+            if (data.state[self.fromNode.name] == cco.DATA_STATE_GOOD and
                 self.fromNode.is_between_nodes(
                     data.originNode, data.terminalNode, node1in=True,
                     node2in=False)):
@@ -193,8 +194,9 @@ class Transform(object):
                                 workedItems)
                         for worker, item in zip(workers, workedItems):
                             worker.get_out_data(item)
-                            item.isGood[self.toNode.name] = \
-                                worker.get_results(self)
+                            item.state[self.toNode.name] = cco.DATA_STATE_GOOD\
+                                if worker.get_results(self) else\
+                                cco.DATA_STATE_BAD
                             item.beingTransformed = False
                         for worker in workers:
                             worker.join(60.)
@@ -217,12 +219,13 @@ class Transform(object):
                     if isinstance(res, dict):
                         for field in res:
                             setattr(self, field, res[field])
-                    data.isGood[self.toNode.name] = res is not None
+                    data.state[self.toNode.name] = cco.DATA_STATE_GOOD \
+                        if res is not None else cco.DATA_STATE_BAD
                     data.beingTransformed = False
                     if self.sendSignals:
                         csi.mainWindow.afterDataTransformSignal.emit([data])
             else:
-                data.isGood[self.toNode.name] = False
+                data.state[self.toNode.name] = cco.DATA_STATE_BAD
         self.run_post(runDownstream, items)
 
     def run_pre(self, params={}, dataItems=None, updateUndo=True):
@@ -246,8 +249,8 @@ class Transform(object):
         toBeUpdated = []
         for data in dataItems:
             for d in data.combinesTo:
-                if not data.isGood[self.toNode.name]:
-                    d.isGood[self.toNode.name] = False
+                if data.state[self.toNode.name] != cco.DATA_STATE_GOOD:
+                    d.state[self.toNode.name] = cco.DATA_STATE_BAD
                     continue
                 if (d.originNode is self.toNode) and (d not in toBeUpdated):
                     toBeUpdated.append(d)

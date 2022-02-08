@@ -49,7 +49,7 @@ def sphinxify(context):
     context['argspec'] = argspec
 
     confoverrides = {'html_context': context,
-                     'extensions': ['sphinx.ext.mathjax']}
+                     'extensions': ['sphinx.ext.mathjax', ]}
 
     doctreedir = osp.join(CONFDIR, 'doctrees')
     sphinx_app = Sphinx(srcdir, CONFDIR, CONFDIR,
@@ -72,6 +72,10 @@ elif 'pyqt5' in qt.BINDING.lower():
         import PyQt5.QtWebEngineWidgets as myQtWeb
     except ImportError:
         import PyQt5.QtWebKitWidgets as myQtWeb
+elif 'pyside2' in qt.BINDING.lower():
+    import PySide2.QtWebEngineWidgets as myQtWeb
+elif 'pyside6' in qt.BINDING.lower():
+    import PySide6.QtWebEngineWidgets as myQtWeb
 else:
     raise ImportError("Cannot import any Python Qt package!")
 
@@ -132,7 +136,7 @@ except AttributeError:
 
         def __init__(self, parent=None):
             myQtWeb.QWebEngineView.__init__(self, parent)
-            if 'pyqt5' in qt.BINDING.lower():
+            if qt.BINDING.lower().startswith(('pyqt5', 'pyside2')):
                 settings = myQtWeb.QWebEngineSettings.globalSettings()
                 settings.setAttribute(
                     myQtWeb.QWebEngineSettings.ShowScrollBars, False)

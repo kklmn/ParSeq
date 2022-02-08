@@ -34,15 +34,22 @@ COLUMN_NAME_WIDTH = 140
 COLUMN_EYE_WIDTH = 28
 LEGEND_WIDTH = 48  # '|FT(χ)|' fits into 48
 
-GROUP_BKGND = '#f4f0f0'
-BAD_BKGND = '#f46060'
-BUSY_BKGND = '#ffff88'
+GROUP_BKGND = qt.QColor('#f4f0f0')
+BUSY_BKGND = qt.QColor('#ffff88')
+BAD_BKGND = qt.QColor('#f47070')
+UNDEFINED_BKGND = qt.QColor('#aaaaaa')
+NOTFOUND_BKGND = qt.QColor('#ff88ff')
+MATHERROR_BKGND = qt.QColor('#ffa500')
+BKGND = {cco.DATA_STATE_GOOD: None,
+         cco.DATA_STATE_BAD: BAD_BKGND,
+         cco.DATA_STATE_UNDEFINED: UNDEFINED_BKGND,
+         cco.DATA_STATE_NOTFOUND: NOTFOUND_BKGND,
+         cco.DATA_STATE_MATHERROR: MATHERROR_BKGND}
+
 FONT_COLOR_TAG = ['black', gco.COLOR_HDF5_HEAD, gco.COLOR_FS_COLUMN_FILE,
                   'red', 'magenta', 'cyan']
 LEFT_SYMBOL = u"\u25c4"  # ◄
 RIGHT_SYMBOL = u"\u25ba"  # ►
-
-DEBUG = 10
 
 
 class DataTreeModel(qt.QAbstractItemModel):
@@ -99,11 +106,12 @@ class DataTreeModel(qt.QAbstractItemModel):
                 return item.tooltip()
         elif role == qt.Qt.BackgroundRole:
             if item.beingTransformed and index.column() == 0:
-                return qt.QColor(BUSY_BKGND)
+                return BUSY_BKGND
             if item.childItems:  # is a group
-                return qt.QColor(GROUP_BKGND)
-            if not item.is_good(index.column()):
-                return qt.QColor(BAD_BKGND)
+                return GROUP_BKGND
+            color = BKGND[item.get_state(index.column())]
+            if color is not None:
+                return color
         elif role == qt.Qt.ForegroundRole:
             if index.column() < len(csi.modelLeadingColumns):
                 return qt.QColor(FONT_COLOR_TAG[item.colorTag])
@@ -484,8 +492,8 @@ class LineStyleDelegate(qt.QItemDelegate):
         painter.setRenderHint(qt.QPainter.Antialiasing, False)
         painter.setPen(qt.Qt.NoPen)
         if ((option.state & qt.QStyle.State_Selected or
-             option.state & qt.QStyle.State_MouseOver) and
-                bknd not in [qt.QColor(BAD_BKGND), qt.QColor(BUSY_BKGND)]):
+            option.state & qt.QStyle.State_MouseOver)) and bknd not in [
+                BAD_BKGND, UNDEFINED_BKGND, NOTFOUND_BKGND, MATHERROR_BKGND]:
             color = self.parent().palette().highlight().color()
             color.setAlphaF(0.1)
         else:
@@ -494,7 +502,9 @@ class LineStyleDelegate(qt.QItemDelegate):
             painter.setBrush(color)
         painter.drawRect(rect)
 
-        if type(data) is tuple and bknd != qt.QColor(BAD_BKGND):  # plot props
+        if (type(data) is tuple and
+                bknd not in [BAD_BKGND, UNDEFINED_BKGND,
+                             NOTFOUND_BKGND, MATHERROR_BKGND]):  # plot props
             lineColor = qt.QColor(data[0])
             lineProps = data[1]
             lineWidth = (lineProps.get('linewidth', 1) + 0.5)
@@ -579,14 +589,28 @@ class LineStyleDelegate(qt.QItemDelegate):
             painter.setFont(font)
             painter.drawText(
                 option.rect, qt.Qt.AlignCenter, "{0}".format(data))
-
+        elif bknd == UNDEFINED_BKGND:
+            painter.setPen(qt.QPen(qt.Qt.darkGray))
+            font = painter.font()
+            painter.setFont(font)
+            painter.drawText(option.rect, qt.Qt.AlignCenter, "out")
+        elif bknd == MATHERROR_BKGND:
+            painter.setPen(qt.QPen(qt.Qt.red))
+            font = painter.font()
+            painter.setFont(font)
+            painter.drawText(option.rect, qt.Qt.AlignCenter, "error")
+        elif bknd == NOTFOUND_BKGND:
+            painter.setPen(qt.QPen(qt.Qt.red))
+            font = painter.font()
+            painter.setFont(font)
+            painter.drawText(option.rect, qt.Qt.AlignCenter, "not found")
         painter.restore()
 
 
 class EyeHeader(qt.QHeaderView):
-    EYE_IRIS = '#87aecf'  # blue
-    # EYE_IRIS = '#7B3F00'  # brown
-    EYE_BROW = '#999999'
+    EYE_IRIS = qt.QColor('#87aecf')  # blue
+    # EYE_IRIS = qt.QColor('#7B3F00')  # brown
+    EYE_BROW = qt.QColor('#999999')
     coords1 = [(0, 0), (12, 0), (12, 12), (0, 12), 'close, 0.5']
     coords2 = [(2, 6), (5, 9), (10, 4), 'open, 1.5']
 
@@ -616,7 +640,7 @@ class EyeHeader(qt.QHeaderView):
             painter.drawPath(pointerPath)
 
     def paintEye(self, painter, rect):
-        color = qt.QColor(self.EYE_IRIS)
+        color = self.EYE_IRIS
         painter.setBrush(color)
         painter.setPen(color)
         radius0 = 5
@@ -626,7 +650,7 @@ class EyeHeader(qt.QHeaderView):
         painter.setPen(color)
         radius1 = 1.5
         painter.drawEllipse(rect.center(), radius1, radius1)
-        painter.setPen(qt.QPen(qt.QColor(self.EYE_BROW), radius1))
+        painter.setPen(qt.QPen(self.EYE_BROW, radius1))
         c0 = rect.center()
         x0, y0 = c0.x(), c0.y()
         ww, hh = min(2.5*radius0, rect.width()//2), radius0
@@ -921,7 +945,7 @@ class DataTreeView(qt.QTreeView):
             csi.selectedTopItems[:] = []
             if csi.mainWindow is not None:
                 csi.mainWindow.selChanged()
-            if DEBUG > 0:
+            if csi.DEBUG_LEVEL > 0:
                 self.setWindowTitle('')
             return
         # select same row:
@@ -977,7 +1001,7 @@ class DataTreeView(qt.QTreeView):
         if csi.mainWindow is not None:
             csi.mainWindow.selChanged()
 
-        if DEBUG > 0 and self.parent() is None:  # only for test purpose
+        if csi.DEBUG_LEVEL > 0 and self.parent() is None:  # only for test purpose
             selNames = ', '.join([i.alias for i in csi.selectedItems])
             dataCount = len(csi.allLoadedItems)
             self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))

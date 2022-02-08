@@ -341,10 +341,8 @@ class PropWidget(qt.QWidget):
         files.scrollTo(ind)
         files.dataChanged(ind, ind)
 
-    def changeTooltip(self, txt, edit=None):
+    def changeTooltip(self, edit, txt):
         # fm = qt.QFontMetrics(self.font())
-        if edit is None:
-            edit = self.sender()
         # if (fm.width(txt) > edit.width()) and (edit.width() > 0):
         if True:
             edit.setToolTip(txt)
@@ -352,6 +350,14 @@ class PropWidget(qt.QWidget):
             edit.setToolTip('')
 
     def registerPropWidget(self, widgets, caption, prop, copyValue=None, **kw):
+        """Recognized *kw*:
+
+        *convertType*:
+        *hideEmpty*:
+        *emptyMeans*:
+        *copyValue*:
+
+        """
         prop = cco.expandTransformParam(prop)
         if not isinstance(widgets, (list, tuple)):
             widgets = [widgets]
@@ -361,18 +367,19 @@ class PropWidget(qt.QWidget):
             for iwt, widgetType in enumerate(propWidgetTypes):
                 if widgetType in className:
                     if iwt == 0:  # edit
-                        widget.textChanged.connect(self.changeTooltip)
+                        widget.textChanged.connect(
+                            partial(self.changeTooltip, widget))
                     elif iwt == 1:  # 'label'
                         pass
                     elif iwt == 2:  # 'spinbox'
                         widget.valueChanged.connect(
-                            partial(self.updatePropFromSpinBox, prop))
+                            partial(self.updatePropFromSpinBox, widget, prop))
                     elif iwt == 3:  # 'groupbox'
                         widget.toggled.connect(
-                            partial(self.updatePropFromCheckBox, prop))
+                            partial(self.updatePropFromCheckBox, widget, prop))
                     elif iwt == 4:  # 'checkbox'
                         widget.toggled.connect(
-                            partial(self.updatePropFromCheckBox, prop))
+                            partial(self.updatePropFromCheckBox, widget, prop))
                     elif iwt == 5:  # 'pushbutton'
                         pass
                     elif iwt == 6:  # 'tableview'
@@ -452,12 +459,15 @@ class PropWidget(qt.QWidget):
         self.replotAllDownstream()
 
     def replotAllDownstream(self):
-        if self.transform is None:
-            return
-        csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-        self.transform.toNode.widget.replot()
-        for subnode in self.transform.toNode.downstreamNodes:
-            subnode.widget.replot()
+        if self.transform is not None:
+            csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            self.transform.toNode.widget.replot()
+            for subnode in self.transform.toNode.downstreamNodes:
+                subnode.widget.replot()
+        else:
+            self.node.widget.replot()
+            for subnode in self.node.downstreamNodes:
+                subnode.widget.replot()
 
     def updateStatusWidgets(self):
         for widget in self.statusWidgets:
@@ -467,22 +477,22 @@ class PropWidget(qt.QWidget):
             elif hasattr(widget, 'setText'):
                 gpd.setEditFromData(widget, dd['prop'], **dd['kw'])
 
-    def updatePropFromSpinBox(self, key, value):
-        spinBox = self.sender()
+    def updatePropFromSpinBox(self, spinBox, key, value):
+        # spinBox = self.sender()  # doesn't work in PySide2
         if not spinBox.hasFocus():
             return
         spinBox.setEnabled(False)  # to prevent double acting
         self.updateProp(key, value)
         spinBox.setEnabled(True)
 
-    def updatePropFromCheckBox(self, key, value):
-        checkBox = self.sender()
+    def updatePropFromCheckBox(self, checkBox, key, value):
+        # checkBox = self.sender()  # doesn't work in PySide2
         if not checkBox.hasFocus():
             return
         self.updateProp(key, value)
 
-    def updatePropFromComboBox(self, key, index, indexToValue=None):
-        comboBox = self.sender()
+    def updatePropFromComboBox(self, comboBox, key, index, indexToValue=None):
+        # comboBox = self.sender()  # doesn't work in PySide2
         if not comboBox.hasFocus():
             return
         value = indexToValue[index] if indexToValue is not None else index
@@ -500,7 +510,7 @@ class PropWidget(qt.QWidget):
             dd = self.propWidgets[widget]
             if dd['widgetTypeIndex'] == 0:  # 'edit'
                 txt = gpd.setEditFromData(widget, dd['prop'], **dd['kw'])
-                self.changeTooltip(txt, widget)
+                self.changeTooltip(widget, txt)
             elif dd['widgetTypeIndex'] == 1:  # 'label'
                 pass
             elif dd['widgetTypeIndex'] == 2:  # 'spinbox'

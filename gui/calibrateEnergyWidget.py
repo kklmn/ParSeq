@@ -3,6 +3,8 @@ __author__ = "Konstantin Klementiev"
 __date__ = "17 Nov 2018"
 # !!! SEE CODERULES.TXT !!!
 
+from functools import partial
+
 from silx.gui import qt
 
 from ..core import singletons as csi
@@ -110,7 +112,8 @@ class ComboDelegate(qt.QItemDelegate):
     def createEditor(self, parent, option, index):
         combo = qt.QComboBox(parent)
         combo.addItems(list(xrt.crystals.keys()) + ['none'])
-        combo.currentIndexChanged.connect(self.currentIndexChanged)
+        combo.currentIndexChanged.connect(
+            partial(self.currentIndexChanged, combo))
         return combo
 
     def setEditorData(self, editor, index):
@@ -125,8 +128,8 @@ class ComboDelegate(qt.QItemDelegate):
     def setModelData(self, editor, model, index):
         model.setData(index, editor.currentText())
 
-    def currentIndexChanged(self):
-        self.commitData.emit(self.sender())
+    def currentIndexChanged(self, combo):
+        self.commitData.emit(combo)
 
 
 class CalibrateTableView(qt.QTableView):

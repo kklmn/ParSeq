@@ -13,7 +13,8 @@ class Node(object):
     """Parental Node class. Must be subclassed to define the following class
     variables:
 
-    *name*: the name of the GUI tab and also the section name in ini file.
+    *name*: the name of the node, also shown as a GUI tab and also is a section
+        name in ini file.
 
     *arrays*: OrderedDict of dicts
         describes the arrays operated in this node. The keys are names of these
@@ -34,20 +35,26 @@ class Node(object):
         *qLabel*: str, default = array name (the key in *arrays*)
             used in the GUI labels
 
-        *qUnit*: str, default = None (no displayed units)
-            attached to the GUI labels in parentheses
-
         *plotLabel*: str, or list of str, default = qLabel
             axis label for the GUI plot. For 2D or 3D plots the 2- or 3-list
-            corresponds to the plot axes; if the list element is not in
-            *arrays* then the str-element itself is the axis label, otherwise
-            the label [and unit] are taken from that dictionary (entry of
-            *arrays*).
+            corresponds to the plot axes. The list contains keys from *arrays*
+            and then the label and unit are taken from that dictionary (the
+            entry of *arrays*) or, alternatively, the list elements themselves
+            are axis labels.
 
-        *plotUnit*: str: default = qUnit
-            attached to the plot label in parentheses
+        *qUnit*: str, default None
+            displayed in the GUI
 
-        *plotParams*: dict , default is `{}` that assumes thin solid lines
+        *plotUnit*: str, default = *qUnit*
+            attached to the plot label in parentheses. For example, for Å^-1:
+            *qUnit*='u'Å\u207B\u00B9' and *plotUnit*=r'Å$^{-1}$'.
+
+        *unitConversion*: dict {'data unit': factor}, default is `{}`
+            conversion factors from data units to the node unit for non-trivial
+            cases (e.g. nm to Å). Conversion by a prefix (e.g. 'keV' to 'eV')
+            is considered as trivial and needs no definition here.
+
+        *plotParams*: dict, default is `{}` that assumes thin solid lines
             default parameters for plotting. Can have the following keys:
                 *linewidth* (or *lw*), *style*, *symbol* and *symbolsize*.
             Note that color is set for a data entry and is equal across the

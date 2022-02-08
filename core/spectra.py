@@ -132,8 +132,8 @@ class TreeItem(object):
         else:
             raise ValueError("invalid column")
 
-    def is_good(self, column):
-        return True
+    def get_state(self, column):
+        return 1
 
     def set_data(self, column, value):
         if column == 0:
@@ -309,6 +309,16 @@ class Spectrum(TreeItem):
         *dataFormat* is assumed to be empty for a data group and non-empty for
         a spectrum.
 
+        *dataFormat*: dict
+        As a minimum, it defines the key 'dataSource' and sets it to a list of
+        hdf5 names (for the hdf5 data), column numbers or expressions of
+        'Col1', 'Col2' etc variables (for column data). It may define
+        'conversionFactors' as a list of either floats or strings; a foat is a
+        multiplicaive factor that converts to the node's array unit and a
+        string is another unit that cannot be converted to the node's array
+        unit, e.g. the node defines an array with a 'mA' unit while the data
+        was measured with a 'count' unit.
+
         The data propagation is between *originNode* and *terminalNode*, both
         ends are included. *originNode* can be int (the ordinal number of the
         node) or a node instance obtained from the OrderedDict
@@ -352,8 +362,7 @@ class Spectrum(TreeItem):
         self.isExpanded = True
         self.colorTag = kwargs.get('colorTag', 0)
         self.hasChanged = False
-        # self.isGood = dict((node.name, False) for node in csi.nodes.values())
-        self.isGood = dict((name, False) for name in csi.nodes)
+        self.state = dict((nn, cco.DATA_STATE_UNDEFINED) for nn in csi.nodes)
         self.aliasExtra = None  # for extra name qualifier
         self.meta = {}
         self.combinesTo = []  # list of instances of Spectrum if not empty
@@ -365,6 +374,9 @@ class Spectrum(TreeItem):
             parentItem.childItems.insert(insertAt, self)
 
         if self.dataFormat:
+            if 'conversionFactors' not in self.dataFormat:
+                self.dataFormat['conversionFactors'] = \
+                    [None for arr in self.originNode.arrays]
             copyTransformParams = kwargs.pop('copyTransformParams', False)
             transformParams = kwargs.pop('transformParams', {})
             runDownstream = kwargs.pop('runDownstream', True)
@@ -423,15 +435,15 @@ class Spectrum(TreeItem):
                         plotParams['linestyle'] = '-'
                     self.plotProps[node.name][yName] = plotParams
 
-    def is_good(self, column):
+    def get_state(self, column):
         leadingColumns = len(csi.modelLeadingColumns)
         if column < leadingColumns:
-            return True
+            return cco.DATA_STATE_GOOD
         node, key = csi.modelDataColumns[column-leadingColumns]
         role = node.getProp(key, 'role')
         if role.startswith('0'):
-            return True
-        return self.isGood[node.name]
+            return cco.DATA_STATE_GOOD
+        return self.state[node.name]
 
     def read_data(self, shouldLoadNow=True, runDownstream=True,
                   copyTransformParams=True, transformParams={}):
@@ -511,7 +523,8 @@ class Spectrum(TreeItem):
             tr = self.originNode.transformsOut[0]
             if csi.transformer is not None:
                 csi.transformer.prepare(
-                    tr, dataItems=[self], starter=self.originNode.widget)
+                    tr, dataItems=[self],
+                    starter=self.originNode.widget.columnFormat)
                 csi.transformer.thread().start()
             else:
                 tr.run(dataItems=[self])
@@ -604,11 +617,13 @@ class Spectrum(TreeItem):
             else:
                 multiDataSource.append(ids)
 
+        kwargs.pop('dataFormat', '')
+        kwargs.pop('alias', '')
         for ds in zip(*dataSourceSplit):
             alias = '{0}_{1}'.format(
                 groupName, '_'.join(ds[i] for i in multiDataSource))
             df['dataSource'] = list(ds)
-            Spectrum(name, group, dataFormat=df, alias=alias)
+            Spectrum(name, group, dataFormat=df, alias=alias, **kwargs)
 
         if csi.withGUI:
             group.init_colors(group.childItems)
@@ -646,12 +661,12 @@ class Spectrum(TreeItem):
                 pass
         else:
             raise TypeError('wrong datafile type')
-        xF = df.pop('xFactor') if 'xFactor' in df else None
 
         try:
             df['skip_header'] = df.pop('skiprows', 0)
             dataSource = df.pop('dataSource', None)
             sliceStrs = df.pop('slices', ['' for ds in dataSource])
+            conversionFactors = df.pop('conversionFactors', [])
             if dataSource is None:
                 raise ValueError('bad dataSource settings')
             if self.dataType == DATA_COLUMN_FILE:
@@ -679,20 +694,19 @@ class Spectrum(TreeItem):
                                                for slc in sliceStr.split(','))
                             arr = arr[sliceTuple]
 
-                if toNode.getProp(aName, 'role').startswith('x') and xF:
-                    arr *= xF
                 setName = toNode.getProp(aName, 'raw')
                 try:
                     setattr(self, setName, arr)
                 except Exception:
                     setattr(self, setName, None)
 
-            self.isGood[toNode.name] = True
+            self.state[toNode.name] = cco.DATA_STATE_GOOD
         except (ValueError, OSError, IndexError) as e:
             print(e)
-            self.isGood[toNode.name] = False
+            self.state[toNode.name] = cco.DATA_STATE_NOTFOUND
             return
 
+        self.convert_units(conversionFactors)
         # define metadata
         if self.dataType == DATA_COLUMN_FILE:
             self.meta['text'] = r''.join(header)
@@ -744,6 +758,22 @@ class Spectrum(TreeItem):
                 d[kn] = d[k]
                 locals()[k] = k
         return eval(colStr)
+
+    def convert_units(self, conversionFactors):
+        if not conversionFactors:
+            return
+        toNode = self.originNode
+        for aName, cFactor in zip(toNode.arrays, conversionFactors):
+            if not cFactor or isinstance(cFactor, type("")):
+                continue
+            setName = toNode.getProp(aName, 'raw')
+            try:
+                arr = getattr(self, setName)
+                arr *= cFactor
+                self.hasChanged = True
+            except Exception as e:
+                print(e)
+                setattr(self, setName, None)
 
     def calc_combined(self):
         """Case of *madeOf* as list of Spectrum instances. self.dataFormat is
@@ -807,19 +837,22 @@ class Spectrum(TreeItem):
                 setattr(self, arrayName, v)
 
             self.meta['length'] = len(v)
-            self.isGood[toNode.name] = True
+            self.state[toNode.name] = cco.DATA_STATE_GOOD
         except AssertionError:
-            self.isGood[toNode.name] = False
+            self.state[toNode.name] = cco.DATA_STATE_MATHERROR
             self.meta['text'] += '\nThe conbined arrays have different lengths'
 
     def create_data(self):
         """Case of *madeOf* as callable"""
         toNode = self.originNode
-        res = self.madeOf(**self.dataFormat)
-        for arrayName, arr in zip(toNode.arrays, res):
-            setName = toNode.getProp(arrayName, 'raw')
-            setattr(self, setName, arr)
-        self.isGood[toNode.name] = True
+        try:
+            res = self.madeOf(**self.dataFormat)
+            for arrayName, arr in zip(toNode.arrays, res):
+                setName = toNode.getProp(arrayName, 'raw')
+                setattr(self, setName, arr)
+            self.state[toNode.name] = cco.DATA_STATE_GOOD
+        except Exception:
+            self.state[toNode.name] = cco.DATA_STATE_BAD
 
     def save_transform_params(self):
         dtparams = self.transformParams
