@@ -7,6 +7,7 @@ import sys
 # import os
 # import numpy as np
 
+import types
 if sys.version_info < (3, 1):
     from inspect import getargspec
 else:
@@ -19,7 +20,6 @@ import errno
 from . import singletons as csi
 from .config import configTransforms
 
-_DEBUG = 10
 
 # class Param(object):
 #     def __init__(self, value, limits=[], step=None):
@@ -54,6 +54,15 @@ class Transform(object):
 
     Transforms, if several are present, must be instantiated in the order of
     data flow.
+
+    The method run_main(data) must be declared with @staticmethod. It returns
+    True if the transformation is successful otherwise it returns False.
+
+    *nThreads* or *nProcesses* can be > 1 to use threading or multiprocessing.
+    If both are > 1, threading is used. If *nThreads* or *nProcesses* > 1, the
+    lists *inArrays* and *outArrays* must be defined to send those arrays over
+    process-shared queues.
+
     """
     nThreads = 1  # can be 'all' or 'half'
     nProcesses = 1  # can be 'all' or 'half'
@@ -68,6 +77,12 @@ class Transform(object):
         if (not hasattr(self, 'name')) or (not hasattr(self, 'defaultParams')):
             raise NotImplementedError(
                 "The class Transform must be properly subclassed")
+
+        if not isinstance(self.run_main, types.FunctionType):
+            raise NotImplementedError(
+                "The method run_main() of {0} must be declared with "
+                "@staticmethod".format(self.__class__))
+
         self.fromNode = fromNode
         self.toNode = toNode
         csi.transforms[self.name] = self
@@ -153,13 +168,18 @@ class Transform(object):
                 self.fromNode.is_between_nodes(
                     data.originNode, data.terminalNode, node1in=True,
                     node2in=False)):
+                args = getargspec(self.__class__.run_main)[0]
+                if args[0] == 'self':
+                    print('IMPORTANT!: remove "self" from "run_main()" '
+                          'parameters as this is a static method, '
+                          'not an instance method')
                 if workerClass is not None:
                     worker = workerClass(self.__class__.run_main,
                                          self.inArrays, self.outArrays)
                     workers.append(worker)
                     workedItems.append(data)
                     if len(workers) == cpus or idata == len(items)-1:
-                        if _DEBUG > 1:
+                        if csi.DEBUG_LEVEL > 1:
                             print('run {0} in {1} {2}{3} for {4}'.format(
                                 self.name, len(workers), workerStr,
                                 '' if len(workers) == 1 else 's',
@@ -186,10 +206,10 @@ class Transform(object):
                     data.beingTransformed = True
                     if self.sendSignals:
                         csi.mainWindow.beforeDataTransformSignal.emit([data])
-                    if _DEBUG > 1:
+                    if csi.DEBUG_LEVEL > 1:
                         print('run {0} for {1}'.format(self.name, data.alias))
-                    args = getargspec(self.run_main)
-                    if 'allData' in args[0]:
+                    # args = getargspec(self.run_main)
+                    if 'allData' in args:
                         allData = csi.allLoadedItems
                         res = self.run_main(data, allData)
                     else:
@@ -255,23 +275,29 @@ class GenericProcessOrThread(object):
         # self.finished_event.clear()
 
     def put_in_data(self, item):
-        if _DEBUG > 20:
+        if csi.DEBUG_LEVEL > 20:
             print('put_in_data', item.alias)
         res = {'transformParams': item.transformParams,
                'alias': item.alias}
         for key in self.inArrays:
-            res[key] = getattr(item, key)
-        if _DEBUG > 20:
+            try:
+                res[key] = getattr(item, key)
+            except AttributeError as e:
+                print(e)
+                print('also check the capitalization of array names in nodes '
+                      'and transforms')
+                raise e
+        if csi.DEBUG_LEVEL > 20:
             print('put_in_data keys', res.keys())
         self.inDataQueue.put(res)
 
     def get_in_data(self, item):
-        if _DEBUG > 20:
+        if csi.DEBUG_LEVEL > 20:
             print('get_in_data enter')
         outDict = retry_on_eintr(self.inDataQueue.get)
         for field in outDict:
             setattr(item, field, outDict[field])
-        if _DEBUG > 20:
+        if csi.DEBUG_LEVEL > 20:
             print('get_in_data exit', item.alias)
 
     def put_out_data(self, item):
@@ -281,17 +307,17 @@ class GenericProcessOrThread(object):
                 res[key] = getattr(item, key)
             except AttributeError:
                 pass
-        if _DEBUG > 20:
+        if csi.DEBUG_LEVEL > 20:
             print('put_out_data keys', res.keys())
         self.outDataQueue.put(res)
 
     def get_out_data(self, item):
-        if _DEBUG > 20:
+        if csi.DEBUG_LEVEL > 20:
             print('get_out_data enter')
         outDict = retry_on_eintr(self.outDataQueue.get)
         for field in outDict:
             setattr(item, field, outDict[field])
-        if _DEBUG > 20:
+        if csi.DEBUG_LEVEL > 20:
             print('get_out_data exit', item.alias)
 
     def put_results(self, obj):
@@ -306,15 +332,20 @@ class GenericProcessOrThread(object):
 
     def run(self):
         # self.started_event.set()
-        if _DEBUG > 20:
+        if csi.DEBUG_LEVEL > 20:
             print('enter run')
         data = DataProxy()
         self.get_in_data(data)
-        res = self.func(data)
-        self.put_results(res)
-        self.put_out_data(data)
-        if _DEBUG > 20:
-            print('exit run', data.alias)
+        try:
+            res = self.func(data)
+            self.put_results(res)
+        except TypeError:
+            self.put_results(False)
+            print('failed {0}'.format(self.func))
+        finally:
+            self.put_out_data(data)
+            if csi.DEBUG_LEVEL > 20:
+                print('exit run', data.alias)
         # self.started_event.clear()
         # self.finished_event.set()
 

@@ -113,7 +113,9 @@ class Node(object):
                 self.displayValues.append(key)
                 csi.modelDataColumns.append([self, key])
             else:
-                self.arrays[key]['ndim'] = 0
+                raise ValueError("unknown role '{0}' of arrays['{1}']".format(
+                    role, key))
+                # self.arrays[key]['ndim'] = 0
 
         dims = self.getPropList('ndim')
         self.plotDimension = max(dims)

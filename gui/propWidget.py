@@ -15,8 +15,6 @@ from . import propsOfData as gpd
 propWidgetTypes = ('edit', 'label', 'spinbox', 'groupbox', 'checkbox',
                    'pushbutton', 'tableview', 'combobox')
 
-_DEBUG = 1
-
 
 class QLineEditSelectRB(qt.QLineEdit):
     def __init__(self, parent=None, rb=None):
@@ -151,7 +149,7 @@ class PropWidget(qt.QWidget):
             self._addAction(
                 menu, actionName2,
                 partial(self.startPick, props, values, actionName))
-            if _DEBUG > 10:
+            if csi.DEBUG_LEVEL > 10:
                 print('widget in widgetsOver')
                 print('actionName', actionName)
                 print('props', props)
@@ -167,7 +165,7 @@ class PropWidget(qt.QWidget):
             self._addAction(
                 menu, actionName2,
                 partial(self.startPick, props, values, actionName))
-            if _DEBUG > 10:
+            if csi.DEBUG_LEVEL > 10:
                 print('apply all params of the transform')
                 print('actionName', actionName)
                 print('props', props)
@@ -181,7 +179,7 @@ class PropWidget(qt.QWidget):
             self._addAction(
                 menu, actionName2,
                 partial(self.startPick, props, values, actionName))
-            if _DEBUG > 10:
+            if csi.DEBUG_LEVEL > 10:
                 print('apply all params of all transforms')
                 print('actionName', actionName)
                 print('props', props)
@@ -274,7 +272,7 @@ class PropWidget(qt.QWidget):
         self.pendingProps = props
         self.pendingValues = values
         self.pendingActionName = actionName
-        if _DEBUG > 10:
+        if csi.DEBUG_LEVEL > 10:
             print('startPick')
             print('pendingActionName', self.pendingActionName)
             print('pendingProps', self.pendingProps)
@@ -283,7 +281,7 @@ class PropWidget(qt.QWidget):
             self.node.widget.preparePickData(self)
 
     def applyPendingProps(self):
-        if _DEBUG > 10:
+        if csi.DEBUG_LEVEL > 10:
             print('applyPendingProps')
             print('pendingActionName', self.pendingActionName)
             print('pendingProps', self.pendingProps)
