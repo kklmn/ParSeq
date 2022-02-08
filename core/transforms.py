@@ -50,6 +50,7 @@ class Transform(object):
     class variables:
 
     *name*: str.
+        The name must be unique.
 
     *defaultParams*: dict of default parameters of transform for new data.
 
@@ -86,6 +87,9 @@ class Transform(object):
 
         self.fromNode = fromNode
         self.toNode = toNode
+        if self.name in csi.transforms:
+            raise ValueError("A transform '{0}' already exists. One instance "
+                             "is allowed".format(self.name))
         csi.transforms[self.name] = self
 
         if self not in fromNode.transformsOut:

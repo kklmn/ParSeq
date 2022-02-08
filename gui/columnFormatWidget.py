@@ -25,15 +25,17 @@ class ColumnFormatWidget(PropWidget):
         self.headerTab = self.makeHeaderTab()
         self.tabWidget.addTab(self.headerTab, 'header')
         self.dataLocationTab = self.makeDataLocationTab()
-        ind = self.tabWidget.addTab(self.dataLocationTab, 'location')
+        ind = self.tabWidget.addTab(self.dataLocationTab, 'arrays')
         self.tabWidget.setTabToolTip(
             ind, "for HDF5/SPEC datasets: use context menu on data arrays\n"
             "for column files: use expressions of variables `Col1`, `Col2`, …"
-            "/nor give a zero-based int column index")
+            "\nor give a zero-based int column index")
         self.conversionTab = self.makeConversionTab()
         ind = self.tabWidget.addTab(self.conversionTab, 'conversion')
         self.tabWidget.setTabToolTip(
-            ind, "give either a float factor, a new str unit or leave empty")
+            ind, "give either a float factor,\n"
+            "a new str unit (not for abscissa) or\n"
+            "leave empty (no conversion)")
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.tabWidget)
@@ -216,6 +218,12 @@ class ColumnFormatWidget(PropWidget):
         # print([cco.getDotAttr(it, 'dataFormat') for it in csi.selectedItems])
 
     def getDataFormat(self, needHeader):
+        def try_float(txt):
+            try:
+                return float(txt)
+            except Exception:
+                return txt
+
         dres = {}
         try:
             if needHeader:
@@ -232,6 +240,8 @@ class ColumnFormatWidget(PropWidget):
             slices = [edit.text() for edit in self.sliceEdits]
             if slices.count('') != len(slices):
                 dres['slices'] = slices
+            convs = [try_float(edit.text()) for edit in self.conversionEdits]
+            dres['conversionFactors'] = convs
         except:  # noqa
             return
         return dres

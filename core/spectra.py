@@ -10,6 +10,7 @@ import copy
 import json
 import numpy as np
 from collections import Counter
+
 import silx.io as silx_io
 
 from . import singletons as csi
@@ -478,18 +479,18 @@ class Spectrum(TreeItem):
 
             basename = osp.basename(self.madeOf)
             if self.alias == 'auto':
-                self.alias = osp.splitext(basename)[0]
+                tmpalias = osp.splitext(basename)[0]
                 if '::' in self.madeOf:
                     h5name = osp.splitext(osp.basename(
                         self.madeOf[:self.madeOf.find('::')]))[0]
-                    self.alias = '/'.join([h5name, self.alias])
+                    tmpalias = '/'.join([h5name, tmpalias])
 
                 if self.aliasExtra:
-                    self.alias += ': {0}'.format(self.aliasExtra)
+                    tmpalias += ': {0}'.format(self.aliasExtra)
                 if self.suffix:
-                    self.alias += self.suffix
-            # check duplicates:
-            if True:  # should check duplicates
+                    tmpalias += self.suffix
+
+                # check duplicates:
                 allLoadedItemNames = []
                 for d in csi.allLoadedItems:
                     if d is self:
@@ -503,7 +504,8 @@ class Spectrum(TreeItem):
                 allLoadedItemsCount = Counter(allLoadedItemNames)
                 n = allLoadedItemsCount[osp.normcase(self.madeOf)]
                 if n > 0:
-                    self.alias += " ({0})".format(n)
+                    tmpalias += " ({0})".format(n)
+                self.alias = tmpalias
 
 #        csi.undo.append([self, insertAt, lenData])
 
@@ -521,15 +523,9 @@ class Spectrum(TreeItem):
 
         if runDownstream:
             tr = self.originNode.transformsOut[0]
-            if csi.transformer is not None:
-                csi.transformer.prepare(
-                    tr, dataItems=[self],
-                    starter=self.originNode.widget.columnFormat)
-                csi.transformer.thread().start()
-            else:
-                tr.run(dataItems=[self])
-                if csi.model is not None:
-                    csi.model.invalidateData()
+            tr.run(dataItems=[self])  # no need for multiprocessing here
+            if csi.model is not None:
+                csi.model.invalidateData()
 
     def insert_item(self, name, insertAt=None, **kwargs):
         """This method searches for one ore more sequences in the elements of

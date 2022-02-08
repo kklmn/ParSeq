@@ -4,9 +4,10 @@ __date__ = "23 Jul 2021"
 # !!! SEE CODERULES.TXT !!!
 
 from functools import partial
+from collections import OrderedDict
 
 from silx.gui import qt
-from collections import OrderedDict
+
 from ..core import singletons as csi
 from ..core import commons as cco
 from . import undoredo as gur
@@ -455,8 +456,16 @@ class PropWidget(qt.QWidget):
     def _onTransformThreadReady(self, starter, duration=0):
         if starter is not self:
             return
+        if csi.DEBUG_LEVEL > 50:
+            what = '_onTransformThreadReady()'
+            where = self.node.name if self.node is not None else ''
+            if self.transform is not None:
+                where += ' ' + self.transform.name
+            print('enter {0} {1}'.format(what, where))
         self.updateStatusWidgets()
         self.replotAllDownstream()
+        if csi.DEBUG_LEVEL > 50:
+            print('exit {0} {1}'.format(what, where))
 
     def replotAllDownstream(self):
         if self.transform is not None:

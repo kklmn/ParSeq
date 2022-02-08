@@ -22,6 +22,7 @@ core.singletons.selectedTopItems lists.
 
 from functools import partial
 import pickle
+
 from silx.gui import qt
 
 from ..core import commons as cco
@@ -639,7 +640,7 @@ class EyeHeader(qt.QHeaderView):
             pointerPath.translate(rect.x()+12, rect.y()+16)
             painter.drawPath(pointerPath)
 
-    def paintEye(self, painter, rect):
+    def paintEye(self, painter, rect, pupilR=1.5):
         color = self.EYE_IRIS
         painter.setBrush(color)
         painter.setPen(color)
@@ -648,9 +649,9 @@ class EyeHeader(qt.QHeaderView):
         color = qt.QColor('black')
         painter.setBrush(color)
         painter.setPen(color)
-        radius1 = 1.5
+        radius1 = pupilR
         painter.drawEllipse(rect.center(), radius1, radius1)
-        painter.setPen(qt.QPen(self.EYE_BROW, radius1))
+        painter.setPen(qt.QPen(self.EYE_BROW, 1.5))
         c0 = rect.center()
         x0, y0 = c0.x(), c0.y()
         ww, hh = min(2.5*radius0, rect.width()//2), radius0
@@ -663,20 +664,20 @@ class EyeHeader(qt.QHeaderView):
         painter.save()
         super(EyeHeader, self).paintSection(painter, rect, logicalIndex)
         painter.restore()
-        painter.setRenderHint(qt.QPainter.Antialiasing, True)
+        painter.setRenderHint(qt.QPainter.Antialiasing)
         if logicalIndex == 1:
             if csi.dataRootItem.isVisible and self.plotDimension == 1:
                 # self.paintCheckBox(painter, rect)
                 # rect.moveTo(rect.x(), rect.y()-6)
                 # self.paintEye(painter, rect)
-                rect.moveTo(rect.x(), rect.y()-15)
+                rect.moveTo(rect.x(), rect.y()-14)
                 self.paintEye(painter, rect)
-                rect.moveTo(rect.x(), rect.y()+15)
+                rect.moveTo(rect.x(), rect.y()+14)
                 self.paintEye(painter, rect)
-                rect.moveTo(rect.x(), rect.y()+15)
+                rect.moveTo(rect.x(), rect.y()+14)
                 self.paintEye(painter, rect)
             else:
-                self.paintEye(painter, rect)
+                self.paintEye(painter, rect, pupilR=2.8)
 
 
 class DataTreeView(qt.QTreeView):

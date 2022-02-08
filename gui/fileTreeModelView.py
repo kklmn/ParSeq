@@ -17,6 +17,7 @@ import pickle
 import numpy as np
 
 import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
+
 import silx
 from distutils.version import LooseVersion, StrictVersion
 assert LooseVersion(silx.version) >= LooseVersion("0.9.0")
@@ -397,7 +398,8 @@ class FileSystemWithHdf5Model(ModelBase):
             cdf = df.copy()
             cco.get_header(fname, cdf)
             cdf['skip_header'] = cdf.pop('skiprows', 0)
-            dataS = cdf.pop('dataSource', [])  # from dataEdits
+            dataS = cdf.pop('dataSource', [])
+            cdf.pop('conversionFactors', [])
             with np.warnings.catch_warnings():
                 np.warnings.simplefilter("ignore")
                 arrs = np.genfromtxt(fname, unpack=True, max_rows=2, **cdf)
@@ -411,7 +413,8 @@ class FileSystemWithHdf5Model(ModelBase):
                 if colEval is None:
                     return
                 lres.append(colEval)
-        except:  # noqa
+        except Exception as e:
+            # print('tryLoadColDataset:', e)
             return
         return lres, df
 
@@ -684,7 +687,7 @@ class FileSystemWithHdf5Model(ModelBase):
         indexH5 = self.h5Model.indexFromPath(headIndexH5, fnameH5sub)
         return self.mapFromH5(indexH5)
 
-    def mimeData(self, indexes):
+    def mimeData(self, indexes, checkValidity=True):
         indexes0 = [index for index in indexes if index.column() == 0]
         nodeTypes = [self.nodeType(index) for index in indexes0]
         if nodeTypes.count(nodeTypes[0]) != len(nodeTypes):  # not all equal
@@ -693,8 +696,9 @@ class FileSystemWithHdf5Model(ModelBase):
             indexesFS = []
             for index in indexes0:
                 indexFS = self.mapToFS(index)
-                if self.tryLoadColDataset(indexFS) is None:
-                    return
+                if checkValidity:
+                    if self.tryLoadColDataset(indexFS) is None:
+                        return
                 indexesFS.append(indexFS)
             if ModelBase == qt.QFileSystemModel:
                 return super(FileSystemWithHdf5Model, self).mimeData(indexesFS)
@@ -704,8 +708,9 @@ class FileSystemWithHdf5Model(ModelBase):
             paths = []
             for index in indexes0:
                 indexH5 = self.mapToH5(index)
-                if self.tryLoadHDF5Dataset(indexH5) is None:
-                    return
+                if checkValidity:
+                    if self.tryLoadHDF5Dataset(indexH5) is None:
+                        return
                 try:
                     path = 'silx:' + '::'.join(
                         (self.h5Model.nodeFromIndex(indexH5).obj.file.filename,
@@ -839,7 +844,14 @@ class FileTreeView(qt.QTreeView):
                 strLoad, self.transformNode.widget.loadFiles, "Ctrl+O")
         self.actionSynchronize = self._addAction(
             "Synchronize container", self.synchronizeHDF5, "Ctrl+R")
-        self.testModel = self._addAction("Test Model", self.testModel)
+        self.actionViewTextFile = self._addAction(
+            "View text file (will be diplayed in 'meta' panel)",
+            self.viewTextFile, "F3")
+
+        # for testing the file model:
+        # from ..tests.modeltest import ModelTest
+        # self.ModelTest = ModelTest
+        # self.actionTestModel = self._addAction("Test Model", self.testModel)
 
     def _addAction(self, text, slot, shortcut=None):
         action = qt.QAction(text, self)
@@ -941,12 +953,42 @@ class FileTreeView(qt.QTreeView):
         self.actionSynchronize.setEnabled(
             nodeType0 in (NODE_HDF5_HEAD, NODE_HDF5))
 
+        if nodeType0 == NODE_FS:
+            try:
+                fname = self.model().filePath(selectedIndexes[0])
+                if not qt.QFileInfo(fname).isDir():
+                    menu.addSeparator()
+                    menu.addAction(self.actionViewTextFile)
+            except Exception:
+                pass
+
         if hasattr(self, 'ModelTest'):
             menu.addSeparator()
-            menu.addAction(self.testModel)
+            menu.addAction(self.actionTestModel)
 
         menu.exec_(
             self.transformNode.widget.files.viewport().mapToGlobal(point))
+
+    def viewTextFile(self):
+        if self.transformNode is None:
+            return
+        sIndexes = self.selectionModel().selectedRows()
+        lenSelectedIndexes = len(sIndexes)
+        if lenSelectedIndexes != 1:
+            return
+        nodeType = self.model().nodeType(sIndexes[0])
+        if nodeType != NODE_FS:
+            return
+
+        try:
+            fname = self.model().filePath(sIndexes[0])
+            if qt.QFileInfo(fname).isDir():
+                return
+            with open(fname, 'r') as f:
+                lines = f.readlines()
+            self.transformNode.widget.metadata.setText(''.join(lines))
+        except Exception:
+            return
 
     def testModel(self):
         if hasattr(self, 'ModelTest'):

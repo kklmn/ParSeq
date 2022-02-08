@@ -716,7 +716,8 @@ class NodeWidget(qt.QWidget):
             else:  # fobj[1] == csp.DATA_DATASET:
                 ind = self.files.model().indexFromH5Path(fobj[0], True)
             self.files.setCurrentIndex(ind)
-            self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtCenter)
+            # self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtCenter)
+            self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtTop)
             self.files.dataChanged(ind, ind)
         self.updateMeta()
         if fobj:

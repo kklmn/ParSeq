@@ -10,11 +10,12 @@ import numpy as np
 from functools import partial
 import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 import h5py
-from silx.gui import qt
 import autopep8
 import textwrap
 import re
 import shutil
+
+from silx.gui import qt
 
 # path to ParSeq:
 import sys; sys.path.append('..')  # analysis:ignore
