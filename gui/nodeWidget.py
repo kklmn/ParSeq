@@ -628,18 +628,8 @@ class NodeWidget(qt.QWidget):
         if not yNames:
             return ""
         yLabels = self.node.getPropList('plotLabel', keys=yNames)
-        axisLabel = u""
-        spacer = u""
-        for yLabel in yLabels:
-            if yLabel not in axisLabel:
-                axisLabel += spacer + yLabel
-                spacer = u", "
-        spacer = u""
-        axisUnit = u""
-        for yUnit in yUnits:
-            if yUnit not in axisUnit:
-                axisUnit += spacer + yUnit
-                spacer = u", "
+        axisLabel = ", ".join(yLabels)
+        axisUnit = ", ".join(yUnits)
         if len(axisUnit) > 0:
             axisLabel += u" ({0})".format(axisUnit)
         return axisLabel

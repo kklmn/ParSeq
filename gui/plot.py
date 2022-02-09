@@ -43,9 +43,18 @@ class Plot1D(splot.PlotWindow):
         else:
             return
         index = csi.model.indexFromItem(item)
+        csi.selectedItems[:] = []
+        csi.selectedItems.extend([item])
+        csi.selectedTopItems[:] = []
+        csi.selectedTopItems.extend(csi.model.getTopItems([index]))
+
         csi.selectionModel.setCurrentIndex(
             index, qt.QItemSelectionModel.ClearAndSelect |
             qt.QItemSelectionModel.Rows)
+        nodeWidget = self.parent().parent().parent()
+        nodeWidget.tree.setCurrentIndex(index)
+        nodeWidget.tree.selChanged()
+        nodeWidget.updateNodeForSelectedItems()
 
 
 class Plot2D(splot.Plot2D):
