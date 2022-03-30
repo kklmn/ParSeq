@@ -107,6 +107,10 @@ class TreeItem(object):
                         if isinstance(ds, type("")):
                             if ds.startswith('silx'):
                                 res += '\n' + ds
+                    if csi.currentNode is not None:
+                        node = csi.currentNode
+                        if self.state[node.name] == cco.DATA_STATE_BAD:
+                            res += '\nincopatible data shapes!'
             try:
                 if csi.currentNode is not None:
                     node = csi.currentNode
@@ -122,7 +126,8 @@ class TreeItem(object):
                         nl = '\n' if res else ''
                         what = 'shape' if node.plotDimension > 1 else 'length'
                         res += nl + '{0}: {1}'.format(what, sh)
-            except Exception:
+            except Exception as e:
+                res += '\n' + str(e)
                 pass
             return res
 
@@ -494,6 +499,10 @@ class Spectrum(TreeItem):
                     self.colorTag = 2
             if shouldLoadNow:
                 self.read_file()
+            if not self.check_shape():
+                print('Incopatible data shapes!')
+                self.state[self.originNode.name] = cco.DATA_STATE_BAD
+                self.colorTag = 3
 
             basename = osp.basename(self.madeOf)
             if self.alias == 'auto':
@@ -544,6 +553,26 @@ class Spectrum(TreeItem):
             tr.run(dataItems=[self])  # no need for multiprocessing here
             if csi.model is not None:
                 csi.model.invalidateData()
+
+    def check_shape(self):
+        toNode = self.originNode
+        for iarr, arrName in enumerate(toNode.checkShapes):
+            pos = arrName.find('[')
+            if pos > 0:
+                stem = arrName[:pos]
+                sl = arrName[pos+1:-1]
+            else:
+                stem = arrName
+                sl = '0'
+            checkName = toNode.getProp(stem, 'raw')
+            arr = getattr(self, checkName)
+            shape = arr.shape[eval(sl)]
+            if iarr == 0:
+                shape0 = shape
+                continue
+            if shape != shape0:
+                return False
+        return True
 
     def insert_item(self, name, insertAt=None, **kwargs):
         """This method searches for one ore more sequences in the elements of

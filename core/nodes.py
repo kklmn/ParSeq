@@ -78,6 +78,8 @@ class Node(object):
                 self.getProp(array, key)  # validate the keys
         if not hasattr(self, 'auxArrays'):
             self.auxArrays = []
+        if not hasattr(self, 'checkShapes'):
+            self.checkShapes = []
 
         # filled automatically by transforms after creation of all nodes:
         self.upstreamNodes = []
