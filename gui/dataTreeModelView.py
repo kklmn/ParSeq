@@ -103,8 +103,7 @@ class DataTreeModel(qt.QAbstractItemModel):
                 return int(
                     qt.Qt.Checked if item.isVisible else qt.Qt.Unchecked)
         elif role == qt.Qt.ToolTipRole:
-            if index.column() == 0:
-                return item.tooltip()
+            return item.tooltip()
         elif role == qt.Qt.BackgroundRole:
             if item.beingTransformed and index.column() == 0:
                 return BUSY_BKGND

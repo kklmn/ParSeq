@@ -303,7 +303,7 @@ class MainWindowParSeq(qt.QMainWindow):
         # copy images
         impath = os.path.join(csi.appPath, 'doc', '_images')
         if os.path.exists(impath):
-            dst = os.path.join(gww.CONFDIR, '_images')
+            dst = os.path.join(gww.DOCDIR, '_images')
             # print(dest_impath, os.path.exists(dst))
             shutil.copytree(impath, dst, dirs_exist_ok=True)
 
@@ -334,7 +334,7 @@ class MainWindowParSeq(qt.QMainWindow):
     def _on_sphinx_html_ready(self):
         for name, node in csi.nodes.items():
             docName = name.replace(' ', '_')
-            fname = os.path.join(gww.CONFDIR, docName) + '.html'
+            fname = os.path.join(gww.DOCDIR, docName) + '.html'
             if not os.path.exists(fname):
                 continue
             html = 'file:///' + fname

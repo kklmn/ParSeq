@@ -519,9 +519,14 @@ class NodeWidget(qt.QWidget):
                     plotProps = dict(item.plotProps[node.name][yN])
                     symbolsize = plotProps.pop('symbolsize', 2)
                     z = 1 if item in csi.selectedItems else 0
-                    self.plot.addCurve(
-                        x, y, legend=curveLabel, color=item.color, z=z,
-                        **plotProps)
+                    try:
+                        self.plot.addCurve(
+                            x, y, legend=curveLabel, color=item.color, z=z,
+                            **plotProps)
+                    except Exception as e:
+                        print('plotting in {0} failed: {1}'.format(
+                            self.node.name, e))
+                        continue
                     nPlottedItems += 1
                     symbol = plotProps.get('symbol', None)
                     if symbol is not None:

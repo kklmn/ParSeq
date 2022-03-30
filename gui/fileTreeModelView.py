@@ -19,7 +19,7 @@ import numpy as np
 import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 
 import silx
-from distutils.version import LooseVersion, StrictVersion
+from distutils.version import LooseVersion  # , StrictVersion
 assert LooseVersion(silx.version) >= LooseVersion("0.9.0")
 from silx.gui import qt
 import silx.io as silx_io
@@ -42,7 +42,7 @@ USE_HDF5_ARRAY_ROLE = Hdf5TreeModel.USER_ROLE + 1
 LOAD_ITEM_PATH_ROLE = Hdf5TreeModel.USER_ROLE + 2
 H5PY_OBJECT_ROLE = Hdf5TreeModel.H5PY_OBJECT_ROLE
 
-COLUMN_NAME_WIDTH = 240
+COLUMN_NAME_WIDTH = 300
 NODE_INDENTATION = 12
 
 
@@ -159,11 +159,11 @@ class FileSystemWithHdf5Model(ModelBase):
         self.nodesHead = []
         self.nodesNoHead = []
         self._roothPath = None
-        self.layoutAboutToBeChanged.connect(self._resetModel)
+        # self.layoutAboutToBeChanged.connect(self._resetModel)
         self.layoutChanged.connect(self._restoreExpand)
 
     def _resetModel(self):
-        """Without reset it crashes if hdf5 nodes are expanded."""
+        """Without reset it crashes if hdf5 nodes are expanded... or not"""
         self.requestSaveExpand.emit()
         self.beginResetModel()
         self.endResetModel()
@@ -820,6 +820,7 @@ class FileTreeView(qt.QTreeView):
             roothPath = ''
         rootIndex = model.setRootPath(roothPath)
         self.setRootIndex(rootIndex)
+        self._expandedNodes = []
 
         self.setMinimumSize(qt.QSize(COLUMN_NAME_WIDTH, 250))
         self.setColumnWidth(0, COLUMN_NAME_WIDTH)

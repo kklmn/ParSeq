@@ -93,9 +93,10 @@ class TreeItem(object):
                 tip = ': '.join([self.alias, tip])
             return tip
         else:
+            res = ""
             if hasattr(self, 'name'):
                 if isinstance(self.name, type("")):
-                    return self.name
+                    res = self.name
             elif hasattr(self, 'madeOf'):
                 if isinstance(self.madeOf, type("")):
                     res = self.madeOf
@@ -106,7 +107,24 @@ class TreeItem(object):
                         if isinstance(ds, type("")):
                             if ds.startswith('silx'):
                                 res += '\n' + ds
-                    return res
+            try:
+                if csi.currentNode is not None:
+                    node = csi.currentNode
+                    if node.plotDimension == 1:
+                        sh = getattr(self, node.plotXArray).shape[0]
+                    elif node.plotDimension == 2:
+                        sh = getattr(self, node.plot2DArray).shape
+                    elif node.plotDimension == 3:
+                        sh = getattr(self, node.plot3DArray).shape
+                    else:
+                        sh = None
+                    if sh:
+                        nl = '\n' if res else ''
+                        what = 'shape' if node.plotDimension > 1 else 'length'
+                        res += nl + '{0}: {1}'.format(what, sh)
+            except Exception:
+                pass
+            return res
 
     def data(self, column):
         leadingColumns = len(csi.modelLeadingColumns)
@@ -648,10 +666,16 @@ class Spectrum(TreeItem):
                 print(e)
                 pass
             try:
-                header.append(b"start time " +
-                              silx_io.get_data(madeOf + "/start_time"))
-                header.append(b"end time " +
-                              silx_io.get_data(madeOf + "/end_time"))
+                label = silx_io.get_data(madeOf + "/start_time")
+                if isinstance(label, bytes):
+                    header.append(b"start time " + label)
+                else:
+                    header.append("start time " + label)
+                label = silx_io.get_data(madeOf + "/end_time")
+                if isinstance(label, bytes):
+                    header.append(b"end time " + label)
+                else:
+                    header.append("end time " + label)
             except (ValueError, KeyError, OSError) as e:
                 print(e)
                 pass

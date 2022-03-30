@@ -27,6 +27,14 @@ class QLineEditSelectRB(qt.QLineEdit):
         super(QLineEditSelectRB, self).focusInEvent(e)
 
 
+#  to replace the standard stepBy method of a SpinBox without inheritance:
+def stepByWithUpdate(self, oldStepBy, parent, key, steps):
+    oldStepBy(steps)
+    self.setEnabled(False)  # to prevent double acting
+    parent.updateProp(key, self.value())
+    self.setEnabled(True)
+
+
 class PropWidget(qt.QWidget):
     def __init__(self, parent=None, node=None, transform=None):
         super(PropWidget, self).__init__(parent)
@@ -343,9 +351,8 @@ class PropWidget(qt.QWidget):
         files.dataChanged(ind, ind)
 
     def changeTooltip(self, edit, txt):
-        # fm = qt.QFontMetrics(self.font())
-        # if (fm.width(txt) > edit.width()) and (edit.width() > 0):
-        if True:
+        fm = qt.QFontMetrics(self.font())
+        if (fm.width(txt) > edit.width()) and (edit.width() > 0):
             edit.setToolTip(txt)
         else:
             edit.setToolTip('')
@@ -373,8 +380,13 @@ class PropWidget(qt.QWidget):
                     elif iwt == 1:  # 'label'
                         pass
                     elif iwt == 2:  # 'spinbox'
-                        widget.valueChanged.connect(
-                            partial(self.updatePropFromSpinBox, widget, prop))
+                        # this method is bad as does updateProp while typing
+                        # widget.valueChanged.connect(partial(
+                        #     self.updatePropFromSpinBox, widget, prop))
+                        # replaced with using stepBy():
+                        widget.stepBy = partial(
+                            stepByWithUpdate, widget, widget.stepBy, self,
+                            prop)
                     elif iwt == 3:  # 'groupbox'
                         widget.toggled.connect(
                             partial(self.updatePropFromCheckBox, widget, prop))
@@ -486,13 +498,13 @@ class PropWidget(qt.QWidget):
             elif hasattr(widget, 'setText'):
                 gpd.setEditFromData(widget, dd['prop'], **dd['kw'])
 
-    def updatePropFromSpinBox(self, spinBox, key, value):
-        # spinBox = self.sender()  # doesn't work in PySide2
-        if not spinBox.hasFocus():
-            return
-        spinBox.setEnabled(False)  # to prevent double acting
-        self.updateProp(key, value)
-        spinBox.setEnabled(True)
+    # def updatePropFromSpinBox(self, spinBox, key, value):
+    #     # spinBox = self.sender()  # doesn't work in PySide2
+    #     if not spinBox.hasFocus():
+    #         return
+    #     spinBox.setEnabled(False)  # to prevent double acting
+    #     self.updateProp(key, value)
+    #     spinBox.setEnabled(True)
 
     def updatePropFromCheckBox(self, checkBox, key, value):
         # checkBox = self.sender()  # doesn't work in PySide2
@@ -545,7 +557,9 @@ class PropWidget(qt.QWidget):
             dd = self.propWidgets[widget]
             if dd['widgetTypeIndex'] == 0:  # 'edit'
                 gpd.updateDataFromEdit(widget, dd['prop'], **dd['kw'])
-            # if dd['widgetTypeIndex'] == 7:  # 'combobox'
+            elif dd['widgetTypeIndex'] == 2:  # 'spinbox'
+                gpd.updateDataFromSpinBox(widget, dd['prop'])
+            # elif dd['widgetTypeIndex'] == 7:  # 'combobox'
             #     gpd.updateDataFromComboBox(widget, dd['prop'])
         self.updateProp()
 

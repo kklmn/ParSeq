@@ -59,6 +59,9 @@ def setRButtonGroupWithEditsFromData(rButtons, edits, props):
 def setComboBoxFromData(comboBox, prop, compareWith=None, defaultIndex=0):
     common = getCommonPropInSelectedItems(prop)
     if common is not None:
+        if isinstance(common, float):
+            comboBox.lineEdit().setText(str(common))
+            return
         ind = compareWith.index(common) if compareWith is not None else common
         if isinstance(ind, int):
             comboBox.setCurrentIndex(ind)
@@ -195,6 +198,18 @@ def updateDataFromEdit(edit, prop, convertType=None, textReplace=None, **kw):
         if itValue != txt:
             # cco.setDotAttr(it, prop, irb)
             itContainer[itAttr] = txt
+            it.hasChanged = True
+
+
+def updateDataFromSpinBox(spinBox, prop):
+    if not spinBox.isEnabled():
+        return
+    value = spinBox.value()
+    for it in csi.selectedItems:
+        itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)
+        if itValue != value:
+            # cco.setDotAttr(it, prop, irb)
+            itContainer[itAttr] = value
             it.hasChanged = True
 
 

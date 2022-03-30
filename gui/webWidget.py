@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "3 Mar 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import re
 import sys
 import os
 import os.path as osp
+import shutil
 from silx.gui import qt
 
 from xml.sax.saxutils import escape
@@ -15,8 +16,25 @@ from sphinx.application import Sphinx
 from sphinx.errors import SphinxError
 import codecs
 
+from ..core import singletons as csi
+
 CONFDIR = osp.join(osp.dirname(osp.dirname(osp.abspath(__file__))), 'help')
-CSS_PATH = osp.join(CONFDIR, '_static')
+GUIDIR = osp.dirname(osp.abspath(__file__))
+DOCDIR = osp.expanduser(osp.join('~', '.parseq', 'doc'))
+
+try:
+    shutil.rmtree(DOCDIR)
+except FileNotFoundError:
+    pass
+shutil.copytree(osp.join(CONFDIR, '_images'), osp.join(DOCDIR, '_images'))
+for ico in ['1', '2', '3', 'n']:
+    fname = 'icon-item-{0}dim.png'.format(ico)
+    shutil.copy2(osp.join(GUIDIR, '_images', fname),
+                 osp.join(DOCDIR, '_images', fname))
+shutil.copytree(osp.join(CONFDIR, '_themes'), osp.join(DOCDIR, '_themes'))
+shutil.copy2(osp.join(CONFDIR, 'conf.py'), osp.join(DOCDIR, 'conf.py'))
+
+CSS_PATH = osp.join(DOCDIR, '_static')
 CSS_PATH = re.sub('\\\\', '/', CSS_PATH)
 JS_PATH = CSS_PATH
 shouldScaleMath = qt.BINDING == "PyQt4" and sys.platform == 'win32'
@@ -36,7 +54,9 @@ def sphinxify(context):
     """
     Largely modified Spyder's sphinxify.
     """
-    srcdir = osp.join(CONFDIR, '_sources')
+    if csi.DEBUG_LEVEL > 20:
+        print('enter sphinxify')
+    srcdir = osp.join(DOCDIR, '_sources')
 
     # Add a class to several characters on the argspec. This way we can
     # highlight them using css, in a similar way to what IPython does.
@@ -51,9 +71,8 @@ def sphinxify(context):
     confoverrides = {'html_context': context,
                      'extensions': ['sphinx.ext.mathjax', ]}
 
-    doctreedir = osp.join(CONFDIR, 'doctrees')
-    sphinx_app = Sphinx(srcdir, CONFDIR, CONFDIR,
-                        doctreedir, 'html',
+    doctreedir = osp.join(DOCDIR, 'doctrees')
+    sphinx_app = Sphinx(srcdir, DOCDIR, DOCDIR, doctreedir, 'html',
                         confoverrides, status=None, warning=None,
                         freshenv=True, warningiserror=False, tags=None)
     try:
@@ -63,6 +82,8 @@ def sphinxify(context):
         raise(e)
 #        output = ("It was not possible to generate rich text help for this "
 #                  "object.</br>Please see it in plain text.")
+    if csi.DEBUG_LEVEL > 20:
+        print('exit sphinxify')
 
 
 if 'pyqt4' in qt.BINDING.lower():
@@ -149,7 +170,7 @@ class SphinxWorker(qt.QObject):
     html_ready = qt.pyqtSignal()
 
     def prepare(self, docs, docNames, docArgspec="", docNote="", img_path=""):
-        srcdir = osp.join(CONFDIR, '_sources')
+        srcdir = osp.join(DOCDIR, '_sources')
         if not os.path.exists(srcdir):
             os.makedirs(srcdir)
 

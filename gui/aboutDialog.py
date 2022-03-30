@@ -137,7 +137,7 @@ class AboutDialog(qt.QDialog):
 
    <br/>
 
-.. |ico| image:: ../gui/_images/parseq.ico
+.. |ico| image:: _images/parseq.ico
    :scale: 100 %
 
 .. |synopsis| replace::
@@ -235,7 +235,7 @@ class AboutDialog(qt.QDialog):
             for name, iName in zip(names, icons):
                 name_ = "_".join(name.split())
                 iconTxt = '' if iName is None else \
-                    '<img src="../gui/_images/{0}.png" height="20" />'.format(iName)
+                    '<img src="_images/{0}.png" height="20" />'.format(iName)
                 flowChart += u"""\n
         <div id="pn_{0}" class="pipeline-node">{1} {2}</div>""".format(
                     name_, iconTxt, name)
@@ -323,7 +323,7 @@ class AboutDialog(qt.QDialog):
         if not self.canLoadHTML:
             return
         docName = self.tabNames[itab].replace(' ', '_')
-        html = 'file:///' + osp.join(gww.CONFDIR, docName+'.html')
+        html = 'file:///' + osp.join(gww.DOCDIR, docName+'.html')
         html = re.sub('\\\\', '/', html)
         self.webView.load(qt.QUrl(html))
 

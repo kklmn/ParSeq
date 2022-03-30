@@ -346,9 +346,9 @@ class GenericProcessOrThread(object):
         try:
             res = self.func(data)
             self.put_results(res)
-        except TypeError:
+        except (TypeError, ValueError) as e:
             self.put_results(False)
-            print('failed {0}'.format(self.func))
+            print('failed {0}: {1}'.format(self.func, e))
         finally:
             self.put_out_data(data)
             if csi.DEBUG_LEVEL > 20:
