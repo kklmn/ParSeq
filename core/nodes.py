@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "19 Apr 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -37,10 +37,11 @@ class Node(object):
 
         *plotLabel*: str, or list of str, default = qLabel
             axis label for the GUI plot. For 2D or 3D plots the 2- or 3-list
-            corresponds to the plot axes. The list contains keys from *arrays*
-            and then the label and unit are taken from that dictionary (the
-            entry of *arrays*) or, alternatively, the list elements themselves
-            are axis labels.
+            corresponds to the plot axes. The list may contain keys from
+            *arrays* and then the label and unit are taken from that dictionary
+            (the entry of *arrays*) or, alternatively, the list elements
+            themselves are axis labels. For 0D values, this parameter may hold
+            a format string to be used with the format() method.
 
         *qUnit*: str, default None
             displayed in the GUI
@@ -65,6 +66,12 @@ class Node(object):
         together so that the 1st element in a group is an x array and the
         others are y arrays. This grouping is respected only for the export of
         1D data.
+
+    *checkShapes*: list of str:
+        If given, the list contains keys of *arrays*. The corresponding arrays
+        will be checked for equal shape. The names of multidimensional arrays
+        can be ended by a slice.
+        For example: `checkShapes = ['theta', 'i0', 'xes3D[0]']`.
 
     """
 
@@ -112,29 +119,25 @@ class Node(object):
                     if not hasattr(self, 'plotYArrays'):
                         self.plotYArrays = []
                     self.plotYArrays.append(key)
-                    csi.modelDataColumns.append([self, key])
                 elif prl[0] == 'z':
                     self.plotZArray = key
             elif prl[0] == '0':
                 self.arrays[key]['ndim'] = 0
-                if not hasattr(self, 'displayValues'):
-                    self.displayValues = []
-                self.displayValues.append(key)
-                csi.modelDataColumns.append([self, key])
             else:
-                raise ValueError("unknown role '{0}' of arrays['{1}']".format(
-                    role, key))
-                # self.arrays[key]['ndim'] = 0
+                raise ValueError(
+                    "unknown role '{0}' of arrays['{1}']".format(role, key))
 
         dims = self.getPropList('ndim')
         self.plotDimension = max(dims)
 
+        added = 0
         if self.plotDimension == 1:
-            self.columnCount = len(self.plotYArrays)
-        else:
-            self.columnCount = 0
-        if hasattr(self, 'displayValues'):
-            self.columnCount += len(self.displayValues)
+            for key, role in zip(self.arrays, roles):
+                prl = role.lower()
+                if prl[0] == 'y' or prl[0] == '0':
+                    csi.modelDataColumns.append([self, key])
+                    added += 1
+        self.columnCount = added
 
     def is_between_nodes(self, node1, node2, node1in=True, node2in=False):
         """

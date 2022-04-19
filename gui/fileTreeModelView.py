@@ -846,7 +846,7 @@ class FileTreeView(qt.QTreeView):
         self.actionSynchronize = self._addAction(
             "Synchronize container", self.synchronizeHDF5, "Ctrl+R")
         self.actionViewTextFile = self._addAction(
-            "View text file (will be diplayed in 'meta' panel)",
+            "View text file (will be diplayed in 'metadata' panel)",
             self.viewTextFile, "F3")
 
         # for testing the file model:

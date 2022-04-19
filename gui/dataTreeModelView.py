@@ -134,7 +134,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             self.dataChanged.emit(index, index)
             self.needReplot.emit()
             return True
-        if role == qt.Qt.CheckStateRole:
+        elif role == qt.Qt.CheckStateRole:
             item = index.internalPointer()
             self.setVisible(item, value)
             return True

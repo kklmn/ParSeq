@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "21 Jul 2021"
+__date__ = "19 Apr 2022"
 # !!! SEE CODERULES.TXT !!!
 
+import sys
 import os.path as osp
 import re
 import time
@@ -16,6 +17,7 @@ import silx.io as silx_io
 from . import singletons as csi
 from . import commons as cco
 from . import config
+from ..utils.format import format_memory_size
 
 DEFAULT_COLOR_AUTO_UPDATE = False
 
@@ -115,20 +117,30 @@ class TreeItem(object):
                 if csi.currentNode is not None:
                     node = csi.currentNode
                     if node.plotDimension == 1:
-                        sh = getattr(self, node.plotXArray).shape[0]
+                        arr = getattr(self, node.plotXArray)
+                        sh = arr.shape[0]
+                        whatSize = 'size of 1D array'
                     elif node.plotDimension == 2:
-                        sh = getattr(self, node.plot2DArray).shape
+                        arr = getattr(self, node.plot2DArray)
+                        sh = arr.shape
+                        whatSize = 'size of 2D array'
                     elif node.plotDimension == 3:
-                        sh = getattr(self, node.plot3DArray).shape
+                        arr = getattr(self, node.plot3DArray)
+                        sh = arr.shape
+                        whatSize = 'size of 3D array'
                     else:
+                        arr = None
                         sh = None
+                        whatSize = 'size'
                     if sh:
                         nl = '\n' if res else ''
                         what = 'shape' if node.plotDimension > 1 else 'length'
                         res += nl + '{0}: {1}'.format(what, sh)
+                        size = sys.getsizeof(arr)
+                        res += '\n{0}: {1}'.format(
+                            whatSize, format_memory_size(size))
             except Exception as e:
                 res += '\n' + str(e)
-                pass
             return res
 
     def data(self, column):
@@ -152,7 +164,10 @@ class TreeItem(object):
                 if '{' not in formatStr:
                     formatStr = '{0}'
                 return formatStr.format(res)
-            return self.color, self.plotProps[node.name][key]
+            try:
+                return self.color, self.plotProps[node.name][key]
+            except KeyError:
+                return "---"
         else:
             raise ValueError("invalid column")
 
@@ -928,6 +943,7 @@ class Spectrum(TreeItem):
             config.put(configProject, item.alias, 'madeOf_relative', madeOfRel)
 
             dataFormat = json.dumps(item.dataFormat)
+            dataFormat = dataFormat.replace('null', 'None')
             config.put(configProject, item.alias, 'dataFormat', dataFormat)
 
             dataSource = list(item.dataFormat.get('dataSource', []))
@@ -949,6 +965,7 @@ class Spectrum(TreeItem):
                             osp.relpath(path, dirname) + ds[end:]
                         dataSourceRel[ids] = madeOfRel
                 dataFormat = json.dumps(dataFormatRel)
+                dataFormat = dataFormat.replace('null', 'None')
                 config.put(
                     configProject, item.alias, 'dataFormat_relative',
                     dataFormat)

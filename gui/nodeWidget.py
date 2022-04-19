@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "23 Jul 2021"
+__date__ = "19 Apr 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -230,6 +230,7 @@ class NodeWidget(qt.QWidget):
                 self.splitterPlot, position=Plot3D.posInfo, **self.backend
                 )
             self.plot.setCustomPosInfo()
+            self.plot.setTitleCallback(self.titleCallback3D)
         elif node.plotDimension == 2:
             self.plot = Plot2D(
                 self.splitterPlot, **self.backend
@@ -303,7 +304,7 @@ class NodeWidget(qt.QWidget):
         self.makeSplitterButton('transform', self.splitter, 3, 3)
         self.makeSplitterButton('data format', self.splitterFiles, 1, 1)
         self.makeSplitterButton('combine', self.splitterData, 1, 1)
-        self.makeSplitterButton('meta', self.splitterPlot, 1, 1)
+        self.makeSplitterButton('metadata', self.splitterPlot, 1, 1)
         self.makeSplitterButton('help', self.splitterTransform, 1, 1)
         self.makeSplitterHelpButton(self.splitterTransform, 1)
 
@@ -369,18 +370,56 @@ class NodeWidget(qt.QWidget):
         self.node.fileNameFilters = lst
         self.files.model().fsModel.setNameFilters(lst)
 
-    def _makeAxisLabels(self, labels):
-        node = self.node
+    def _makeAxisLabels(self, labels, for3Dtitle=False):
         res = []
+        node = self.node
         for label in labels:
             if label in node.arrays:
-                unit = node.getProp(label, 'plotUnit')
-                sUnit = u" ({0})".format(unit) if unit else ""
-                ll = "{0}{1}".format(node.getProp(label, 'plotLabel'), sUnit)
+                u = node.getProp(label, 'plotUnit')
+                if for3Dtitle:
+                    ll = node.getProp(label, 'plotLabel') + \
+                        '[{0}] = {1:#.4g} ' + u
+                else:
+                    sU = u" ({0})".format(u) if u else ""
+                    ll = "{0}{1}".format(node.getProp(label, 'plotLabel'), sU)
                 res.append(ll)
             else:
-                res.append(label)
+                if for3Dtitle:
+                    res.append(label + '[{0}]')
+                else:
+                    res.append(label)
         return res
+
+    def titleCallback3D(self, ind):
+        if len(csi.selectedItems) > 0:
+            item = csi.selectedItems[0]
+        else:
+            return ""
+        node = self.node
+        labels = node.getProp(node.plot3DArray, 'plotLabel')
+        axisLabels = self._makeAxisLabels(labels, True)
+        title = axisLabels[self.plot._perspective]
+        if '{1' in title:
+            arr = None
+            if self.plot._perspective == 0:
+                if hasattr(self.node, 'plotXArray'):
+                    arr = getattr(item, self.node.plotXArray)
+            elif self.plot._perspective == 1:
+                if hasattr(self.node, 'plotYArrays'):
+                    arr = getattr(item, self.node.plotYArrays[-1])
+            elif self.plot._perspective == 2:
+                if hasattr(self.node, 'plotZArray'):
+                    arr = getattr(item, self.node.plotZArray)
+            if arr is None:
+                return ""
+            try:
+                return title.format(ind, arr[ind])
+            except Exception:
+                return ""
+        try:
+            return title.format(ind)
+        except Exception:
+            return ""
 
     def plotSetup(self):
         node = self.node

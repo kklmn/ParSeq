@@ -86,11 +86,12 @@ class Plot3D(splot.StackView):
 
     def _imagePos(self, x, y):
         "used for displaying pixel coordinates under cursor"
-        img_idx = self._browser.value()
+        img_i = str(self._browser.value())
+        x, y = "{:#.4g}".format(x), "{:#.4g}".format(y)
         if self._perspective == 0:
-            dim0, dim1, dim2 = img_idx, int(y), int(x)
+            dim0, dim1, dim2 = img_i, y, x
         elif self._perspective == 1:
-            dim0, dim1, dim2 = int(y), img_idx, int(x)
+            dim0, dim1, dim2 = y, img_i, x
         elif self._perspective == 2:
-            dim0, dim1, dim2 = int(y), int(x), img_idx
+            dim0, dim1, dim2 = y, x, img_i
         return '{0}, {1}, {2}'.format(dim0, dim1, dim2)
