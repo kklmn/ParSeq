@@ -19,6 +19,9 @@ COLOR_HDF5_HEAD = '#2299F0'
 COLOR_FS_COLUMN_FILE = '#32AA12'
 COLOR_LOAD_CAN = '#44C044'
 COLOR_LOAD_CANNOT = '#C04444'
+COLOR_UNDEFINED = '#FF160C'
+
+COLOR_ROI = '#f7b43e'
 
 
 def makeGradientCollection(color1, color2, ncolor=8):
@@ -71,34 +74,46 @@ class MultiLineEditDelegate(qt.QStyledItemDelegate):
 
 
 class KeyFrameWithCloseButton(qt.QFrame):
+    gotoFrame = qt.pyqtSignal(int)
     deleteFrame = qt.pyqtSignal(int)
 
     def __init__(self, parent, key):
         super().__init__(parent)
-        label = qt.QLabel(str(key))
         self.key = key
-        label.setSizePolicy(qt.QSizePolicy.Minimum, qt.QSizePolicy.Minimum)
+
+        txt = str(key)
+        gotoButton = qt.QPushButton(txt)
+        bbox = gotoButton.fontMetrics().boundingRect(txt)
+        gotoButton.setFixedSize(bbox.width()+8, bbox.height()+2)
+        gotoButton.clicked.connect(self.__goto)
+        gotoButton.setStyleSheet(
+            "QPushButton{border-radius: 4px;}" +
+            "QPushButton:hover{{background-color: {0};}}".format(COLOR_ROI))
 
         closeButton = qt.QToolButton()
         closeButton.setFixedSize(16, 16)
         closeButton.setIcon(icons.getQIcon('remove'))
         closeButton.setToolTip("remove this key frame")
-        closeButton.clicked.connect(self.__clicked)
+        closeButton.clicked.connect(self.__close)
         closeButton.setStyleSheet(
             "QToolButton{border-radius: 8px;}"
             "QToolButton:hover{background-color: #ffe0e6;}")
+
         layout = qt.QHBoxLayout()
         layout.setContentsMargins(2, 0, 2, 0)
         layout.setSpacing(0)
-        layout.addWidget(label)
+        layout.addWidget(gotoButton)
         layout.addWidget(closeButton)
+        self.setSizePolicy(qt.QSizePolicy.Minimum, qt.QSizePolicy.Minimum)
         self.setLayout(layout)
 
-        self.setSizePolicy(qt.QSizePolicy.Minimum, qt.QSizePolicy.Minimum)
         self.setStyleSheet(
             "QFrame{background-color: white; border-radius: 4px;}")
 
-    def __clicked(self, checked):
+    def __goto(self):
+        self.gotoFrame.emit(self.key)
+
+    def __close(self, checked):
         self.deleteFrame.emit(self.key)
 
 
@@ -148,7 +163,7 @@ class FlowLayout(qt.QLayout):
         return height
 
     def setGeometry(self, rect):
-        super(FlowLayout, self).setGeometry(rect)
+        super().setGeometry(rect)
         self._do_layout(rect, False)
 
     def sizeHint(self):

@@ -4,7 +4,7 @@
 import numpy as np
 
 from silx.gui import qt
-from silx.gui.plot.items.roi import ArcROI, RectangleROI
+# from silx.gui.plot.items.roi import ArcROI, RectangleROI
 
 import sys; sys.path.append('../..')  # analysis:ignore
 from parseq.gui.roi import RoiWidget
@@ -19,9 +19,10 @@ else:
 
 
 def dummy_image():
-    x = np.linspace(-1.5, 1.5, 1024)
-    xv, yv = np.meshgrid(x, x)
-    signal = np.exp(-(xv**2 / 0.15**2 + yv**2 / 0.25**2))
+    x = np.linspace(-1.5, 1.5, 1920)
+    y = np.linspace(-1.5, 1.5, 1200)
+    xv, yv = np.meshgrid(x, y)
+    signal = np.exp(-(xv**2 / 0.45**2 + yv**2 / 0.15**2))
     noise = 0.3 * np.random.random(size=signal.shape)
     return signal + noise
 
@@ -38,19 +39,10 @@ elif ndim == 3:
     plot = StackView()
     plot.setColormap('viridis')
     stack = np.stack([image for i in range(10)])
+    print(stack.shape)
     plot.setStack(stack)
 
 plot.setKeepDataAspectRatio(False)
-
-
-# Add a rectangular region of interest
-roi1 = ArcROI()
-roi1.setGeometry(center=(0, 500), innerRadius=500, outerRadius=510,
-                 startAngle=-1, endAngle=1)
-# print(str(roi1))
-roi2 = RectangleROI()
-roi2.setGeometry(center=(100, 500), size=(50, 900))
-# print(str(roi2))
 
 
 def roiDockVisibilityChanged(visible):
@@ -62,9 +54,17 @@ def roiDockVisibilityChanged(visible):
         roiWidget.roiManager.stop()
 
 
+roiKeyFrames = {
+    0: [dict(kind='ArcROI', name='arc1', center=(0, 500),
+             innerRadius=500, outerRadius=510, startAngle=-1, endAngle=1),
+        dict(kind='RectangleROI', name='rect', origin=(0, 0), size=(50, 900))],
+    7: [dict(kind='ArcROI', name='arc1', center=(100, 500),
+             innerRadius=500, outerRadius=550, startAngle=-1, endAngle=1),
+        dict(kind='RectangleROI', name='rect', origin=(200, 100),
+             size=(50, 900))],
+    }
 roiWidget = RoiWidget(None, plot)
-roiWidget.roiManager.addRoi(roi1)
-roiWidget.roiManager.addRoi(roi2)
+roiWidget.setKeyFrames(roiKeyFrames)
 dock = qt.QDockWidget('Image ROI')
 dock.setWidget(roiWidget)
 dock.visibilityChanged.connect(roiDockVisibilityChanged)

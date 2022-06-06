@@ -36,7 +36,7 @@ COLUMN_EYE_WIDTH = 28
 LEGEND_WIDTH = 48  # '|FT(χ)|' fits into 48
 
 GROUP_BKGND = qt.QColor('#f4f0f0')
-BUSY_BKGND = qt.QColor('#ffff88')
+BUSY_BKGND = qt.QColor('#cceeff')
 BAD_BKGND = qt.QColor('#f47070')
 UNDEFINED_BKGND = qt.QColor('#aaaaaa')
 NOTFOUND_BKGND = qt.QColor('#ff88ff')
@@ -48,7 +48,7 @@ BKGND = {cco.DATA_STATE_GOOD: None,
          cco.DATA_STATE_MATHERROR: MATHERROR_BKGND}
 
 FONT_COLOR_TAG = ['black', gco.COLOR_HDF5_HEAD, gco.COLOR_FS_COLUMN_FILE,
-                  'red', 'magenta', 'cyan']
+                  gco.COLOR_UNDEFINED, gco.COLOR_ROI, 'magenta', 'cyan']
 LEFT_SYMBOL = u"\u25c4"  # ◄
 RIGHT_SYMBOL = u"\u25ba"  # ►
 
@@ -87,7 +87,7 @@ class DataTreeModel(qt.QAbstractItemModel):
 
         cond = index.column() == 0  # editable for all items in column 0
 #        item = index.internalPointer()
-#        cond = cond and item.childItems  # editable only if a group
+#        cond = cond and item.childItems  # editable only if is a group
         if cond:
             res |= qt.Qt.ItemIsEditable
         return res
@@ -211,8 +211,12 @@ class DataTreeModel(qt.QAbstractItemModel):
         self.beginResetModel()
         items = parentItem.insert_data(data, insertAt, **kwargs)
         topItems = [it for it in items if it in parentItem.childItems]
-        bottomItems = [it for it in items if it not in parentItem.childItems]
+        bottomItems = [it for it in items if it not in parentItem.childItems
+                       and (not isinstance(it.madeOf, dict))]
+        # branchedItems = [it for it in items if it not in parentItem.childItems
+        #                  and isinstance(it.madeOf, dict)]
 
+        # first bottomItems, then topItems...:
         if len(csi.transforms.values()) > 0:
             tr = list(csi.transforms.values())[0]
             if True:  # with a threaded transform
@@ -221,6 +225,17 @@ class DataTreeModel(qt.QAbstractItemModel):
                 csi.transformer.thread().start()
             else:  # in the same thread
                 tr.run(dataItems=bottomItems+topItems)
+                tr.widget.replotAllDownstream(tr.name)
+        # # ...then branchedItems:
+        # if len(csi.transforms.values()) > 0:
+        #     tr = list(csi.transforms.values())[0]
+        #     if True:  # with a threaded transform
+        #         csi.transformer.prepare(
+        #             tr, dataItems=branchedItems, starter=tr.widget)
+        #         csi.transformer.thread().start()
+        #     else:  # in the same thread
+        #         tr.run(dataItems=branchedItems)
+        #         tr.widget.replotAllDownstream(tr.name)
 
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
@@ -297,7 +312,7 @@ class DataTreeModel(qt.QAbstractItemModel):
         # make group name:
         cs = items[0].alias
         for item in items[1:]:
-            cs = cco.common_substring(cs, item.alias)
+            cs = cco.common_substring((cs, item.alias))
         groupName = "{0}_{1}items".format(cs, len(items)) if len(cs) > 0 else\
             "new group"
         group = parentItem.insert_item(groupName, row)
@@ -503,8 +518,8 @@ class LineStyleDelegate(qt.QItemDelegate):
         painter.drawRect(rect)
 
         if (type(data) is tuple and
-                bknd not in [BAD_BKGND, UNDEFINED_BKGND,
-                             NOTFOUND_BKGND, MATHERROR_BKGND]):  # plot props
+                bknd not in [BAD_BKGND, UNDEFINED_BKGND, NOTFOUND_BKGND,
+                             MATHERROR_BKGND]):  # plot props
             lineColor = qt.QColor(data[0])
             lineProps = data[1]
             lineWidth = (lineProps.get('linewidth', 1) + 0.5)
@@ -536,7 +551,7 @@ class LineStyleDelegate(qt.QItemDelegate):
 #                 > or < symbol
                 font = painter.font()
                 font.setFamily("Arial")
-                font.setPointSize(4 + lineWidth)
+                font.setPointSize(4 + round(lineWidth))
                 painter.setFont(font)
 
                 dh = 2
@@ -590,7 +605,7 @@ class LineStyleDelegate(qt.QItemDelegate):
             painter.drawText(
                 option.rect, qt.Qt.AlignCenter, "{0}".format(data))
         elif bknd == UNDEFINED_BKGND:
-            painter.setPen(qt.QPen(qt.Qt.darkGray))
+            painter.setPen(qt.QPen(qt.Qt.red))
             font = painter.font()
             painter.setFont(font)
             painter.drawText(option.rect, qt.Qt.AlignCenter, "out")
@@ -615,7 +630,7 @@ class EyeHeader(qt.QHeaderView):
     coords2 = [(2, 6), (5, 9), (10, 4), 'open, 1.5']
 
     def __init__(self, orientation=qt.Qt.Horizontal, parent=None, node=None):
-        super(EyeHeader, self).__init__(orientation, parent)
+        super().__init__(orientation, parent)
         self.node = node
         self.plotDimension = 1 if node is None else self.node.plotDimension
         self.setModel(HeaderModel(node=node))
@@ -653,15 +668,13 @@ class EyeHeader(qt.QHeaderView):
         painter.setPen(qt.QPen(self.EYE_BROW, 1.5))
         c0 = rect.center()
         x0, y0 = c0.x(), c0.y()
-        ww, hh = min(2.5*radius0, rect.width()//2), radius0
-        painter.drawArc(
-            x0-ww+0.5, y0-radius0-1, ww*2, hh*5+1, 35*16, 110*16)
-        painter.drawArc(
-            x0-ww+0.5, y0+radius0, ww*2, -hh*5+3, -35*16, -110*16)
+        ww, hh = round(min(2.5*radius0, rect.width()//2)), radius0
+        painter.drawArc(x0-ww, y0-radius0, ww*2, hh*5+1, 35*16, 110*16)
+        painter.drawArc(x0-ww, y0+radius0, ww*2, -hh*5+3, -35*16, -110*16)
 
     def paintSection(self, painter, rect, logicalIndex):
         painter.save()
-        super(EyeHeader, self).paintSection(painter, rect, logicalIndex)
+        super().paintSection(painter, rect, logicalIndex)
         painter.restore()
         painter.setRenderHint(qt.QPainter.Antialiasing)
         if logicalIndex == 1:
@@ -682,7 +695,7 @@ class EyeHeader(qt.QHeaderView):
 class DataTreeView(qt.QTreeView):
 
     def __init__(self, node=None, parent=None):
-        super(DataTreeView, self).__init__(parent)
+        super().__init__(parent)
         self.node = node
         self.plotDimension = 1 if node is None else self.node.plotDimension
 
@@ -869,21 +882,21 @@ class DataTreeView(qt.QTreeView):
                 self.restoreExpand(ind)
 
     def collapse(self, ind):
-        super(DataTreeView, self).collapse(ind)
+        super().collapse(ind)
         item = ind.internalPointer()
         item.isExpanded = False
 
     def expand(self, ind):
-        super(DataTreeView, self).expand(ind)
+        super().expand(ind)
         item = ind.internalPointer()
         item.isExpanded = True
 
     def dataChanged(self, topLeft=qt.QModelIndex(),
                     bottomRight=qt.QModelIndex(), roles=[]):
         if "qt5" in qt.BINDING.lower():
-            super(DataTreeView, self).dataChanged(topLeft, bottomRight, roles)
+            super().dataChanged(topLeft, bottomRight, roles)
         else:
-            super(DataTreeView, self).dataChanged(topLeft, bottomRight)
+            super().dataChanged(topLeft, bottomRight)
         self.restoreExpand()
         csi.allLoadedItems[:] = []
         csi.allLoadedItems.extend(csi.dataRootItem.get_items())
@@ -1007,7 +1020,7 @@ class DataTreeView(qt.QTreeView):
             self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
 
     def dragMoveEvent(self, event):
-        super(DataTreeView, self).dragMoveEvent(event)
+        super().dragMoveEvent(event)
         mimedata = event.mimeData()
         if (mimedata.hasFormat(cco.MIME_TYPE_DATA) or
             mimedata.hasFormat(cco.MIME_TYPE_TEXT) or
@@ -1016,4 +1029,4 @@ class DataTreeView(qt.QTreeView):
 
     def dropEvent(self, event):
         csi.currentNode = self.node
-        super(DataTreeView, self).dropEvent(event)
+        super().dropEvent(event)

@@ -28,7 +28,7 @@ except FileNotFoundError:
     pass
 shutil.copytree(osp.join(CONFDIR, '_images'), osp.join(DOCDIR, '_images'))
 for ico in ['1', '2', '3', 'n']:
-    fname = 'icon-item-{0}dim.png'.format(ico)
+    fname = 'icon-item-{0}dim-32.png'.format(ico)
     shutil.copy2(osp.join(GUIDIR, '_images', fname),
                  osp.join(DOCDIR, '_images', fname))
 shutil.copytree(osp.join(CONFDIR, '_themes'), osp.join(DOCDIR, '_themes'))

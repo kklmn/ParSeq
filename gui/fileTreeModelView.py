@@ -125,8 +125,11 @@ class MyHdf5TreeModel(Hdf5TreeModel):
         for row in range(parentNode.childCount()):
             ind = self.index(row, 0, parent)
             node = self.nodeFromIndex(ind)
-            name = node.obj.name
-            if name.split('/')[-1] == pathList[0]:
+            if node.dataLink(qt.Qt.DisplayRole) == 'External':
+                path = self.getHDF5NodePath(node)
+            else:
+                path = node.obj.name
+            if path.split('/')[-1] == pathList[0]:
                 if len(pathList) == 1:
                     return ind
                 return self._indexFromPathList(ind, pathList[1:])
@@ -140,7 +143,7 @@ class FileSystemWithHdf5Model(ModelBase):
     requestRestoreExpand = qt.pyqtSignal()
 
     def __init__(self, transformNode=None, parent=None):
-        super(FileSystemWithHdf5Model, self).__init__(parent)
+        super().__init__(parent)
         self.transformNode = transformNode
         if ModelBase == qt.QFileSystemModel:
             self.fsModel = self
@@ -178,16 +181,14 @@ class FileSystemWithHdf5Model(ModelBase):
         if section == 3:
             return "Date Modified / HDF5 Value"
         if self.fsModel is self:
-            return super(FileSystemWithHdf5Model, self).headerData(
-                section, orientation, role)
+            return super().headerData(section, orientation, role)
         return self.fsModel.headerData(section, orientation, role)
 
     def flags(self, index):
         if not index.isValid():
             return qt.Qt.NoItemFlags
-        res = super(FileSystemWithHdf5Model, self).flags(index) | \
-            qt.Qt.ItemIsEnabled | qt.Qt.ItemIsSelectable | \
-            qt.Qt.ItemIsDragEnabled
+        res = super().flags(index) | qt.Qt.ItemIsEnabled | \
+            qt.Qt.ItemIsSelectable | qt.Qt.ItemIsDragEnabled
         return res
 
     def _mapIndex(self, indexFrom, modelFrom, modelTo):
@@ -214,7 +215,7 @@ class FileSystemWithHdf5Model(ModelBase):
     def setRootPath(self, dirname):
         self._roothPath = dirname
         if self.fsModel is self:
-            return super(FileSystemWithHdf5Model, self).setRootPath(dirname)
+            return super().setRootPath(dirname)
         return self.mapFromFS(self.fsModel.setRootPath(dirname))
 
     def nodeType(self, index):
@@ -250,7 +251,7 @@ class FileSystemWithHdf5Model(ModelBase):
         nodeType = self.nodeType(parent)
         if nodeType == NODE_FS:
             if self.fsModel is self:
-                return super(FileSystemWithHdf5Model, self).rowCount(parent)
+                return super().rowCount(parent)
             return self.fsModel.rowCount(self.mapToFS(parent))
         elif nodeType == NODE_HDF5_HEAD:
             return self.h5Model.rowCount(self.mapFStoH5(self.mapToFS(parent)))
@@ -263,7 +264,7 @@ class FileSystemWithHdf5Model(ModelBase):
         nodeType = self.nodeType(parent)
         if nodeType == NODE_FS:
             if self.fsModel is self:
-                return super(FileSystemWithHdf5Model, self).columnCount(parent)
+                return super().columnCount(parent)
             return self.fsModel.columnCount(self.mapToFS(parent))
         elif nodeType == NODE_HDF5_HEAD:
             return self.h5Model.columnCount(
@@ -277,7 +278,7 @@ class FileSystemWithHdf5Model(ModelBase):
         nodeType = self.nodeType(parent)
         if nodeType == NODE_FS:
             if self.fsModel is self:
-                return super(FileSystemWithHdf5Model, self).hasChildren(parent)
+                return super().hasChildren(parent)
             return self.fsModel.hasChildren(self.mapToFS(parent))
         elif nodeType == NODE_HDF5_HEAD:
             return True
@@ -290,8 +291,7 @@ class FileSystemWithHdf5Model(ModelBase):
         nodeType = self.nodeType(parent)
         if nodeType == NODE_FS:
             if self.fsModel is self:
-                return \
-                    super(FileSystemWithHdf5Model, self).canFetchMore(parent)
+                return super().canFetchMore(parent)
             return self.fsModel.canFetchMore(self.mapToFS(parent))
         elif nodeType == NODE_HDF5_HEAD:
             return self.h5Model.canFetchMore(
@@ -305,8 +305,7 @@ class FileSystemWithHdf5Model(ModelBase):
         nodeType = self.nodeType(parent)
         if nodeType == NODE_FS:
             if self.fsModel is self:
-                return \
-                    super(FileSystemWithHdf5Model, self).fetchMore(parent)
+                return super().fetchMore(parent)
             return self.fsModel.fetchMore(self.mapToFS(parent))
         elif nodeType == NODE_HDF5_HEAD:
             return self.h5Model.fetchMore(
@@ -377,7 +376,11 @@ class FileSystemWithHdf5Model(ModelBase):
         return out
 
     def hasH5ChildPath(self, node, path):
-        pathInH5 = '/'.join((node.obj.name, path))
+        if node.dataLink(qt.Qt.DisplayRole) == 'External':
+            nodePath = self.getHDF5NodePath(node)
+        else:
+            nodePath = node.obj.name
+        pathInH5 = '/'.join((nodePath, path))
         try:
             test = node.obj[pathInH5]  # test for existence
             return test.shape
@@ -413,7 +416,7 @@ class FileSystemWithHdf5Model(ModelBase):
                 if colEval is None:
                     return
                 lres.append(colEval)
-        except Exception as e:
+        except Exception:  # as e:
             # print('tryLoadColDataset:', e)
             return
         return lres, df
@@ -432,9 +435,9 @@ class FileSystemWithHdf5Model(ModelBase):
         lres = []
         try:
             datas = df.get('dataSource', [])  # from dataEdits
-            slices = df.get('slices', [])  # from dataEdits
-            for data, slc, nd in zip(
-                    datas, slices, self.transformNode.getPropList('ndim')):
+            slices = df.get('slices', ['' for ds in datas])  # from dataEdits
+            for idata, (data, slc, nd) in enumerate(zip(
+                    datas, slices, self.transformNode.getPropList('ndim'))):
                 if len(data) == 0:
                     return
                 colEval = self.interpretArrayFormula(data, nodeH5, 'h5')
@@ -492,13 +495,23 @@ class FileSystemWithHdf5Model(ModelBase):
             return
         class_ = self.h5Model.nodeFromIndex(indexH5).h5Class
         if class_ == silx_io.utils.H5Type.DATASET:
-            obj = self.h5Model.nodeFromIndex(indexH5).obj
+            node = self.h5Model.nodeFromIndex(indexH5)
+            if node.dataLink(qt.Qt.DisplayRole) == 'External':
+                nodePath = self.getHDF5NodePath(node)
+            else:
+                nodePath = node.obj.name
             try:
-                if (len(obj.shape) >= 1):
-                    return obj.name
+                if (len(node.obj.shape) >= 1):
+                    return nodePath
             except:  # noqa
                 pass
         return
+
+    def getHDF5NodePath(self, node):
+        if node.parent is None or not hasattr(node.parent, 'basename'):
+            return ''
+        else:
+            return '/'.join((self.getHDF5NodePath(node.parent), node.basename))
 
     def getHDF5FullPath(self, index):
         if not index.isValid():
@@ -512,9 +525,12 @@ class FileSystemWithHdf5Model(ModelBase):
         elif nodeType == NODE_HDF5:
             indexH5 = self.mapToH5(index)
 
-        return 'silx:' + '::'.join(
-            (self.h5Model.nodeFromIndex(indexH5).obj.file.filename,
-             self.h5Model.nodeFromIndex(indexH5).obj.name))
+        node = self.h5Model.nodeFromIndex(indexH5)
+        if node.dataLink(qt.Qt.DisplayRole) == 'External':
+            nodePath = self.getHDF5NodePath(node)
+        else:
+            nodePath = node.obj.name
+        return 'silx:' + '::'.join((node.obj.file.filename, nodePath))
 
     def data(self, index, role=qt.Qt.DisplayRole):
         if not index.isValid():
@@ -534,13 +550,22 @@ class FileSystemWithHdf5Model(ModelBase):
                 if is_text_file(fileInfo.filePath()):
                     return qt.QColor(gco.COLOR_FS_COLUMN_FILE)
             if self.fsModel is self:
-                return super(FileSystemWithHdf5Model, self).data(index, role)
+                return super().data(index, role)
             return self.fsModel.data(indexFS, role)
         elif nodeType == NODE_HDF5:
             if role == LOAD_ITEM_PATH_ROLE:
                 return self.getHDF5FullPath(index)
             indexH5 = self.mapToH5(index)
             if useProxyModel:
+                if role == qt.Qt.ToolTipRole:
+                    res = self.h5Model.data(indexH5, role)
+                    node = self.h5Model.nodeFromIndex(indexH5)
+                    if node.dataLink(qt.Qt.DisplayRole) == 'External':
+                        path = node.obj.name
+                        truePath = self.getHDF5NodePath(node)
+                        res = res.replace(path, truePath)
+                        res = res.replace(' Dataset', ' External Dataset')
+                    return res
                 return self.h5ProxyModel.data(
                     self.h5ProxyModel.mapFromSource(indexH5), role)
             else:
@@ -556,10 +581,10 @@ class FileSystemWithHdf5Model(ModelBase):
             elif role == qt.Qt.DecorationRole:
                 if useProxyModel and \
                         index.column() == self.h5Model.NAME_COLUMN:
-                    ic = super(FileSystemWithHdf5Model, self).data(index, role)
+                    ic = super().data(index, role)
                     return self.h5ProxyModel.getNxIcon(ic)
             if self.fsModel is self:
-                return super(FileSystemWithHdf5Model, self).data(index, role)
+                return super().data(index, role)
             return self.fsModel.data(indexFS, role)
         else:
             raise ValueError('unknown node type in `data`')
@@ -580,7 +605,7 @@ class FileSystemWithHdf5Model(ModelBase):
             return self.mapFromH5(parentH5)
         else:
             if self.fsModel is self:
-                return super(FileSystemWithHdf5Model, self).parent(index)
+                return super().parent(index)
             pind = self.mapFromFS(self.fsModel.parent(self.mapToFS(index)))
             return pind
 
@@ -611,8 +636,7 @@ class FileSystemWithHdf5Model(ModelBase):
             return index
 
         if self.fsModel is self:
-            indexFS = super(FileSystemWithHdf5Model, self).index(
-                row, column, parent)
+            indexFS = super().index(row, column, parent)
         else:
             indexFS = self.fsModel.index(row, column, self.mapToFS(parent))
         fileInfo = self.fsModel.fileInfo(indexFS)
@@ -663,7 +687,7 @@ class FileSystemWithHdf5Model(ModelBase):
 
     def indexFileName(self, fName):
         if self.fsModel is self:
-            return super(FileSystemWithHdf5Model, self).index(fName)
+            return super().index(fName)
         else:
             return self.fsModel.index(fName)
 
@@ -701,7 +725,7 @@ class FileSystemWithHdf5Model(ModelBase):
                         return
                 indexesFS.append(indexFS)
             if ModelBase == qt.QFileSystemModel:
-                return super(FileSystemWithHdf5Model, self).mimeData(indexesFS)
+                return super().mimeData(indexesFS)
             else:
                 return self.fsModel.mimeData(indexesFS)
         elif nodeTypes[0] == NODE_HDF5:
@@ -712,9 +736,12 @@ class FileSystemWithHdf5Model(ModelBase):
                     if self.tryLoadHDF5Dataset(indexH5) is None:
                         return
                 try:
-                    path = 'silx:' + '::'.join(
-                        (self.h5Model.nodeFromIndex(indexH5).obj.file.filename,
-                         self.h5Model.nodeFromIndex(indexH5).obj.name))
+                    node = self.h5Model.nodeFromIndex(indexH5)
+                    if node.dataLink(qt.Qt.DisplayRole) == 'External':
+                        npath = self.getHDF5NodePath(node)
+                    else:
+                        npath = node.obj.name
+                    path = 'silx:' + '::'.join((node.obj.file.filename, npath))
                     paths.append(path)
                 except:  # noqa
                     return
@@ -743,8 +770,6 @@ class SelectionDelegate(qt.QItemDelegate):
                 if os.path.normpath(path).lower() == \
                         os.path.normpath(lastPath).lower():
                     option.font.setWeight(qt.QFont.Bold)
-            # lastPathSilx = configDirs.get(
-            #     'Load', self.parent().transformNode.name+'_silx', fallback='')
             if configDirs.has_option(
                     'Load', self.parent().transformNode.name+'_silx'):
                 lastPathSilx = configDirs.get(
@@ -756,12 +781,13 @@ class SelectionDelegate(qt.QItemDelegate):
                         os.path.normpath(lastPathSilx).lower():
                     option.font.setWeight(qt.QFont.Bold)
 
-        if (option.state & qt.QStyle.State_MouseOver or
-                option.state & qt.QStyle.State_Selected):
+        active = (option.state & qt.QStyle.State_Selected or
+                  option.state & qt.QStyle.State_MouseOver)
+        if active:
             loadState = index.data(LOAD_DATASET_ROLE)
 
         if option.state & qt.QStyle.State_MouseOver:
-            color = self.parent().palette().highlight().color()
+            # color = self.parent().palette().highlight().color()
             if loadState is not None:
                 color = qt.QColor(gco.COLOR_LOAD_CAN)
             else:
@@ -770,18 +796,15 @@ class SelectionDelegate(qt.QItemDelegate):
             painter.fillRect(option.rect, color)
 
         painter.save()
-        color = None
-        active = (option.state & qt.QStyle.State_Selected or
-                  option.state & qt.QStyle.State_MouseOver)
         if active:
             if loadState is not None:
                 color = qt.QColor(gco.COLOR_LOAD_CAN)
             else:
                 color = qt.QColor(gco.COLOR_LOAD_CANNOT)
-        if color is not None:
             color.setAlphaF(0.2)
             option.palette.setColor(qt.QPalette.Highlight, color)
-        super(SelectionDelegate, self).paint(painter, option, index)
+        super().paint(painter, option, index)
+
         path = index.data(USE_HDF5_ARRAY_ROLE)
         if path is not None and active:
             pen = qt.QPen(qt.QColor(gco.COLOR_LOAD_CAN))
@@ -796,7 +819,7 @@ class SelectionDelegate(qt.QItemDelegate):
 
 class FileTreeView(qt.QTreeView):
     def __init__(self, transformNode=None, parent=None, roothPath=None):
-        super(FileTreeView, self).__init__(parent)
+        super().__init__(parent)
         model = FileSystemWithHdf5Model(transformNode, self)
         # model = qt.QFileSystemModel(self)  # for test purpose
         if hasattr(transformNode, 'fileNameFilters'):
@@ -837,6 +860,7 @@ class FileTreeView(qt.QTreeView):
         self.setContextMenuPolicy(qt.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.onCustomContextMenu)
         self.selectionModel().selectionChanged.connect(self.selChanged)
+        self.expanded.connect(self.expandFurther)
         self.prevSelectedIndexes = []
 
         if transformNode is not None:
@@ -1021,6 +1045,12 @@ class FileTreeView(qt.QTreeView):
                     self._expandedNodes.append(ind.data())
                 self.saveExpand(ind)
 
+    def expandFurther(self, index):
+        """Further expand a tree node if it has only one child."""
+        if self.model().rowCount(index) == 1:
+            child = self.model().index(0, 0, index)
+            self.expand(child)
+
     def restoreExpand(self, parent=qt.QModelIndex()):
         if not parent.isValid():
             if len(self._expandedNodes) == 0:
@@ -1098,7 +1128,7 @@ class FileTreeView(qt.QTreeView):
         elif len(subpaths) > 2:
             cs = subpaths[0]
             for subpath in subpaths[1:]:
-                cs = cco.common_substring(cs, subpath)
+                cs = cco.common_substring((cs, subpath))
             colNames = [subpath[len(cs):] for subpath in subpaths]
             txt = '" + ".join([\'d[path]\'.format(i) for i in {0}])'.format(
                 repr(colNames))

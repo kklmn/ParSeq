@@ -39,7 +39,7 @@ ICONPATHR = osp.join(osp.dirname(__file__), '_images', 'icon-info.png')
 
 class AboutDialog(qt.QDialog):
     def __init__(self, parent):
-        super(AboutDialog, self).__init__(parent)
+        super().__init__(parent)
         self.setWindowTitle("About")
         self.setWindowIcon(qt.QIcon(ICONPATHR))
 
@@ -70,7 +70,7 @@ class AboutDialog(qt.QDialog):
         self.resize(0, 0)
 
     def makeWebView(self):
-        self.webView = gww.QWebView()
+        self.webView = gww.QWebView(self)
         self.webView.page().setLinkDelegationPolicy(2)
         self.webView.setMinimumWidth(500+50)
         self.webView.setMinimumHeight(510+40+30*len(csi.nodes))
@@ -177,9 +177,9 @@ class AboutDialog(qt.QDialog):
                     if node.plotDimension is None:
                         iName = None
                     elif node.plotDimension < 4:
-                        iName = 'icon-item-{0}dim'.format(node.plotDimension)
+                        iName = 'icon-item-{0}dim-32'.format(node.plotDimension)
                     else:
-                        iName = 'icon-item-ndim'
+                        iName = 'icon-item-ndim-32'
                     icons.append(iName)
                     for tr in node.transformsOut:
                         transforms.append(

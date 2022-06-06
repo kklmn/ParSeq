@@ -5,6 +5,7 @@ __date__ = "23 Jul 2021"
 
 from functools import partial
 from collections import OrderedDict
+import reprlib
 
 from silx.gui import qt
 
@@ -17,14 +18,22 @@ propWidgetTypes = ('edit', 'label', 'spinbox', 'groupbox', 'checkbox',
                    'pushbutton', 'tableview', 'combobox')
 
 
+class FloatRepr(reprlib.Repr):
+    def repr_float(self, value, level):
+        return format(value, '.3f')
+
+    def repr_float64(self, value, level):
+        return self.repr_float(value, level)
+
+
 class QLineEditSelectRB(qt.QLineEdit):
     def __init__(self, parent=None, rb=None):
-        super(QLineEditSelectRB, self).__init__(parent)
+        super().__init__(parent)
         self.buddyRB = rb
 
     def focusInEvent(self, e):
         self.buddyRB.setChecked(True)
-        super(QLineEditSelectRB, self).focusInEvent(e)
+        super().focusInEvent(e)
 
 
 #  to replace the standard stepBy method of a SpinBox without inheritance:
@@ -36,10 +45,9 @@ def stepByWithUpdate(self, oldStepBy, parent, key, steps):
 
 
 class PropWidget(qt.QWidget):
-    def __init__(self, parent=None, node=None, transform=None):
-        super(PropWidget, self).__init__(parent)
+    def __init__(self, parent=None, node=None):
+        super().__init__(parent)
         self.node = node
-        self.transform = transform
         self.hideInitialView = False
         self.shouldRemoveNonesFromProps = False
 
@@ -92,10 +100,13 @@ class PropWidget(qt.QWidget):
                w in self.exclusivePropGroups for w in widgetsOver]
         if sum(out) == 0:
             return
+        tNames = [self.propWidgets[w]['transformName'] for w in widgetsOver
+                  if w in self.propWidgets]
+        tName = tNames[0] if len(tNames) > 0 else None
 
         menu = qt.QMenu(self)
         hdf5Path = self.fillMenuApply(widgetsOver, menu)
-        if self.transform is not None:
+        if tName is not None:
             menu.addSeparator()
             self.fillMenuReset(widgetsOver, menu)
 
@@ -111,6 +122,7 @@ class PropWidget(qt.QWidget):
         actionStr = 'apply {0}{1}'
         data = csi.selectedItems[0]
 
+        tName = None
         for widget in widgetsOver:
             if not widget.isEnabled():
                 continue
@@ -122,6 +134,7 @@ class PropWidget(qt.QWidget):
                 cap = self.propGroups[widget]['caption']
             elif widget in self.propWidgets:
                 propWidget = self.propWidgets[widget]
+                tName = propWidget['transformName']
                 props = self._getPropListWidget(widget)
                 if 'copyValue' in propWidget:
                     res = propWidget['copyValue']
@@ -144,7 +157,7 @@ class PropWidget(qt.QWidget):
                 if isinstance(curValue, float):
                     valueStr = ' = {0:g}'.format(curValue)
                 else:
-                    valueStr = ' = {0}'.format(curValue)
+                    valueStr = ' = {0}'.format(FloatRepr().repr(curValue))
                 if widget in self.propWidgets:
                     propWidget = self.propWidgets[widget]
                     if propWidget['widgetTypeIndex'] == 0:  # edit
@@ -164,12 +177,13 @@ class PropWidget(qt.QWidget):
                 print('props', props)
                 print('values', values)
 
-        if self.transform is not None:
-            keys = self.transform.defaultParams.keys()
+        if tName is not None:
+            tr = csi.transforms[tName]
+            keys = tr.defaultParams.keys()
             props = [cco.expandTransformParam(key) for key in keys]
             values = [data.transformParams[key] for key in keys]
             actionName = 'apply all params of "{0}" transform to picked data'\
-                .format(self.transform.name)
+                .format(tName)
             actionName2 = actionName + ' to picked data'
             self._addAction(
                 menu, actionName2,
@@ -199,7 +213,9 @@ class PropWidget(qt.QWidget):
     def fillMenuReset(self, widgetsOver, menu):
         actionStr = 'reset {0} to default value{1}'
 
+        tr = None
         for widget in widgetsOver:
+            tName = None
             if not widget.isEnabled():
                 continue
             if widget in self.propGroups:
@@ -210,17 +226,20 @@ class PropWidget(qt.QWidget):
             elif widget in self.propWidgets:
                 props = self._getPropListWidget(widget)
                 cap = self.propWidgets[widget]['caption']
+                tName = self.propWidgets[widget]['transformName']
             elif widget in self.exclusivePropGroups:
                 props = self._getPropListExclusiveGroup(widget)
                 cap = self.exclusivePropGroups[widget]['caption']
             else:
                 continue
             values, validProps = [], []
-            for prop in props:
-                key = cco.shrinkTransformParam(prop)
-                if key in self.transform.defaultParams:
-                    values.append(self.transform.defaultParams[key])
-                    validProps.append(prop)
+            if tName is not None:
+                tr = csi.transforms[tName]
+                for prop in props:
+                    key = cco.shrinkTransformParam(prop)
+                    if key in tr.defaultParams:
+                        values.append(tr.defaultParams[key])
+                        validProps.append(prop)
 
             if len(values) == 0:
                 continue
@@ -237,25 +256,24 @@ class PropWidget(qt.QWidget):
                 menu, actionName,
                 partial(self.resetProps, validProps, values, actionName))
 
-        keys = self.transform.defaultParams.keys()
+        if tr is None:
+            return
+        keys = tr.defaultParams.keys()
         props = [cco.expandTransformParam(key) for key in keys]
-        values = list(self.transform.defaultParams.values())
+        values = list(tr.defaultParams.values())
         actionName = 'reset all params of "{0}" transform to default values'\
-            .format(self.transform.name)
-        self._addAction(
-            menu, actionName,
-            partial(self.resetProps, props, values, actionName))
+            .format(tr.name)
+        self._addAction(menu, actionName,
+                        partial(self.resetProps, props, values, actionName))
 
-        props = [cco.expandTransformParam(key)
-                 for transform in csi.transforms.values()
-                 for key in transform.defaultParams.keys()]
-        values = [transform.defaultParams[key]
-                  for transform in csi.transforms.values()
-                  for key in transform.defaultParams.keys()]
+        props, values = [], []
+        for transform in csi.transforms.values():
+            for key in transform.defaultParams.keys():
+                props.append(cco.expandTransformParam(key))
+                values.append(transform.defaultParams[key])
         actionName = 'reset all params of all transforms to default values'
-        self._addAction(
-            menu, actionName,
-            partial(self.resetProps, props, values, actionName))
+        self._addAction(menu, actionName,
+                        partial(self.resetProps, props, values, actionName))
 
     def _getPropListWidget(self, widget):
         propWidget = self.propWidgets[widget]
@@ -357,7 +375,8 @@ class PropWidget(qt.QWidget):
         else:
             edit.setToolTip('')
 
-    def registerPropWidget(self, widgets, caption, prop, copyValue=None, **kw):
+    def registerPropWidget(
+            self, widgets, caption, prop, transformName=None, **kw):
         """Recognized *kw*:
 
         *convertType*:
@@ -403,7 +422,9 @@ class PropWidget(qt.QWidget):
             else:
                 raise ValueError("unknown widgetType {0}".format(className))
             self.propWidgets[widget] = dict(
-                widgetTypeIndex=iwt, caption=caption, prop=prop, kw=kw)
+                widgetTypeIndex=iwt, caption=caption, prop=prop,
+                transformName=transformName, kw=kw)
+            copyValue = kw.pop('copyValue', None)
             if copyValue is not None:
                 if isinstance(prop, (list, tuple)) and \
                         isinstance(copyValue, (list, tuple)):
@@ -443,11 +464,26 @@ class PropWidget(qt.QWidget):
         event.accept()
 
     def updateProp(self, key=None, value=None):
-        if self.transform is None:
-            return
         if key is None or value is None:
             params = {}
+            tNames = [self.propWidgets[w]['transformName'] for w in
+                      self.propWidgets]
+            tName = tNames[0] if len(tNames) > 0 else None
+            if tName:
+                tr = csi.transforms[tName]
+            else:
+                return
         else:
+            for w in self.propWidgets:
+                if self.propWidgets[w]['prop'].endswith(key):  # may start with
+                    # 'transformParams'
+                    tName = self.propWidgets[w]['transformName']
+                    break
+            else:
+                raise ValueError('unknown parameter {0}'.format(key))
+            tr = csi.transforms[tName]
+            if '.' not in key:
+                key = cco.expandTransformParam(key)
             dataItems = csi.selectedItems
             gur.pushTransformToUndo(self, dataItems, [key], [value])
             if isinstance(key, (list, tuple)):
@@ -458,32 +494,33 @@ class PropWidget(qt.QWidget):
                 raise ValueError('unknown key "{0}" of type {1}'.format(
                     key, type(key)))
             params = {param: value}
+
         if csi.transformer is not None:
-            csi.transformer.prepare(
-                self.transform, params=params, starter=self)
+            csi.transformer.prepare(tr, params=params, starter=self)
             csi.transformer.thread().start()
         else:
-            self.transform.run(params=params)
+            tr.run(params=params)
 
-    def _onTransformThreadReady(self, starter, duration=0):
+    def _onTransformThreadReady(self, starter, tName='', duration=0):
         if starter is not self:
             return
         if csi.DEBUG_LEVEL > 50:
             what = '_onTransformThreadReady()'
             where = self.node.name if self.node is not None else ''
-            if self.transform is not None:
-                where += ' ' + self.transform.name
+            if tName:
+                where += ' ' + tName
             print('enter {0} {1}'.format(what, where))
         self.updateStatusWidgets()
-        self.replotAllDownstream()
+        self.replotAllDownstream(tName)
         if csi.DEBUG_LEVEL > 50:
             print('exit {0} {1}'.format(what, where))
 
-    def replotAllDownstream(self):
-        if self.transform is not None:
+    def replotAllDownstream(self, tName):
+        if tName:
+            tr = csi.transforms[tName]
             csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-            self.transform.toNode.widget.replot()
-            for subnode in self.transform.toNode.downstreamNodes:
+            tr.toNode.widget.replot()
+            for subnode in tr.toNode.downstreamNodes:
                 subnode.widget.replot()
         else:
             self.node.widget.replot()
@@ -563,9 +600,9 @@ class PropWidget(qt.QWidget):
             #     gpd.updateDataFromComboBox(widget, dd['prop'])
         self.updateProp()
 
-    def getNextTansform(self):
+    def getNextTansform(self, tName):
         """returns the next (in the downstream direction) transform object"""
-        nextTrInd = list(csi.transforms.keys()).index(self.transform.name) + 1
+        nextTrInd = list(csi.transforms.keys()).index(tName) + 1
         try:
             nextTrName = list(csi.transforms.keys())[nextTrInd]
             return csi.transforms[nextTrName]

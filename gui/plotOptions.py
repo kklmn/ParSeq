@@ -70,7 +70,7 @@ class LineStyleDelegate(qt.QItemDelegate):
     def paint(self, painter, option, index):
         txt = index.model().data(index, qt.Qt.DisplayRole)
         if txt.startswith('no'):
-            super(LineStyleDelegate, self).paint(painter, option, index)
+            super().paint(painter, option, index)
             return
         lineStyle = lineStyles[lineStylesText[txt]]
         painter.save()
@@ -79,11 +79,10 @@ class LineStyleDelegate(qt.QItemDelegate):
         rect.adjust(+5, 0, -5, 0)
         pen = qt.QPen()
         pen.setColor(qt.QColor(self.parent().color))
-        # pen.setWidth(self.parent().widthSpinBox.value() * 1.5)
-        pen.setWidth(self.parent().widthSpinBox.value() + 0.5)
+        pen.setWidthF(self.parent().widthSpinBox.value() + 0.5)
         pen.setStyle(lineStyle)
         painter.setPen(pen)
-        middle = (rect.bottom() + rect.top()) / 2
+        middle = round((rect.bottom() + rect.top()) / 2)
         painter.drawLine(rect.left(), middle, rect.right(), middle)
         painter.restore()
 
@@ -92,7 +91,7 @@ class LineStyleComboBox(qt.QComboBox):
     def paintEvent(self, e):
         txt = self.currentText()
         if txt.startswith('no'):
-            super(LineStyleComboBox, self).paintEvent(e)
+            super().paintEvent(e)
             return
         lineStyle = lineStyles[lineStylesText[txt]]
         p = qt.QStylePainter(self)
@@ -108,10 +107,10 @@ class LineStyleComboBox(qt.QComboBox):
         rect.adjust(+5, 0, -5, 0)
         pen = qt.QPen()
         pen.setColor(qt.QColor(self.parent().color))
-        pen.setWidth(self.parent().widthSpinBox.value() * 1.5)
+        pen.setWidthF(self.parent().widthSpinBox.value() + 0.5)
         pen.setStyle(lineStyle)
         painter.setPen(pen)
-        middle = (rect.bottom() + rect.top()) / 2
+        middle = round((rect.bottom() + rect.top()) / 2)
         painter.drawLine(rect.left(), middle, rect.right(), middle)
         painter.restore()
 
@@ -122,7 +121,7 @@ class SymbolDelegate(qt.QItemDelegate):
         if txt == '':
             return
         if txt.startswith('no'):
-            super(SymbolDelegate, self).paint(painter, option, index)
+            super().paint(painter, option, index)
             return
         lineSymbol = lineSymbols[lineSymbolsText[txt]]
         painter.save()
@@ -155,7 +154,7 @@ class SymbolComboBox(qt.QComboBox):
         if txt == '':
             return
         if txt.startswith('no'):
-            super(SymbolComboBox, self).paintEvent(e)
+            super().paintEvent(e)
             return
         lineSymbol = lineSymbols[lineSymbolsText[txt]]
         p = qt.QStylePainter(self)
@@ -193,23 +192,23 @@ class QColorLoop(qt.QPushButton):
 
     def __init__(self, parent, colorCycle=[]):
         self.colorCycle = colorCycle
-        super(QColorLoop, self).__init__(parent)
+        super().__init__(parent)
         self.setFixedHeight(self.LINE_WIDTH*len(colorCycle)+2*self.LINE_WIDTH)
         self.setMinimumWidth(20)
 
     def paintEvent(self, e):
-        super(QColorLoop, self).paintEvent(e)
+        super().paintEvent(e)
         rect = e.rect()
         painter = qt.QPainter(self)
         painter.setRenderHint(qt.QPainter.Antialiasing, False)
         painter.save()
         pen = qt.QPen()
-        pen.setWidth(self.LINE_WIDTH)
+        pen.setWidthF(self.LINE_WIDTH)
         pen.setStyle(qt.Qt.SolidLine)
         for ic, color in enumerate(self.colorCycle):
             pen.setColor(qt.QColor(color))
             painter.setPen(pen)
-            pos = (ic+1.5) * self.LINE_WIDTH
+            pos = round((ic+1.5) * self.LINE_WIDTH)
             painter.drawLine(rect.left() + 2*self.LINE_WIDTH, pos,
                              rect.right() - 2*self.LINE_WIDTH, pos)
         painter.restore()
@@ -217,8 +216,8 @@ class QColorLoop(qt.QPushButton):
 
 class LineProps(qt.QDialog):
     def __init__(self, parent, node, activeTab=None):
-        super(LineProps, self).__init__(parent)
-        self.setWindowTitle("Line properties of...")
+        super().__init__(parent)
+        self.setWindowTitle("Line properties")
 
         self.isGroupSelected = False
         self.isTopGroupSelected = False
@@ -232,25 +231,25 @@ class LineProps(qt.QDialog):
         if self.isGroupSelected:
             if lsi == 1:
                 group = csi.selectedTopItems[0]
-                txt = '...group <b>{0}</b> with {1} item{2}'.format(
+                txt = '... of group <b>{0}</b> with {1} item{2}'.format(
                     group.alias, group.child_count(),
                     's' if group.child_count() > 1 else '')
             elif lsi > 1:
-                txt = "...{0} selected groups".format(lsi)
+                txt = "... of {0} selected groups".format(lsi)
             else:
                 txt = ''
         else:
             if csi.selectedTopItems == csi.dataRootItem.get_nongroups():
                 self.isTopGroupSelected = True
-                txt = "...all top level data"
+                txt = "... of all top level data"
             elif len(csi.allLoadedItems) == len(csi.selectedItems):
-                txt = "...all data"
+                txt = "... of all data"
             else:
                 if lsi == 1:
-                    txt = "...1 selected item ({0})".format(
+                    txt = "... of 1 selected item ({0})".format(
                         csi.selectedItems[0].alias)
                 else:
-                    txt = "...{0} selected items".format(lsi)
+                    txt = "... of {0} selected items".format(lsi)
         nSpectraLabel = qt.QLabel(txt)
 
         self.color = self.color1 = self.color2 = 'k'
@@ -334,7 +333,7 @@ class LineProps(qt.QDialog):
         return groupColor
 
     def makeTab(self):
-        tab = qt.QWidget()
+        tab = qt.QWidget(self)
         tab.color = self.color
 
         layout2 = qt.QHBoxLayout()
@@ -624,4 +623,4 @@ class LineProps(qt.QDialog):
         self.setLineOptions()
         if hasattr(self.node, 'widget'):
             self.node.widget.replot()
-        super(LineProps, self).accept()
+        super().accept()

@@ -15,7 +15,7 @@ from .propWidget import QLineEditSelectRB, PropWidget
 
 class ColumnFormatWidget(PropWidget):
     def __init__(self, parent=None, node=None):
-        super(ColumnFormatWidget, self).__init__(parent, node)
+        super().__init__(parent, node)
         self.shouldRemoveNonesFromProps = True
 
         self.tabWidget = qt.QTabWidget(self)

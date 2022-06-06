@@ -75,7 +75,7 @@ class Node(object):
 
     """
 
-    def __init__(self):
+    def __init__(self, widgetClass=None):
         for attr in ['name', 'arrays']:
             if not hasattr(self, attr):
                 raise NotImplementedError(
@@ -87,6 +87,7 @@ class Node(object):
             self.auxArrays = []
         if not hasattr(self, 'checkShapes'):
             self.checkShapes = []
+        self.widgetClass = widgetClass
 
         # filled automatically by transforms after creation of all nodes:
         self.upstreamNodes = []
@@ -139,14 +140,17 @@ class Node(object):
                     added += 1
         self.columnCount = added
 
-    def is_between_nodes(self, node1, node2, node1in=True, node2in=False):
+    def is_between_nodes(
+            self, nodeName1, nodeName2, node1in=True, node2in=True):
         """
-        *node1* and *node2*: Node
-            *node2* can be None, the right end is infinite then.
+        *nodeName1* and *nodeName2*: Node
+            *nodeName2* can be None, the right end is infinite then.
 
         *node1in* and *node2in*: bool
             define whether the interval is closed or open.
         """
+        node1 = csi.nodes[nodeName1]
+        node2 = csi.nodes[nodeName2] if nodeName2 else None
         ans = (node1 in self.upstreamNodes) or (node1in and (self is node1))
         if ans and (node2 is not None):
             ans = (node2 in self.downstreamNodes) or\

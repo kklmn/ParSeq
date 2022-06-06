@@ -98,6 +98,7 @@ def common_substring(strs, isReversed=False):
                 yield letters[0]
             else:
                 return
+    assert isinstance(isReversed, bool)
     res = ''.join(_iter())
     return res[::-1] if isReversed else res
 

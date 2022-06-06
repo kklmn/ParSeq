@@ -6,7 +6,7 @@ __date__ = "27 Jan 2018"
 import numpy as np
 import re
 #import os, sys; sys.path.append('..')  # analysis:ignore
-#from parseq.gui.combineSpectraWidget import CombineSpectraWidget
+#from parseq.gui.combineSpectra import CombineSpectraWidget
 #import parseq.apps.dummy as myapp
 
 

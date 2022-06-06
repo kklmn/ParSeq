@@ -5,6 +5,7 @@ __date__ = "23 Jul 2021"
 
 import os
 import pickle
+import time
 import json
 import numpy as np
 from functools import partial
@@ -22,6 +23,7 @@ import sys; sys.path.append('..')  # analysis:ignore
 from ..core import config
 from ..core import singletons as csi
 from ..core import commons as cco
+from ..core import spectra as csp
 from ..gui import undoredo as gur
 from .nodeWidget import NodeWidget
 from .transformer import Transformer
@@ -52,7 +54,7 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
             self.show()
 
             # Custom title bar:
-            self.titleBar = qt.QWidget()
+            self.titleBar = qt.QWidget(self)
             self.titleBar.setAutoFillBackground(True)
             self.titleBar.setStyleSheet(
                 "QWidget {font: bold; font-size: " + fontSize + "pt;}")
@@ -134,7 +136,7 @@ class MainWindowParSeq(qt.QMainWindow):
     chars2removeMap = {ord(c): '-' for c in '/*? '}
 
     def __init__(self, parent=None):
-        super(MainWindowParSeq, self).__init__(parent)
+        super().__init__(parent)
         selfDir = os.path.dirname(__file__)
         self.iconDir = os.path.join(selfDir, '_images')
         self.runIcon = qt.QIcon(os.path.join(self.iconDir, 'parseq.ico'))
@@ -261,7 +263,7 @@ class MainWindowParSeq(qt.QMainWindow):
                 "QDockWidget {font: bold; font-size: " + fontSize + "pt;"
                 "padding-left: 5px}")
             self.addDockWidget(qt.Qt.TopDockWidgetArea, dock)
-            nodeWidget = NodeWidget(node, self)
+            nodeWidget = NodeWidget(node, None)
             dock.setWidget(nodeWidget)
             if i == 0:
                 dock0, node0 = dock, nodeWidget
@@ -314,11 +316,11 @@ class MainWindowParSeq(qt.QMainWindow):
             tr = node.transformIn
             if tr is None:
                 continue
-            if tr.widgetClass is None:
+            if node.widgetClass is None:
                 continue
-            if not tr.widgetClass.__doc__:
+            if not node.widgetClass.__doc__:
                 continue
-            rawTexts.append(textwrap.dedent(tr.widgetClass.__doc__))
+            rawTexts.append(textwrap.dedent(node.widgetClass.__doc__))
             rawTextNames.append(name)
 
         # make help pages
@@ -355,15 +357,30 @@ class MainWindowParSeq(qt.QMainWindow):
             return
         selNames = [it.alias for it in csi.selectedItems]
         combinedNames = cco.combine_names(selNames)
-        dataCount = len(csi.allLoadedItems)
-        self.saveAction.setEnabled(dataCount > 0)
-        sellen = len(csi.selectedItems)
-        if sellen:
+
+        cLoaded = len([it for it in csi.allLoadedItems if it.dataType in
+                       [csp.DATA_DATASET, csp.DATA_COLUMN_FILE]])
+        cBranched = len([it for it in csi.allLoadedItems if it.dataType ==
+                         csp.DATA_BRANCH])
+        cCreated = len([it for it in csi.allLoadedItems if it.dataType ==
+                        csp.DATA_FUNCTION])
+        cCombined = len([it for it in csi.allLoadedItems if it.dataType ==
+                         csp.DATA_COMBINATION])
+        cData = cLoaded + cBranched + cCreated + cCombined
+
+        self.saveAction.setEnabled(cData > 0)
+        cSelected = len(csi.selectedItems)
+        if cSelected:
             self.statusBarLeft.setText('{0} selected: {1}'.format(
-                sellen, combinedNames))
+                cSelected, combinedNames))
         else:
             self.statusBarLeft.setText('')
-        self.statusBarRight.setText('{0} loaded'.format(dataCount))
+        sLoaded = '{0} loaded'.format(cLoaded) if cLoaded else ''
+        sBranched = '{0} branched'.format(cBranched) if cBranched else ''
+        sCreated = '{0} created'.format(cCreated) if cCreated else ''
+        sCombined = '{0} combined'.format(cCombined) if cCombined else ''
+        ss = [s for s in (sLoaded, sBranched, sCreated, sCombined) if s]
+        self.statusBarRight.setText(', '.join(ss))
 
     def nodeChanged(self, dock, node, visible):
         if visible:
@@ -444,6 +461,7 @@ class MainWindowParSeq(qt.QMainWindow):
         dlg.open()
 
     def doLoadProject(self, res):
+        self.cursor().setPos(self.mapToGlobal(qt.QPoint(0, 0)))
         fname = res[0][0]
         self.load_project(fname)
 
@@ -452,9 +470,10 @@ class MainWindowParSeq(qt.QMainWindow):
         if len(csi.selectedItems) > 0:
             csi.selectedItems[0].save_transform_params()
         config.write_configs()
-
-        for dock in self.docks:
-            dock[0].deleteLater()
+        time.sleep(0.1)
+        # for dock in self.docks:
+        #     dock[0].deleteLater()
+        # super().closeEvent(event)
 
     def updateItemView(self, items):
         for item in items:
@@ -484,11 +503,11 @@ class MainWindowParSeq(qt.QMainWindow):
             self.tabWiget.setTabTextColor(itab, qt.QColor(color))
             # self.tabWiget.setTabIcon(itab, icon)
 
-    def displayStatusMessage(self, txt, starter=None, duration=0):
+    def displayStatusMessage(self, txt, starter=None, what='', duration=0):
         if 'ready' in txt:
             factor, unit, ff = (1e3, 'ms', '{0:.0f}') if duration < 1 else (
                 1, 's', '{0:.1f}')
-            ss = 'finished in ' + ff + ' {1}'
+            ss = what + ' finished in ' + ff + ' {1}'
             self.statusBarLeft.setText(ss.format(duration*factor, unit))
             return
         self.statusBarLeft.setText(txt)

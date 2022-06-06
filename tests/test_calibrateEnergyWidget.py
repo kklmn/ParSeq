@@ -6,8 +6,8 @@ __date__ = "24 Mar 2021"
 from silx.gui import qt
 
 import sys; sys.path.append('../..')  # analysis:ignore
-from parseq.gui.calibrateEnergyWidget import CalibrateEnergyWidget
-import parseq_XES_scan as myapp
+from parseq.gui.calibrateEnergy import CalibrateEnergyWidget
+import _parseq_XES_scan_v030 as myapp
 
 
 def test():

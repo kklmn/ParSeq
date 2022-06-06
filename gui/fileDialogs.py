@@ -16,7 +16,7 @@ class SaveProjectDlg(qt.QFileDialog):
     ready = qt.pyqtSignal(list)
 
     def __init__(self, parent=None, dirname=''):
-        super(SaveProjectDlg, self).__init__(
+        super().__init__(
             parent=parent, caption='Save project', directory=dirname)
         self.setOption(qt.QFileDialog.DontUseNativeDialog, True)
         self.setAcceptMode(qt.QFileDialog.AcceptSave)
@@ -46,6 +46,7 @@ class SaveProjectDlg(qt.QFileDialog):
             nodeCB = qt.QCheckBox(tabName, self)
             self.saveNodeCBs.append(nodeCB)
             layoutF.addWidget(nodeCB)
+        layoutF.addStretch()
         nodeCB.setChecked(True)
         saveDataFrom.setLayout(layoutF)
         layoutC.addWidget(saveDataFrom)
@@ -103,12 +104,12 @@ class SaveProjectDlg(qt.QFileDialog):
 #             return '<img src="ttt-4-1D energy XES.png" ' + \
 #                 'style="width: 200px; image-rendering: smooth;" >'
 #         else:
-#             return super(QTooltipProxyModel, self).data(index, role)
+#             return super().data(index, role)
 
 
 class QPreviewPanel(qt.QWidget):
     def __init__(self, parent=None):
-        super(QPreviewPanel, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -166,7 +167,7 @@ class LoadProjectDlg(qt.QFileDialog):
     ready = qt.pyqtSignal(list)
 
     def __init__(self, parent=None, dirname=''):
-        super(LoadProjectDlg, self).__init__(
+        super().__init__(
             parent=parent, caption='Load project', directory=dirname)
         self.setOption(qt.QFileDialog.DontUseNativeDialog, True)
         self.setAcceptMode(qt.QFileDialog.AcceptOpen)

@@ -19,17 +19,18 @@ from ..gui.fileTreeModelView import FileTreeView
 from ..gui.dataTreeModelView import DataTreeView
 from ..gui.plot import Plot1D, Plot2D, Plot3D
 from ..gui.webWidget import QWebView
-from ..gui.columnFormatWidget import ColumnFormatWidget
-from ..gui.combineSpectraWidget import CombineSpectraWidget
+from ..gui.columnFormat import ColumnFormatWidget
+from ..gui.combineSpectra import CombineSpectraWidget
 
 SPLITTER_WIDTH, SPLITTER_BUTTON_MARGIN = 13, 6
 COLORMAP = 'viridis'
+ICONPIX = 32
 
 
 class QSplitterButton(qt.QPushButton):
     def __init__(self, text, parent, isVertical=False,
                  margin=SPLITTER_BUTTON_MARGIN):
-        super(QSplitterButton, self).__init__(text, parent)
+        super().__init__(text, parent)
         self.rawText = str(text)
         self.isVertical = isVertical
         fontSize = "10" if sys.platform == "darwin" else "7"
@@ -96,7 +97,7 @@ class QSplitterButton(qt.QPushButton):
 
 class NodeWidget(qt.QWidget):
     def __init__(self, node, parent=None):
-        super(NodeWidget, self).__init__(parent)
+        super().__init__(parent)
         self.mainWindow = parent
 #        self.setContentsMargins(0, 0, 0, 0)
         self.node = node
@@ -115,10 +116,10 @@ class NodeWidget(qt.QWidget):
         self.makeTransformWidget(self.splitterTransform)
         self.fillSplitterTransform()
         self.makeSplitterButtons()
-        self.splitter.setStretchFactor(0, 0.1)
-        self.splitter.setStretchFactor(1, 0.1)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 0)
         self.splitter.setStretchFactor(2, 1)
-        self.splitter.setStretchFactor(3, 0.1)
+        self.splitter.setStretchFactor(3, 0)
 
         # if not osp.exists(self.helpFile):
         if True:
@@ -134,9 +135,9 @@ class NodeWidget(qt.QWidget):
         if node.plotDimension is None:
             self.dimIcon = qt.QIcon()
         elif node.plotDimension < 4:
-            name = 'icon-item-{0}dim'.format(node.plotDimension)
+            name = 'icon-item-{0}dim-{1}'.format(node.plotDimension, ICONPIX)
         else:
-            name = 'icon-item-ndim'
+            name = 'icon-item-ndim-{0}'.format(ICONPIX)
         self.iconDir = osp.join(osp.dirname(__file__), '_images')
         self.dimIcon = qt.QIcon(osp.join(self.iconDir, name+'.png'))
 
@@ -161,6 +162,9 @@ class NodeWidget(qt.QWidget):
         splitterInner = qt.QWidget(self.splitterFiles)
         labelFilter = qt.QLabel('file filter')
         self.editFileFilter = qt.QLineEdit()
+        self.editFileFilter.setToolTip("For quick jump into a location:\n"
+                                       "paste its path in front of the\n"
+                                       "wildcard filter(s) and press Enter")
         self.editFileFilter.returnPressed.connect(self.setFileFilter)
         if hasattr(self.node, 'fileNameFilters'):
             self.editFileFilter.setText(', '.join(self.node.fileNameFilters))
@@ -199,8 +203,8 @@ class NodeWidget(qt.QWidget):
         pickLayout = qt.QHBoxLayout()
         pickLayout.setContentsMargins(0, 0, 0, 0)
         pickLayout.addWidget(labelPick)
-        pickLayout.addWidget(cancelPick, 0.5)
-        pickLayout.addWidget(applyPick, 0.5)
+        pickLayout.addWidget(cancelPick, 1)
+        pickLayout.addWidget(applyPick, 1)
         self.pickWidget.setLayout(pickLayout)
         self.pickWidget.setVisible(False)
 
@@ -285,12 +289,10 @@ class NodeWidget(qt.QWidget):
     def makeTransformWidget(self, parent):
         tr = self.node.transformIn
         tr.sendSignals = csi.mainWindow is not None
-        hasWidgetClass = tr is not None
+        hasWidgetClass = self.node.widgetClass is not None
         if hasWidgetClass:
-            hasWidgetClass = tr.widgetClass is not None
-        if hasWidgetClass:
-            self.transformWidget = tr.widgetClass(
-                parent=parent, node=self.node, transform=tr)
+            self.transformWidget = self.node.widgetClass(
+                parent=parent, node=self.node)
         else:
             self.transformWidget = qt.QWidget(parent)
         if tr is not None:
@@ -366,9 +368,19 @@ class NodeWidget(qt.QWidget):
         if hasattr(self.node, 'fileNameFilters'):
             if lst == self.node.fileNameFilters:
                 return
-        self.files.setCurrentIndex(qt.QModelIndex())
-        self.node.fileNameFilters = lst
-        self.files.model().fsModel.setNameFilters(lst)
+        if lst:
+            dirname = osp.dirname(lst[0])
+            if dirname:
+                self.pendingFile = dirname, csp.DATA_COLUMN_FILE
+                ind = self.files.model().indexFileName(dirname)
+                self.files.setExpanded(ind, True)
+                self.files.setCurrentIndex(ind)
+                self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtTop)
+                self.files.dataChanged(ind, ind)
+                lst[0] = lst[0][lst[0].find('*'):]
+                self.editFileFilter.setText(','.join(lst))
+            self.node.fileNameFilters = lst
+            self.files.model().fsModel.setNameFilters(lst)
 
     def _makeAxisLabels(self, labels, for3Dtitle=False):
         res = []
@@ -394,6 +406,8 @@ class NodeWidget(qt.QWidget):
         if len(csi.selectedItems) > 0:
             item = csi.selectedItems[0]
         else:
+            return ""
+        if not self.shouldPlotItem(item):
             return ""
         node = self.node
         labels = node.getProp(node.plot3DArray, 'plotLabel')
@@ -455,8 +469,8 @@ class NodeWidget(qt.QWidget):
             return plot.getLabels()
 
     def shouldPlotItem(self, item):
-        if not self.node.is_between_nodes(item.originNode, item.terminalNode,
-                                          node1in=True, node2in=True):
+        if not self.node.is_between_nodes(
+                item.originNodeName, item.terminalNodeName):
             return False
         if item.state[self.node.name] != cco.DATA_STATE_GOOD:
             return False
@@ -543,7 +557,8 @@ class NodeWidget(qt.QWidget):
                     x = getattr(item, node.plotXArray)
                 except AttributeError:
                     continue
-                if item.originNode is node:
+                if (csi.nodes[item.originNodeName] is node and
+                        'conversionFactors' in item.dataFormat):
                     convs = [cN for (yN, cN) in zip(
                         node.arrays, item.dataFormat['conversionFactors'])
                         if yN in node.plotYArrays]
@@ -614,16 +629,23 @@ class NodeWidget(qt.QWidget):
             self.plot.clearImages()
             if len(csi.selectedItems) > 0:
                 item = csi.selectedItems[0]  # it could be the last one but
-                # then when goint with arrows up and down in the data tree and
+                # then when going with arrows up and down in the data tree and
                 # passing a group that becomes selected, the displayed item
                 # jumps between the first and the last
             elif len(csi.allLoadedItems) > 0:
                 item = csi.allLoadedItems[-1]
             else:
                 return
+            if not self.shouldPlotItem(item):
+                return
             try:
                 image = getattr(item, self.node.plot2DArray)
-            except AttributeError:
+            except AttributeError as e:
+                if not self.wasNeverPlotted:
+                    print(e)
+                    print(
+                        'If you use multiprocessing, check that this array is '
+                        'included into *outArrays* list in your transform.')
                 return
 
             xOrigin, xScale = self.getCalibration(item, 'x')
@@ -640,9 +662,16 @@ class NodeWidget(qt.QWidget):
                 item = csi.allLoadedItems[-1]
             else:
                 return
+            if not self.shouldPlotItem(item):
+                return
             try:
                 stack = getattr(item, self.node.plot3DArray) if item else None
-            except AttributeError:
+            except AttributeError as e:
+                if not self.wasNeverPlotted:
+                    print(e)
+                    print(
+                        'If you use multiprocessing, check that this array is '
+                        'included into *outArrays* list in your transform.')
                 return
             if item:
                 calibrations = [self.getCalibration(item, ax) for ax in 'xyz']
@@ -683,8 +712,7 @@ class NodeWidget(qt.QWidget):
         if node.plotDimension == 1:
             for item in csi.selectedItems:
                 if not node.is_between_nodes(
-                    item.originNode, item.terminalNode,
-                        node1in=True, node2in=True):
+                        item.originNodeName, item.terminalNodeName):
                     continue
                 for col, yN in enumerate(node.plotYArrays):
                     curveLabel = item.alias + '.' + yN
@@ -750,8 +778,8 @@ class NodeWidget(qt.QWidget):
             else:  # fobj[1] == csp.DATA_DATASET:
                 ind = self.files.model().indexFromH5Path(fobj[0], True)
             self.files.setCurrentIndex(ind)
-            # self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtCenter)
-            self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtTop)
+            self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtCenter)
+            # self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtTop)
             self.files.dataChanged(ind, ind)
         self.updateMeta()
         if fobj:
@@ -762,7 +790,7 @@ class NodeWidget(qt.QWidget):
     def shouldUpdateFileModel(self):
         for it in csi.selectedItems:
             if it.dataType in (csp.DATA_COLUMN_FILE, csp.DATA_DATASET) and\
-                    it.originNode is self.node:
+                    csi.nodes[it.originNodeName] is self.node:
                 return it.madeOf, it.dataType
 
     def loadFiles(self, fileNamesFull=None, parentItem=None, insertAt=None):
@@ -857,36 +885,7 @@ class NodeWidget(qt.QWidget):
         # df['dataSource'] = [col[0][0] for col in colRecs]
         items = csi.model.importData(
             fileNamesFull, parentItem, insertAt, dataFormat=df,
-            originNode=self.node)
-
-        # if spectraInOneFile == 1:
-        #     df['dataSource'] = [col[0][0] for col in colRecs]
-        #     items = csi.model.importData(
-        #         fileNamesFull, parentItem, insertAt, dataFormat=df,
-        #         originNode=self.node)
-        # else:
-        #     keys = [col[2][0] for col in colRecs[colMany[0]]]
-        #     cs = keys[0]
-        #     for key in keys[1:]:
-        #         cs = cco.common_substring(cs, key)
-        #     colNames = [key[len(cs):] for key in keys]
-        #     for fname in fileNamesFull:
-        #         basename = osp.basename(fname)
-        #         groupName = osp.splitext(basename)[0]
-        #         if '::' in fname:
-        #             h5name = osp.splitext(osp.basename(
-        #                 fname[:fname.find('::')]))[0]
-        #             groupName = '/'.join([h5name, groupName])
-        #         group, = csi.model.importData(groupName, parentItem, insertAt)
-        #         for i, colName in enumerate(colNames):
-        #             df['dataSource'] = \
-        #                 [col[i][0] if len(col) > 1 else col[0][0]
-        #                  for col in colRecs]
-        #             csi.model.importData(
-        #                 fname, group, dataFormat=df,
-        #                 alias='{0}_{1}'.format(groupName, colName),
-        #                 originNode=self.node)
-        #     items = group,
+            originNodeName=self.node.name)
 
         mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
         for item in items:
@@ -897,7 +896,7 @@ class NodeWidget(qt.QWidget):
     def shouldShowColumnDialog(self):
         for it in csi.selectedItems:
             if it.dataType in (csp.DATA_COLUMN_FILE, csp.DATA_DATASET) and\
-                    it.originNode is self.node:
+                    csi.nodes[it.originNodeName] is self.node:
                 return True
         return False
 
@@ -911,7 +910,7 @@ class NodeWidget(qt.QWidget):
         except (IndexError, KeyError):
             return
         for item in csi.selectedItems[1:]:
-            cs = cco.common_substring(cs, item.meta['text'])
+            cs = cco.common_substring((cs, item.meta['text']))
         self.metadata.setText(cs)
 
     def updateTransforms(self):

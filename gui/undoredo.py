@@ -3,9 +3,19 @@ __author__ = "Konstantin Klementiev"
 __date__ = "17 Nov 2018"
 # !!! SEE CODERULES.TXT !!!
 
+import reprlib
+
 from ..core import singletons as csi
 from ..core import spectra as csp
 from ..core import commons as cco
+
+
+class FloatRepr(reprlib.Repr):
+    def repr_float(self, value, level):
+        return format(value, '.3f')
+
+    def repr_float64(self, value, level):
+        return self.repr_float(value, level)
 
 
 def upplyUndo(ind):
@@ -60,7 +70,8 @@ def getStrRepr(entry):
             return '{0} for {1}'.format(strChange, combinedNames)
         elif len(params) == 1:
             return 'change {0} to {1} for {2}'.format(
-                cco.shrinkTransformParam(params[0]), values[0], combinedNames)
+                cco.shrinkTransformParam(params[0]),
+                FloatRepr().repr(values[0]), combinedNames)
         elif len(params) > 1:
             return '{0} to {1}'.format(strChange, combinedNames)
     elif isinstance(entry[0], list):

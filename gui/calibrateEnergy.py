@@ -12,12 +12,13 @@ from ..core import singletons as csi
 from ..core import spectra as csp
 from ..third_party import xrt
 
-columnWidths = (120, 80, 65, 60)
+HEADERS = ['reference data', 'energy', 'DCM', 'FWHM']
+columnWidths = (112, 64, 64, 54)
 
 
 class CalibrationModel(qt.QAbstractTableModel):
     def __init__(self, dataCollection=None, header=None, formatStr='{0}'):
-        super(CalibrationModel, self).__init__()
+        super().__init__()
         self.headerList = header if header is not None else []
         self.formatStr = formatStr
         self.setDataCollection(dataCollection)
@@ -58,6 +59,8 @@ class CalibrationModel(qt.QAbstractTableModel):
                     res = self.dataCollection['DCM'][row]
                     return res if res in xrt.crystals.keys() else 'none'
                 elif column == 3:  # fwhm
+                    if 'FWHM' not in self.dataCollection:
+                        return
                     res = self.dataCollection['FWHM'][row]
                     return self.formatStr.format(res)
             except (IndexError, TypeError):
@@ -97,13 +100,20 @@ class CalibrationModel(qt.QAbstractTableModel):
                 return section
         elif role == qt.Qt.TextAlignmentRole:
             return qt.Qt.AlignHCenter
+        elif role == qt.Qt.ToolTipRole:
+            if section == 0:
+                return('data name (alias) of elastic scans')
+            elif section == 1:
+                return('formal energy value')
+            elif section == 2:
+                return('crystals for calculating\nFWHM of DCM bandwidth')
 
     def setDataCollection(self, dataCollection=None):
         self.beginResetModel()
         if dataCollection is None:
             self.dataCollection = {}
         else:
-            self.dataCollection = dataCollection
+            self.dataCollection = dict(dataCollection)
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
@@ -134,7 +144,7 @@ class ComboDelegate(qt.QItemDelegate):
 
 class CalibrateTableView(qt.QTableView):
     def __init__(self, parent, model):
-        super(CalibrateTableView, self).__init__(parent)
+        super().__init__(parent)
         self.setModel(model)
 
         horHeaders = self.horizontalHeader()  # QHeaderView instance
@@ -142,12 +152,14 @@ class CalibrateTableView(qt.QTableView):
 
         if 'pyqt4' in qt.BINDING.lower():
             horHeaders.setMovable(False)
-            for i in range(4):
+            horHeaders.setResizeMode(0, qt.QHeaderView.Stretch)
+            for i in [1, 2, 3]:
                 horHeaders.setResizeMode(i, qt.QHeaderView.Interactive)
             horHeaders.setClickable(True)
         else:
             horHeaders.setSectionsMovable(False)
-            for i in range(4):
+            horHeaders.setSectionResizeMode(0, qt.QHeaderView.Stretch)
+            for i in [1, 2, 3]:
                 horHeaders.setSectionResizeMode(i, qt.QHeaderView.Interactive)
             horHeaders.setSectionsClickable(True)
         horHeaders.setStretchLastSection(False)
@@ -163,7 +175,7 @@ class CalibrateTableView(qt.QTableView):
 
 class CalibrateEnergyWidget(qt.QWidget):
     def __init__(self, parent=None, dataCollection=None, formatStr='{0}'):
-        super(CalibrateEnergyWidget, self).__init__(parent)
+        super().__init__(parent)
 
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -183,9 +195,8 @@ class CalibrateEnergyWidget(qt.QWidget):
 
         layout.addLayout(layoutB)
 
-        header = ['reference data', 'energy', 'DCM', 'FWHM']
         self.calibrationModel = CalibrationModel(
-            dataCollection, header, formatStr)
+            dataCollection, HEADERS, formatStr)
         self.table = CalibrateTableView(self, self.calibrationModel)
 
         layout.addWidget(self.table)

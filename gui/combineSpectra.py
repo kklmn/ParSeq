@@ -13,7 +13,7 @@ from . import propsOfData as gpd
 
 class CombineSpectraWidget(PropWidget):
     def __init__(self, parent=None, node=None):
-        super(CombineSpectraWidget, self).__init__(parent, node)
+        super().__init__(parent, node)
         combineDataGroup = self.makeCombineDataGroup()
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(4, 2, 2, 0)
@@ -74,11 +74,11 @@ class CombineSpectraWidget(PropWidget):
         self.combineStop.setVisible(state == qt.Qt.Checked)
 
     def setUIFromData(self):
-        gpd.setCButtonFromData(self.stopHereCB, 'terminalNode',
-                               compareWith=self.node)
+        gpd.setCButtonFromData(self.stopHereCB, 'terminalNodeName',
+                               compareWith=self.node.name)
         gpd.setComboBoxFromData(self.combineType, 'dataFormat.combine')
-        gpd.setCButtonFromData(self.combineStopCB, 'terminalNode')
-        gpd.setComboBoxFromData(self.combineStop, 'terminalNode',
+        gpd.setCButtonFromData(self.combineStopCB, 'terminalNodeName')
+        gpd.setComboBoxFromData(self.combineStop, 'terminalNodeName',
                                 compareWith=list(csi.nodes.keys()))
 
     def updateDataFromUI(self):
@@ -99,11 +99,11 @@ class CombineSpectraWidget(PropWidget):
             nPCA = self.combineN.value()  # !!! TODO !!!
 #        isStopHere = self.stopHereCB.checkState() == qt.Qt.Checked
         isStoppedAt = self.combineStopCB.checkState() == qt.Qt.Checked
-        kw = dict(dataFormat={'combine': ind}, colorTag=ind)
-        kw['originNode'] = self.node
+        kw = dict(dataFormat={'combine': ind}, colorTag=ind,
+                  originNodeName=self.node.name)
         if isStoppedAt:
             for it in csi.selectedItems:
-                it.terminalNode = csi.nodes[self.combineStop.currentText()]
+                it.terminalNodeName = self.combineStop.currentText()
         isMoveToGroup = self.combineMoveToGroupCB.checkState() == qt.Qt.Checked
         model = self.node.widget.tree.model()
         model.beginResetModel()

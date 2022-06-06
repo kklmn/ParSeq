@@ -71,7 +71,7 @@ class Transform(object):
     inArrays = []
     outArrays = []
 
-    def __init__(self, fromNode, toNode, widgetClass=None):
+    def __init__(self, fromNode, toNode):
         """
         *fromNode* and *toNode* are instances of :class:`core.nodes.Node`. They
         may be the same object.
@@ -95,7 +95,6 @@ class Transform(object):
         if self not in fromNode.transformsOut:
             fromNode.transformsOut.append(self)
         toNode.transformIn = self
-        self.widgetClass = widgetClass
         self.sendSignals = False
         self.read_ini_params()
 
@@ -142,9 +141,13 @@ class Transform(object):
                 if par not in data.transformParams:
                     raise KeyError("Unknown parameter '{0}'".format(par))
                 data.transformParams[par] = params[par]
+        # data = csi.selectedItems[0]
+        # dtparams = data.transformParams
 
     def run(self, params={}, updateUndo=True, runDownstream=True,
             dataItems=None):
+        if csi.DEBUG_LEVEL > 20:
+            print('enter run() of "{0}"'.format(self.name))
         items = dataItems if dataItems is not None else csi.selectedItems
         self.run_pre(params, items, updateUndo)
 
@@ -169,68 +172,100 @@ class Transform(object):
             workers, workedItems = [], []
 
         for idata, data in enumerate(items):
-            if (data.state[self.fromNode.name] == cco.DATA_STATE_GOOD and
-                self.fromNode.is_between_nodes(
-                    data.originNode, data.terminalNode, node1in=True,
-                    node2in=False)):
-                args = getargspec(self.__class__.run_main)[0]
-                if args[0] == 'self':
-                    print('IMPORTANT!: remove "self" from "run_main()" '
-                          'parameters as this is a static method, '
-                          'not an instance method')
-                if workerClass is not None:
-                    worker = workerClass(self.__class__.run_main,
-                                         self.inArrays, self.outArrays)
-                    workers.append(worker)
-                    workedItems.append(data)
-                    if len(workers) == cpus or idata == len(items)-1:
-                        if csi.DEBUG_LEVEL > 1:
-                            print('run {0} in {1} {2}{3} for {4}'.format(
-                                self.name, len(workers), workerStr,
-                                '' if len(workers) == 1 else 's',
-                                [d.alias for d in workedItems]))
-                        for worker, item in zip(workers, workedItems):
-                            worker.put_in_data(item)
-                            worker.start()
-                            item.beingTransformed = True
-                        if self.sendSignals:
-                            csi.mainWindow.beforeDataTransformSignal.emit(
-                                workedItems)
-                        for worker, item in zip(workers, workedItems):
-                            worker.get_out_data(item)
-                            item.state[self.toNode.name] = cco.DATA_STATE_GOOD\
-                                if worker.get_results(self) else\
-                                cco.DATA_STATE_BAD
-                            item.beingTransformed = False
-                        for worker in workers:
-                            worker.join(60.)
-                        if self.sendSignals:
-                            csi.mainWindow.afterDataTransformSignal.emit(
-                                workedItems)
-                        workers, workedItems = [], []
-                else:
-                    data.beingTransformed = True
-                    if self.sendSignals:
-                        csi.mainWindow.beforeDataTransformSignal.emit([data])
-                    if csi.DEBUG_LEVEL > 1:
-                        print('run {0} for {1}'.format(self.name, data.alias))
-                    # args = getargspec(self.run_main)
-                    if 'allData' in args:
-                        allData = csi.allLoadedItems
-                        res = self.run_main(data, allData)
-                    else:
-                        res = self.run_main(data)
-                    if isinstance(res, dict):
-                        for field in res:
-                            setattr(self, field, res[field])
-                    data.state[self.toNode.name] = cco.DATA_STATE_GOOD \
-                        if res is not None else cco.DATA_STATE_BAD
-                    data.beingTransformed = False
-                    if self.sendSignals:
-                        csi.mainWindow.afterDataTransformSignal.emit([data])
-            else:
+            if data.state[self.fromNode.name] == cco.DATA_STATE_BAD:
                 data.state[self.toNode.name] = cco.DATA_STATE_BAD
-        self.run_post(runDownstream, items)
+                if csi.DEBUG_LEVEL > 20:
+                    print('bad data at', self.fromNode.name, data.alias)
+                continue
+            elif data.state[self.fromNode.name] == cco.DATA_STATE_NOTFOUND:
+                if csi.DEBUG_LEVEL > 20:
+                    print('data not found', data.alias)
+                continue
+
+            if data.transformNames == 'each':
+                if not (self.fromNode.is_between_nodes(
+                            data.originNodeName, data.terminalNodeName) and
+                        self.toNode.is_between_nodes(
+                            data.originNodeName, data.terminalNodeName)):
+                    data.state[self.toNode.name] = cco.DATA_STATE_UNDEFINED
+                    if csi.DEBUG_LEVEL > 20:
+                        print(data.alias, 'not between "{0}" and "{1}"'.format(
+                            self.fromNode.name, self.toNode.name))
+                    continue
+                # if not data.state[self.fromNode.name] == cco.DATA_STATE_GOOD:
+                #     continue
+            elif isinstance(data.transformNames, (tuple, list)):
+                if self.name not in data.transformNames:
+                    data.state[self.toNode.name] = cco.DATA_STATE_UNDEFINED
+                    if csi.DEBUG_LEVEL > 20:
+                        print(data.alias, 'not between "{0}" and "{1}"'.format(
+                            self.fromNode.name, self.toNode.name))
+                    continue
+            else:
+                raise ValueError('unknown `transformNames`="{0}" for "{1}"'
+                                 .format(data.transformNames, data.alias))
+
+            args = getargspec(self.__class__.run_main)[0]
+            if args[0] == 'self':
+                print('IMPORTANT!: remove "self" from "run_main()" '
+                      'parameters as this is a static method, '
+                      'not an instance method')
+            if workerClass is not None:
+                worker = workerClass(self.__class__.run_main,
+                                     self.inArrays, self.outArrays)
+                workers.append(worker)
+                workedItems.append(data)
+                if len(workers) == cpus or idata == len(items)-1:
+                    if csi.DEBUG_LEVEL > 1:
+                        print('run "{0}" in {1} {2}{3} for {4}'.format(
+                            self.name, len(workers), workerStr,
+                            '' if len(workers) == 1 else 's',
+                            [d.alias for d in workedItems]))
+                    for worker, item in zip(workers, workedItems):
+                        worker.put_in_data(item)
+                        worker.start()
+                        item.beingTransformed = True
+                    if self.sendSignals:
+                        csi.mainWindow.beforeDataTransformSignal.emit(
+                            workedItems)
+                    for worker, item in zip(workers, workedItems):
+                        worker.get_out_data(item)
+                        item.state[self.toNode.name] = cco.DATA_STATE_GOOD\
+                            if worker.get_results(self) else\
+                            cco.DATA_STATE_BAD
+                        item.beingTransformed = False
+                    for worker in workers:
+                        worker.join(60.)
+                    if self.sendSignals:
+                        csi.mainWindow.afterDataTransformSignal.emit(
+                            workedItems)
+                    workers, workedItems = [], []
+            else:
+                data.beingTransformed = True
+                if self.sendSignals:
+                    csi.mainWindow.beforeDataTransformSignal.emit([data])
+                if csi.DEBUG_LEVEL > 1:
+                    print('run "{0}" for {1}'.format(self.name, data.alias))
+                # args = getargspec(self.run_main)
+                if 'allData' in args:
+                    allData = csi.allLoadedItems
+                    res = self.run_main(data, allData)
+                else:
+                    res = self.run_main(data)
+                if isinstance(res, dict):
+                    for field in res:
+                        setattr(self, field, res[field])
+                data.state[self.toNode.name] = cco.DATA_STATE_GOOD \
+                    if res is not None else cco.DATA_STATE_BAD
+                data.beingTransformed = False
+                if self.sendSignals:
+                    csi.mainWindow.afterDataTransformSignal.emit([data])
+
+        postItems = [it for it in items
+                     if it.state[self.toNode.name] == cco.DATA_STATE_GOOD]
+        self.run_post(postItems, runDownstream)
+        if csi.DEBUG_LEVEL > 20:
+            print('exit run() of "{0}"'.format(self.name))
 
     def run_pre(self, params={}, dataItems=None, updateUndo=True):
         if params:
@@ -247,16 +282,17 @@ class Transform(object):
         """The actual functionality of Transform comes here."""
         raise NotImplementedError  # must be overridden
 
-    def run_post(self, runDownstream=True, dataItems=None):
+    def run_post(self, dataItems, runDownstream=True):
         # do data.calc_combined() if a member of data.combinesTo has
         # its originNode as toNode:
         toBeUpdated = []
         for data in dataItems:
             for d in data.combinesTo:
-                if data.state[self.toNode.name] != cco.DATA_STATE_GOOD:
+                if data.state[self.toNode.name] == cco.DATA_STATE_BAD:
                     d.state[self.toNode.name] = cco.DATA_STATE_BAD
                     continue
-                if (d.originNode is self.toNode) and (d not in toBeUpdated):
+                if (csi.nodes[d.originNodeName] is self.toNode) and \
+                        (d not in toBeUpdated):
                     toBeUpdated.append(d)
         for d in toBeUpdated:
             d.calc_combined()
@@ -270,7 +306,12 @@ class Transform(object):
             for tr in self.toNode.transformsOut:
                 if self is tr:
                     continue
-                tr.run(dataItems=dataItems)
+                newItems = dataItems.copy()
+                for data in dataItems:
+                    if data.branch is not None:
+                        newItems += [it for it in data.branch.get_items()
+                                     if it not in newItems]
+                tr.run(dataItems=newItems)
 
 
 class GenericProcessOrThread(object):
@@ -291,6 +332,7 @@ class GenericProcessOrThread(object):
                 res[key] = getattr(item, key)
             except AttributeError as e:
                 print(e)
+                print('for spectrum {0}'.format(item.alias))
                 print('also check the capitalization of array names in nodes '
                       'and transforms')
                 raise e
@@ -340,7 +382,7 @@ class GenericProcessOrThread(object):
     def run(self):
         # self.started_event.set()
         if csi.DEBUG_LEVEL > 20:
-            print('enter run')
+            print('enter run of GenericProcessOrThread')
         data = DataProxy()
         self.get_in_data(data)
         try:
@@ -352,7 +394,7 @@ class GenericProcessOrThread(object):
         finally:
             self.put_out_data(data)
             if csi.DEBUG_LEVEL > 20:
-                print('exit run', data.alias)
+                print('exit run of GenericProcessOrThread', data.alias)
         # self.started_event.clear()
         # self.finished_event.set()
 

@@ -21,8 +21,8 @@ from ..utils.format import format_memory_size
 
 DEFAULT_COLOR_AUTO_UPDATE = False
 
-DATA_COLUMN_FILE, DATA_DATASET, DATA_COMBINATION, DATA_FUNCTION, DATA_GROUP =\
-    range(5)
+DATA_COLUMN_FILE, DATA_DATASET, DATA_COMBINATION, DATA_FUNCTION, DATA_GROUP,\
+    DATA_BRANCH = range(6)
 COMBINE_NONE, COMBINE_AVE, COMBINE_SUM, COMBINE_PCA, COMBINE_RMS = range(5)
 combineNames = '', 'ave', 'sum', 'PCA', 'RMS'
 
@@ -96,51 +96,82 @@ class TreeItem(object):
             return tip
         else:
             res = ""
-            if hasattr(self, 'name'):
+            if hasattr(self, 'name'):  # instance of TreeItem
                 if isinstance(self.name, type("")):
                     res = self.name
-            elif hasattr(self, 'madeOf'):
-                if isinstance(self.madeOf, type("")):
-                    res = self.madeOf
+            elif hasattr(self, 'madeOf'):  # instance of Spectrum
+                if isinstance(self.madeOf, (type(""), dict)):
+                    if isinstance(self.madeOf, type("")):
+                        res = self.madeOf
+                    else:
+                        res = ""
                     if self.aliasExtra:
                         res += ': {0}'.format(self.aliasExtra)
                     dataSource = self.dataFormat.get('dataSource', [])
                     for ds in dataSource:
                         if isinstance(ds, type("")):
                             if ds.startswith('silx'):
-                                res += '\n' + ds
+                                if res:
+                                    res += '\n'
+                                res += ds
                     if csi.currentNode is not None:
                         node = csi.currentNode
-                        if self.state[node.name] == cco.DATA_STATE_BAD:
-                            res += '\nincopatible data shapes!'
-            try:
-                if csi.currentNode is not None:
-                    node = csi.currentNode
-                    if node.plotDimension == 1:
-                        arr = getattr(self, node.plotXArray)
-                        sh = arr.shape[0]
-                        whatSize = 'size of 1D array'
-                    elif node.plotDimension == 2:
-                        arr = getattr(self, node.plot2DArray)
-                        sh = arr.shape
-                        whatSize = 'size of 2D array'
-                    elif node.plotDimension == 3:
-                        arr = getattr(self, node.plot3DArray)
-                        sh = arr.shape
-                        whatSize = 'size of 3D array'
-                    else:
-                        arr = None
-                        sh = None
-                        whatSize = 'size'
-                    if sh:
-                        nl = '\n' if res else ''
-                        what = 'shape' if node.plotDimension > 1 else 'length'
-                        res += nl + '{0}: {1}'.format(what, sh)
-                        size = sys.getsizeof(arr)
-                        res += '\n{0}: {1}'.format(
-                            whatSize, format_memory_size(size))
-            except Exception as e:
-                res += '\n' + str(e)
+                        if self.state[node.name] == cco.DATA_STATE_NOTFOUND:
+                            if res:
+                                res += '\n'
+                            res += 'data not found!'
+                        elif self.state[node.name] == cco.DATA_STATE_BAD:
+                            if res:
+                                res += '\n'
+                            res += 'incompatible data shapes!'
+                        elif self.state[node.name] == cco.DATA_STATE_GOOD:
+                            try:
+                                if self.terminalNodeName is not None:
+                                    res += \
+                                        '\nthis data terminates at node "{0}"'\
+                                        .format(self.terminalNodeName)
+                                if node.plotDimension == 1:
+                                    arr = getattr(self, node.plotXArray)
+                                    sh = arr.shape[0]
+                                    whatSize = 'size of 1D array'
+                                elif node.plotDimension == 2:
+                                    arr = getattr(self, node.plot2DArray)
+                                    sh = arr.shape
+                                    whatSize = 'size of 2D array'
+                                elif node.plotDimension == 3:
+                                    arr = getattr(self, node.plot3DArray)
+                                    sh = arr.shape
+                                    whatSize = 'size of 3D array'
+                                else:
+                                    arr = None
+                                    sh = None
+                                    whatSize = 'size'
+                                if sh:
+                                    nl = '\n' if res else ''
+                                    what = 'shape' if node.plotDimension > 1\
+                                        else 'length'
+                                    res += nl + '{0}: {1}'.format(what, sh)
+                                    size = sys.getsizeof(arr)
+                                    res += '\n{0}: {1}'.format(
+                                        whatSize, format_memory_size(size))
+                            except Exception as e:
+                                res += '\n' + str(e)
+                        elif self.state[node.name] == cco.DATA_STATE_UNDEFINED:
+                            if self.originNodeName is not None or \
+                                    self.terminalNodeName is not None:
+                                if self.originNodeName is not None:
+                                    if res:
+                                        res += '\n'
+                                    res += 'This data starts at node "{0}"'\
+                                        .format(self.originNodeName)
+                                if self.terminalNodeName is not None:
+                                    if res:
+                                        res += '\n'
+                                    res += 'This data finishes at node "{0}"'\
+                                        .format(self.terminalNodeName)
+                            else:
+                                res += 'This node is out of the pipeline'\
+                                    ' for this data'
             return res
 
     def data(self, column):
@@ -186,10 +217,11 @@ class TreeItem(object):
             item.isVisible = bool(value)
 
     def find_data_item(self, alias=None):
-        if alias is not None:
-            for item in self.get_items():
-                if item.alias == alias:
-                    return item
+        if alias is None:
+            return
+        for item in self.get_items():
+            if item.alias == alias:
+                return item
 
     def get_top(self):
         return csi.dataRootItem
@@ -259,14 +291,14 @@ class TreeItem(object):
         elif hasattr(self, 'name'):
             alias = self.name
 
-        if isinstance(data, (type(""), type(u""))):
+        if isinstance(data, str):
             item = self.insert_item(data, insertAt, **kwargs)
             if item not in items:  # inclusion check that keeps the order
                 items.append(item)
         elif isinstance(data, (list, tuple)):
             si = self
             for subdata in data:
-                if isinstance(subdata, (type(""), type(u""))):
+                if isinstance(subdata, str):
                     si = self.insert_item(subdata, insertAt, **kwargs)
                     subItems = [si]
                 elif isinstance(subdata, (list, tuple)):
@@ -292,8 +324,7 @@ class TreeItem(object):
             csi.selectedItems = [csi.allLoadedItems[0]]
             csi.selectedTopItems = [csi.allLoadedItems[0]]
 
-        shouldMakeColor = (len(self.childItems) > 0
-                           and csi.withGUI)
+        shouldMakeColor = len(self.childItems) > 0 and csi.withGUI
         if shouldMakeColor:
             self.init_colors(self.childItems)
         return items
@@ -332,19 +363,31 @@ class Spectrum(TreeItem):
 
     configFieldsData = (  # to parse ini file section of data
         'madeOf', 'madeOf_relative', 'dataFormat', 'dataFormat_relative',
-        'suffix', 'originNode', 'terminalNode', 'colorTag', 'color')
+        'suffix', 'originNodeName', 'terminalNodeName', 'transformNames',
+        'colorTag', 'color')
     configFieldsGroup = (  # to parse ini file section of group
          'colorPolicy', 'colorTag', 'colorAutoUpdate')
 
+    defaultPlotParams = {'symbolsize': 2, 'linewidth': 1.5, 'linestyle': '-'}
+
     def __init__(self, madeOf, parentItem=None, insertAt=None, **kwargs):
-        """ *madeOf* is either a file name, a callable or a list of other
-        Spectrum instances.
+        """This object implements either a group that containes other instances
+        of Spectrum or a data container.
+
+        *madeOf* is either a file name, a callable, a list of other Spectrum
+        instances (for making a combination) or a dictionary (for creating
+        branches).
 
         *insertAt* is the position in parentItem.childItems list. If None, the
         spectrum is appended.
 
-        *kwargs* defaults to the dictionary:
-        dict(alias='auto', dataFormat={}, originNode=None, terminalNode=None)
+        *kwargs* defaults to the dictionary: dict(alias='auto', dataFormat={},
+        originNodeName=None, terminalNodeName=None, transformNames='each',
+        copyTransformParams=True).
+        The default kwargs can be changed in `csi.dataRootItem.kwargs`, where
+        `csi.dataRootItem` is the root item of the data model that gets
+        instantiated in the definition of the pipeline.
+
         *dataFormat* is assumed to be empty for a data group and non-empty for
         a spectrum.
 
@@ -358,48 +401,72 @@ class Spectrum(TreeItem):
         unit, e.g. the node defines an array with a 'mA' unit while the data
         was measured with a 'count' unit.
 
-        The data propagation is between *originNode* and *terminalNode*, both
-        ends are included. *originNode* can be int (the ordinal number of the
-        node) or a node instance obtained from the OrderedDict
-        `core.singletons.nodes`. If *originNode* is None, it defaults to the
-        0th node (the head of the pipeline). If *terminalNode* is None, the
-        data propagates down to the end(s) of the pipeline. If a node is
-        between *originNode* and *terminalNode* (in the sense of data
-        propagation) then the data is present in the node's data manager as
-        *alias* and is displayed in the plot.
+        The data propagation is between origin node and terminal node, both
+        ends are included. *originNodeName* and *terminalNodeName* (str)
+        are keys in the OrderedDict `core.singletons.nodes`. If undefined, they
+        default to the 0th node (the head of the pipeline) and the open end(s).
+        If a node is between the origin node and the terminal node (in the data
+        propagation sense) then the data is present in the node's data manager
+        as *alias* and is displayed in the plot.
+
+        *transformNames* is a list of transform names (or a single str 'each').
+        It defines whether a particular transform should be run for this data.
+
+        *copyTransformParams* bool, default True.
+        Controls the way the *transformParams* of the Spectrum are initialized:
+        If False, they are copied from *defaultParams* of all transforms. If
+        True, they are copied from the first selected spectrum when at least
+        one is selected or otherwise from the ini file.
 
         """
         assert len(csi.nodes) > 0, "A data pipeline must be first created."
         self.madeOf = madeOf
         self.parentItem = parentItem
         self.childItems = []
+        self.branch = None  # can be a group of branched out items
         self.isVisible = True
         self.beingTransformed = False
-        if parentItem is None:  # self is the root item
+        if parentItem is None:  # i.e. self is the root item
             assert csi.dataRootItem is None, "Data tree already exists."
             csi.dataRootItem = self
             if csi.withGUI:
                 from ..gui import gcommons as gco
                 self.colorPolicy = gco.COLOR_POLICY_LOOP1
                 self.colorAutoUpdate = DEFAULT_COLOR_AUTO_UPDATE
+            self.kwargs = dict(
+                alias='auto', dataFormat={}, originNodeName=None,
+                terminalNodeName=None, transformNames='each',
+                copyTransformParams=True)
             return
 
-        self.alias = kwargs.get('alias', 'auto')
-        self.suffix = kwargs.get('suffix', None)
-        self.dataFormat = copy.deepcopy(kwargs.get('dataFormat', {}))
-        originNode = kwargs.get('originNode', None)
-        if originNode is None:
-            originNode = list(csi.nodes.values())[0]
-        elif isinstance(originNode, int):
-            originNode = list(csi.nodes.values())[originNode]
-        self.originNode = originNode
-        terminalNode = kwargs.get('terminalNode', None)
-        if isinstance(terminalNode, int):
-            terminalNode = list(csi.nodes.values())[terminalNode]
-        self.terminalNode = terminalNode
+        originNodeName = kwargs.get(
+            'originNodeName', csi.dataRootItem.kwargs['originNodeName'])
+        if originNodeName is None:
+            originNodeName = list(csi.nodes.keys())[0]
+        else:
+            assert originNodeName in csi.nodes
+        self.originNodeName = originNodeName
 
+        terminalNodeName = kwargs.get(
+            'terminalNodeName', csi.dataRootItem.kwargs['terminalNodeName'])
+        if terminalNodeName is not None:
+            assert terminalNodeName in csi.nodes
+        self.terminalNodeName = terminalNodeName
+
+        self.transformNames = kwargs.get(
+            'transformNames', csi.dataRootItem.kwargs['transformNames'])
+        if self.transformNames is None:
+            self.transformNames = 'each'
+
+        self.alias = kwargs.get('alias',
+                                csi.dataRootItem.kwargs['alias'])
+        self.suffix = kwargs.get('suffix',
+                                 csi.dataRootItem.kwargs.get('suffix', None))
+        self.dataFormat = copy.deepcopy(
+            kwargs.get('dataFormat', csi.dataRootItem.kwargs['dataFormat']))
         self.isExpanded = True
-        self.colorTag = kwargs.get('colorTag', 0)
+        self.colorTag = kwargs.get('colorTag',
+                                   csi.dataRootItem.kwargs.get('colorTag', 0))
         self.hasChanged = False
         self.state = dict((nn, cco.DATA_STATE_UNDEFINED) for nn in csi.nodes)
         self.aliasExtra = None  # for extra name qualifier
@@ -412,19 +479,24 @@ class Spectrum(TreeItem):
         else:
             parentItem.childItems.insert(insertAt, self)
 
-        if self.dataFormat:
-            if 'conversionFactors' not in self.dataFormat:
-                self.dataFormat['conversionFactors'] = \
-                    [None for arr in self.originNode.arrays]
-            copyTransformParams = kwargs.pop('copyTransformParams', False)
-            transformParams = kwargs.pop('transformParams', {})
-            runDownstream = kwargs.pop('runDownstream', True)
+        if ((isinstance(self.madeOf, str) and self.dataFormat) or
+                isinstance(self.madeOf, (list, tuple, dict))):
+            copyTransformParams = kwargs.pop(
+                'copyTransformParams',
+                csi.dataRootItem.kwargs['copyTransformParams'])
+            transformParams = kwargs.pop(
+                'transformParams',
+                csi.dataRootItem.kwargs.get('transformParams', {}))
+            runDownstream = kwargs.pop(
+                'runDownstream',
+                csi.dataRootItem.kwargs.get('runDownstream', True))
             if csi.withGUI:
                 self.init_plot_props()
             self.read_data(runDownstream=runDownstream,
                            copyTransformParams=copyTransformParams,
                            transformParams=transformParams)
-        else:  # i.e. is a group
+        elif isinstance(self.madeOf, str) and not self.dataFormat:
+            # i.e. is a group
             self.dataType = DATA_GROUP
             if csi.withGUI:
                 from ..gui import gcommons as gco
@@ -447,7 +519,9 @@ class Spectrum(TreeItem):
                 self.colorAutoUpdate = bool(kwargs.pop(
                     'colorAutoUpdate', DEFAULT_COLOR_AUTO_UPDATE))
             if self.alias == 'auto':
-                self.alias = madeOf
+                self.alias = str(madeOf)
+        else:
+            raise ValueError('unknown data type of {0}'.format(self.alias))
 
     def init_plot_props(self):
         row = self.row()
@@ -459,19 +533,17 @@ class Spectrum(TreeItem):
             self.plotProps[node.name] = {}
             if node.plotDimension == 1:
                 for ind, yName in enumerate(node.plotYArrays):
-                    plotParams = {'symbolsize': 2}
+                    plotParams = dict(self.defaultPlotParams)
                     plotParams['yaxis'] = \
                         'right' if node.getProp(yName, 'role').endswith(
                             'right') else 'left'
-                    defPlotParams = node.getProp(yName, 'plotParams')
-                    for k, v in defPlotParams.items():
+                    nodePlotParams = node.getProp(yName, 'plotParams')
+                    for k, v in nodePlotParams.items():
                         if isinstance(v, (list, tuple)):
                             pv = v[ind]
                         else:
                             pv = v
                         plotParams[k] = pv
-                    if 'linestyle' not in plotParams:
-                        plotParams['linestyle'] = '-'
                     self.plotProps[node.name][yName] = plotParams
 
     def get_state(self, column):
@@ -486,12 +558,20 @@ class Spectrum(TreeItem):
 
     def read_data(self, shouldLoadNow=True, runDownstream=True,
                   copyTransformParams=True, transformParams={}):
-        if callable(self.madeOf):
-            self.dataType = DATA_FUNCTION
+        toNode = csi.nodes[self.originNodeName]
+        if isinstance(self.madeOf, dict):
+            self.dataType = DATA_BRANCH
+            if self.alias == 'auto':
+                self.alias = '{0}_{1}'.format(
+                    self.parentItem.alias, self.parentItem.child_count())
             if shouldLoadNow:
-                self.create_data()
+                self.branch_data()
+        elif callable(self.madeOf):
+            self.dataType = DATA_FUNCTION
             if self.alias == 'auto':
                 self.alias = "generated_{0}".format(self.madeOf.__name__)
+            if shouldLoadNow:
+                self.create_data()
         elif isinstance(self.madeOf, (list, tuple)):
             self.dataType = DATA_COMBINATION
             if shouldLoadNow:
@@ -499,11 +579,11 @@ class Spectrum(TreeItem):
             if self.alias == 'auto':
                 cs = self.madeOf[0].alias
                 for data in self.madeOf[1:]:
-                    cs = cco.common_substring(cs, data.alias)
+                    cs = cco.common_substring((cs, data.alias))
                 what = self.dataFormat['combine']
                 lenC = len(self.madeOf)
                 self.alias = "{0}_{1}{2}".format(cs, combineNames[what], lenC)
-        else:
+        elif isinstance(self.madeOf, str):
             if self.madeOf.startswith('silx:'):
                 self.dataType = DATA_DATASET
                 if self.colorTag == 0:
@@ -514,10 +594,12 @@ class Spectrum(TreeItem):
                     self.colorTag = 2
             if shouldLoadNow:
                 self.read_file()
-            if not self.check_shape():
-                print('Incopatible data shapes!')
-                self.state[self.originNode.name] = cco.DATA_STATE_BAD
-                self.colorTag = 3
+
+            if self.state[toNode.name] == cco.DATA_STATE_GOOD:
+                if not self.check_shape():
+                    print('Incompatible data shapes!')
+                    self.state[self.originNodeName] = cco.DATA_STATE_BAD
+                    self.colorTag = 3
 
             basename = osp.basename(self.madeOf)
             if self.alias == 'auto':
@@ -548,6 +630,8 @@ class Spectrum(TreeItem):
                 if n > 0:
                     tmpalias += " ({0})".format(n)
                 self.alias = tmpalias
+        else:
+            raise ValueError('unknown data type of {0}'.format(self.alias))
 
 #        csi.undo.append([self, insertAt, lenData])
 
@@ -563,14 +647,15 @@ class Spectrum(TreeItem):
                     self.transformParams.update(tr.iniParams)
         self.transformParams.update(transformParams)
 
-        if runDownstream:
-            tr = self.originNode.transformsOut[0]
-            tr.run(dataItems=[self])  # no need for multiprocessing here
-            if csi.model is not None:
-                csi.model.invalidateData()
+        # if runDownstream and toNode.transformsOut and \
+        #         self.state[toNode.name] == cco.DATA_STATE_GOOD:
+        #     for tr in toNode.transformsOut:
+        #         tr.run(dataItems=[self])  # no need for multiprocessing here
+        #         if csi.model is not None:
+        #             csi.model.invalidateData()
 
     def check_shape(self):
-        toNode = self.originNode
+        toNode = csi.nodes[self.originNodeName]
         for iarr, arrName in enumerate(toNode.checkShapes):
             pos = arrName.find('[')
             if pos > 0:
@@ -601,16 +686,13 @@ class Spectrum(TreeItem):
         if 'configData' in kwargs:  # ini file
             configData = kwargs['configData']
             if name in configData:
-                if 'dataFormat' in configData[name]:  # data entry
+                madeOf = config.get(configData, name, 'madeOf')
+                if (isinstance(madeOf, str) and
+                        'dataFormat' in configData[name]):
                     tmp = {entry: config.get(configData, name, entry)
                            for entry in self.configFieldsData}
-                    if 'dataFormat_relative' in tmp:
-                        tmp['dataFormat'] = tmp['dataFormat_relative']
-                        del tmp['dataFormat_relative']
-                    if tmp['originNode'] is not None:
-                        tmp['originNode'] = csi.nodes[tmp['originNode']]
-                    if tmp['terminalNode'] is not None:
-                        tmp['terminalNode'] = csi.nodes[tmp['terminalNode']]
+                    tmp['dataFormat'] = tmp['dataFormat_relative']
+                    del tmp['dataFormat_relative']
                     tmp['alias'] = name
                     trParams = {}
                     for tr in csi.transforms.values():
@@ -619,12 +701,26 @@ class Spectrum(TreeItem):
                     tmp['transformParams'] = trParams
                     name = tmp.pop('madeOf_relative')
                     nameFull = tmp.pop('madeOf')
-                    kwargs = dict(tmp)
+                elif isinstance(madeOf, dict):
+                    tmp = {entry: config.get(configData, name, entry)
+                           for entry in self.configFieldsData}
+                    del tmp['dataFormat_relative']
+                    del tmp['madeOf_relative']
+                    tmp['dataFormat'] = {}
+                    tmp['alias'] = name
+                    trParams = {}
+                    for tr in csi.transforms.values():
+                        for key in tr.defaultParams:
+                            trParams[key] = config.get(configData, name, key)
+                    tmp['transformParams'] = trParams
+                    name = tmp.pop('madeOf')
+                    nameFull = None
                 elif 'colorPolicy' in configData[name]:  # group entry
                     tmp = {entry: config.get(configData, name, entry)
                            for entry in self.configFieldsGroup}
                 else:
                     tmp = {}
+                kwargs = dict(tmp)
             else:
                 kwargs = {}
             kwargs['runDownstream'] = False
@@ -633,7 +729,8 @@ class Spectrum(TreeItem):
             kwargs = dict(configDict[name]) if name in configDict else {}
 
         df = dict(kwargs.get('dataFormat', {}))
-        if not df:  # is a group
+        if isinstance(name, str) and not df:
+            # is a group
             return Spectrum(name, self, insertAt, **kwargs)
 
         spectraInOneFile = 1
@@ -690,7 +787,7 @@ class Spectrum(TreeItem):
 
     def read_file(self):
         madeOf = self.madeOf
-        toNode = self.originNode
+        toNode = csi.nodes[self.originNodeName]
         df = dict(self.dataFormat)
         df.update(csi.extraDataFormat)
 
@@ -730,7 +827,8 @@ class Spectrum(TreeItem):
             df['skip_header'] = df.pop('skiprows', 0)
             dataSource = df.pop('dataSource', None)
             sliceStrs = df.pop('slices', ['' for ds in dataSource])
-            conversionFactors = df.pop('conversionFactors', [])
+            conversionFactors = df.pop('conversionFactors',
+                                       [None for arr in toNode.arrays])
             if dataSource is None:
                 raise ValueError('bad dataSource settings')
             if self.dataType == DATA_COLUMN_FILE:
@@ -767,7 +865,7 @@ class Spectrum(TreeItem):
             self.state[toNode.name] = cco.DATA_STATE_GOOD
         except (ValueError, OSError, IndexError) as e:
             print(e)
-            self.state[toNode.name] = cco.DATA_STATE_NOTFOUND
+            self.state = dict((n, cco.DATA_STATE_NOTFOUND) for n in csi.nodes)
             return
 
         self.convert_units(conversionFactors)
@@ -808,7 +906,7 @@ class Spectrum(TreeItem):
                 if k.startswith("silx:"):
                     d[k] = silx_io.get_data(k)
                     config.put(config.configDirs, 'Load',
-                               self.originNode.name+'_silx', k)
+                               self.originNodeName+'_silx', k)
                 else:
                     d[k] = silx_io.get_data('/'.join((self.madeOf, k)))
         else:  # arrays from column file
@@ -826,7 +924,7 @@ class Spectrum(TreeItem):
     def convert_units(self, conversionFactors):
         if not conversionFactors:
             return
-        toNode = self.originNode
+        toNode = csi.nodes[self.originNodeName]
         for aName, cFactor in zip(toNode.arrays, conversionFactors):
             if not cFactor or isinstance(cFactor, type("")):
                 continue
@@ -854,7 +952,7 @@ class Spectrum(TreeItem):
 
         try:
             assert isinstance(madeOf, (list, tuple))
-            toNode = self.originNode
+            toNode = csi.nodes[self.originNodeName]
 
             xNames = []
             # check equal length of data to combine:
@@ -906,17 +1004,52 @@ class Spectrum(TreeItem):
             self.state[toNode.name] = cco.DATA_STATE_MATHERROR
             self.meta['text'] += '\nThe conbined arrays have different lengths'
 
+    def branch_data(self):
+        """Case of *madeOf* as dict, when branching out."""
+        toNode = csi.nodes[self.originNodeName]
+        if csi.DEBUG_LEVEL > 50:
+            print('enter branch_data() for {0}'.format(self.alias))
+        try:
+            for key, value in self.madeOf.items():
+                if isinstance(value, np.ndarray):
+                    setattr(self, key, value)
+                elif isinstance(value, str):
+                    base = self.get_top().find_data_item(value)
+                    try:
+                        setattr(self, key, getattr(base, key))
+                    except Exception:
+                        pass
+                    self.meta = base.meta
+                    if base.branch is None:
+                        base.branch = self.parentItem
+                else:
+                    raise ValueError('unknown data type')
+            self.state[toNode.name] = cco.DATA_STATE_GOOD
+
+        except Exception as e:
+            print('Exception in "branch_data()" for "{0}":'.format(
+                self.alias), e)
+            self.state[toNode.name] = cco.DATA_STATE_BAD
+        if csi.DEBUG_LEVEL > 50:
+            print('exit branch_data() for {0}'.format(self.alias))
+
     def create_data(self):
         """Case of *madeOf* as callable"""
-        toNode = self.originNode
+        toNode = csi.nodes[self.originNodeName]
+        if csi.DEBUG_LEVEL > 50:
+            print('enter create_data() for {0}'.format(self.alias))
         try:
-            res = self.madeOf(**self.dataFormat)
-            for arrayName, arr in zip(toNode.arrays, res):
-                setName = toNode.getProp(arrayName, 'raw')
-                setattr(self, setName, arr)
+            res = self.madeOf(self, **self.dataFormat)
+            if res is not None:
+                for arrayName, arr in zip(toNode.arrays, res):
+                    setName = toNode.getProp(arrayName, 'raw')
+                    setattr(self, setName, arr)
             self.state[toNode.name] = cco.DATA_STATE_GOOD
-        except Exception:
+        except Exception as e:
+            print('Exception in "create_data":', e)
             self.state[toNode.name] = cco.DATA_STATE_BAD
+        if csi.DEBUG_LEVEL > 50:
+            print('exit create_data() for {0}'.format(self.alias))
 
     def save_transform_params(self):
         dtparams = self.transformParams
@@ -931,20 +1064,24 @@ class Spectrum(TreeItem):
     def save_to_project(self, configProject, dirname):
         from ..gui import gcommons as gco  # only needed with gui
         item = self
-        if item.dataFormat:
-            config.put(configProject, item.alias, 'madeOf', item.madeOf)
-
-            start = 5 if item.madeOf.startswith('silx:') else 0
-            end = item.madeOf.find('::') if '::' in item.madeOf else None
-            path = item.madeOf[start:end]
-            madeOfRel = \
-                item.madeOf[:start] + osp.relpath(path, dirname) +\
-                item.madeOf[end:]
-            config.put(configProject, item.alias, 'madeOf_relative', madeOfRel)
-
-            dataFormat = json.dumps(item.dataFormat)
-            dataFormat = dataFormat.replace('null', 'None')
-            config.put(configProject, item.alias, 'dataFormat', dataFormat)
+        if ((isinstance(item.madeOf, str) and item.dataFormat) or
+                isinstance(item.madeOf, (list, tuple, dict))):
+            if isinstance(item.madeOf, str):
+                config.put(configProject, item.alias, 'madeOf', item.madeOf)
+                start = 5 if item.madeOf.startswith('silx:') else 0
+                end = item.madeOf.find('::') if '::' in item.madeOf else None
+                path = item.madeOf[start:end]
+                madeOfRel = \
+                    item.madeOf[:start] + osp.relpath(path, dirname) + \
+                    item.madeOf[end:]
+                config.put(configProject, item.alias, 'madeOf_relative',
+                           madeOfRel)
+                dataFormat = json.dumps(item.dataFormat)
+                dataFormat = dataFormat.replace('null', 'None')
+                config.put(configProject, item.alias, 'dataFormat', dataFormat)
+            elif isinstance(item.madeOf, dict):
+                config.put(configProject, item.alias, 'madeOf',
+                           str(item.madeOf))
 
             dataSource = list(item.dataFormat.get('dataSource', []))
             for ds in dataSource:
@@ -972,11 +1109,15 @@ class Spectrum(TreeItem):
 
             config.put(configProject, item.alias, 'suffix', str(item.suffix))
             config.put(
-                configProject, item.alias, 'originNode',
-                item.originNode.name if item.originNode else 'None')
+                configProject, item.alias, 'originNodeName',
+                item.originNodeName if item.originNodeName else 'None')
             config.put(
-                configProject, item.alias, 'terminalNode',
-                item.terminalNode.name if item.terminalNode else 'None')
+                configProject, item.alias, 'terminalNodeName',
+                item.terminalNodeName if item.terminalNodeName else 'None')
+            config.put(
+                configProject, item.alias, 'transformNames',
+                str(item.transformNames)
+                if isinstance(item.transformNames, (list, tuple)) else 'each')
             config.put(
                 configProject, item.alias, 'colorTag', str(item.colorTag))
             config.put(configProject, item.alias, 'color', str(item.color))
@@ -990,7 +1131,8 @@ class Spectrum(TreeItem):
                 else:
                     toSave = dtparams[key]
                 config.put(configProject, item.alias, key, str(toSave))
-        else:  # i.e. is a group
+        elif isinstance(item.madeOf, str) and not item.dataFormat:
+            # i.e. is a group
             config.put(
                 configProject, item.alias, 'colorPolicy',
                 gco.COLOR_POLICY_NAMES[item.colorPolicy])
@@ -1006,3 +1148,51 @@ class Spectrum(TreeItem):
             config.put(
                 configProject, item.alias, 'colorAutoUpdate',
                 str(item.colorAutoUpdate))
+
+    def branch_out(self, nbrunch, toTransfer, nodeStop, nodeStart,
+                   transformNames, label=''):
+        """Brach this spectrum into a group of *nbrunch* new items. Example:
+        a 3D item has n ROIs that result in n 1D spectra; these spectra are put
+        to a new group and start at *nodeStart* (str) whereas the original data
+        item stops at *nodeStop* (str). The sequence *toTransfer* has field
+        names that will be created in the new branches and will be assigned the
+        values of the same fields from the branched out spectrum.
+        """
+
+        if csi.DEBUG_LEVEL > 50:
+            print('enter branch_out() of {0}'.format(self.alias))
+        if csi.model is not None:
+            csi.model.beginResetModel()
+        self.terminalNodeName = nodeStop
+        self.colorTag = 3
+        if self.branch is None:
+            kw = dict(colorPolicy='loop2', colorTag=4)
+            self.branch = self.parentItem.insert_item(
+                self.alias+'_rois', self.row()+1, **kw)
+            if hasattr(self.branch.parentItem, 'colorAutoUpdate'):
+                self.branch.colorAutoUpdate = \
+                    self.branch.parentItem.colorAutoUpdate
+        while self.branch.child_count() > nbrunch:
+            self.branch.childItems[-1].delete()
+        while self.branch.child_count() < nbrunch:
+            kw = dict(
+                alias='{0}_{1}{2}'.format(self.alias, label,
+                                          self.branch.child_count()+1),
+                originNodeName=nodeStart, transformNames=transformNames,
+                runDownstream=False)
+            dictToTransfer = {key: self.alias for key in toTransfer}
+            newItem = self.branch.insert_item(
+                dictToTransfer, self.branch.child_count(), **kw)
+            newItem.transformParams = self.transformParams
+            newItem.meta = self.meta
+            newItem.colorTag = 4
+        self.init_colors(self.branch.childItems)
+        for newItem in self.branch.childItems:
+            newItem.state[nodeStart] = cco.DATA_STATE_GOOD
+            for key in toTransfer:
+                setattr(newItem, key, getattr(self, key))
+
+        if csi.model is not None:
+            csi.model.endResetModel()
+        if csi.DEBUG_LEVEL > 50:
+            print('exit branch_out() of {0}'.format(self.alias))
