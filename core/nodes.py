@@ -75,6 +75,8 @@ class Node(object):
 
     """
 
+    defaultPlotParams = {'symbolsize': 2, 'linewidth': 1.3, 'linestyle': '-'}
+
     def __init__(self, widgetClass=None):
         for attr in ['name', 'arrays']:
             if not hasattr(self, attr):
@@ -175,7 +177,8 @@ class Node(object):
             return self.arrays[arrayName].get(
                 prop, self.getProp(arrayName, 'qUnit'))
         elif prop == 'plotParams':
-            return self.arrays[arrayName].get(prop, {})
+            return self.arrays[arrayName].get(
+                prop, dict(self.defaultPlotParams))
         elif prop == 'ndim':
             return self.arrays[arrayName].get(prop, 0)
         else:

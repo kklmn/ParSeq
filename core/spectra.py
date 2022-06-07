@@ -368,8 +368,6 @@ class Spectrum(TreeItem):
     configFieldsGroup = (  # to parse ini file section of group
          'colorPolicy', 'colorTag', 'colorAutoUpdate')
 
-    defaultPlotParams = {'symbolsize': 2, 'linewidth': 1.5, 'linestyle': '-'}
-
     def __init__(self, madeOf, parentItem=None, insertAt=None, **kwargs):
         """This object implements either a group that containes other instances
         of Spectrum or a data container.
@@ -533,7 +531,7 @@ class Spectrum(TreeItem):
             self.plotProps[node.name] = {}
             if node.plotDimension == 1:
                 for ind, yName in enumerate(node.plotYArrays):
-                    plotParams = dict(self.defaultPlotParams)
+                    plotParams = {}
                     plotParams['yaxis'] = \
                         'right' if node.getProp(yName, 'role').endswith(
                             'right') else 'left'
