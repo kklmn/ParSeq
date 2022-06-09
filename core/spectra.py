@@ -470,7 +470,11 @@ class Spectrum(TreeItem):
         self.aliasExtra = None  # for extra name qualifier
         self.meta = {}
         self.combinesTo = []  # list of instances of Spectrum if not empty
+
         self.transformParams = {}  # each transform will add to this dict
+        # init self.transformParams:
+        for tr in csi.transforms.values():
+            self.transformParams.update(tr.defaultParams)
 
         if insertAt is None:
             parentItem.childItems.append(self)
@@ -554,7 +558,7 @@ class Spectrum(TreeItem):
             return cco.DATA_STATE_GOOD
         return self.state[node.name]
 
-    def read_data(self, shouldLoadNow=True, runDownstream=True,
+    def read_data(self, shouldLoadNow=True, runDownstream=False,
                   copyTransformParams=True, transformParams={}):
         toNode = csi.nodes[self.originNodeName]
         if isinstance(self.madeOf, dict):
@@ -633,9 +637,6 @@ class Spectrum(TreeItem):
 
 #        csi.undo.append([self, insertAt, lenData])
 
-        # init self.transformParams:
-        for tr in csi.transforms.values():
-            self.transformParams.update(tr.defaultParams)
         if copyTransformParams:
             if len(csi.selectedItems) > 0:
                 self.transformParams.update(
@@ -643,14 +644,15 @@ class Spectrum(TreeItem):
             else:
                 for tr in csi.transforms.values():
                     self.transformParams.update(tr.iniParams)
+
         self.transformParams.update(transformParams)
 
-        # if runDownstream and toNode.transformsOut and \
-        #         self.state[toNode.name] == cco.DATA_STATE_GOOD:
-        #     for tr in toNode.transformsOut:
-        #         tr.run(dataItems=[self])  # no need for multiprocessing here
-        #         if csi.model is not None:
-        #             csi.model.invalidateData()
+        if runDownstream and toNode.transformsOut and \
+                self.state[toNode.name] == cco.DATA_STATE_GOOD:
+            for tr in toNode.transformsOut:
+                tr.run(dataItems=[self])  # no need for multiprocessing here
+                if csi.model is not None:
+                    csi.model.invalidateData()
 
     def check_shape(self):
         toNode = csi.nodes[self.originNodeName]

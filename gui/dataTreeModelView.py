@@ -949,6 +949,16 @@ class DataTreeView(qt.QTreeView):
             csi.selectionModel.select(index, mode)
 
     def deleteItems(self):
+        msg = qt.QMessageBox()
+        msg.setIcon(qt.QMessageBox.Question)
+        nd = len(csi.selectedTopItems)
+        sd = 's' if nd > 1 else ''
+        res = msg.question(
+            self, "Remove selected item{0} from the data tree".format(sd),
+            "Do you want to remove the selected {0} item{1}?".format(nd, sd),
+            qt.QMessageBox.Yes | qt.QMessageBox.No, qt.QMessageBox.Yes)
+        if res == qt.QMessageBox.No:
+            return
         prevRow = csi.selectedTopItems[0].row()
         prevParentItem = csi.selectedTopItems[0].parentItem
         self.model().removeData(csi.selectedTopItems)
