@@ -321,6 +321,8 @@ class TreeItem(object):
         csi.allLoadedItems[:] = []
         csi.allLoadedItems.extend(csi.dataRootItem.get_items())
         if len(csi.selectedItems) == 0:
+            if len(csi.allLoadedItems) == 0:
+                raise ValueError("No valid data added")
             csi.selectedItems = [csi.allLoadedItems[0]]
             csi.selectedTopItems = [csi.allLoadedItems[0]]
 
@@ -462,9 +464,17 @@ class Spectrum(TreeItem):
                                  csi.dataRootItem.kwargs.get('suffix', None))
         self.dataFormat = copy.deepcopy(
             kwargs.get('dataFormat', csi.dataRootItem.kwargs['dataFormat']))
+        # make forward slashes in file names:
+        if 'dataSource' in self.dataFormat:
+            self.dataFormat['dataSource'] = [
+                ds.replace('\\', '/') if isinstance(ds, str) else ds for
+                ds in self.dataFormat['dataSource']]
         self.isExpanded = True
         self.colorTag = kwargs.get('colorTag',
                                    csi.dataRootItem.kwargs.get('colorTag', 0))
+        if 'colorIndividual' in kwargs:
+            self.colorIndividual = kwargs['colorIndividual']
+
         self.hasChanged = False
         self.state = dict((nn, cco.DATA_STATE_UNDEFINED) for nn in csi.nodes)
         self.aliasExtra = None  # for extra name qualifier
@@ -494,6 +504,10 @@ class Spectrum(TreeItem):
                 csi.dataRootItem.kwargs.get('runDownstream', True))
             if csi.withGUI:
                 self.init_plot_props()
+                plotProps = kwargs.pop('plotProps', {})
+                if plotProps:
+                    self.plotProps.update(plotProps)
+
             self.read_data(runDownstream=runDownstream,
                            copyTransformParams=copyTransformParams,
                            transformParams=transformParams)
@@ -586,6 +600,7 @@ class Spectrum(TreeItem):
                 lenC = len(self.madeOf)
                 self.alias = "{0}_{1}{2}".format(cs, combineNames[what], lenC)
         elif isinstance(self.madeOf, str):
+            self.madeOf = self.madeOf.replace('\\', '/')
             if self.madeOf.startswith('silx:'):
                 self.dataType = DATA_DATASET
                 if self.colorTag == 0:
@@ -675,7 +690,7 @@ class Spectrum(TreeItem):
         return True
 
     def insert_item(self, name, insertAt=None, **kwargs):
-        """This method searches for one ore more sequences in the elements of
+        """This method searches for one or more sequences in the elements of
         `dataSource` list. If found, these sequences should be of an equal
         length and the same number of spectra will be added to the data model
         in a separate group. If a shorter sequence is found, only its first
@@ -691,9 +706,15 @@ class Spectrum(TreeItem):
                         'dataFormat' in configData[name]):
                     tmp = {entry: config.get(configData, name, entry)
                            for entry in self.configFieldsData}
+                    dataFormatFull = tmp['dataFormat']
                     tmp['dataFormat'] = tmp['dataFormat_relative']
-                    del tmp['dataFormat_relative']
                     tmp['alias'] = name
+                    if 'colorIndividual' in configData[name]:
+                        tmp['colorIndividual'] = config.get(
+                            configData, name, 'colorIndividual')
+                    if 'plotProps' in configData[name]:
+                        tmp['plotProps'] = config.get(
+                            configData, name, 'plotProps')
                     trParams = {}
                     for tr in csi.transforms.values():
                         for key in tr.defaultParams:
@@ -757,6 +778,7 @@ class Spectrum(TreeItem):
             except (FileNotFoundError, OSError) as e:
                 print('local file {0} not found'.format(name))
                 if nameFull is not None:
+                    kwargs['dataFormat'] = dataFormatFull
                     return Spectrum(nameFull, self, insertAt, **kwargs)
                 else:
                     raise(e)
@@ -804,8 +826,8 @@ class Spectrum(TreeItem):
             try:
                 header.append(silx_io.get_data(madeOf + "/title"))
             except (ValueError, KeyError, OSError) as e:
-                print(e)
-                pass
+                print('Error in read_file() (b): {0}'.format(e))
+                raise(e)
             try:
                 label = silx_io.get_data(madeOf + "/start_time")
                 if isinstance(label, bytes):
@@ -818,8 +840,7 @@ class Spectrum(TreeItem):
                 else:
                     header.append("end time " + label)
             except (ValueError, KeyError, OSError) as e:
-                print(e)
-                pass
+                print('Error in read_file() (c): {0}'.format(e))
         else:
             raise TypeError('wrong datafile type')
 
@@ -864,7 +885,7 @@ class Spectrum(TreeItem):
 
             self.state[toNode.name] = cco.DATA_STATE_GOOD
         except (ValueError, OSError, IndexError) as e:
-            print(e)
+            print('Error in read_file() (d): {0}'.format(e))
             self.state = dict((n, cco.DATA_STATE_NOTFOUND) for n in csi.nodes)
             return
 
@@ -1067,16 +1088,34 @@ class Spectrum(TreeItem):
         if ((isinstance(item.madeOf, str) and item.dataFormat) or
                 isinstance(item.madeOf, (list, tuple, dict))):
             if isinstance(item.madeOf, str):
-                config.put(configProject, item.alias, 'madeOf', item.madeOf)
                 start = 5 if item.madeOf.startswith('silx:') else 0
                 end = item.madeOf.find('::') if '::' in item.madeOf else None
                 path = item.madeOf[start:end]
-                madeOfRel = \
-                    item.madeOf[:start] + osp.relpath(path, dirname) + \
-                    item.madeOf[end:]
+                abspath = osp.abspath(path).replace('\\', '/')
+                madeOf = item.madeOf[:start] + abspath + item.madeOf[end:]
+                config.put(configProject, item.alias, 'madeOf', madeOf)
+                relpath = osp.relpath(path, dirname).replace('\\', '/')
+                madeOfRel = item.madeOf[:start] + relpath + item.madeOf[end:]
                 config.put(configProject, item.alias, 'madeOf_relative',
                            madeOfRel)
-                dataFormat = json.dumps(item.dataFormat)
+
+                dataFormatCopy = copy.deepcopy(item.dataFormat)
+                dataSource = list(dataFormatCopy.get('dataSource', []))
+                if 'conversionFactors' in dataFormatCopy:
+                    if dataFormatCopy['conversionFactors'] == \
+                            [None for ds in dataSource]:  # all None's
+                        dataFormatCopy.pop('conversionFactors', None)
+                for ids, ds in enumerate(dataSource):
+                    if 'silx:' in ds:
+                        start = 5
+                        end = ds.find('::') if '::' in ds else None
+                        path = ds[start:end]
+                        abspath = osp.abspath(path).replace('\\', '/')
+                        dsabs = ds[:start] + abspath + ds[end:]
+                        ind = dataFormatCopy['dataSource'].index(ds)
+                        dataFormatCopy['dataSource'][ind] = dsabs
+
+                dataFormat = json.dumps(dataFormatCopy)
                 dataFormat = dataFormat.replace('null', 'None')
                 config.put(configProject, item.alias, 'dataFormat', dataFormat)
             elif isinstance(item.madeOf, dict):
@@ -1093,13 +1132,17 @@ class Spectrum(TreeItem):
             if needRelative:
                 dataFormatRel = copy.deepcopy(item.dataFormat)
                 dataSourceRel = dataFormatRel['dataSource']
+                if 'conversionFactors' in dataFormatRel:
+                    if dataFormatRel['conversionFactors'] == \
+                            [None for ds in dataSourceRel]:  # all None's
+                        dataFormatRel.pop('conversionFactors', None)
                 for ids, ds in enumerate(dataSourceRel):
                     if 'silx:' in ds:
                         start = 5
                         end = ds.find('::') if '::' in ds else None
                         path = ds[start:end]
-                        madeOfRel = ds[:start] + \
-                            osp.relpath(path, dirname) + ds[end:]
+                        relpath = osp.relpath(path, dirname).replace('\\', '/')
+                        madeOfRel = ds[:start] + relpath + ds[end:]
                         dataSourceRel[ids] = madeOfRel
                 dataFormat = json.dumps(dataFormatRel)
                 dataFormat = dataFormat.replace('null', 'None')
@@ -1121,6 +1164,11 @@ class Spectrum(TreeItem):
             config.put(
                 configProject, item.alias, 'colorTag', str(item.colorTag))
             config.put(configProject, item.alias, 'color', str(item.color))
+            if hasattr(item, 'colorIndividual'):
+                config.put(configProject, item.alias, 'colorIndividual',
+                           str(item.color))
+            config.put(configProject, item.alias, 'plotProps',
+                       str(item.plotProps))
 
             configProject.set(
                 item.alias, ';transform params:')  # ';'=comment out
@@ -1131,6 +1179,7 @@ class Spectrum(TreeItem):
                 else:
                     toSave = dtparams[key]
                 config.put(configProject, item.alias, key, str(toSave))
+
         elif isinstance(item.madeOf, str) and not item.dataFormat:
             # i.e. is a group
             config.put(

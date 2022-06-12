@@ -213,8 +213,9 @@ class DataTreeModel(qt.QAbstractItemModel):
         topItems = [it for it in items if it in parentItem.childItems]
         bottomItems = [it for it in items if it not in parentItem.childItems
                        and (not isinstance(it.madeOf, dict))]
-        # branchedItems = [it for it in items if it not in parentItem.childItems
-        #                  and isinstance(it.madeOf, dict)]
+        # branchedItems = [
+        #     it for it in items if it not in parentItem.childItems
+        #     and isinstance(it.madeOf, dict)]
 
         # first bottomItems, then topItems...:
         if len(csi.transforms.values()) > 0:
@@ -522,7 +523,7 @@ class LineStyleDelegate(qt.QItemDelegate):
                              MATHERROR_BKGND]):  # plot props
             lineColor = qt.QColor(data[0])
             lineProps = data[1]
-            lineWidth = (lineProps.get('linewidth', 1) + 0.5)
+            lineWidth = lineProps.get('linewidth', 1.0) + 0.7
             lineStyle = lineStyles[lineProps.get('linestyle', '-')]
 
             if lineStyle == qt.Qt.NoPen:
@@ -533,7 +534,7 @@ class LineStyleDelegate(qt.QItemDelegate):
                 if isinstance(axisY, type("")):
                     axisY = -1 if axisY.startswith("l") else 1
 
-#                line
+                # line
                 linePen = qt.QPen(
                     qt.QBrush(lineColor), lineWidth, lineStyle, qt.Qt.FlatCap)
                 painter.setPen(linePen)
@@ -548,7 +549,7 @@ class LineStyleDelegate(qt.QItemDelegate):
                     rect.right()-3-dr, (rect.top()+rect.bottom())*0.5)
                 painter.drawPath(linePath)
 
-#                 > or < symbol
+                # > or < symbol
                 font = painter.font()
                 font.setFamily("Arial")
                 font.setPointSize(4 + round(lineWidth))
@@ -1024,7 +1025,7 @@ class DataTreeView(qt.QTreeView):
         if csi.mainWindow is not None:
             csi.mainWindow.selChanged()
 
-        if csi.DEBUG_LEVEL > 0 and self.parent() is None:  # only for test purpose
+        if csi.DEBUG_LEVEL > 0 and self.parent() is None:  # only for testing
             selNames = ', '.join([i.alias for i in csi.selectedItems])
             dataCount = len(csi.allLoadedItems)
             self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))

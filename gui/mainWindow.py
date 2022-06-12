@@ -29,7 +29,7 @@ from .nodeWidget import NodeWidget
 from .transformer import Transformer
 from .fileDialogs import SaveProjectDlg, LoadProjectDlg
 from .aboutDialog import AboutDialog
-# from . import gcommons as gco
+from . import gcommons as gco
 from . import webWidget as gww
 
 fontSize = "12" if sys.platform == "darwin" else "9"
@@ -575,14 +575,39 @@ class MainWindowParSeq(qt.QMainWindow):
                          "Invalid project file {0}".format(fname))
             return
         self.restore_perspective(configProject)
-        dataTree = config.get(configProject, 'Data', 'tree', [])
+        dataTree = config.get(configProject, 'Root', 'tree', [])
+        root = csi.dataRootItem
+        colorPolicyName = config.get(configProject, 'Root', 'colorPolicy',
+                                     gco.COLOR_POLICY_NAMES[1])
+        root.colorPolicy = gco.COLOR_POLICY_NAMES.index(colorPolicyName)
+        if root.colorPolicy == gco.COLOR_POLICY_GRADIENT:
+            root.color1 = config.get(configProject, 'Root', 'color1', 'r')
+            root.color2 = config.get(configProject, 'Root', 'color2', 'b')
+        elif root.colorPolicy == gco.COLOR_POLICY_INDIVIDUAL:
+            root.color = config.get(configProject, 'Root', 'color', 'm')
+        root.colorAutoUpdate = config.get(
+            configProject, 'Root', 'colorAutoUpdate',
+            csp.DEFAULT_COLOR_AUTO_UPDATE)
+
         os.chdir(os.path.dirname(fname))
         csi.model.importData(dataTree, configData=configProject)
 
     def save_project(self, fname):
         configProject = config.ConfigParser(allow_no_value=True)
         configProject.optionxform = str  # makes it case sensitive
-        config.put(configProject, 'Data', 'tree', repr(csi.dataRootItem))
+
+        root = csi.dataRootItem
+        config.put(configProject, 'Root', 'tree', repr(root))
+        config.put(configProject, 'Root', 'colorPolicy',
+                   gco.COLOR_POLICY_NAMES[root.colorPolicy])
+        if root.colorPolicy == gco.COLOR_POLICY_GRADIENT:
+            config.put(configProject, 'Root', 'color1', str(root.color1))
+            config.put(configProject, 'Root', 'color2', str(root.color2))
+        elif root.colorPolicy == gco.COLOR_POLICY_INDIVIDUAL:
+            config.put(configProject, 'Root', 'color', str(root.color))
+        config.put(configProject, 'Root', 'colorAutoUpdate',
+                   str(root.colorAutoUpdate))
+
         dirname = os.path.dirname(fname)
         for item in csi.dataRootItem.get_items(alsoGroupHeads=True):
             item.save_to_project(configProject, dirname)

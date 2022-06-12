@@ -305,7 +305,7 @@ class LineProps(qt.QDialog):
             "keep collective color rule\nwhen data model changes")
         self.colorAutoCollective.setEnabled(
             self.isGroupSelected or self.isTopGroupSelected)
-        self.colorRadioButtons = (self.colorIndividualButton, self.colorLoop1,
+        self.colorRadioButtons = (self.colorIndividual, self.colorLoop1,
                                   self.colorLoop2, self.colorGradient)
 
         layoutC = qt.QVBoxLayout()

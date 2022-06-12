@@ -312,6 +312,10 @@ class RoiWidget(qt.QWidget):
             plot.sigFrameChanged.connect(self.updateFrameIndex)
             self.roiManager.sigRoiAboutToBeRemoved.connect(
                 self._removeRoiFromKeys)
+        self.autoZoom = qt.QCheckBox('auto zoom the {0} plot'.format(
+            '3D' if self.is3dStack else '2D'))
+        self.autoZoom.setChecked(True)
+        layout.addWidget(self.autoZoom)
         self.acceptButton = qt.QPushButton('Accept ROIs')
         layout.addWidget(self.acceptButton, 1)
         layout.addStretch()
