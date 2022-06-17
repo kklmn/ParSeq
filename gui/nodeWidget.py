@@ -22,9 +22,8 @@ from ..gui.webWidget import QWebView
 from ..gui.columnFormat import ColumnFormatWidget
 from ..gui.combineSpectra import CombineSpectraWidget
 
-SPLITTER_WIDTH, SPLITTER_BUTTON_MARGIN = 13, 6
+SPLITTER_WIDTH, SPLITTER_BUTTON_MARGIN = 14, 6
 COLORMAP = 'viridis'
-ICONPIX = 32
 
 
 class QSplitterButton(qt.QPushButton):
@@ -33,7 +32,7 @@ class QSplitterButton(qt.QPushButton):
         super().__init__(text, parent)
         self.rawText = str(text)
         self.isVertical = isVertical
-        fontSize = "10" if sys.platform == "darwin" else "7"
+        fontSize = "10" if sys.platform == "darwin" else "7.7"
         grad = "x1: 0, y1: 0, x2: 0, y2: 1"
         self.setStyleSheet("""
             QPushButton {
@@ -48,11 +47,11 @@ class QSplitterButton(qt.QPushButton):
         myFont = qt.QFont()
         myFont.setPointSize(int(float(fontSize)))
         fm = qt.QFontMetrics(myFont)
-        width = fm.width(text) + 2*margin
+        width = fm.width(text) + 3*margin
         if isVertical:
-            self.setFixedSize(SPLITTER_WIDTH+1, width)
+            self.setFixedSize(int(SPLITTER_WIDTH*csi.screenFactor)+1, width)
         else:
-            self.setFixedSize(width, SPLITTER_WIDTH+1)
+            self.setFixedSize(width, int(SPLITTER_WIDTH*csi.screenFactor)+1)
 
     def paintEvent(self, event):
         painter = qt.QStylePainter(self)
@@ -103,6 +102,9 @@ class NodeWidget(qt.QWidget):
         self.node = node
         self.helpFile = ''
         node.widget = self
+        self.transformWidget = None
+        self.tree = None
+        self.help = None
         self.pendingPropDialog = None
         self.pendingFile = None
         self.wasNeverPlotted = True
@@ -127,22 +129,13 @@ class NodeWidget(qt.QWidget):
         self.splitterButtons['files && containers'].clicked.emit()
         self.splitterButtons['transform'].clicked.emit()
 
-        # self.splitter.setSizes([1, 1, 1, 1])  # set in MainWindowParSeq
+        self.splitter.setSizes([1, 1, 1, 1])  # set in MainWindowParSeq
         if len(csi.selectedItems) > 0:
             self.updateNodeForSelectedItems()
             self.replot()
 
-        if node.plotDimension is None:
-            self.dimIcon = qt.QIcon()
-        elif node.plotDimension < 4:
-            name = 'icon-item-{0}dim-{1}'.format(node.plotDimension, ICONPIX)
-        else:
-            name = 'icon-item-ndim-{0}'.format(ICONPIX)
-        self.iconDir = osp.join(osp.dirname(__file__), '_images')
-        self.dimIcon = qt.QIcon(osp.join(self.iconDir, name+'.png'))
-
     def makeSplitters(self):
-        layout = qt.QHBoxLayout(self)
+        layout = qt.QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         self.splitter = qt.QSplitter(self)
         self.splitter.setOrientation(qt.Qt.Horizontal)
@@ -195,9 +188,11 @@ class NodeWidget(qt.QWidget):
         labelPick = qt.QLabel('Pick data')
         cancelPick = qt.QPushButton('Cancel')
         cancelPick.setStyleSheet("QPushButton {background-color: tomato;}")
+        cancelPick.setMinimumWidth(40)
         cancelPick.clicked.connect(self.cancelPropsToPickedData)
         applyPick = qt.QPushButton('Apply')
         applyPick.setStyleSheet("QPushButton {background-color: lightgreen;}")
+        applyPick.setMinimumWidth(40)
         applyPick.clicked.connect(self.applyPropsToPickedData)
 
         pickLayout = qt.QHBoxLayout()
@@ -321,7 +316,7 @@ class NodeWidget(qt.QWidget):
             nameBut = name
         button = QSplitterButton(nameBut, handle, isVerical)
         button.setText(button.rawText)
-        splitter.setHandleWidth(SPLITTER_WIDTH)
+        splitter.setHandleWidth(int(SPLITTER_WIDTH*csi.screenFactor))
         po = qt.QSizePolicy(qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
         button.setSizePolicy(po)
         button.clicked.connect(

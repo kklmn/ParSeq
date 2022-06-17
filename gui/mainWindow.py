@@ -4,6 +4,7 @@ __date__ = "23 Jul 2021"
 # !!! SEE CODERULES.TXT !!!
 
 import os
+import os.path as osp
 import pickle
 import time
 import json
@@ -32,17 +33,18 @@ from .aboutDialog import AboutDialog
 from . import gcommons as gco
 from . import webWidget as gww
 
-fontSize = "12" if sys.platform == "darwin" else "9"
+fontSize = 12 if sys.platform == "darwin" else 8.5
 mainWindowWidth, mainWindowHeight = 1600, 768
+ICONPIX = 32
 
-__fdir__ = os.path.abspath(os.path.dirname(__file__))
+__fdir__ = osp.abspath(osp.dirname(__file__))
 
 
 class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
     def closeEvent(self, evt):
         evt.setAccepted(not evt.spontaneous())
 
-    def changeWindowFlags(self, node, evt):
+    def changeWindowFlags(self, evt):
         if self.isFloating():
             # The dockWidget will automatically regain it's Qt::widget flag
             # when it becomes docked again
@@ -57,7 +59,7 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
             self.titleBar = qt.QWidget(self)
             self.titleBar.setAutoFillBackground(True)
             self.titleBar.setStyleSheet(
-                "QWidget {font: bold; font-size: " + fontSize + "pt;}")
+                "QWidget {font: bold; font-size: " + str(fontSize) + "pt;}")
             pal = self.titleBar.palette()
             pal.setColor(qt.QPalette.Window, qt.QColor("lightgray"))
             self.titleBar.setPalette(pal)
@@ -67,10 +69,11 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
             layout = qt.QHBoxLayout()
             self.titleBar.setLayout(layout)
 
-            buttonSize = qt.QSize(height-16, height-16)
+            bSize = height - int(16*csi.screenFactor)
+            buttonSize = qt.QSize(bSize, bSize)
             self.titleIcon = qt.QLabel()
-            # self.titleIcon.setPixmap(self.parent().runIcon.pixmap(buttonSize))
-            self.titleIcon.setPixmap(node.widget.dimIcon.pixmap(buttonSize))
+            if hasattr(self, 'dimIcon'):
+                self.titleIcon.setPixmap(self.dimIcon.pixmap(buttonSize))
             self.titleIcon.setVisible(True)
             layout.addWidget(self.titleIcon, 0)
             self.title = qt.QLabel(self.windowTitle())
@@ -96,7 +99,6 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
             layout.addWidget(self.maxButton, 0)
 
             self.setTitleBarWidget(self.titleBar)
-
         else:
             self.setTitleBarWidget(None)
             self.parent().setTabIcons()
@@ -137,9 +139,11 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        selfDir = os.path.dirname(__file__)
-        self.iconDir = os.path.join(selfDir, '_images')
-        self.runIcon = qt.QIcon(os.path.join(self.iconDir, 'parseq.ico'))
+        csi.screenFactor = qt.qApp.desktop().logicalDpiX() / 120.
+
+        selfDir = osp.dirname(__file__)
+        self.iconDir = osp.join(selfDir, '_images')
+        self.runIcon = qt.QIcon(osp.join(self.iconDir, 'parseq.ico'))
         # self.emptyIcon = qt.QIcon(qt.QPixmap.fromImage(qt.QImage.fromData(
         #     b'<svg version="1.1" viewBox="0 0  32"'
         #     b' xmlns="http://www.w3.org/2000/svg"></svg>')))
@@ -159,7 +163,7 @@ class MainWindowParSeq(qt.QMainWindow):
         self.initTabs()
 
         # self.settings = qt.QSettings('parseq.ini', qt.QSettings.IniFormat)
-        self.setWindowIcon(qt.QIcon(os.path.join(self.iconDir, 'parseq.ico')))
+        self.setWindowIcon(qt.QIcon(osp.join(self.iconDir, 'parseq.ico')))
         self.setWindowFlags(qt.Qt.Window)
 
         self.statusBar = self.statusBar()
@@ -183,20 +187,20 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def initToolbar(self):
         self.loadAction = qt.QAction(
-            qt.QIcon(os.path.join(self.iconDir, "icon-load-proj.png")),
+            qt.QIcon(osp.join(self.iconDir, "icon-load-proj.png")),
             "Load project (Ctrl+O)", self)
         self.loadAction.setShortcut('Ctrl+O')
         self.loadAction.triggered.connect(self.slotLoadProject)
 
         self.saveAction = qt.QAction(
-            qt.QIcon(os.path.join(self.iconDir, "icon-save-proj.png")),
+            qt.QIcon(osp.join(self.iconDir, "icon-save-proj.png")),
             "Save project, data and plots (Ctrl+S)", self)
         self.saveAction.setShortcut('Ctrl+S')
         self.saveAction.triggered.connect(self.slotSaveProject)
         self.saveAction.setEnabled(False)
 
         self.undoAction = qt.QAction(
-            qt.QIcon(os.path.join(self.iconDir, "icon-undo.png")),
+            qt.QIcon(osp.join(self.iconDir, "icon-undo.png")),
             "Undo last action (Ctrl+Z)", self)
         self.undoAction.setShortcut('Ctrl+Z')
         self.undoAction.triggered.connect(partial(self.slotUndo, -1))
@@ -214,7 +218,7 @@ class MainWindowParSeq(qt.QMainWindow):
         menu.aboutToShow.connect(partial(self.populateUndoMenu, menu))
 
         self.redoAction = qt.QAction(
-            qt.QIcon(os.path.join(self.iconDir, "icon-redo.png")),
+            qt.QIcon(osp.join(self.iconDir, "icon-redo.png")),
             "Redo last undone action (Ctrl+Shift+Z)", self)
         self.redoAction.setShortcut('Ctrl+Shift+Z')
         self.redoAction.triggered.connect(partial(self.slotRedo, -1))
@@ -225,19 +229,21 @@ class MainWindowParSeq(qt.QMainWindow):
         self.setEnableUredoRedo()
 
         infoAction = qt.QAction(
-            qt.QIcon(os.path.join(self.iconDir, "icon-info.png")),
+            qt.QIcon(osp.join(self.iconDir, "icon-info.png")),
             "About ParSeq…", self)
         infoAction.setShortcut('Ctrl+I')
         infoAction.triggered.connect(self.slotAbout)
 
         helpAction = qt.QAction(
-            qt.QIcon(os.path.join(self.iconDir, "icon-help.png")),
+            qt.QIcon(osp.join(self.iconDir, "icon-help.png")),
             "Help…", self)
         helpAction.setShortcut('Ctrl+?')
         helpAction.triggered.connect(self.slotAbout)
 
         self.toolbar = self.addToolBar("Toolbar")
-        self.toolbar.setIconSize(qt.QSize(32, 32))
+        # iconSize = int(32 * csi.screenFactor)
+        iconSize = 32
+        self.toolbar.setIconSize(qt.QSize(iconSize, iconSize))
         self.toolbar.addAction(self.loadAction)
         self.toolbar.addAction(self.saveAction)
         self.toolbar.addSeparator()
@@ -260,10 +266,11 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
             dock.setStyleSheet(
-                "QDockWidget {font: bold; font-size: " + fontSize + "pt;"
+                "QDockWidget {font: bold; font-size: " + str(fontSize) + "pt;"
                 "padding-left: 5px}")
             self.addDockWidget(qt.Qt.TopDockWidgetArea, dock)
-            nodeWidget = NodeWidget(node, None)
+            nodeWidget = NodeWidget(node, dock)
+            # nodeWidget = None  # for testing fo app closure
             dock.setWidget(nodeWidget)
             if i == 0:
                 dock0, node0 = dock, nodeWidget
@@ -277,14 +284,17 @@ class MainWindowParSeq(qt.QMainWindow):
                     else 1
             except AttributeError:
                 last = 1
-            nodeWidget.splitter.setSizes([first, 1, 1, last])
+            if nodeWidget:
+                nodeWidget.splitter.setSizes([first, 1, 1, last])
             self.docks.append((dock, nodeWidget, tabName))
             dock.visibilityChanged.connect(
                 partial(self.nodeChanged, dock, node))
-            dock.topLevelChanged.connect(partial(dock.changeWindowFlags, node))
+            dock.topLevelChanged.connect(dock.changeWindowFlags)
+
         dock0.raise_()
-        node0.tree.setFocus()
-        csi.currentNode = node0.node
+        if node0:
+            node0.tree.setFocus()
+            csi.currentNode = node0.node
 
         self.makeHelpPages()
 
@@ -294,8 +304,8 @@ class MainWindowParSeq(qt.QMainWindow):
                 self.tabWiget = tab
                 break
         # self.tabWiget.setStyleSheet("QTabBar::tab { font:bold };")
-        self.tabWiget.setStyleSheet(
-            "QTabBar::tab {width:32; padding-bottom: 8; padding-top: 8};")
+        # self.tabWiget.setStyleSheet(
+        #     "QTabBar::tab {width:32; padding-bottom: 8; padding-top: 8};")
 
         self.setTabIcons()
         # for dock in self.docks:
@@ -303,14 +313,16 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def makeHelpPages(self):
         # copy images
-        impath = os.path.join(csi.appPath, 'doc', '_images')
-        if os.path.exists(impath):
-            dst = os.path.join(gww.DOCDIR, '_images')
-            # print(dest_impath, os.path.exists(dst))
+        impath = osp.join(csi.appPath, 'doc', '_images')
+        if osp.exists(impath):
+            dst = osp.join(gww.DOCDIR, '_images')
+            # print(dest_impath, osp.exists(dst))
             shutil.copytree(impath, dst, dirs_exist_ok=True)
 
         rawTexts, rawTextNames = [], []
         for i, (name, node) in enumerate(csi.nodes.items()):
+            if node.widget is None:
+                continue
             if hasattr(node.widget.transformWidget, 'extraGUISetup'):
                 node.widget.transformWidget.extraGUISetup()
             tr = node.transformIn
@@ -335,9 +347,13 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def _on_sphinx_html_ready(self):
         for name, node in csi.nodes.items():
+            if node.widget is None:
+                continue
+            if node.widget.help is None:
+                continue
             docName = name.replace(' ', '_')
-            fname = os.path.join(gww.DOCDIR, docName) + '.html'
-            if not os.path.exists(fname):
+            fname = osp.join(gww.DOCDIR, docName) + '.html'
+            if not osp.exists(fname):
                 continue
             html = 'file:///' + fname
             html = re.sub('\\\\', '/', html)
@@ -345,11 +361,25 @@ class MainWindowParSeq(qt.QMainWindow):
             node.widget.help.load(qt.QUrl(html))
 
     def setTabIcons(self):
-        for itab, node in enumerate(csi.nodes.values()):
-            self.tabWiget.setTabIcon(itab, node.widget.dimIcon)
+        for itab, (node, dock) in enumerate(
+                zip(csi.nodes.values(), self.docks)):
+            if node.plotDimension is None:
+                dimIcon = qt.QIcon()
+            elif node.plotDimension < 4:
+                name = 'icon-item-{0}dim-{1}.png'.format(
+                    node.plotDimension, ICONPIX)
+            else:
+                name = 'icon-item-ndim-{0}.png'.format(ICONPIX)
+            dimIcon = qt.QIcon(osp.join(self.iconDir, name))
+            dock[0].dimIcon = dimIcon
+            self.tabWiget.setTabIcon(itab, dimIcon)
 
     def dataChanged(self):
         for node in csi.nodes.values():
+            if node.widget is None:
+                continue
+            if node.widget.tree is None:
+                continue
             node.widget.tree.dataChanged()
 
     def selChanged(self):
@@ -395,7 +425,7 @@ class MainWindowParSeq(qt.QMainWindow):
             menu.removeAction(action)
         for ientry, entry in reversed(list(enumerate(csi.undo))):
             text = gur.getStrRepr(entry)
-            subAction = qt.QAction(qt.QIcon(os.path.join(
+            subAction = qt.QAction(qt.QIcon(osp.join(
                 self.iconDir, "icon-undo.png")), text, self)
             subAction.triggered.connect(partial(self.slotUndo, ientry))
             menu.addAction(subAction)
@@ -406,7 +436,7 @@ class MainWindowParSeq(qt.QMainWindow):
             menu.removeAction(action)
         for ientry, entry in reversed(list(enumerate(csi.redo))):
             text = gur.getStrRepr(entry)
-            subAction = qt.QAction(qt.QIcon(os.path.join(
+            subAction = qt.QAction(qt.QIcon(osp.join(
                 self.iconDir, "icon-redo.png")), text, self)
             subAction.triggered.connect(partial(self.slotRedo, ientry))
             menu.addAction(subAction)
@@ -471,9 +501,11 @@ class MainWindowParSeq(qt.QMainWindow):
             csi.selectedItems[0].save_transform_params()
         config.write_configs()
         time.sleep(0.1)
-        # for dock in self.docks:
-        #     dock[0].deleteLater()
-        # super().closeEvent(event)
+        for dock in self.docks:
+            dock[0].deleteLater()
+        csi.transformer.thread().quit()
+        csi.transformer.deleteLater()
+        super().closeEvent(event)
 
     def updateItemView(self, items):
         for item in items:
@@ -523,6 +555,8 @@ class MainWindowParSeq(qt.QMainWindow):
             str(self.geometry().getRect())
         config.put(configObject, 'Geometry', 'mainWindow', geometryStr)
         for dock, nodeWidget, tabName in self.docks:
+            if nodeWidget is None:
+                continue
             if dock.isFloating():
                 geometryStr = 'maximized' if dock.isMaximized() else \
                     str(dock.geometry().getRect())
@@ -542,6 +576,8 @@ class MainWindowParSeq(qt.QMainWindow):
 
         for nodeStr, floatingState in zip(csi.nodes, floatingStates):
             for dock, nodeWidget, tabName in self.docks:
+                if nodeWidget is None:
+                    continue
                 if nodeStr == nodeWidget.node.name:
                     dock.setFloating(floatingState)
                     break
@@ -576,6 +612,9 @@ class MainWindowParSeq(qt.QMainWindow):
             return
         self.restore_perspective(configProject)
         dataTree = config.get(configProject, 'Root', 'tree', [])
+        if not dataTree:
+            print("No valid data in this project file")
+            return
         root = csi.dataRootItem
         colorPolicyName = config.get(configProject, 'Root', 'colorPolicy',
                                      gco.COLOR_POLICY_NAMES[1])
@@ -589,7 +628,7 @@ class MainWindowParSeq(qt.QMainWindow):
             configProject, 'Root', 'colorAutoUpdate',
             csp.DEFAULT_COLOR_AUTO_UPDATE)
 
-        os.chdir(os.path.dirname(fname))
+        os.chdir(osp.dirname(fname))
         csi.model.importData(dataTree, configData=configProject)
 
     def save_project(self, fname):
@@ -608,7 +647,7 @@ class MainWindowParSeq(qt.QMainWindow):
         config.put(configProject, 'Root', 'colorAutoUpdate',
                    str(root.colorAutoUpdate))
 
-        dirname = os.path.dirname(fname)
+        dirname = osp.dirname(fname)
         for item in csi.dataRootItem.get_items(alsoGroupHeads=True):
             item.save_to_project(configProject, dirname)
         self.save_perspective(configProject)
@@ -798,9 +837,9 @@ class MainWindowParSeq(qt.QMainWindow):
             return
         if fname.endswith('.pspj'):
             fname = fname.replace('.pspj', '')
-        basefname = os.path.basename(fname)
+        basefname = osp.basename(fname)
 
-        pyExportMod = os.path.join(__fdir__, 'plotExport.py')
+        pyExportMod = osp.join(__fdir__, 'plotExport.py')
         with open(pyExportMod, 'r') as f:
             lines = [line.rstrip('\n') for line in f]
 

@@ -103,6 +103,10 @@ class DataTreeModel(qt.QAbstractItemModel):
                 return int(
                     qt.Qt.Checked if item.isVisible else qt.Qt.Unchecked)
         elif role == qt.Qt.ToolTipRole:
+            if csi.currentNode is not None:
+                node = csi.currentNode
+                if node.widget.onTransform:
+                    return
             return item.tooltip()
         elif role == qt.Qt.BackgroundRole:
             if item.beingTransformed and index.column() == 0:
@@ -433,11 +437,12 @@ class DataTreeModel(qt.QAbstractItemModel):
                 return False
             node = csi.currentNode
             if hasattr(node, 'widget'):
-                items = node.widget.loadFiles(urls, parentItem, insertAt)
-#            if DEBUG > 0:
-#                if items is not None:
-#                    for item in items:
-#                        item.colorTag = 3
+                node.widget.loadFiles(urls, parentItem, insertAt)
+                # items = node.widget.loadFiles(urls, parentItem, insertAt)
+                # if DEBUG > 0:
+                #     if items is not None:
+                #         for item in items:
+                #             item.colorTag = 3
             return True
         else:
             return False
@@ -498,6 +503,10 @@ class LineStyleDelegate(qt.QItemDelegate):
         qt.QItemDelegate.__init__(self, parent)
 
     def paint(self, painter, option, index):
+        if csi.currentNode is not None:
+            node = csi.currentNode
+            if node.widget.onTransform:
+                return
         data = index.data(qt.Qt.DisplayRole)
         if data is None:
             return
@@ -627,8 +636,8 @@ class EyeHeader(qt.QHeaderView):
     EYE_IRIS = qt.QColor('#87aecf')  # blue
     # EYE_IRIS = qt.QColor('#7B3F00')  # brown
     EYE_BROW = qt.QColor('#999999')
-    coords1 = [(0, 0), (12, 0), (12, 12), (0, 12), 'close, 0.5']
-    coords2 = [(2, 6), (5, 9), (10, 4), 'open, 1.5']
+    # coords1 = [(0, 0), (12, 0), (12, 12), (0, 12), 'close, 0.5']
+    # coords2 = [(2, 6), (5, 9), (10, 4), 'open, 1.5']
 
     def __init__(self, orientation=qt.Qt.Horizontal, parent=None, node=None):
         super().__init__(orientation, parent)
@@ -636,42 +645,42 @@ class EyeHeader(qt.QHeaderView):
         self.plotDimension = 1 if node is None else self.node.plotDimension
         self.setModel(HeaderModel(node=node))
 
-    def paintCheckBox(self, painter, rect):
-        for coords in [self.coords1, self.coords2]:
-            pointerPath = qt.QPainterPath()
-            pointerPath.moveTo(*coords[0])
-            for xy in coords[1:]:
-                if isinstance(xy, tuple):
-                    pointerPath.lineTo(*xy)
-                if isinstance(xy, type('')):
-                    end = xy.split(',')
-                    if end[0] == 'close':
-                        pointerPath.closeSubpath()
-                    symbolPen = qt.QPen(
-                        qt.Qt.black, float(end[1].strip()))
-            symbolBrush = qt.QBrush(qt.Qt.white)
-            painter.setPen(symbolPen)
-            painter.setBrush(symbolBrush)
-            pointerPath.translate(rect.x()+12, rect.y()+16)
-            painter.drawPath(pointerPath)
+    # def paintCheckBox(self, painter, rect):
+    #     for coords in [self.coords1, self.coords2]:
+    #         pointerPath = qt.QPainterPath()
+    #         pointerPath.moveTo(*coords[0])
+    #         for xy in coords[1:]:
+    #             if isinstance(xy, tuple):
+    #                 pointerPath.lineTo(*xy)
+    #             if isinstance(xy, type('')):
+    #                 end = xy.split(',')
+    #                 if end[0] == 'close':
+    #                     pointerPath.closeSubpath()
+    #                 symbolPen = qt.QPen(
+    #                     qt.Qt.black, float(end[1].strip()))
+    #         symbolBrush = qt.QBrush(qt.Qt.white)
+    #         painter.setPen(symbolPen)
+    #         painter.setBrush(symbolBrush)
+    #         pointerPath.translate(rect.x()+12, rect.y()+16)
+    #         painter.drawPath(pointerPath)
 
     def paintEye(self, painter, rect, pupilR=1.5):
         color = self.EYE_IRIS
         painter.setBrush(color)
         painter.setPen(color)
-        radius0 = 5
+        radius0 = 5*csi.screenFactor
         painter.drawEllipse(rect.center(), radius0, radius0)
         color = qt.QColor('black')
         painter.setBrush(color)
         painter.setPen(color)
-        radius1 = pupilR
+        radius1 = pupilR*csi.screenFactor
         painter.drawEllipse(rect.center(), radius1, radius1)
         painter.setPen(qt.QPen(self.EYE_BROW, 1.5))
         c0 = rect.center()
         x0, y0 = c0.x(), c0.y()
-        ww, hh = round(min(2.5*radius0, rect.width()//2)), radius0
-        painter.drawArc(x0-ww, y0-radius0, ww*2, hh*5+1, 35*16, 110*16)
-        painter.drawArc(x0-ww, y0+radius0, ww*2, -hh*5+3, -35*16, -110*16)
+        ww, hh = round(min(2.5*radius0, rect.width()//2)), round(radius0)
+        painter.drawArc(x0-ww, round(y0-radius0), ww*2, hh*5+1, 35*16, 110*16)
+        painter.drawArc(x0-ww, round(y0+radius0), ww*2, -hh*5+3, -35*16, -110*16)
 
     def paintSection(self, painter, rect, logicalIndex):
         painter.save()
@@ -683,18 +692,17 @@ class EyeHeader(qt.QHeaderView):
                 # self.paintCheckBox(painter, rect)
                 # rect.moveTo(rect.x(), rect.y()-6)
                 # self.paintEye(painter, rect)
-                rect.moveTo(rect.x(), rect.y()-14)
+                rect.moveTo(rect.x(), rect.y()-12)
                 self.paintEye(painter, rect)
-                rect.moveTo(rect.x(), rect.y()+14)
+                rect.moveTo(rect.x(), rect.y()+12)
                 self.paintEye(painter, rect)
-                rect.moveTo(rect.x(), rect.y()+14)
+                rect.moveTo(rect.x(), rect.y()+12)
                 self.paintEye(painter, rect)
             else:
                 self.paintEye(painter, rect, pupilR=2.8)
 
 
 class DataTreeView(qt.QTreeView):
-
     def __init__(self, node=None, parent=None):
         super().__init__(parent)
         self.node = node
@@ -723,8 +731,8 @@ class DataTreeView(qt.QTreeView):
             horHeaders.setSectionResizeMode(1, qt.QHeaderView.Fixed)
         horHeaders.setStretchLastSection(False)
         horHeaders.setMinimumSectionSize(5)
-        self.setColumnWidth(0, COLUMN_NAME_WIDTH)
-        self.setColumnWidth(1, COLUMN_EYE_WIDTH)
+        self.setColumnWidth(0, int(COLUMN_NAME_WIDTH*csi.screenFactor))
+        self.setColumnWidth(1, int(COLUMN_EYE_WIDTH*csi.screenFactor))
         if node is not None:
             totalWidth = 0
             leadingColumns = len(csi.modelLeadingColumns)
@@ -740,7 +748,8 @@ class DataTreeView(qt.QTreeView):
                 else:
                     width = LEGEND_WIDTH
                 totalWidth += width
-                self.setColumnWidth(i+leadingColumns, width)
+                self.setColumnWidth(
+                    i+leadingColumns, int(width*csi.screenFactor))
                 if 'pyqt4' in qt.BINDING.lower():
                     horHeaders.setResizeMode(
                         i+leadingColumns, qt.QHeaderView.Fixed)
@@ -751,7 +760,8 @@ class DataTreeView(qt.QTreeView):
                 self.setItemDelegateForColumn(
                     i+leadingColumns, lineStyleDelegate)
             self.setMinimumSize(qt.QSize(
-                COLUMN_NAME_WIDTH + COLUMN_EYE_WIDTH + totalWidth, 100))
+                int((COLUMN_NAME_WIDTH + COLUMN_EYE_WIDTH + totalWidth)*
+                    csi.screenFactor), 100))
 
         self.collapsed.connect(self.collapse)
         self.expanded.connect(self.expand)

@@ -90,6 +90,7 @@ class Node(object):
         if not hasattr(self, 'checkShapes'):
             self.checkShapes = []
         self.widgetClass = widgetClass
+        self.widget = None
 
         # filled automatically by transforms after creation of all nodes:
         self.upstreamNodes = []

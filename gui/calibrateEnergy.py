@@ -167,10 +167,10 @@ class CalibrateTableView(qt.QTableView):
 
         self.setItemDelegateForColumn(2, ComboDelegate(self))
         for i in range(4):
-            self.setColumnWidth(i, columnWidths[i])
+            self.setColumnWidth(i, int(columnWidths[i]*csi.screenFactor))
         self.setMinimumHeight(
             horHeaders.height() + 2*verHeaders.sectionSize(0) + 2)
-        self.setMinimumWidth(sum(columnWidths) + 10)
+        self.setMinimumWidth(int(sum(columnWidths)*csi.screenFactor) + 10)
 
 
 class CalibrateEnergyWidget(qt.QWidget):
@@ -185,11 +185,11 @@ class CalibrateEnergyWidget(qt.QWidget):
         # self.autoSetButton.setMinimumWidth(120)
         layoutB.addWidget(self.autoSetButton)
         self.clearButton = qt.QPushButton('clear')
-        self.clearButton.setMinimumWidth(36)
+        self.clearButton.setMinimumWidth(int(36*csi.screenFactor))
         self.clearButton.clicked.connect(self.clear)
         layoutB.addWidget(self.clearButton)
         self.acceptButton = qt.QPushButton('accept')
-        self.acceptButton.setMinimumWidth(46)
+        self.acceptButton.setMinimumWidth(int(46*csi.screenFactor))
         layoutB.addWidget(self.acceptButton)
         layoutB.addStretch()
 

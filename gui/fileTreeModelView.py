@@ -27,6 +27,7 @@ from silx.gui.hdf5.Hdf5TreeModel import Hdf5TreeModel
 from silx.gui.hdf5.NexusSortFilterProxyModel import NexusSortFilterProxyModel
 
 from ..core import commons as cco
+from ..core import singletons as csi
 from ..core.config import configDirs
 from . import gcommons as gco
 
@@ -533,6 +534,15 @@ class FileSystemWithHdf5Model(ModelBase):
         return 'silx:' + '::'.join((node.obj.file.filename, nodePath))
 
     def data(self, index, role=qt.Qt.DisplayRole):
+        shouldSkip = False
+        if csi.currentNode is not None:
+            node = csi.currentNode
+            if node.widget.onTransform:
+                shouldSkip = True
+        if shouldSkip and role in [LOAD_DATASET_ROLE, USE_HDF5_ARRAY_ROLE,
+                                   LOAD_ITEM_PATH_ROLE, qt.Qt.ToolTipRole]:
+            return
+
         if not index.isValid():
             return
         if role == LOAD_DATASET_ROLE:
@@ -756,6 +766,12 @@ class SelectionDelegate(qt.QItemDelegate):
         self.pen2Width = 3
 
     def paint(self, painter, option, index):
+        if csi.currentNode is not None:
+            node = csi.currentNode
+            if node.widget.onTransform:
+                super().paint(painter, option, index)
+                return
+
         path = index.data(LOAD_ITEM_PATH_ROLE)
         if path:
             # lastPath = configDirs.get(
@@ -845,8 +861,9 @@ class FileTreeView(qt.QTreeView):
         self.setRootIndex(rootIndex)
         self._expandedNodes = []
 
-        self.setMinimumSize(qt.QSize(COLUMN_NAME_WIDTH, 250))
-        self.setColumnWidth(0, COLUMN_NAME_WIDTH)
+        self.setMinimumSize(
+            qt.QSize(int(COLUMN_NAME_WIDTH*csi.screenFactor), 250))
+        self.setColumnWidth(0, int(COLUMN_NAME_WIDTH*csi.screenFactor))
         self.setIndentation(NODE_INDENTATION)
         self.setSortingEnabled(True)
         self.sortByColumn(0, qt.Qt.AscendingOrder)

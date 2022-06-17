@@ -13,6 +13,7 @@ from silx.gui.plot.tools.roi import (
 from silx.gui.plot.items.roi import ArcROI, RectangleROI
 
 from . import gcommons as gco
+from ..core import singletons as csi
 from ..utils import math as uma
 
 HEADERS = 'label', 'use', 'geometry'
@@ -202,7 +203,7 @@ class RoiToolBar(qt.QToolBar):
         action = roiManager.getInteractionModeAction(RectangleROI)
         self.addAction(action)
 
-        self.modeSelectorAction = RoiModeSelectorAction()
+        self.modeSelectorAction = RoiModeSelectorAction(self)
         self.modeSelectorAction.setRoiManager(roiManager)
         self.addAction(self.modeSelectorAction)
 
@@ -252,9 +253,9 @@ class RoiTableView(qt.QTableView):
         self.setItemDelegateForColumn(2, gco.MultiLineEditDelegate(self))
 
         for i in range(len(HEADERS)):
-            self.setColumnWidth(i, columnWidths[i])
-        self.setMinimumWidth(sum(columnWidths) + 2)
-        self.setMinimumHeight(horHeaders.height()*4)
+            self.setColumnWidth(i, int(columnWidths[i]*csi.screenFactor))
+        self.setMinimumWidth(int(sum(columnWidths)*csi.screenFactor) + 2)
+        self.setMinimumHeight(int(horHeaders.height()*4*csi.screenFactor))
 
         roiManager.sigCurrentRoiChanged.connect(self.currentRoiChanged)
 
