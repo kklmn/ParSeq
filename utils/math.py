@@ -18,7 +18,21 @@ def fwhm(x, y):
         return
 
 
-def interpolateFrames(keyFrameGeometries, ind, wantExtrapolate=True):
+def get_roi_mask(geom, xs, ys):
+    if geom['kind'] == 'ArcROI':
+        x, y = geom['center']
+        r1, r2 = geom['innerRadius'], geom['outerRadius']
+        dist2 = (xs-x)**2 + (ys-y)**2
+        return (dist2 >= r1**2) & (dist2 <= r2**2)
+    elif geom['kind'] == 'RectangleROI':
+        x, y = geom['origin']
+        w, h = geom['size']
+        return (xs >= x) & (xs <= x+w) & (ys >= y) & (ys <= y+h)
+    else:
+        raise ValueError('unsupported ROI type')
+
+
+def interpolate_frames(keyFrameGeometries, ind, wantExtrapolate=True):
     """
     Piecewise linear interpolation between ROI geometries saved as key frames
     for a stacked image.

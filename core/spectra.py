@@ -465,10 +465,11 @@ class Spectrum(TreeItem):
         self.dataFormat = copy.deepcopy(
             kwargs.get('dataFormat', csi.dataRootItem.kwargs['dataFormat']))
         # make forward slashes in file names:
-        if 'dataSource' in self.dataFormat:
-            self.dataFormat['dataSource'] = [
-                ds.replace('\\', '/') if isinstance(ds, str) else ds for
-                ds in self.dataFormat['dataSource']]
+        if self.dataFormat:
+            if 'dataSource' in self.dataFormat:
+                self.dataFormat['dataSource'] = [
+                    ds.replace('\\', '/') if isinstance(ds, str) else ds for
+                    ds in self.dataFormat['dataSource']]
         self.isExpanded = True
         self.colorTag = kwargs.get('colorTag',
                                    csi.dataRootItem.kwargs.get('colorTag', 0))
@@ -603,12 +604,9 @@ class Spectrum(TreeItem):
             self.madeOf = self.madeOf.replace('\\', '/')
             if self.madeOf.startswith('silx:'):
                 self.dataType = DATA_DATASET
-                if self.colorTag == 0:
-                    self.colorTag = 1
             else:
                 self.dataType = DATA_COLUMN_FILE
-                if self.colorTag == 0:
-                    self.colorTag = 2
+            self.set_auto_color_tag()
             if shouldLoadNow:
                 self.read_file()
 
@@ -669,6 +667,18 @@ class Spectrum(TreeItem):
                 if csi.model is not None:
                     csi.model.invalidateData()
 
+    def set_auto_color_tag(self):
+        if self.colorTag != 0:
+            return
+        if self.terminalNodeName is not None:
+            self.colorTag = 3
+            return
+
+        if self.dataType == DATA_DATASET:
+            self.colorTag = 1
+        elif self.dataType == DATA_COLUMN_FILE:
+            self.colorTag = 2
+
     def check_shape(self):
         toNode = csi.nodes[self.originNodeName]
         for iarr, arrName in enumerate(toNode.checkShapes):
@@ -706,8 +716,10 @@ class Spectrum(TreeItem):
                         'dataFormat' in configData[name]):
                     tmp = {entry: config.get(configData, name, entry)
                            for entry in self.configFieldsData}
-                    dataFormatFull = tmp['dataFormat']
-                    tmp['dataFormat'] = tmp['dataFormat_relative']
+                    dataFormatFull = dict(tmp['dataFormat'])
+                    dataFormatRel = tmp['dataFormat_relative']
+                    if dataFormatRel is not None:
+                        tmp['dataFormat'] = tmp['dataFormat_relative']
                     tmp['alias'] = name
                     if 'colorIndividual' in configData[name]:
                         tmp['colorIndividual'] = config.get(
@@ -717,8 +729,9 @@ class Spectrum(TreeItem):
                             configData, name, 'plotProps')
                     trParams = {}
                     for tr in csi.transforms.values():
-                        for key in tr.defaultParams:
-                            trParams[key] = config.get(configData, name, key)
+                        for key, val in tr.defaultParams.items():
+                            trParams[key] = config.get(configData, name, key,
+                                                       default=val)
                     tmp['transformParams'] = trParams
                     name = tmp.pop('madeOf_relative')
                     nameFull = tmp.pop('madeOf')
@@ -732,7 +745,8 @@ class Spectrum(TreeItem):
                     trParams = {}
                     for tr in csi.transforms.values():
                         for key in tr.defaultParams:
-                            trParams[key] = config.get(configData, name, key)
+                            trParams[key] = config.get(configData, name, key,
+                                                       default=val)
                     tmp['transformParams'] = trParams
                     name = tmp.pop('madeOf')
                     nameFull = None
@@ -749,7 +763,7 @@ class Spectrum(TreeItem):
             configDict = kwargs['configDict']
             kwargs = dict(configDict[name]) if name in configDict else {}
 
-        df = dict(kwargs.get('dataFormat', {}))
+        df = kwargs.get('dataFormat', {})
         if isinstance(name, str) and not df:
             # is a group
             return Spectrum(name, self, insertAt, **kwargs)
@@ -812,6 +826,8 @@ class Spectrum(TreeItem):
         toNode = csi.nodes[self.originNodeName]
         df = dict(self.dataFormat)
         df.update(csi.extraDataFormat)
+        formatSection = 'Format_' + toNode.name
+        config.configLoad[formatSection] = dict(df)
 
         if self.dataType == DATA_COLUMN_FILE:
             header = cco.get_header(madeOf, df)
@@ -827,7 +843,6 @@ class Spectrum(TreeItem):
                 header.append(silx_io.get_data(madeOf + "/title"))
             except (ValueError, KeyError, OSError) as e:
                 print('Error in read_file() (b): {0}'.format(e))
-                raise(e)
             try:
                 label = silx_io.get_data(madeOf + "/start_time")
                 if isinstance(label, bytes):
@@ -903,9 +918,12 @@ class Spectrum(TreeItem):
                         h.decode("utf-8") for h in header)
                 else:
                     self.meta['text'] = '\n'.join(header)
+            else:
+                self.meta['text'] = ''
         self.meta['length'] = len(arr)
 
-        config.put(config.configDirs, 'Load', toNode.name, madeOf)
+        config.put(config.configLoad, 'Data', toNode.name, madeOf)
+        config.write_configs((1, 0, 0))
 
     def interpretArrayFormula(self, colStr, treeObj=None):
         try:
@@ -926,7 +944,7 @@ class Spectrum(TreeItem):
             for k in keys:
                 if k.startswith("silx:"):
                     d[k] = silx_io.get_data(k)
-                    config.put(config.configDirs, 'Load',
+                    config.put(config.configLoad, 'Data',
                                self.originNodeName+'_silx', k)
                 else:
                     d[k] = silx_io.get_data('/'.join((self.madeOf, k)))

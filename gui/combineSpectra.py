@@ -17,7 +17,8 @@ class CombineSpectraWidget(PropWidget):
         combineDataGroup = self.makeCombineDataGroup()
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(4, 2, 2, 0)
-        self.stopHereCB = qt.QCheckBox("stop data propagation here (TODO)")
+        self.stopHereCB = qt.QCheckBox("stop data propagation here")
+        self.stopHereCB.clicked.connect(self.doStopHere)
         layout.addWidget(self.stopHereCB)
         layout.addWidget(combineDataGroup)
         layout.addStretch()
@@ -65,6 +66,14 @@ class CombineSpectraWidget(PropWidget):
         group.setLayout(layout)
         # group.setSizePolicy(qt.QSizePolicy.Fixed, qt.QSizePolicy.Fixed)
         return group
+
+    def doStopHere(self, checked):
+        for it in csi.selectedItems:
+            it.terminalNodeName = self.node.name if checked else None
+            it.colorTag = 0
+            it.set_auto_color_tag()
+        model = self.node.widget.tree.model()
+        model.invalidateData()
 
     def combineTypeChanged(self, ind):
         self.combineNLabel.setVisible(ind == 3)  # PCA

@@ -12,8 +12,8 @@ from ..core import singletons as csi
 from ..core import spectra as csp
 from ..third_party import xrt
 
-HEADERS = ['reference data', 'energy', 'DCM', 'FWHM']
-columnWidths = (112, 64, 64, 54)
+HEADERS = ['reference data', 'slice', 'energy', 'DCM', 'FWHM']
+columnWidths = (114, 44, 64, 64, 54)
 
 
 class CalibrationModel(qt.QAbstractTableModel):
@@ -34,7 +34,7 @@ class CalibrationModel(qt.QAbstractTableModel):
     def flags(self, index):
         if not index.isValid():
             return qt.Qt.NoItemFlags
-        if index.column() < 3:
+        if index.column() < 4:
             return qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
         else:
             return qt.Qt.ItemIsEnabled
@@ -53,12 +53,14 @@ class CalibrationModel(qt.QAbstractTableModel):
                         return self.dataCollection['base'][row].alias
                     else:
                         return res
-                elif column == 1:  # E
+                elif column == 1:  # slice
+                    return self.dataCollection['slice'][row]
+                elif column == 2:  # E
                     return self.dataCollection['energy'][row]
-                elif column == 2:  # DCM
+                elif column == 3:  # DCM
                     res = self.dataCollection['DCM'][row]
                     return res if res in xrt.crystals.keys() else 'none'
-                elif column == 3:  # fwhm
+                elif column == 4:  # fwhm
                     if 'FWHM' not in self.dataCollection:
                         return
                     res = self.dataCollection['FWHM'][row]
@@ -82,9 +84,11 @@ class CalibrationModel(qt.QAbstractTableModel):
                     return False
             if column == 0:  # base
                 self.dataCollection['base'][row] = value
-            elif column == 1:  # E
+            elif column == 1:  # slice
+                self.dataCollection['slice'][row] = value
+            elif column == 2:  # E
                 self.dataCollection['energy'][row] = value
-            elif column == 2:  # DCM
+            elif column == 3:  # DCM
                 self.dataCollection['DCM'][row] = value
             self.dataChanged.emit(index, index)
             return True
@@ -104,8 +108,10 @@ class CalibrationModel(qt.QAbstractTableModel):
             if section == 0:
                 return('data name (alias) of elastic scans')
             elif section == 1:
-                return('formal energy value')
+                return('data slice if needed, otherwise :')
             elif section == 2:
+                return('formal energy value')
+            elif section == 3:
                 return('crystals for calculating\nFWHM of DCM bandwidth')
 
     def setDataCollection(self, dataCollection=None):
@@ -153,21 +159,21 @@ class CalibrateTableView(qt.QTableView):
         if 'pyqt4' in qt.BINDING.lower():
             horHeaders.setMovable(False)
             horHeaders.setResizeMode(0, qt.QHeaderView.Stretch)
-            for i in [1, 2, 3]:
+            for i in range(1, len(columnWidths)):
                 horHeaders.setResizeMode(i, qt.QHeaderView.Interactive)
             horHeaders.setClickable(True)
         else:
             horHeaders.setSectionsMovable(False)
             horHeaders.setSectionResizeMode(0, qt.QHeaderView.Stretch)
-            for i in [1, 2, 3]:
+            for i in range(1, len(columnWidths)):
                 horHeaders.setSectionResizeMode(i, qt.QHeaderView.Interactive)
             horHeaders.setSectionsClickable(True)
         horHeaders.setStretchLastSection(False)
         horHeaders.setMinimumSectionSize(20)
 
-        self.setItemDelegateForColumn(2, ComboDelegate(self))
-        for i in range(4):
-            self.setColumnWidth(i, int(columnWidths[i]*csi.screenFactor))
+        self.setItemDelegateForColumn(3, ComboDelegate(self))
+        for i, cw in enumerate(columnWidths):
+            self.setColumnWidth(i, int(cw*csi.screenFactor))
         self.setMinimumHeight(
             horHeaders.height() + 2*verHeaders.sectionSize(0) + 2)
         self.setMinimumWidth(int(sum(columnWidths)*csi.screenFactor) + 10)
@@ -184,6 +190,10 @@ class CalibrateEnergyWidget(qt.QWidget):
         self.autoSetButton = qt.QPushButton('auto set references')
         # self.autoSetButton.setMinimumWidth(120)
         layoutB.addWidget(self.autoSetButton)
+        self.addButton = qt.QPushButton('add')
+        self.addButton.setMinimumWidth(int(12*csi.screenFactor))
+        self.addButton.clicked.connect(self.add)
+        layoutB.addWidget(self.addButton)
         self.clearButton = qt.QPushButton('clear')
         self.clearButton.setMinimumWidth(int(36*csi.screenFactor))
         self.clearButton.clicked.connect(self.clear)
@@ -202,6 +212,22 @@ class CalibrateEnergyWidget(qt.QWidget):
         layout.addWidget(self.table)
 
         self.setLayout(layout)
+
+    def add(self):
+        col = self.calibrationModel.dataCollection
+        if len(col) == 0:
+            col['base'] = ['none', 'none']
+            col['slice'] = [':', ':']
+            col['energy'] = [9000, 10000]
+            col['DCM'] = ['Si111', 'Si111']
+            col['FWHM'] = [0, 0]
+        else:
+            col['base'].append('none')
+            col['slice'].append(':')
+            col['energy'].append(col['energy'][-1] + 20)
+            col['DCM'].append(col['DCM'][-1])
+            col['FWHM'].append(0)
+        self.calibrationModel.setDataCollection(col)
 
     def clear(self):
         self.calibrationModel.setDataCollection()

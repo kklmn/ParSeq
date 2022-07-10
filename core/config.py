@@ -18,9 +18,9 @@ iniFileTransforms = (os.path.join(iniDir, 'transforms.ini'))
 configTransforms = ConfigParser()
 configTransforms.read(iniFileTransforms)
 
-iniFileDirs = (os.path.join(iniDir, 'directories.ini'))
-configDirs = ConfigParser()
-configDirs.read(iniFileDirs)
+iniLoad = (os.path.join(iniDir, 'load.ini'))
+configLoad = ConfigParser()
+configLoad.read(iniLoad)
 
 iniFileGUI = (os.path.join(iniDir, 'gui.ini'))
 configGUI = ConfigParser()
@@ -47,13 +47,13 @@ def put(conf, section, entry, value):
     conf.set(section, entry, value)
 
 
-def write_configs(what=[1, 1, 1]):  # in mainWindow's closeEvent
+def write_configs(what=(1, 1, 1)):  # in mainWindow's closeEvent
     if what[0]:
-        with open(iniFileTransforms, 'w+') as cf:
-            configTransforms.write(cf)
+        with open(iniLoad, 'w+') as cf:
+            configLoad.write(cf)
     if what[1]:
-        with open(iniFileDirs, 'w+') as cf:
-            configDirs.write(cf)
-    if what[2]:
         with open(iniFileGUI, 'w+') as cf:
             configGUI.write(cf)
+    if what[2]:
+        with open(iniFileTransforms, 'w+') as cf:
+            configTransforms.write(cf)

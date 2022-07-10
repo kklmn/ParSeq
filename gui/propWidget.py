@@ -292,7 +292,13 @@ class PropWidget(qt.QWidget):
         return res
 
     def _getPropListExclusiveGroup(self, widget):
-        res = self.exclusivePropGroups[widget]['props']
+        dd = self.exclusivePropGroups[widget]
+        if 'props' in dd:  # rbuttons with edits
+            res = dd['props']
+        elif 'prop' in dd:  # only rbuttons
+            res = dd['prop']
+        else:
+            return []
         return res if isinstance(res, (list, tuple)) else [res]
 
     def startPick(self, props, values, actionName):
@@ -407,10 +413,12 @@ class PropWidget(qt.QWidget):
                             stepByWithUpdate, widget, widget.stepBy, self,
                             prop)
                     elif iwt == 3:  # 'groupbox'
-                        widget.toggled.connect(
+                        # widget.toggled.connect(
+                        widget.clicked.connect(
                             partial(self.updatePropFromCheckBox, widget, prop))
                     elif iwt == 4:  # 'checkbox'
-                        widget.toggled.connect(
+                        # widget.toggled.connect(
+                        widget.clicked.connect(
                             partial(self.updatePropFromCheckBox, widget, prop))
                     elif iwt == 5:  # 'pushbutton'
                         pass
@@ -439,6 +447,18 @@ class PropWidget(qt.QWidget):
         self.propGroups[groupWidget] = dict(widgets=widgets, caption=caption)
 
     def registerExclusivePropGroup(
+            self, groupWidget, rbuttons, caption, prop, transformName):
+        """A checkable group that contains QRadioButtons that reflect an int
+        prop."""
+        prop = cco.expandTransformParam(prop)
+        self.exclusivePropGroups[groupWidget] = dict(
+            widgets=rbuttons, caption=caption, prop=prop,
+            transformName=transformName)
+        for irb, rb in enumerate(rbuttons):
+            rb.clicked.connect(partial(
+                self.updatePropFromRadioButton, groupWidget, prop, irb))
+
+    def registerExclusivePropGroupWithEdits(
             self, groupWidget, widgets, caption, props, **kw):
         """A group that contains QRadioButton + QLineEdit pairs. Each such pair
         sets an exclusive data property in *props*. The existence of this
@@ -466,19 +486,22 @@ class PropWidget(qt.QWidget):
     def updateProp(self, key=None, value=None):
         if key is None or value is None:
             params = {}
-            tNames = [self.propWidgets[w]['transformName'] for w in
-                      self.propWidgets]
+            tNames = [dd['transformName'] for dd in
+                      list(self.propWidgets.values()) +
+                      list(self.exclusivePropGroups.values())]
             tName = tNames[0] if len(tNames) > 0 else None
             if tName:
                 tr = csi.transforms[tName]
             else:
                 return
         else:
-            for w in self.propWidgets:
-                if self.propWidgets[w]['prop'].endswith(key):  # may start with
-                    # 'transformParams'
-                    tName = self.propWidgets[w]['transformName']
-                    break
+            for dd in (list(self.propWidgets.values()) +
+                       list(self.exclusivePropGroups.values())):
+                if 'prop' in dd:
+                    if dd['prop'].endswith(key):
+                        # may start with 'transformParams'
+                        tName = dd['transformName']
+                        break
             else:
                 raise ValueError('unknown parameter {0}'.format(key))
             tr = csi.transforms[tName]
@@ -549,6 +572,9 @@ class PropWidget(qt.QWidget):
             return
         self.updateProp(key, value)
 
+    def updatePropFromRadioButton(self, rButton, key, value, **kw):
+        self.updateProp(key, value)
+
     def updatePropFromComboBox(self, comboBox, key, index, indexToValue=None):
         # comboBox = self.sender()  # doesn't work in PySide2
         if not comboBox.hasFocus():
@@ -559,11 +585,15 @@ class PropWidget(qt.QWidget):
     def setUIFromData(self):
         for widget in self.exclusivePropGroups:
             dd = self.exclusivePropGroups[widget]
-            # for Py3 only:
-            # gpd.setRButtonGroupWithEditsFromData(*dd['widgets'], dd['props'])
-            # for Py2:
-            gpd.setRButtonGroupWithEditsFromData(
-                *(dd['widgets'] + [dd['props']]))
+            if 'props' in dd:
+                # for Py3 only:
+                # gpd.setRButtonGroupWithEditsFromData(
+                #     *dd['widgets'], dd['props'])
+                # for Py2:
+                gpd.setRButtonGroupWithEditsFromData(
+                    *(dd['widgets'] + [dd['props']]))
+            elif 'prop' in dd:
+                gpd.setRButtonGroupFromData(dd['widgets'], dd['prop'])
         for widget in self.propWidgets:
             dd = self.propWidgets[widget]
             if dd['widgetTypeIndex'] == 0:  # 'edit'
@@ -588,8 +618,11 @@ class PropWidget(qt.QWidget):
     def updateDataFromUI(self):
         for widget in self.exclusivePropGroups:
             dd = self.exclusivePropGroups[widget]
-            gpd.updateDataFromRButtonGroupWithEdits(
-                *(dd['widgets']+[dd['props']]), **dd['kw'])
+            if 'props' in dd:
+                gpd.updateDataFromRButtonGroupWithEdits(
+                    *(dd['widgets']+[dd['props']]), **dd['kw'])
+            elif 'prop' in dd:
+                gpd.updateDataFromRButtonGroup(dd['widgets'], dd['prop'])
         for widget in self.propWidgets:
             dd = self.propWidgets[widget]
             if dd['widgetTypeIndex'] == 0:  # 'edit'

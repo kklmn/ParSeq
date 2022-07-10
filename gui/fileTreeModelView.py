@@ -28,7 +28,7 @@ from silx.gui.hdf5.NexusSortFilterProxyModel import NexusSortFilterProxyModel
 
 from ..core import commons as cco
 from ..core import singletons as csi
-from ..core.config import configDirs
+from ..core.config import configLoad
 from . import gcommons as gco
 
 if True:
@@ -569,6 +569,8 @@ class FileSystemWithHdf5Model(ModelBase):
             if useProxyModel:
                 if role == qt.Qt.ToolTipRole:
                     res = self.h5Model.data(indexH5, role)
+                    if res is None:
+                        return
                     node = self.h5Model.nodeFromIndex(indexH5)
                     if node.dataLink(qt.Qt.DisplayRole) == 'External':
                         path = node.obj.name
@@ -774,22 +776,22 @@ class SelectionDelegate(qt.QItemDelegate):
 
         path = index.data(LOAD_ITEM_PATH_ROLE)
         if path:
-            # lastPath = configDirs.get(
+            # lastPath = configLoad.get(
             #     'Load', self.parent().transformNode.name, fallback='')
-            if configDirs.has_option(
-                    'Load', self.parent().transformNode.name):
-                lastPath = configDirs.get(
-                    'Load', self.parent().transformNode.name)
+            if configLoad.has_option(
+                    'Data', self.parent().transformNode.name):
+                lastPath = configLoad.get(
+                    'Data', self.parent().transformNode.name)
             else:
                 lastPath = ''
             if lastPath:
                 if os.path.normpath(path).lower() == \
                         os.path.normpath(lastPath).lower():
                     option.font.setWeight(qt.QFont.Bold)
-            if configDirs.has_option(
-                    'Load', self.parent().transformNode.name+'_silx'):
-                lastPathSilx = configDirs.get(
-                    'Load', self.parent().transformNode.name+'_silx')
+            if configLoad.has_option(
+                    'Data', self.parent().transformNode.name+'_silx'):
+                lastPathSilx = configLoad.get(
+                    'Data', self.parent().transformNode.name+'_silx')
             else:
                 lastPathSilx = ''
             if lastPathSilx:
@@ -883,12 +885,15 @@ class FileTreeView(qt.QTreeView):
         if transformNode is not None:
             strLoad = "Load data (you can also drag it to the data tree)"
             self.actionLoad = self._addAction(
-                strLoad, self.transformNode.widget.loadFiles, "Ctrl+O")
+                strLoad, self.transformNode.widget.loadFiles, "Ctrl+L")
+            self.actionLoad.setShortcut('Ctrl+L')
         self.actionSynchronize = self._addAction(
             "Synchronize container", self.synchronizeHDF5, "Ctrl+R")
+        self.actionSynchronize.setShortcut('Ctrl+R')
         self.actionViewTextFile = self._addAction(
             "View text file (will be diplayed in 'metadata' panel)",
             self.viewTextFile, "F3")
+        self.actionViewTextFile.setShortcut('F3')
 
         # for testing the file model:
         # from ..tests.modeltest import ModelTest

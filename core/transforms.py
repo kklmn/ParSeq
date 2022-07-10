@@ -7,6 +7,7 @@ import sys
 # import os
 # import numpy as np
 
+import traceback
 import types
 if sys.version_info < (3, 1):
     from inspect import getargspec
@@ -230,9 +231,9 @@ class Transform(object):
                             workedItems)
                     for worker, item in zip(workers, workedItems):
                         worker.get_out_data(item)
+                        res = worker.get_results(self)
                         item.state[self.toNode.name] = cco.DATA_STATE_GOOD\
-                            if worker.get_results(self) else\
-                            cco.DATA_STATE_BAD
+                            if res else cco.DATA_STATE_BAD
                         item.beingTransformed = False
                     for worker in workers:
                         worker.join(60.)
@@ -247,11 +248,17 @@ class Transform(object):
                 if csi.DEBUG_LEVEL > 1:
                     print('run "{0}" for {1}'.format(self.name, data.alias))
                 # args = getargspec(self.run_main)
-                if 'allData' in args:
-                    allData = csi.allLoadedItems
-                    res = self.run_main(data, allData)
-                else:
-                    res = self.run_main(data)
+                try:
+                    if 'allData' in args:
+                        allData = csi.allLoadedItems
+                        res = self.run_main(data, allData)
+                    else:
+                        res = self.run_main(data)
+                except Exception:
+                    res = None
+                    msg = "".join(traceback.format_exc())
+                    print('failed for data: {0}'.format(data.alias))
+                    print(msg)
                 if isinstance(res, dict):
                     for field in res:
                         setattr(self, field, res[field])
@@ -388,9 +395,13 @@ class GenericProcessOrThread(object):
         try:
             res = self.func(data)
             self.put_results(res)
-        except (TypeError, ValueError) as e:
-            self.put_results(False)
-            print('failed {0}: {1}'.format(self.func, e))
+        except (TypeError, ValueError):
+            self.put_results(None)
+            # print('failed {0}: {1}'.format(self.func, e))
+            print('failed for data: {0} in {1}'.format(
+                data.alias, self.multiName))
+            msg = "".join(traceback.format_exc())
+            print(msg)
         finally:
             self.put_out_data(data)
             if csi.DEBUG_LEVEL > 20:
@@ -424,6 +435,7 @@ class DataProxy(object):
 class BackendProcess(GenericProcessOrThread, multiprocessing.Process):
     def __init__(self, func, inArrays, outArrays):
         multiprocessing.Process.__init__(self)
+        self.multiName = 'multiprocessing'
         self.inDataQueue = multiprocessing.Queue()
         self.outDataQueue = multiprocessing.Queue()
         self.resultQueue = multiprocessing.Queue()
@@ -435,6 +447,7 @@ class BackendProcess(GenericProcessOrThread, multiprocessing.Process):
 class BackendThread(GenericProcessOrThread, threading.Thread):
     def __init__(self, func, inArrays, outArrays):
         threading.Thread.__init__(self)
+        self.multiName = 'multithreading'
         if sys.version_info < (3, 1):
             import Queue
         else:

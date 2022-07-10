@@ -96,7 +96,7 @@ class ColumnFormatWidget(PropWidget):
         self.radioButtons = self.headerNRB, self.headerSRB, self.headerERB
         self.edits = self.headerNEdit, self.headerSEdit, self.headerEEdit
 
-        self.registerExclusivePropGroup(
+        self.registerExclusivePropGroupWithEdits(
             tab, [self.radioButtons, self.edits], 'header',
             props=self.fullHeaderKW, convertTypes=[int, None, None])
 
@@ -245,3 +245,18 @@ class ColumnFormatWidget(PropWidget):
         except:  # noqa
             return
         return dres
+
+    def _setTexts(self, formats, section, edits):
+        if section not in formats:
+            return
+        try:
+            params = eval(formats['datasource'])
+        except (SyntaxError, NameError):
+            return
+        for edit, pStr in zip(edits, params):
+            edit.setText(pStr)
+
+    def setDataFormat(self, formats):
+        self._setTexts(formats, 'datasource', self.dataEdits)
+        self._setTexts(formats, 'slices', self.sliceEdits)
+        self._setTexts(formats, 'conversionfactors', self.conversionEdits)

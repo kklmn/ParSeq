@@ -4,6 +4,7 @@ __date__ = "10 Apr 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import time
+import numpy as np
 # from collections import OrderedDict
 # from functools import partial
 
@@ -16,8 +17,8 @@ from . import gcommons as gco
 from ..core import singletons as csi
 from ..utils import math as uma
 
-HEADERS = 'label', 'use', 'geometry'
-columnWidths = 45, 32, 164
+HEADERS = 'label', 'use', 'geometry', 'counts'
+columnWidths = 45, 32, 164, 52
 
 
 class RoiManager(RegionOfInterestManager):
@@ -39,6 +40,7 @@ class RoiManager(RegionOfInterestManager):
 class RoiModel(qt.QAbstractTableModel):
     def __init__(self, roiManager=None, dim=2):
         super().__init__()
+        self.roiCounts = []
         self.setRoiManager(roiManager)
         roiManager.sigRoiAdded.connect(self.reset)
 
@@ -78,7 +80,7 @@ class RoiModel(qt.QAbstractTableModel):
         column = index.column()
         if column == 1:
             res |= qt.Qt.ItemIsUserCheckable
-        else:
+        elif column in (0, 2):
             res |= qt.Qt.ItemIsEditable
         return res
 
@@ -95,6 +97,10 @@ class RoiModel(qt.QAbstractTableModel):
                 return roi.getName()
             elif column == 2:  # geometry
                 return self.getReadableRoiDescription(roi)
+            elif column == 3:  # counts
+                while len(self.roiCounts) < row+1:
+                    self.roiCounts.append(0)
+                return '{0}'.format(self.roiCounts[row])
         elif role == qt.Qt.CheckStateRole:
             if column == 1:  # use
                 return int(
@@ -238,15 +244,17 @@ class RoiTableView(qt.QTableView):
             horHeaders.setMovable(False)
             for i in range(len(HEADERS)):
                 horHeaders.setResizeMode(i, qt.QHeaderView.Interactive)
+            horHeaders.setResizeMode(2, qt.QHeaderView.Stretch)
             horHeaders.setClickable(True)
-            verHeaders.setResizeMode(qt.QHeaderView. ResizeToContents)
+            verHeaders.setResizeMode(qt.QHeaderView.ResizeToContents)
         else:
             horHeaders.setSectionsMovable(False)
             for i in range(len(HEADERS)):
                 horHeaders.setSectionResizeMode(i, qt.QHeaderView.Interactive)
+            horHeaders.setSectionResizeMode(2, qt.QHeaderView.Stretch)
             horHeaders.setSectionsClickable(True)
-            verHeaders.setSectionResizeMode(qt.QHeaderView. ResizeToContents)
-        horHeaders.setStretchLastSection(True)
+            verHeaders.setSectionResizeMode(qt.QHeaderView.ResizeToContents)
+        horHeaders.setStretchLastSection(False)
         horHeaders.setMinimumSectionSize(20)
         # verHeaders.setMinimumSectionSize(70)
 
@@ -334,7 +342,7 @@ class RoiWidget(qt.QWidget):
                     raise ValueError(
                         "These geometries must have same key words:\n{0}\n{1}"
                         .format(geom0, geom))
-        interpolatedRois = uma.interpolateFrames(
+        interpolatedRois = uma.interpolate_frames(
             self.keyFrameGeometries, ind, self.wantExtrapolate)
         rois = self.roiManager.getRois()
         model = self.table.roiModel
@@ -369,8 +377,10 @@ class RoiWidget(qt.QWidget):
             return
 
         curRoi = self.roiManager.getCurrentRoi()
-        if curRoi is None:
+        if curRoi is None and rois:
             curRoi = rois[0]
+        if curRoi is None:
+            return
         model = self.table.roiModel
         if not self.bypassForUpdate:
             if self.is3dStack:
@@ -500,3 +510,30 @@ class RoiWidget(qt.QWidget):
             except IndexError as e:
                 print(e)
                 print('The dict of rois is broken')
+
+    def updateCounts(self, data):
+        rois = self.roiManager.getRois()
+        curRoi = self.roiManager.getCurrentRoi()
+        if curRoi is None and rois:
+            curRoi = rois[0]
+        if curRoi is None:
+            return
+        row = rois.index(curRoi)
+        model = self.table.roiModel
+        while len(model.roiCounts) < row+1:
+            model.roiCounts.append(0)
+
+        geom = model.getRoiGeometry(curRoi)
+        if self.is3dStack:
+            iframe = self.plot._browser.value()
+            frame = data[iframe, :, :]
+        else:
+            frame = data
+        sh = frame.shape
+        xs = np.arange(sh[1])[None, :]
+        ys = np.arange(sh[0])[:, None]
+        m = uma.get_roi_mask(geom, xs, ys)
+        model.roiCounts[row] = frame[m].sum()
+
+        ind = model.index(row, 3)
+        model.dataChanged.emit(ind, ind)

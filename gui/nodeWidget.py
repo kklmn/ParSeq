@@ -9,11 +9,12 @@ import webbrowser
 from collections import Counter
 from functools import partial
 
-from silx.gui import qt, colors
+from silx.gui import qt, colors, icons
 
 from ..core import singletons as csi
 from ..core import commons as cco
 from ..core import spectra as csp
+from ..core.config import configLoad
 from ..gui import fileTreeModelView as gft
 from ..gui.fileTreeModelView import FileTreeView
 from ..gui.dataTreeModelView import DataTreeView
@@ -133,6 +134,31 @@ class NodeWidget(qt.QWidget):
         if len(csi.selectedItems) > 0:
             self.updateNodeForSelectedItems()
             self.replot()
+        else:
+            self.gotoLastFile()
+
+    def gotoLastFile(self):
+        if configLoad.has_option('Data', self.node.name):
+            lastPath = configLoad.get('Data', self.node.name)
+        else:
+            lastPath = ''
+        if lastPath:
+            if lastPath.startswith('silx'):
+                dataType = csp.DATA_DATASET
+            else:
+                dataType = csp.DATA_COLUMN_FILE
+            self.pendingFile = lastPath, dataType
+            if dataType == csp.DATA_COLUMN_FILE:
+                ind = self.files.model().indexFileName(lastPath)
+            else:  # fobj[1] == csp.DATA_DATASET:
+                ind = self.files.model().indexFromH5Path(lastPath, True)
+            self.files.setCurrentIndex(ind)
+            self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtCenter)
+            self.files.dataChanged(ind, ind)
+
+        if configLoad.has_section('Format_'+self.node.name):
+            formats = dict(configLoad.items('Format_'+self.node.name))
+            self.columnFormat.setDataFormat(formats)
 
     def makeSplitters(self):
         layout = qt.QHBoxLayout()
@@ -166,9 +192,20 @@ class NodeWidget(qt.QWidget):
         self.files.model().directoryLoaded.connect(self._directoryIsLoaded)
         self.filesAutoAddCB = qt.QCheckBox("auto append fresh file TODO", self)
 
+        gotoLastButton = qt.QToolButton()
+        gotoLastButton.setFixedSize(24, 24)
+        gotoLastButton.setIcon(icons.getQIcon('last'))
+        gotoLastButton.setToolTip("Go to the latest loaded data")
+        gotoLastButton.clicked.connect(self.gotoLastFile)
+        # gotoLastButton.setFlat(True)
+        # gotoLastButton.setStyleSheet(
+        #     "QToolButton{border-radius: 8px;}"
+        #     "QToolButton:hover{background-color: #ffe0e6;}")
+
         fileFilterLayout = qt.QHBoxLayout()
         fileFilterLayout.addWidget(labelFilter)
         fileFilterLayout.addWidget(self.editFileFilter, 1)
+        fileFilterLayout.addWidget(gotoLastButton, 0)
 
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(2, 0, 0, 0)
@@ -283,7 +320,6 @@ class NodeWidget(qt.QWidget):
 
     def makeTransformWidget(self, parent):
         tr = self.node.transformIn
-        tr.sendSignals = csi.mainWindow is not None
         hasWidgetClass = self.node.widgetClass is not None
         if hasWidgetClass:
             self.transformWidget = self.node.widgetClass(
@@ -291,6 +327,7 @@ class NodeWidget(qt.QWidget):
         else:
             self.transformWidget = qt.QWidget(parent)
         if tr is not None:
+            tr.sendSignals = csi.mainWindow is not None
             tr.widget = self.transformWidget
 
     def makeSplitterButtons(self):

@@ -457,6 +457,9 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def slotSaveProject(self):
         dlg = SaveProjectDlg(self)
+        if config.configLoad.has_option('Project', csi.pipelineName):
+            d = osp.dirname(config.configLoad.get('Project', csi.pipelineName))
+            dlg.setDirectory(d)
         dlg.ready.connect(self.doSaveProject)
         dlg.open()
 
@@ -484,9 +487,13 @@ class MainWindowParSeq(qt.QMainWindow):
             self.save_script(fname, plots, h5plots, 'mpl')
         if saveScriptSilx:
             self.save_script(fname, plots, h5plots, 'silx')
+        config.put(config.configLoad, 'Project', csi.pipelineName, fname)
 
     def slotLoadProject(self):
         dlg = LoadProjectDlg(self)
+        if config.configLoad.has_option('Project', csi.pipelineName):
+            d = osp.dirname(config.configLoad.get('Project', csi.pipelineName))
+            dlg.setDirectory(d)
         dlg.ready.connect(self.doLoadProject)
         dlg.open()
 
@@ -494,6 +501,7 @@ class MainWindowParSeq(qt.QMainWindow):
         self.cursor().setPos(self.mapToGlobal(qt.QPoint(0, 0)))
         fname = res[0][0]
         self.load_project(fname)
+        config.put(config.configLoad, 'Project', csi.pipelineName, fname)
 
     def closeEvent(self, event):
         self.save_perspective()
@@ -675,7 +683,8 @@ class MainWindowParSeq(qt.QMainWindow):
                     nname = nodeName.translate(self.chars2removeMap)
                     dname = it.alias.translate(self.chars2removeMap)
                     sname = u'{0}-{1}-{2}'.format(iNode+1, nname, dname)
-                    np.savetxt(sname+'.txt.gz', np.column_stack(dataToSave),
+                    # np.savetxt(sname+'.txt.gz', np.column_stack(dataToSave),
+                    np.savetxt(sname+'.txt', np.column_stack(dataToSave),
                                fmt='%.12g', header=' '.join(header))
                     curves[sname] = [it.alias, it.color, header,
                                      it.plotProps[node.name]]
@@ -692,7 +701,8 @@ class MainWindowParSeq(qt.QMainWindow):
                             continue
                         sname = u'{0}-{1}-{2}-aux{3}'.format(
                                 iNode+1, nname, dname, iG)
-                        np.savetxt(sname+'.txt.gz', np.column_stack(dataAux),
+                        # np.savetxt(sname+'.txt.gz', np.column_stack(dataAux),
+                        np.savetxt(sname+'.txt', np.column_stack(dataAux),
                                    fmt='%.12g', header=' '.join(headerAux))
                         curves[sname] = [it.alias, it.color, headerAux]
                 plots.append(['txt', node.name, node.plotDimension,
@@ -795,28 +805,34 @@ class MainWindowParSeq(qt.QMainWindow):
                 h5plots.append([node.name, node.plotDimension,
                                 node.widget.getAxisLabels(), curves])
 
-            with h5py.File(fname+'.h5', 'w') as f:
-                dataGrp = f.create_group('data')
-                plotsGrp = f.create_group('plots')
-                for it in csi.selectedItems:
-                    dname = it.alias.translate(self.chars2removeMap)
-                    if dname in f:
-                        continue
-                    grp = dataGrp.create_group(dname)
-                    for aN in dataToSave[it]:
-                        if aN in grp:
+            try:
+                with h5py.File(fname+'.h5', 'w') as f:
+                    dataGrp = f.create_group('data')
+                    plotsGrp = f.create_group('plots')
+                    for it in csi.selectedItems:
+                        dname = it.alias.translate(self.chars2removeMap)
+                        if dname in f:
                             continue
-                        com = None if np.isscalar(dataToSave[it][aN]) else\
-                            'gzip'
-                        grp.create_dataset(aN, data=dataToSave[it][aN],
-                                           compression=com)
-                    grp.create_dataset('transformParams',
-                                       data=str(it.transformParams))
-                for plot in h5plots:
-                    grp = plotsGrp.create_group(plot[0])
-                    grp.create_dataset('ndim', data=plot[1])
-                    grp.create_dataset('axes', data=str(plot[2]))
-                    grp.create_dataset('plots', data=str(plot[3]))
+                        grp = dataGrp.create_group(dname)
+                        for aN in dataToSave[it]:
+                            if aN in grp:
+                                continue
+                            com = None if np.isscalar(dataToSave[it][aN]) else\
+                                'gzip'
+                            grp.create_dataset(aN, data=dataToSave[it][aN],
+                                               compression=com)
+                        grp.create_dataset('transformParams',
+                                           data=str(it.transformParams))
+                    for plot in h5plots:
+                        grp = plotsGrp.create_group(plot[0])
+                        grp.create_dataset('ndim', data=plot[1])
+                        grp.create_dataset('axes', data=str(plot[2]))
+                        grp.create_dataset('plots', data=str(plot[3]))
+            except Exception as e:
+                msg = qt.QMessageBox()
+                msg.setIcon(qt.QMessageBox.Critical)
+                msg.critical(self, "Cannot write file {0}".format(fname),
+                             str(e))
 
         return plots, h5plots
 
