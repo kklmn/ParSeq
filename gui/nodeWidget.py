@@ -189,7 +189,9 @@ class NodeWidget(qt.QWidget):
             self.editFileFilter.setText(', '.join(self.node.fileNameFilters))
         self.files = FileTreeView(self.node)
 #        self.files.doubleClicked.connect(self.loadFiles)
-        self.files.model().directoryLoaded.connect(self._directoryIsLoaded)
+        model = self.files.model()
+        if hasattr(model, 'directoryLoaded'):
+            model.directoryLoaded.connect(self._directoryIsLoaded)
         self.filesAutoAddCB = qt.QCheckBox("auto append fresh file TODO", self)
 
         gotoLastButton = qt.QToolButton()
@@ -412,7 +414,7 @@ class NodeWidget(qt.QWidget):
                 lst[0] = lst[0][lst[0].find('*'):]
                 self.editFileFilter.setText(','.join(lst))
             self.node.fileNameFilters = lst
-            self.files.model().fsModel.setNameFilters(lst)
+            self.files.model().setNameFilters(lst)
 
     def _makeAxisLabels(self, labels, for3Dtitle=False):
         res = []

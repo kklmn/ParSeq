@@ -120,6 +120,10 @@ class CalibrationModel(qt.QAbstractTableModel):
             self.dataCollection = {}
         else:
             self.dataCollection = dict(dataCollection)
+        if ('slice' not in self.dataCollection  # added later
+                and 'base' in self.dataCollection):
+            self.dataCollection['slice'] = \
+                [':'] * len(self.dataCollection['base'])
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
