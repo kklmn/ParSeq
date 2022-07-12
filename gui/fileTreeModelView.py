@@ -67,9 +67,10 @@ class MyHdf5TreeModel(Hdf5TreeModel):
 
     def hasChildren(self, parent=qt.QModelIndex()):
         node = self.nodeFromIndex(parent)
-        if node is None:
+        try:  # may fail during loading
+            return node.isGroupObj()
+        except Exception:
             return False
-        return node.isGroupObj()
 
     def canFetchMore(self, parent):
         node = self.nodeFromIndex(parent)
@@ -438,8 +439,12 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         if not indexH5.isValid():
             return
         nodeH5 = self.h5Model.nodeFromIndex(indexH5)
-        if not nodeH5.isGroupObj():
+        try:
+            if not nodeH5.isGroupObj():
+                return
+        except Exception:
             return
+
         cf = self.transformNode.widget.columnFormat
         df = cf.getDataFormat(needHeader=False)
         if not df:
@@ -471,7 +476,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                             if len(slicelist) != nd:
                                 return
                 lres.append(colEval)
-        except:  # noqa
+        except Exception:
             return
         return lres, df
 
