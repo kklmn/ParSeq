@@ -7,7 +7,7 @@ from silx.gui import qt
 
 import sys; sys.path.append('../..')  # analysis:ignore
 from parseq.gui.calibrateEnergy import CalibrateEnergyWidget
-import _parseq_XES_scan_v030 as myapp
+import parseq_XES_scan as myapp
 
 
 def test():

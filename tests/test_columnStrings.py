@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
 __date__ = "27 Jan 2018"
+"""
+Test expression evaluation where the expression operates arrays defined as
+d["NNN"], where d is a local dictionary with the appropriate keys; the keys can
+also be integers.
+"""
 # !!! SEE CODERULES.TXT !!!
 
 import numpy as np
@@ -34,7 +39,8 @@ def test(colStr, isColumn=True):
 if __name__ == '__main__':
     test('d["path1"] + d["path2"]', isColumn=False)
     test("d['path1'] + d['path2']", isColumn=False)
-    test(' + '.join(['d["path{0}"]'.format(i) for i in range(1, 3)]), isColumn=False)
+    test(' + '.join(['d["path{0}"]'.format(i) for i in range(1, 3)]),
+         isColumn=False)
 
     test('path1', isColumn=False)
 

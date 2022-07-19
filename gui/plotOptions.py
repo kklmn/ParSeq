@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "15 Jul 2022"
 # !!! SEE CODERULES.TXT !!!
 
 from collections import OrderedDict
@@ -68,7 +68,7 @@ lineSymbolsText = OrderedDict([
 
 class LineStyleDelegate(qt.QItemDelegate):
     def paint(self, painter, option, index):
-        txt = index.model().data(index, qt.Qt.DisplayRole)
+        txt = index.data(qt.Qt.DisplayRole)
         if txt.startswith('no'):
             super().paint(painter, option, index)
             return
@@ -117,7 +117,7 @@ class LineStyleComboBox(qt.QComboBox):
 
 class SymbolDelegate(qt.QItemDelegate):
     def paint(self, painter, option, index):
-        txt = index.model().data(index, qt.Qt.DisplayRole)
+        txt = index.data(qt.Qt.DisplayRole)
         if txt == '':
             return
         if txt.startswith('no'):
@@ -413,6 +413,8 @@ class LineProps(qt.QDialog):
             tab.color = self.color
         self.colorIndividualButton.colorCycle = [self.color]
 
+        if len(csi.selectedItems) == 0:
+            return
         parentItem = csi.selectedItems[0].parentItem
         if hasattr(parentItem, "color1"):
             self.color1 = parentItem.color1

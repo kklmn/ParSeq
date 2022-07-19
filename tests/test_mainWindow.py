@@ -16,7 +16,7 @@ def test(withGUI=True, withTestData=True):
 
     if withGUI:
         node0 = list(csi.nodes.values())[0]
-        node0.fileNameFilters = ['*.fio', '*.h5', '*.dat']
+        node0.includeFilters = ['*.fio', '*.h5', '*.dat']
 
         from silx.gui import qt
         from parseq.gui.mainWindow import MainWindowParSeq
@@ -25,7 +25,7 @@ def test(withGUI=True, withTestData=True):
         mainWindow.dataChanged()
         mainWindow.show()
 
-        node0.widget.tree.setFocus()  # important
+        node0.widget.tree.setFocus()
         node0.widget.tree.setCurrentIndex(csi.model.index(0))
 
         from modeltest import ModelTest

@@ -399,7 +399,8 @@ class Spectrum(TreeItem):
         multiplicaive factor that converts to the node's array unit and a
         string is another unit that cannot be converted to the node's array
         unit, e.g. the node defines an array with a 'mA' unit while the data
-        was measured with a 'count' unit.
+        was measured with a 'count' unit. It may define a comma separated str
+        of hdf5 attribute names that define metadata.
 
         The data propagation is between origin node and terminal node, both
         ends are included. *originNodeName* and *terminalNodeName* (str)
@@ -744,7 +745,7 @@ class Spectrum(TreeItem):
                     tmp['alias'] = name
                     trParams = {}
                     for tr in csi.transforms.values():
-                        for key in tr.defaultParams:
+                        for key, val in tr.defaultParams.items():
                             trParams[key] = config.get(configData, name, key,
                                                        default=val)
                     tmp['transformParams'] = trParams
@@ -839,23 +840,21 @@ class Spectrum(TreeItem):
                 header.append(label)
             except (ValueError, KeyError):
                 pass
-            try:
-                header.append(silx_io.get_data(madeOf + "/title"))
-            except (ValueError, KeyError, OSError) as e:
-                print('Error in read_file() (b): {0}'.format(e))
-            try:
-                label = silx_io.get_data(madeOf + "/start_time")
-                if isinstance(label, bytes):
-                    header.append(b"start time " + label)
-                else:
-                    header.append("start time " + label)
-                label = silx_io.get_data(madeOf + "/end_time")
-                if isinstance(label, bytes):
-                    header.append(b"end time " + label)
-                else:
-                    header.append("end time " + label)
-            except (ValueError, KeyError, OSError) as e:
-                print('Error in read_file() (c): {0}'.format(e))
+
+            mdtxt = df.get('metadata', '')
+            if mdtxt:
+                mds = [md.strip() for md in mdtxt.split(',')]
+            else:
+                mds = []
+
+            for md in mds:
+                try:
+                    mdres = silx_io.get_data(madeOf + "/" + md)
+                    if isinstance(mdres, bytes):
+                        mdres = mdres.decode("utf-8")
+                    header.append("<b>{0}</b>: {1}<br>".format(md, mdres))
+                except (ValueError, KeyError, OSError) as e:
+                    print('No metadata: {0}'.format(e))
         else:
             raise TypeError('wrong datafile type')
 
@@ -922,7 +921,12 @@ class Spectrum(TreeItem):
                 self.meta['text'] = ''
         self.meta['length'] = len(arr)
 
-        config.put(config.configLoad, 'Data', toNode.name, madeOf)
+        start = 5 if self.madeOf.startswith('silx:') else 0
+        end = self.madeOf.find('::') if '::' in self.madeOf else None
+        path = self.madeOf[start:end]
+        abspath = osp.abspath(path).replace('\\', '/')
+        toSave = self.madeOf[:start] + abspath + self.madeOf[end:]
+        config.put(config.configLoad, 'Data', toNode.name, toSave)
         config.write_configs((1, 0, 0))
 
     def interpretArrayFormula(self, colStr, treeObj=None):

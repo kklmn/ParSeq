@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "19 Apr 2022"
+__date__ = "19 Jul 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -22,6 +22,7 @@ from ..gui.plot import Plot1D, Plot2D, Plot3D
 from ..gui.webWidget import QWebView
 from ..gui.columnFormat import ColumnFormatWidget
 from ..gui.combineSpectra import CombineSpectraWidget
+from . import gcommons as gco
 
 SPLITTER_WIDTH, SPLITTER_BUTTON_MARGIN = 14, 6
 COLORMAP = 'viridis'
@@ -38,21 +39,23 @@ class QSplitterButton(qt.QPushButton):
         self.setStyleSheet("""
             QPushButton {
                 font-size: """ + fontSize + """pt; color: #151575;
-                padding-bottom: 0px; padding-top: -1px;
-                text-align: bottom; border-radius: 4px;
+                text-align: bottom; border-radius: 6px;
                 background-color: qlineargradient(
                 """ + grad + """, stop: 0 #e6e7ea, stop: 1 #cacbce);}
             QPushButton:pressed {
                 background-color: qlineargradient(
-                """ + grad + """, stop: 0 #cacbce, stop: 1 #e6e7ea);} """)
+                """ + grad + """, stop: 0 #cacbce, stop: 1 #e6e7ea);}
+            QPushButton:hover {
+                background-color: qlineargradient(
+                """ + grad + """, stop: 0 #6087cefa, stop: 1 #7097eeff);} """)
         myFont = qt.QFont()
         myFont.setPointSize(int(float(fontSize)))
         fm = qt.QFontMetrics(myFont)
         width = fm.width(text) + 3*margin
         if isVertical:
-            self.setFixedSize(int(SPLITTER_WIDTH*csi.screenFactor)+1, width)
+            self.setFixedSize(int(SPLITTER_WIDTH*csi.screenFactor), width)
         else:
-            self.setFixedSize(width, int(SPLITTER_WIDTH*csi.screenFactor)+1)
+            self.setFixedSize(width, int(SPLITTER_WIDTH*csi.screenFactor))
 
     def paintEvent(self, event):
         painter = qt.QStylePainter(self)
@@ -107,7 +110,6 @@ class NodeWidget(qt.QWidget):
         self.tree = None
         self.help = None
         self.pendingPropDialog = None
-        self.pendingFile = None
         self.wasNeverPlotted = True
         self.onTransform = False
 
@@ -135,27 +137,10 @@ class NodeWidget(qt.QWidget):
             self.updateNodeForSelectedItems()
             self.replot()
         else:
-            self.gotoLastFile()
+            self.gotoLastData()
 
-    def gotoLastFile(self):
-        if configLoad.has_option('Data', self.node.name):
-            lastPath = configLoad.get('Data', self.node.name)
-        else:
-            lastPath = ''
-        if lastPath:
-            if lastPath.startswith('silx'):
-                dataType = csp.DATA_DATASET
-            else:
-                dataType = csp.DATA_COLUMN_FILE
-            self.pendingFile = lastPath, dataType
-            if dataType == csp.DATA_COLUMN_FILE:
-                ind = self.files.model().indexFileName(lastPath)
-            else:  # fobj[1] == csp.DATA_DATASET:
-                ind = self.files.model().indexFromH5Path(lastPath, True)
-            self.files.setCurrentIndex(ind)
-            self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtCenter)
-            self.files.dataChanged(ind, ind)
-
+    def gotoLastData(self):
+        self.files.gotoLastData()
         if configLoad.has_section('Format_'+self.node.name):
             formats = dict(configLoad.items('Format_'+self.node.name))
             self.columnFormat.setDataFormat(formats)
@@ -167,6 +152,19 @@ class NodeWidget(qt.QWidget):
         self.splitter.setOrientation(qt.Qt.Horizontal)
         layout.addWidget(self.splitter)
         self.setLayout(layout)
+        grad = "x1: 0, y1: 0, x2: 0, y2: 1"
+        self.splitter.setStyleSheet(
+            "QSplitterHandle:hover {} "
+            "QSplitter::handle:horizontal:hover{background-color: "
+            "qlineargradient(" + grad + ", stop: 0 #6087cefa, "
+            "stop: 1 #7097eeff);}")
+
+        self.splitter.setStyleSheet(
+            "QSplitterHandle:hover {} "
+            "QSplitter::handle:horizontal:hover{background-color: #6087cefa;"
+            "margin: 5px;}"
+            "QSplitter::handle:vertical:hover{background-color: #6087cefa;"
+            "margin: 5px;}")
 
         self.splitterFiles = qt.QSplitter(self.splitter)
         self.splitterFiles.setOrientation(qt.Qt.Vertical)
@@ -179,38 +177,48 @@ class NodeWidget(qt.QWidget):
 
     def fillSplitterFiles(self):
         splitterInner = qt.QWidget(self.splitterFiles)
-        labelFilter = qt.QLabel('file filter')
-        self.editFileFilter = qt.QLineEdit()
-        self.editFileFilter.setToolTip("For quick jump into a location:\n"
-                                       "paste its path in front of the\n"
-                                       "wildcard filter(s) and press Enter")
-        self.editFileFilter.returnPressed.connect(self.setFileFilter)
-        if hasattr(self.node, 'fileNameFilters'):
-            self.editFileFilter.setText(', '.join(self.node.fileNameFilters))
+
+        labelIncludeFilter = qt.QLabel('include')
+        self.editIncludeFilter = qt.QLineEdit()
+        self.editIncludeFilter.setToolTip(
+            "For quick jump into a location:\npaste its path in front of the\n"
+            "wildcard filter(s) and press Enter")
+        self.editIncludeFilter.returnPressed.connect(self.setIncludeFilter)
+        if hasattr(self.node, 'includeFilters'):
+            self.editIncludeFilter.setText(', '.join(self.node.includeFilters))
+
+        labelExcludeFilter = qt.QLabel('exclude')
+        self.editExcludeFilter = qt.QLineEdit()
+        self.editExcludeFilter.returnPressed.connect(self.setExcludeFilter)
+        if hasattr(self.node, 'excludeFilters'):
+            self.editExcludeFilter.setText(', '.join(self.node.excludeFilters))
+
         self.files = FileTreeView(self.node)
 #        self.files.doubleClicked.connect(self.loadFiles)
-        model = self.files.model()
-        if hasattr(model, 'directoryLoaded'):
-            model.directoryLoaded.connect(self._directoryIsLoaded)
         self.filesAutoAddCB = qt.QCheckBox("auto append fresh file TODO", self)
 
         gotoLastButton = qt.QToolButton()
         gotoLastButton.setFixedSize(24, 24)
         gotoLastButton.setIcon(icons.getQIcon('last'))
-        gotoLastButton.setToolTip("Go to the latest loaded data")
-        gotoLastButton.clicked.connect(self.gotoLastFile)
-        # gotoLastButton.setFlat(True)
-        # gotoLastButton.setStyleSheet(
-        #     "QToolButton{border-radius: 8px;}"
-        #     "QToolButton:hover{background-color: #ffe0e6;}")
+        tt = "Go to the latest loaded data"
+        if configLoad.has_option('Data', self.node.name):
+            tt += "\n" + configLoad.get('Data', self.node.name)
+        gotoLastButton.setToolTip(tt)
+        gotoLastButton.clicked.connect(self.gotoLastData)
+        color = gco.COLOR_LOAD_CAN.replace('#', '#32')
+        gotoLastButton.setStyleSheet(
+            "QToolButton{border-radius: 8px;}"
+            "QToolButton:hover{background-color: "+color+";}")
 
-        fileFilterLayout = qt.QHBoxLayout()
-        fileFilterLayout.addWidget(labelFilter)
-        fileFilterLayout.addWidget(self.editFileFilter, 1)
-        fileFilterLayout.addWidget(gotoLastButton, 0)
-
+        fileFilterLayout = qt.QGridLayout()
+        fileFilterLayout.addWidget(labelIncludeFilter, 0, 0)
+        fileFilterLayout.addWidget(self.editIncludeFilter, 0, 1)
+        fileFilterLayout.addWidget(labelExcludeFilter, 1, 0)
+        fileFilterLayout.addWidget(self.editExcludeFilter, 1, 1)
+        fileFilterLayout.addWidget(gotoLastButton, 0, 2, 2, 1,
+                                   qt.Qt.AlignHCenter | qt.Qt.AlignVCenter)
         layout = qt.QVBoxLayout()
-        layout.setContentsMargins(2, 0, 0, 0)
+        layout.setContentsMargins(4, 0, 0, 0)
         layout.addLayout(fileFilterLayout)
         layout.addWidget(self.files)
         layout.addWidget(self.filesAutoAddCB)
@@ -355,7 +363,10 @@ class NodeWidget(qt.QWidget):
             nameBut = name
         button = QSplitterButton(nameBut, handle, isVerical)
         button.setText(button.rawText)
-        splitter.setHandleWidth(int(SPLITTER_WIDTH*csi.screenFactor))
+        if isVerical:
+            splitter.setHandleWidth(int(SPLITTER_WIDTH*csi.screenFactor))
+        else:
+            splitter.setHandleWidth(int(SPLITTER_WIDTH*csi.screenFactor))
         po = qt.QSizePolicy(qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
         button.setSizePolicy(po)
         button.clicked.connect(
@@ -394,27 +405,32 @@ class NodeWidget(qt.QWidget):
         webbrowser.open_new_tab(self.helpFile)
         # webbrowser.open_new_tab("https://github.com/")
 
-    def setFileFilter(self):
-        txt = self.editFileFilter.text()
-        if not txt:
-            return
-        lst = txt.split(',')
-        if hasattr(self.node, 'fileNameFilters'):
-            if lst == self.node.fileNameFilters:
+    def setIncludeFilter(self):
+        txt = self.editIncludeFilter.text()
+        lst = [s.strip() for s in txt.split(',')]
+        if hasattr(self.node, 'includeFilters'):
+            if lst == self.node.includeFilters:
                 return
         if lst:
             dirname = osp.dirname(lst[0])
             if dirname:
-                self.pendingFile = dirname, csp.DATA_COLUMN_FILE
-                ind = self.files.model().indexFileName(dirname)
-                self.files.setExpanded(ind, True)
-                self.files.setCurrentIndex(ind)
-                self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtTop)
-                self.files.dataChanged(ind, ind)
-                lst[0] = lst[0][lst[0].find('*'):]
-                self.editFileFilter.setText(','.join(lst))
-            self.node.fileNameFilters = lst
-            self.files.model().setNameFilters(lst)
+                self.files.gotoWhenReady(dirname)
+                self.node.includeFilters = lst[1:]
+                self.editIncludeFilter.setText(
+                    ', '.join(self.node.includeFilters))
+                self.files.setNameFilters(self.node.includeFilters)
+                return
+        self.node.includeFilters = lst
+        self.files.setNameFilters()
+
+    def setExcludeFilter(self):
+        txt = self.editExcludeFilter.text()
+        lst = [s.strip() for s in txt.split(',')]
+        if hasattr(self.node, 'excludeFilters'):
+            if lst == self.node.excludeFilters:
+                return
+        self.node.excludeFilters = lst
+        self.files.setNameFilters()
 
     def _makeAxisLabels(self, labels, for3Dtitle=False):
         res = []
@@ -781,43 +797,14 @@ class NodeWidget(qt.QWidget):
             dataCount = len(csi.allLoadedItems)
             self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
 
-    def _directoryIsLoaded(self, path):
-        if self.pendingFile:
-            fname = osp.normcase(self.pendingFile[0])
-            if fname.startswith('silx:'):
-                fname = fname[5:]
-            indSuff = fname.rfind('::')
-            if indSuff > 0:
-                fname = fname[:indSuff]
-            if fname == osp.normcase(path):
-                if self.pendingFile[1] == csp.DATA_COLUMN_FILE:
-                    ind = self.files.model().indexFileName(self.pendingFile[0])
-                else:  # csp.DATA_DATASET:
-                    ind = self.files.model().indexFromH5Path(
-                        self.pendingFile[0], True)
-                # self.files.scrollTo(ind, qt.QAbstractItemView.EnsureVisible)
-                self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtCenter)
-                self.files.setCurrentIndex(ind)
-                self.files.selectionModel().select(
-                    ind, qt.QItemSelectionModel.ClearAndSelect)
-                self.pendingFile = None
-
     def updateNodeForSelectedItems(self):
         self.updateSplittersForSelectedItems()
-        fobj = self.shouldUpdateFileModel()
-        if fobj:
-            self.pendingFile = fobj
-            if fobj[1] == csp.DATA_COLUMN_FILE:
-                ind = self.files.model().indexFileName(fobj[0])
-            else:  # fobj[1] == csp.DATA_DATASET:
-                ind = self.files.model().indexFromH5Path(fobj[0], True)
-            self.files.setCurrentIndex(ind)
-            self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtCenter)
-            # self.files.scrollTo(ind, qt.QAbstractItemView.PositionAtTop)
-            self.files.dataChanged(ind, ind)
-        self.updateMeta()
-        if fobj:
+        fname = self.shouldUpdateFileModel()
+        if fname:
+            self.files.gotoWhenReady(fname)
             self.columnFormat.setUIFromData()
+
+        self.updateMeta()
         self.combiner.setUIFromData()
         self.updateTransforms()
 
@@ -825,13 +812,15 @@ class NodeWidget(qt.QWidget):
         for it in csi.selectedItems:
             if it.dataType in (csp.DATA_COLUMN_FILE, csp.DATA_DATASET) and\
                     csi.nodes[it.originNodeName] is self.node:
-                return it.madeOf, it.dataType
+                return it.madeOf
 
     def loadFiles(self, fileNamesFull=None, parentItem=None, insertAt=None):
         def times(n):
             return " ({0} times)".format(n) if n > 1 else ""
 
         selectedIndexes = self.files.selectionModel().selectedRows()
+        if len(selectedIndexes) == 0:
+            return
         selectedIndex = selectedIndexes[0]
         dataStruct = selectedIndex.data(gft.LOAD_DATASET_ROLE)
         if dataStruct is None:
@@ -856,21 +845,9 @@ class NodeWidget(qt.QWidget):
         #     if not colMany:
         #         return
 
-        if isinstance(fileNamesFull, qt.QModelIndex):
-            if qt.QFileInfo(
-                    self.files.model().filePath(fileNamesFull)).isDir():
-                return
-            fileNamesFull = None
-        if not fileNamesFull:
-            sIndexes = self.files.selectionModel().selectedRows()
-            nodeType = self.files.model().nodeType(sIndexes[0])
-            if nodeType == gft.NODE_FS:
-                fileNamesFull = \
-                    [self.files.model().filePath(i) for i in sIndexes]
-            else:  # FileTreeView.NODE_HDF5, FileTreeView.NODE_HDF5_HEAD
-                fileNamesFull = \
-                    [self.files.model().getHDF5FullPath(i) for i in sIndexes]
-
+        fileNamesFull = self.files.getFullFileNames(fileNamesFull)
+        if fileNamesFull is None:  # when isDir
+            return
         fileNames = [osp.normcase(nf) for nf in fileNamesFull]
         allLoadedItemNames = []
         for d in csi.allLoadedItems:

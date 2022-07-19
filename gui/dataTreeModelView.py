@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "18 Jul 2021"
+__date__ = "19 Jul 2022"
 u"""
 The `DataTreeModel` implements view model of a collection of data loaded into a
 Parseq app. The model has several columns: the 1st one is the data name
@@ -35,12 +35,12 @@ COLUMN_NAME_WIDTH = 140
 COLUMN_EYE_WIDTH = 28
 LEGEND_WIDTH = 48  # '|FT(χ)|' fits into 48
 
-GROUP_BKGND = qt.QColor('#f4f0f0')
-BUSY_BKGND = qt.QColor('#cceeff')
-BAD_BKGND = qt.QColor('#f47070')
-UNDEFINED_BKGND = qt.QColor('#aaaaaa')
-NOTFOUND_BKGND = qt.QColor('#ff88ff')
-MATHERROR_BKGND = qt.QColor('#ffa500')
+GROUP_BKGND = gco.GROUP_COLOR
+BUSY_BKGND = gco.BUSY_COLOR_BGND
+BAD_BKGND = gco.BAD_COLOR
+UNDEFINED_BKGND = gco.UNDEFINED_COLOR
+NOTFOUND_BKGND = gco.NOTFOUND_COLOR
+MATHERROR_BKGND = gco.MATHERROR_COLOR
 BKGND = {cco.DATA_STATE_GOOD: None,
          cco.DATA_STATE_BAD: BAD_BKGND,
          cco.DATA_STATE_UNDEFINED: UNDEFINED_BKGND,
@@ -105,8 +105,9 @@ class DataTreeModel(qt.QAbstractItemModel):
         elif role == qt.Qt.ToolTipRole:
             if csi.currentNode is not None:
                 node = csi.currentNode
-                if node.widget.onTransform:
-                    return
+                if node.widget is not None:
+                    if node.widget.onTransform:
+                        return
             return item.tooltip()
         elif role == qt.Qt.BackgroundRole:
             if item.beingTransformed and index.column() == 0:
@@ -436,7 +437,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             if csi.currentNode is None:
                 return False
             node = csi.currentNode
-            if hasattr(node, 'widget'):
+            if node.widget is not None:
                 node.widget.loadFiles(urls, parentItem, insertAt)
                 # items = node.widget.loadFiles(urls, parentItem, insertAt)
                 # if DEBUG > 0:
@@ -505,8 +506,9 @@ class LineStyleDelegate(qt.QItemDelegate):
     def paint(self, painter, option, index):
         if csi.currentNode is not None:
             node = csi.currentNode
-            if node.widget.onTransform:
-                return
+            if node.widget is not None:
+                if node.widget.onTransform:
+                    return
         data = index.data(qt.Qt.DisplayRole)
         if data is None:
             return
@@ -680,7 +682,8 @@ class EyeHeader(qt.QHeaderView):
         x0, y0 = c0.x(), c0.y()
         ww, hh = round(min(2.5*radius0, rect.width()//2)), round(radius0)
         painter.drawArc(x0-ww, round(y0-radius0), ww*2, hh*5+1, 35*16, 110*16)
-        painter.drawArc(x0-ww, round(y0+radius0), ww*2, -hh*5+3, -35*16, -110*16)
+        painter.drawArc(
+            x0-ww, round(y0+radius0), ww*2, -hh*5+3, -35*16, -110*16)
 
     def paintSection(self, painter, rect, logicalIndex):
         painter.save()
@@ -759,9 +762,9 @@ class DataTreeView(qt.QTreeView):
                 lineStyleDelegate = LineStyleDelegate(self)
                 self.setItemDelegateForColumn(
                     i+leadingColumns, lineStyleDelegate)
-            self.setMinimumSize(qt.QSize(
-                int((COLUMN_NAME_WIDTH + COLUMN_EYE_WIDTH + totalWidth)*
-                    csi.screenFactor), 100))
+            self.setMinimumSize(qt.QSize(int(
+                (COLUMN_NAME_WIDTH + COLUMN_EYE_WIDTH + totalWidth) *
+                csi.screenFactor), 100))
 
         self.collapsed.connect(self.collapse)
         self.expanded.connect(self.expand)
@@ -814,7 +817,7 @@ class DataTreeView(qt.QTreeView):
         self.actionAUCC.setCheckable(True)
 
         self.actionLines = self._addAction(
-            "Line properties", self.setLines, "Ctrl+L")
+            "Line properties", self.setLines, "Ctrl+P")
 
     def _addAction(self, text, slot, shortcut=None):
         action = qt.QAction(text, self)
@@ -873,10 +876,10 @@ class DataTreeView(qt.QTreeView):
             self.selectAll()
         elif column == 1:
             if self.plotDimension == 1:
-                self.model().setVisible(
+                csi.model.setVisible(
                     csi.dataRootItem, not csi.dataRootItem.isVisible, True)
             # else:
-                # self.model().setVisible(csi.dataRootItem, False, True)
+                # csi.model.setVisible(csi.dataRootItem, False, True)
         else:
             node, key = csi.modelDataColumns[column-leadingColumns]
             role = node.getProp(key, 'role')
@@ -885,8 +888,8 @@ class DataTreeView(qt.QTreeView):
             self.setLines(column - leadingColumns)
 
     def restoreExpand(self, parent=qt.QModelIndex()):
-        for row in range(self.model().rowCount(parent)):
-            ind = self.model().index(row, 0, parent)
+        for row in range(csi.model.rowCount(parent)):
+            ind = csi.model.index(row, 0, parent)
             item = ind.internalPointer()
             if item.child_count() > 0:  # is a group
                 self.setExpanded(ind, item.isExpanded)
@@ -929,22 +932,22 @@ class DataTreeView(qt.QTreeView):
         shouldUpdateModel = parentItem.colorAutoUpdate
         if shouldUpdateModel:
             parentItem.init_colors()
-            self.model().dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-            self.model().needReplot.emit()
+            csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            csi.model.needReplot.emit()
 
     def moveItems(self, to):
         for topItem in csi.selectedTopItems[::to]:
-            self.model().moveItem(topItem, to)
+            csi.model.moveItem(topItem, to)
         row = csi.selectedTopItems[0].row()
-        newInd = self.model().createIndex(row, 0, csi.selectedTopItems[0])
+        newInd = csi.model.createIndex(row, 0, csi.selectedTopItems[0])
         self.setCurrentIndex(newInd)
 
     def groupItems(self):
         if len(csi.selectedTopItems) <= 1:
             return
-        group = self.model().groupItems(csi.selectedTopItems)
+        group = csi.model.groupItems(csi.selectedTopItems)
         row = group.row()
-        newInd = self.model().createIndex(row, 0, group)
+        newInd = csi.model.createIndex(row, 0, group)
         self.setCurrentIndex(newInd)
 
     def ungroup(self):
@@ -952,11 +955,11 @@ class DataTreeView(qt.QTreeView):
             return
         if csi.selectedTopItems[0].child_count() == 0:
             return
-        self.model().ungroup(csi.selectedTopItems[0])
+        csi.model.ungroup(csi.selectedTopItems[0])
         mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
         for item in csi.selectedItems:
             row = item.row()
-            index = self.model().createIndex(row, 0, item)
+            index = csi.model.createIndex(row, 0, item)
             csi.selectionModel.select(index, mode)
 
     def deleteItems(self):
@@ -972,9 +975,9 @@ class DataTreeView(qt.QTreeView):
             return
         prevRow = csi.selectedTopItems[0].row()
         prevParentItem = csi.selectedTopItems[0].parentItem
-        self.model().removeData(csi.selectedTopItems)
+        csi.model.removeData(csi.selectedTopItems)
         csi.selectionModel.clear()
-        if self.model().rowCount() == 0:
+        if csi.model.rowCount() == 0:
             csi.selectedItems[:] = []
             csi.selectedTopItems[:] = []
             if csi.mainWindow is not None:
@@ -985,10 +988,10 @@ class DataTreeView(qt.QTreeView):
         # select same row:
         try:
             prevRow = min(prevRow, len(prevParentItem.childItems)-1)
-            newInd = self.model().createIndex(
+            newInd = csi.model.createIndex(
                 prevRow, 0, prevParentItem.childItems[prevRow])
         except Exception:
-            newInd = self.model().createIndex(0, 0, self.model().rootItem)
+            newInd = csi.model.createIndex(0, 0, csi.model.rootItem)
         self.setCurrentIndex(newInd)
 
     def setLines(self, column=0):
@@ -1001,15 +1004,15 @@ class DataTreeView(qt.QTreeView):
         if self.plotDimension == 1:
             if not csi.dataRootItem.isVisible:  # visible are those selected
                 for it in csi.selectedItems:
-                    self.model().setVisible(it, value, emit)
+                    csi.model.setVisible(it, value, emit)
         else:
             if value:
                 it = csi.selectedItems[0]
-                self.model().setVisible(it, value, emit)
+                csi.model.setVisible(it, value, emit)
             else:
-                self.model().setVisible(csi.dataRootItem, False, True)
+                csi.model.setVisible(csi.dataRootItem, False, True)
                 for it in csi.selectedItems:
-                    self.model().setVisible(it, value, emit)
+                    csi.model.setVisible(it, value, emit)
 
     def selChanged(self):
         if not self.hasFocus():
@@ -1027,7 +1030,7 @@ class DataTreeView(qt.QTreeView):
         csi.selectedItems[:] = []
         csi.selectedItems.extend(items)
         csi.selectedTopItems[:] = []
-        csi.selectedTopItems.extend(self.model().getTopItems(selectedIndexes))
+        csi.selectedTopItems.extend(csi.model.getTopItems(selectedIndexes))
 
         if csi.selectionModel.customSelectionMode:
             self._setVisibleItems(True, True)

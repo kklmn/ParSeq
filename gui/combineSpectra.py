@@ -19,6 +19,7 @@ class CombineSpectraWidget(PropWidget):
         layout.setContentsMargins(4, 2, 2, 0)
         self.stopHereCB = qt.QCheckBox("stop data propagation here")
         self.stopHereCB.clicked.connect(self.doStopHere)
+        self.stopHereCB.setEnabled(node is not None)
         layout.addWidget(self.stopHereCB)
         layout.addWidget(combineDataGroup)
         layout.addStretch()
@@ -68,6 +69,7 @@ class CombineSpectraWidget(PropWidget):
         return group
 
     def doStopHere(self, checked):
+        print(csi.selectedItems)
         for it in csi.selectedItems:
             it.terminalNodeName = self.node.name if checked else None
             it.colorTag = 0

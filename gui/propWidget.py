@@ -93,7 +93,7 @@ class PropWidget(qt.QWidget):
 
     # def onCustomContextMenu(self, point):
     def contextMenuEvent(self, event):
-        if not self.propWidgets or (len(csi.selectedItems) == 0):
+        if not self.propWidgets:
             return
         widgetsOver = self._widgetsAt(event.globalPos())
         out = [w in self.propWidgets or w in self.propGroups or
@@ -105,11 +105,20 @@ class PropWidget(qt.QWidget):
         tName = tNames[0] if len(tNames) > 0 else None
 
         menu = qt.QMenu(self)
-        hdf5Path = self.fillMenuApply(widgetsOver, menu)
+        self.fillMenuApply(widgetsOver, menu)
         if tName is not None:
             menu.addSeparator()
             self.fillMenuReset(widgetsOver, menu)
 
+        hdf5Path = None
+        for widget in widgetsOver:
+            if hasattr(widget, 'text'):
+                try:
+                    txt = widget.text()
+                    if txt.startswith('silx:'):
+                        hdf5Path = txt
+                except Exception:
+                    pass
         if hdf5Path:
             menu.addSeparator()
             self._addAction(menu, "go to hdf5 location",
@@ -118,7 +127,8 @@ class PropWidget(qt.QWidget):
         menu.exec_(event.globalPos())
 
     def fillMenuApply(self, widgetsOver, menu):
-        hdf5Path = None
+        if len(csi.selectedItems) == 0:
+            return
         actionStr = 'apply {0}{1}'
         data = csi.selectedItems[0]
 
@@ -158,12 +168,12 @@ class PropWidget(qt.QWidget):
                     valueStr = ' = {0:g}'.format(curValue)
                 else:
                     valueStr = ' = {0}'.format(FloatRepr().repr(curValue))
-                if widget in self.propWidgets:
-                    propWidget = self.propWidgets[widget]
-                    if propWidget['widgetTypeIndex'] == 0:  # edit
-                        if curValue:
-                            if curValue.startswith('silx:'):
-                                hdf5Path = curValue
+                # if widget in self.propWidgets:
+                #     propWidget = self.propWidgets[widget]
+                #     if propWidget['widgetTypeIndex'] == 0:  # edit
+                #         if curValue:
+                #             if curValue.startswith('silx:'):
+                #                 hdf5Path = curValue
             else:
                 valueStr = ''
             actionName = actionStr.format(cap, valueStr)
@@ -207,8 +217,6 @@ class PropWidget(qt.QWidget):
                 print('actionName', actionName)
                 print('props', props)
                 print('values', values)
-
-        return hdf5Path
 
     def fillMenuReset(self, widgetsOver, menu):
         actionStr = 'reset {0} to default value{1}'
@@ -368,11 +376,7 @@ class PropWidget(qt.QWidget):
     def gotoHDF5(self, path):
         if self.node is None:  # can be True with tests
             return
-        files = self.node.widget.files
-        ind = files.model().indexFromH5Path(path, True)
-        files.setCurrentIndex(ind)
-        files.scrollTo(ind)
-        files.dataChanged(ind, ind)
+        self.node.widget.files.gotoWhenReady(path)
 
     def changeTooltip(self, edit, txt):
         fm = qt.QFontMetrics(self.font())

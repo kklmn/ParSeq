@@ -311,7 +311,6 @@ class RoiWidget(qt.QWidget):
             self.keyFramesFrame = qt.QFrame(self)
             layoutF.addWidget(self.keyFramesFrame, 1)
             self.keyFramesLayout = gco.FlowLayout()
-            self.keyFramesLayout.setSpacing(4)
             self.keyFramesFrame.setLayout(self.keyFramesLayout)
             # self.keyFrameEdit = qt.QLineEdit()
             # layoutF.addWidget(self.keyFrameEdit, 1)
@@ -476,8 +475,7 @@ class RoiWidget(qt.QWidget):
         self.bypassForSetup = False
 
     def _addKeyFrameWidget(self, key):
-        keyFrameWidget = gco.KeyFrameWithCloseButton(
-            self, key)
+        keyFrameWidget = gco.IntButtonWithCloseButton(self, key)
         keyFrameWidget.gotoFrame.connect(self._gotoKeyFrame)
         keyFrameWidget.deleteFrame.connect(self._deleteKeyFrame)
         self.keyFrameWidgets[key] = keyFrameWidget
@@ -513,27 +511,21 @@ class RoiWidget(qt.QWidget):
 
     def updateCounts(self, data):
         rois = self.roiManager.getRois()
-        curRoi = self.roiManager.getCurrentRoi()
-        if curRoi is None and rois:
-            curRoi = rois[0]
-        if curRoi is None:
-            return
-        row = rois.index(curRoi)
         model = self.table.roiModel
-        while len(model.roiCounts) < row+1:
+        while len(model.roiCounts) < len(rois):
             model.roiCounts.append(0)
-
-        geom = model.getRoiGeometry(curRoi)
-        if self.is3dStack:
-            iframe = self.plot._browser.value()
-            frame = data[iframe, :, :]
-        else:
-            frame = data
-        sh = frame.shape
-        xs = np.arange(sh[1])[None, :]
-        ys = np.arange(sh[0])[:, None]
-        m = uma.get_roi_mask(geom, xs, ys)
-        model.roiCounts[row] = frame[m].sum()
-
-        ind = model.index(row, 3)
-        model.dataChanged.emit(ind, ind)
+        for row, roi in enumerate(rois):
+            geom = model.getRoiGeometry(roi)
+            if self.is3dStack:
+                iframe = self.plot._browser.value()
+                frame = data[iframe, :, :]
+            else:
+                frame = data
+            sh = frame.shape
+            xs = np.arange(sh[1])[None, :]
+            ys = np.arange(sh[0])[:, None]
+            m = uma.get_roi_mask(geom, xs, ys)
+            model.roiCounts[row] = frame[m].sum()
+        ind0 = model.index(0, 3)
+        inde = model.index(row, 3)
+        model.dataChanged.emit(ind0, inde)

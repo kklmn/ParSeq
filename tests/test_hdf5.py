@@ -17,7 +17,7 @@ crop = 0, 0, 1555, 515
 def write_avi(fName):
     import cv2
 
-    fPath = osp.join('../data', fName+'.hdf5')
+    fPath = osp.join('../../_data_big', fName+'.hdf5')
     f = h5py.File(fPath, 'r')
 #    data = 'und_energy'
 #    e = f[data][:]
@@ -75,8 +75,8 @@ def showInWidget(fName):
 
 
 if __name__ == '__main__':
-    # write_avi('cuo_rxes_0001')
+    write_avi('cuo_rxes_0001')
     # write_avi('cu2o_rxes_0001')
 
-    showInWidget('cu2o_rxes_0001')
+    # showInWidget('cu2o_rxes_0001')
     print("Done")

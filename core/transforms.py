@@ -280,7 +280,8 @@ class Transform(object):
             #     self.push_to_undo_list(params, dataItems)
             self.update_params(params, dataItems)
         if hasattr(self.toNode, 'widget'):
-            self.toNode.widget.onTransform = True
+            if self.toNode.widget is not None:
+                self.toNode.widget.onTransform = True
         if self.sendSignals:
             csi.mainWindow.beforeTransformSignal.emit(self.toNode.widget)
 
@@ -307,7 +308,8 @@ class Transform(object):
         if self.sendSignals:
             csi.mainWindow.afterTransformSignal.emit(self.toNode.widget)
         if hasattr(self.toNode, 'widget'):
-            self.toNode.widget.onTransform = False
+            if self.toNode.widget is not None:
+                self.toNode.widget.onTransform = False
 
         if runDownstream:
             for tr in self.toNode.transformsOut:

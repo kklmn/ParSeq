@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "19 Apr 2022"
+__date__ = "19 Jul 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import numpy as np
@@ -18,10 +18,18 @@ COLOR_POLICY_NAMES = 'individual', 'loop1', 'loop2', 'gradient'
 COLOR_HDF5_HEAD = '#2299F0'
 COLOR_FS_COLUMN_FILE = '#32AA12'
 COLOR_LOAD_CAN = '#44C044'
-COLOR_LOAD_CANNOT = '#C04444'
+COLOR_LOAD_CANNOT = '#D03333'
 COLOR_UNDEFINED = '#FF160C'
 
 COLOR_ROI = '#f7b43e'
+
+GROUP_COLOR = qt.QColor('#f4f0f0')
+BUSY_COLOR_BGND = qt.QColor('#eeccee')
+BUSY_COLOR_FGND = qt.QColor('#ff55ee')
+BAD_COLOR = qt.QColor('#f47070')
+UNDEFINED_COLOR = qt.QColor('#aaaaaa')
+NOTFOUND_COLOR = qt.QColor('#ff88ff')
+MATHERROR_COLOR = qt.QColor('#ffa500')
 
 
 def makeGradientCollection(color1, color2, ncolor=8):
@@ -73,7 +81,43 @@ class MultiLineEditDelegate(qt.QStyledItemDelegate):
     #                        option.rect.width(), option.rect.height()-10)
 
 
-class KeyFrameWithCloseButton(qt.QFrame):
+class StrLabelWithCloseButton(qt.QFrame):
+    delete = qt.pyqtSignal(str)
+
+    def __init__(self, parent, txt):
+        super().__init__(parent)
+        self.txt = txt
+
+        txtLabel = qt.QLabel(txt)
+        bbox = txtLabel.fontMetrics().boundingRect(txt)
+        txtLabel.setFixedSize(bbox.width()+8, bbox.height()+2)
+        txtLabel.setStyleSheet("QLabel{border-radius: 4px;}")
+
+        closeButton = qt.QToolButton()
+        closeButton.setFixedSize(16, 16)
+        closeButton.setIcon(icons.getQIcon('remove'))
+        closeButton.setToolTip("remove this text field")
+        closeButton.clicked.connect(self.__close)
+        closeButton.setStyleSheet(
+            "QToolButton{border-radius: 8px;}"
+            "QToolButton:hover{background-color: #ffe0e6;}")
+
+        layout = qt.QHBoxLayout()
+        layout.setContentsMargins(4, 0, 2, 1)
+        layout.setSpacing(0)
+        layout.addWidget(txtLabel)
+        layout.addWidget(closeButton)
+        self.setSizePolicy(qt.QSizePolicy.Minimum, qt.QSizePolicy.Minimum)
+        self.setLayout(layout)
+
+        self.setStyleSheet(
+            "QFrame{background-color: white; border-radius: 4px;}")
+
+    def __close(self, checked):
+        self.delete.emit(self.txt)
+
+
+class IntButtonWithCloseButton(qt.QFrame):
     gotoFrame = qt.pyqtSignal(int)
     deleteFrame = qt.pyqtSignal(int)
 
@@ -85,6 +129,7 @@ class KeyFrameWithCloseButton(qt.QFrame):
         gotoButton = qt.QPushButton(txt)
         bbox = gotoButton.fontMetrics().boundingRect(txt)
         gotoButton.setFixedSize(bbox.width()+8, bbox.height()+2)
+        gotoButton.setToolTip("go to the key frame")
         gotoButton.clicked.connect(self.__goto)
         gotoButton.setStyleSheet(
             "QPushButton{border-radius: 4px;}" +
@@ -123,10 +168,9 @@ class FlowLayout(qt.QLayout):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
         if parent is not None:
             self.setContentsMargins(qt.QMargins(0, 0, 0, 0))
-
+            self.setSpacing(4)
         self._item_list = []
 
     def __del__(self):
@@ -143,13 +187,11 @@ class FlowLayout(qt.QLayout):
     def itemAt(self, index):
         if 0 <= index < len(self._item_list):
             return self._item_list[index]
-
         return None
 
     def takeAt(self, index):
         if 0 <= index < len(self._item_list):
             return self._item_list.pop(index)
-
         return None
 
     def expandingDirections(self):
@@ -171,10 +213,8 @@ class FlowLayout(qt.QLayout):
 
     def minimumSize(self):
         size = qt.QSize()
-
         for item in self._item_list:
             size = size.expandedTo(item.minimumSize())
-
         size += qt.QSize(2*self.contentsMargins().top(),
                          2*self.contentsMargins().top())
         return size

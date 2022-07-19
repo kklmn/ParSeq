@@ -30,6 +30,8 @@ mainWindow = None
 currentNode = None
 
 withGUI = 'not set yet'
+# updated later by MainWindowParSeq as qt.qApp.desktop().logicalDpiX() / 120.:
+screenFactor = 1
 
 dataRootItem = None
 extraDataFormat = {}

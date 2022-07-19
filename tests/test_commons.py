@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+"""Test of building a common string from several strings. Common left and right
+parts are first found and the middle part is a list of variable sub-parts."""
 __author__ = "Konstantin Klementiev"
 __date__ = "23 Mar 2021"
 

@@ -533,15 +533,13 @@ class MainWindowParSeq(qt.QMainWindow):
         if docks[i].isFloating():
             docks[i].setFloatingTabColor(state)
         else:
-            color = 'deepskyblue' if state == 1 else 'black'
-            # icon = self.runIcon if state == 1 else self.emptyIcon
+            color = gco.BUSY_COLOR_FGND if state == 1 else 'black'
             for itab in range(self.tabWiget.count()):
                 if self.tabWiget.tabText(itab) == tabNames[i]:
                     break
             else:
                 return
             self.tabWiget.setTabTextColor(itab, qt.QColor(color))
-            # self.tabWiget.setTabIcon(itab, icon)
 
     def displayStatusMessage(self, txt, starter=None, what='', duration=0):
         if 'ready' in txt:

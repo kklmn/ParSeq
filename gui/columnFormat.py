@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "19 Jul 2022"
 # !!! SEE CODERULES.TXT !!!
 
 from functools import partial
@@ -10,6 +10,7 @@ from silx.gui import qt
 from ..core import singletons as csi
 from ..core import commons as cco
 from .propWidget import QLineEditSelectRB, PropWidget
+from . import gcommons as gco
 # from . import propsOfData as gpd
 
 
@@ -20,22 +21,37 @@ class ColumnFormatWidget(PropWidget):
 
         self.tabWidget = qt.QTabWidget(self)
         self.tabWidget.setStyleSheet(
-            # "QTabBar::tab:selected {background: palette(window);}"
-            "QTabWidget>QWidget>QWidget{background: palette(window);}")
+            "QTabWidget>QWidget>QWidget {background: palette(window);}"
+            "QTabBar::tab {padding:4px;padding-left:12px;padding-right:12px;}"
+            "QTabBar::tab:selected {background: white;}"
+            "QTabBar::tab:hover {background: #6087cefa;}"
+            )
+
         self.headerTab = self.makeHeaderTab()
         self.tabWidget.addTab(self.headerTab, 'header')
+
         self.dataLocationTab = self.makeDataLocationTab()
         ind = self.tabWidget.addTab(self.dataLocationTab, 'arrays')
         self.tabWidget.setTabToolTip(
             ind, "for HDF5/SPEC datasets: use context menu on data arrays\n"
             "for column files: use expressions of variables `Col1`, `Col2`, …"
             "\nor give a zero-based int column index")
+
         self.conversionTab = self.makeConversionTab()
         ind = self.tabWidget.addTab(self.conversionTab, 'conversion')
         self.tabWidget.setTabToolTip(
             ind, "give either a float factor,\n"
             "a new str unit (not for abscissa) or\n"
             "leave empty (no conversion)")
+
+        self.metadataTab = self.makeMetadataTab()
+        ind = self.tabWidget.addTab(self.metadataTab, 'metadata')
+        self.tabWidget.setTabToolTip(
+            ind, "give a set of hdf5 paths by using the right-click menu;\n"
+            "these str fields will appear in the 'metadata' widget under the"
+            " plot")
+        self.metadata = {}  # {str: StrLabelWithCloseButton}
+
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.tabWidget)
@@ -192,6 +208,16 @@ class ColumnFormatWidget(PropWidget):
 
         return tab
 
+    def makeMetadataTab(self):
+        if self.node is None:
+            return
+
+        tab = qt.QWidget(self)
+        self.metadataLayout = gco.FlowLayout()
+        tab.setLayout(self.metadataLayout)
+
+        return tab
+
     def _resizeToContent(self, edit, text):
         # edit = self.sender()
         fm = qt.QFontMetrics(edit.font())
@@ -202,6 +228,12 @@ class ColumnFormatWidget(PropWidget):
         self.tabWidget.setTabEnabled(0, enabled)
         self.headerTab.setEnabled(enabled)  # to disable context menu entry
         if self.tabWidget.currentIndex() == 0:
+            self.tabWidget.setCurrentIndex(1)
+
+    def setMetadataEnabled(self, enabled=True):
+        self.tabWidget.setTabEnabled(3, enabled)
+        self.metadataTab.setEnabled(enabled)  # to disable context menu entry
+        if self.tabWidget.currentIndex() == 3:
             self.tabWidget.setCurrentIndex(1)
 
     def updateProp(self):
@@ -242,21 +274,51 @@ class ColumnFormatWidget(PropWidget):
                 dres['slices'] = slices
             convs = [try_float(edit.text()) for edit in self.conversionEdits]
             dres['conversionFactors'] = convs
+            dres['metadata'] = ', '.join(self.metadata.keys())
         except:  # noqa
             return
         return dres
 
-    def _setTexts(self, formats, section, edits):
+    def setTexts(self, formats, section, edits):
         if section not in formats:
             return
         try:
-            params = eval(formats['datasource'])
+            params = eval(formats[section])
         except (SyntaxError, NameError):
             return
         for edit, pStr in zip(edits, params):
             edit.setText(pStr)
 
+    def setMetadata(self, formats, section):
+        if section not in formats:
+            return
+        toAdd = [s.strip() for s in formats[section].split(',')]
+        for path in self.metadata:
+            if path not in toAdd:
+                self._deleteMetadataLabel(path)
+        self.addMetadata(toAdd)
+
+    def addMetadata(self, metas):
+        for path in metas:
+            if path in self.metadata:
+                continue
+            metadataLabel = gco.StrLabelWithCloseButton(self, path)
+            metadataLabel.delete.connect(self._deleteMetadataLabel)
+            self.metadataLayout.addWidget(metadataLabel)
+            self.metadata[path] = metadataLabel
+
+    def _deleteMetadataLabel(self, path):
+        metadataLabel = self.metadata[path]
+        try:
+            metadataLabel.delete.disconnect(self._deleteMetadataLabel)
+        except TypeError:  # 'method' object is not connected
+            pass
+        self.metadataLayout.removeWidget(metadataLabel)
+        metadataLabel.close()
+        del self.metadata[path]
+
     def setDataFormat(self, formats):
-        self._setTexts(formats, 'datasource', self.dataEdits)
-        self._setTexts(formats, 'slices', self.sliceEdits)
-        self._setTexts(formats, 'conversionfactors', self.conversionEdits)
+        self.setTexts(formats, 'datasource', self.dataEdits)
+        self.setTexts(formats, 'slices', self.sliceEdits)
+        self.setTexts(formats, 'conversionfactors', self.conversionEdits)
+        self.setMetadata(formats, 'metadata')
