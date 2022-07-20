@@ -304,7 +304,9 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
     def onDirectoryLoaded(self, path):
         """fetch Hdf5's"""
         path = osp.abspath(path).replace('\\', '/')
-        self.folders.append(path)
+        # on Windows, paths sometimes start with a capital C:, sometimes with
+        # a small c:, which breaks the inclusion checking, that's why lower():
+        self.folders.append(path.lower())
         parent = self.indexFileName(path)
         # t0 = time.time()
         # print('loading', path, self.rowCount(parent))
@@ -1301,7 +1303,7 @@ class FileTreeView(qt.QTreeView):
             pathType = NODE_FS
 
         model = self.getSourceModel()
-        if dirname in model.folders:
+        if dirname.lower() in model.folders:
             model.pendingPath = None
             if pathType == NODE_HDF5:
                 index = model.indexFromH5Path(path)

@@ -489,7 +489,7 @@ class HeaderModel(qt.QAbstractItemModel):
                     unitStr = ' ({0})'.format(unit) if unit else ''
                     return label + unitStr
                 else:
-                    return "line properties"
+                    return "line properties (Ctrl+P)"
         elif role == qt.Qt.TextAlignmentRole:
             if section > 0:
                 return qt.Qt.AlignHCenter
