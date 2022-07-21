@@ -31,7 +31,7 @@ from . import webWidget as gww
 
 fontSize = 12 if sys.platform == "darwin" else 8.5
 mainWindowWidth, mainWindowHeight = 1600, 768
-ICONPIX = 32
+ICON_SIZE = 32
 
 
 class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
@@ -64,10 +64,10 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
             self.titleBar.setLayout(layout)
 
             bSize = height - int(16*csi.screenFactor)
-            buttonSize = qt.QSize(bSize, bSize)
+            self.buttonSize = qt.QSize(bSize, bSize)
             self.titleIcon = qt.QLabel()
             if hasattr(self, 'dimIcon'):
-                self.titleIcon.setPixmap(self.dimIcon.pixmap(buttonSize))
+                self.titleIcon.setPixmap(self.dimIcon.pixmap(self.buttonSize))
             self.titleIcon.setVisible(True)
             layout.addWidget(self.titleIcon, 0)
             self.title = qt.QLabel(self.windowTitle())
@@ -78,7 +78,7 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
             self.dockButton = qt.QToolButton(self)
             self.dockButton.setIcon(qt.QApplication.style().standardIcon(
                 qt.QStyle.SP_ToolBarVerticalExtensionButton))
-            self.dockButton.setMaximumSize(buttonSize)
+            self.dockButton.setMaximumSize(self.buttonSize)
             self.dockButton.setAutoRaise(True)
             self.dockButton.clicked.connect(self.toggleFloating)
             self.dockButton.setToolTip('dock into the main window')
@@ -87,7 +87,7 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
             self.maxButton = qt.QToolButton(self)
             self.maxButton.setIcon(qt.QApplication.style().standardIcon(
                 qt.QStyle.SP_TitleBarMaxButton))
-            self.maxButton.setMaximumSize(buttonSize)
+            self.maxButton.setMaximumSize(self.buttonSize)
             self.maxButton.setAutoRaise(True)
             self.maxButton.clicked.connect(self.toggleMax)
             layout.addWidget(self.maxButton, 0)
@@ -112,13 +112,14 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
                 qt.QStyle.SP_TitleBarNormalButton))
 
     def setFloatingTabColor(self, state):
+        if hasattr(self, 'dimIcon'):
+            icon = self.dimIconBusy if state == 1 else self.dimIcon
+            self.titleIcon.setPixmap(icon.pixmap(self.buttonSize))
+        # self.titleIcon.setVisible(state == 1)
+
         pal = self.title.palette()
-        if state == 1:
-            pal.setColor(qt.QPalette.WindowText, qt.QColor("deepskyblue"))
-            self.titleIcon.setVisible(True)
-        else:
-            pal.setColor(qt.QPalette.WindowText, qt.QColor("black"))
-            self.titleIcon.setVisible(False)
+        color = gco.BUSY_COLOR_FGND if state == 1 else 'black'
+        pal.setColor(qt.QPalette.WindowText, qt.QColor(color))
         self.title.setPalette(pal)
         self.update()
 
@@ -251,21 +252,32 @@ class MainWindowParSeq(qt.QMainWindow):
         dockFeatures = (qt.QDockWidget.DockWidgetMovable |
                         qt.QDockWidget.DockWidgetFloatable)  # |
 #                        qt.QDockWidget.DockWidgetVerticalTitleBar)
-        self.docks = []
+        self.docks = {}  # nodeWidget: (dock, node, tabName)
         for i, (name, node) in enumerate(csi.nodes.items()):
             tabName = u'{0} \u2013 {1}'.format(i+1, name)
             dock = QDockWidgetNoClose(tabName, self)
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
-            dock.setStyleSheet(
-                "QDockWidget {font: bold; font-size: " + str(fontSize) + "pt;"
-                "padding-left: 5px}")
+            dock.defStyleSheet = "QDockWidget {font: bold; font-size: " + \
+                str(fontSize) + "pt; padding-left: 5px;}"
+            dock.setStyleSheet(dock.defStyleSheet)
             self.addDockWidget(qt.Qt.TopDockWidgetArea, dock)
             nodeWidget = NodeWidget(node, dock)
             # nodeWidget = None  # for testing fo app closure
             dock.setWidget(nodeWidget)
+
+            if node.plotDimension is None:
+                dock.dimIcon = qt.QIcon()
+                dock.dimIconBusy = qt.QIcon()
+            elif node.plotDimension < 4:
+                dim = node.plotDimension if node.plotDimension < 4 else 'n'
+                name = 'icon-item-{0}dim-{1}.png'.format(dim, ICON_SIZE)
+                dock.dimIcon = qt.QIcon(osp.join(self.iconDir, name))
+                name = 'icon-item-{0}dim-busy-{1}.png'.format(dim, ICON_SIZE)
+                dock.dimIconBusy = qt.QIcon(osp.join(self.iconDir, name))
+
             if i == 0:
-                dock0, node0 = dock, nodeWidget
+                dock0, node0, tabName0 = dock, nodeWidget, tabName
             else:
                 self.tabifyDockWidget(dock0, dock)
             # the pipeline head(s) with initially opened file tree:
@@ -278,9 +290,8 @@ class MainWindowParSeq(qt.QMainWindow):
                 last = 1
             if nodeWidget:
                 nodeWidget.splitter.setSizes([first, 1, 1, last])
-            self.docks.append((dock, nodeWidget, tabName))
-            dock.visibilityChanged.connect(
-                partial(self.nodeChanged, dock, node))
+            self.docks[nodeWidget] = dock, node, tabName
+            dock.visibilityChanged.connect(partial(self.nodeChanged, node))
             dock.topLevelChanged.connect(dock.changeWindowFlags)
 
         dock0.raise_()
@@ -292,7 +303,7 @@ class MainWindowParSeq(qt.QMainWindow):
 
         self.tabWiget = None
         for tab in self.findChildren(qt.QTabBar):
-            if tab.tabText(0) == self.docks[0][2]:
+            if tab.tabText(0) == tabName0:
                 self.tabWiget = tab
                 break
         # self.tabWiget.setStyleSheet("QTabBar::tab { font:bold };")
@@ -300,8 +311,6 @@ class MainWindowParSeq(qt.QMainWindow):
         #     "QTabBar::tab {width:32; padding-bottom: 8; padding-top: 8};")
 
         self.setTabIcons()
-        # for dock in self.docks:
-        #     self.updateTabStatus(0, dock[1])
 
     def makeHelpPages(self):
         # copy images
@@ -353,18 +362,12 @@ class MainWindowParSeq(qt.QMainWindow):
             node.widget.help.load(qt.QUrl(html))
 
     def setTabIcons(self):
-        for itab, (node, dock) in enumerate(
-                zip(csi.nodes.values(), self.docks)):
-            if node.plotDimension is None:
-                dimIcon = qt.QIcon()
-            elif node.plotDimension < 4:
-                name = 'icon-item-{0}dim-{1}.png'.format(
-                    node.plotDimension, ICONPIX)
-            else:
-                name = 'icon-item-ndim-{0}.png'.format(ICONPIX)
-            dimIcon = qt.QIcon(osp.join(self.iconDir, name))
-            dock[0].dimIcon = dimIcon
-            self.tabWiget.setTabIcon(itab, dimIcon)
+        for itab, (dock, _, _) in enumerate(self.docks.values()):
+            self.setTabIcon(itab, dock)
+
+    def setTabIcon(self, itab, dock, state=0):
+        icon = dock.dimIconBusy if state == 1 else dock.dimIcon
+        self.tabWiget.setTabIcon(itab, icon)
 
     def dataChanged(self):
         for node in csi.nodes.values():
@@ -404,7 +407,7 @@ class MainWindowParSeq(qt.QMainWindow):
         ss = [s for s in (sLoaded, sBranched, sCreated, sCombined) if s]
         self.statusBarRight.setText(', '.join(ss))
 
-    def nodeChanged(self, dock, node, visible):
+    def nodeChanged(self, node, visible):
         if visible:
             csi.currentNode = node
 
@@ -501,8 +504,8 @@ class MainWindowParSeq(qt.QMainWindow):
             csi.selectedItems[0].save_transform_params()
         config.write_configs()
         time.sleep(0.1)
-        for dock in self.docks:
-            dock[0].deleteLater()
+        for dock, _, _ in self.docks.values():
+            dock.deleteLater()
         csi.transformer.thread().quit()
         csi.transformer.deleteLater()
         super().closeEvent(event)
@@ -519,19 +522,22 @@ class MainWindowParSeq(qt.QMainWindow):
     def updateTabStatus(self, state, nodeWidget):
         if self.tabWiget is None:
             return
-        docks, nodeWidgets, tabNames = list(zip(*self.docks))
-        i = nodeWidgets.index(nodeWidget)
-
-        if docks[i].isFloating():
-            docks[i].setFloatingTabColor(state)
+        dock, _, tabName = self.docks[nodeWidget]
+        if dock.isFloating():
+            dock.setFloatingTabColor(state)
         else:
             color = gco.BUSY_COLOR_FGND if state == 1 else 'black'
             for itab in range(self.tabWiget.count()):
-                if self.tabWiget.tabText(itab) == tabNames[i]:
+                if self.tabWiget.tabText(itab) == tabName:
                     break
             else:
                 return
-            self.tabWiget.setTabTextColor(itab, qt.QColor(color))
+            self.setTabIcon(itab, dock, state)
+            cc = qt.QColor(color)
+            self.tabWiget.setTabTextColor(itab, cc)
+            ss = dock.defStyleSheet.replace(
+                "}", " color: "+cc.name(qt.QColor.HexArgb)+";}")
+            dock.setStyleSheet(ss)
 
     def displayStatusMessage(self, txt, starter=None, what='', duration=0):
         if 'ready' in txt:
@@ -543,7 +549,7 @@ class MainWindowParSeq(qt.QMainWindow):
         self.statusBarLeft.setText(txt)
 
     def save_perspective(self, configObject=config.configGUI):
-        floating = [dock.isFloating() for dock, _, _ in self.docks]
+        floating = [dock.isFloating() for dock, _, _ in self.docks.values()]
         config.put(configObject, 'Docks', 'floating', str(floating))
 
         if csi.currentNode is not None:
@@ -552,7 +558,7 @@ class MainWindowParSeq(qt.QMainWindow):
         geometryStr = 'maximized' if self.isMaximized() else \
             str(self.geometry().getRect())
         config.put(configObject, 'Geometry', 'mainWindow', geometryStr)
-        for dock, nodeWidget, tabName in self.docks:
+        for nodeWidget, (dock, node, tabName) in self.docks.items():
             if nodeWidget is None:
                 continue
             if dock.isFloating():
@@ -573,7 +579,7 @@ class MainWindowParSeq(qt.QMainWindow):
         active = config.get(configObject, 'Docks', 'active', '')
 
         for nodeStr, floatingState in zip(csi.nodes, floatingStates):
-            for dock, nodeWidget, tabName in self.docks:
+            for nodeWidget, (dock, node, tabName) in self.docks.items():
                 if nodeWidget is None:
                     continue
                 if nodeStr == nodeWidget.node.name:

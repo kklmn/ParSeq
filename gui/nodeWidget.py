@@ -205,10 +205,12 @@ class NodeWidget(qt.QWidget):
             tt += "\n" + configLoad.get('Data', self.node.name)
         gotoLastButton.setToolTip(tt)
         gotoLastButton.clicked.connect(self.gotoLastData)
-        color = gco.COLOR_LOAD_CAN.replace('#', '#32')
+        color = qt.QColor(gco.COLOR_LOAD_CAN)
+        color.setAlphaF(0.32)
         gotoLastButton.setStyleSheet(
             "QToolButton{border-radius: 8px;}"
-            "QToolButton:hover{background-color: "+color+";}")
+            "QToolButton:hover{background-color: " +
+            color.name(qt.QColor.HexArgb) + ";}")
 
         fileFilterLayout = qt.QGridLayout()
         fileFilterLayout.addWidget(labelIncludeFilter, 0, 0)

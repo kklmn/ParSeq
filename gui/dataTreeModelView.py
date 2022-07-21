@@ -635,6 +635,7 @@ class LineStyleDelegate(qt.QItemDelegate):
 
 
 class EyeHeader(qt.QHeaderView):
+    EYE_PUPIL = qt.QColor('black')
     EYE_IRIS = qt.QColor('#87aecf')  # blue
     # EYE_IRIS = qt.QColor('#7B3F00')  # brown
     EYE_BROW = qt.QColor('#999999')
@@ -672,7 +673,7 @@ class EyeHeader(qt.QHeaderView):
         painter.setPen(color)
         radius0 = 5*csi.screenFactor
         painter.drawEllipse(rect.center(), radius0, radius0)
-        color = qt.QColor('black')
+        color = self.EYE_PUPIL
         painter.setBrush(color)
         painter.setPen(color)
         radius1 = pupilR*csi.screenFactor
