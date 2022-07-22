@@ -5,7 +5,7 @@ __date__ = "23 Jul 2021"
 
 import sys
 # import os
-# import numpy as np
+import numpy as np
 
 import traceback
 import types
@@ -147,6 +147,7 @@ class Transform(object):
 
     def run(self, params={}, updateUndo=True, runDownstream=True,
             dataItems=None):
+        np.seterr(all='raise')
         if csi.DEBUG_LEVEL > 20:
             print('enter run() of "{0}"'.format(self.name))
         items = dataItems if dataItems is not None else csi.selectedItems
@@ -212,8 +213,9 @@ class Transform(object):
                       'parameters as this is a static method, '
                       'not an instance method')
             if workerClass is not None:
-                worker = workerClass(self.__class__.run_main,
-                                     self.inArrays, self.outArrays)
+                worker = workerClass(
+                    self.__class__.run_main, self.__class__.name,
+                    self.inArrays, self.outArrays)
                 workers.append(worker)
                 workedItems.append(data)
                 if len(workers) == cpus or idata == len(items)-1:
@@ -222,21 +224,24 @@ class Transform(object):
                             self.name, len(workers), workerStr,
                             '' if len(workers) == 1 else 's',
                             [d.alias for d in workedItems]))
+                    if self.sendSignals:
+                        csi.mainWindow.beforeDataTransformSignal.emit(
+                            workedItems)
+
                     for worker, item in zip(workers, workedItems):
                         worker.put_in_data(item)
                         worker.start()
                         item.beingTransformed = True
-                    if self.sendSignals:
-                        csi.mainWindow.beforeDataTransformSignal.emit(
-                            workedItems)
                     for worker, item in zip(workers, workedItems):
                         worker.get_out_data(item)
                         res = worker.get_results(self)
                         item.state[self.toNode.name] = cco.DATA_STATE_GOOD\
                             if res else cco.DATA_STATE_BAD
+                        item.error = worker.get_error()
                         item.beingTransformed = False
                     for worker in workers:
                         worker.join(60.)
+
                     if self.sendSignals:
                         csi.mainWindow.afterDataTransformSignal.emit(
                             workedItems)
@@ -254,11 +259,16 @@ class Transform(object):
                         res = self.run_main(data, allData)
                     else:
                         res = self.run_main(data)
+                    data.error = None
                 except Exception:
                     res = None
-                    msg = "".join(traceback.format_exc())
-                    print('failed for data: {0}'.format(data.alias))
-                    print(msg)
+                    errorMsg = 'failed "{0}" transform for data: {1}'.format(
+                        self.name, data.alias)
+                    errorMsg += "\nwith the followith traceback:\n"
+                    errorMsg += "".join(traceback.format_exc())
+                    if csi.DEBUG_LEVEL > 20:
+                        print(errorMsg)
+                    data.error = errorMsg
                 if isinstance(res, dict):
                     for field in res:
                         setattr(self, field, res[field])
@@ -273,6 +283,9 @@ class Transform(object):
         self.run_post(postItems, runDownstream)
         if csi.DEBUG_LEVEL > 20:
             print('exit run() of "{0}"'.format(self.name))
+        np.seterr(all='warn')
+
+        return [it for it in items if it.error is not None]  # error items
 
     def run_pre(self, params={}, dataItems=None, updateUndo=True):
         if params:
@@ -388,26 +401,37 @@ class GenericProcessOrThread(object):
                 setattr(obj, field, res[field])
         return res is not None
 
+    def put_error(self, obj):
+        self.errorQueue.put(obj)
+
+    def get_error(self):
+        return retry_on_eintr(self.errorQueue.get)
+
     def run(self):
         # self.started_event.set()
         if csi.DEBUG_LEVEL > 20:
             print('enter run of GenericProcessOrThread')
+        np.seterr(all='raise')
         data = DataProxy()
         self.get_in_data(data)
         try:
             res = self.func(data)
             self.put_results(res)
-        except (TypeError, ValueError):
+            self.put_error(None)
+        except Exception:
             self.put_results(None)
-            # print('failed {0}: {1}'.format(self.func, e))
-            print('failed for data: {0} in {1}'.format(
-                data.alias, self.multiName))
-            msg = "".join(traceback.format_exc())
-            print(msg)
+            errorMsg = 'Failed "{0}" transform for data: {1}'.format(
+                self.transformName, data.alias)
+            errorMsg += "\nwith the followith traceback:\n"
+            errorMsg += "".join(traceback.format_exc())
+            self.put_error(errorMsg)
+            if csi.DEBUG_LEVEL > 20:
+                print(errorMsg)
         finally:
             self.put_out_data(data)
             if csi.DEBUG_LEVEL > 20:
                 print('exit run of GenericProcessOrThread', data.alias)
+            np.seterr(all='warn')
         # self.started_event.clear()
         # self.finished_event.set()
 
@@ -435,20 +459,23 @@ class DataProxy(object):
 
 
 class BackendProcess(GenericProcessOrThread, multiprocessing.Process):
-    def __init__(self, func, inArrays, outArrays):
+    def __init__(self, func, transformName, inArrays, outArrays):
         multiprocessing.Process.__init__(self)
+        self.transformName = transformName
         self.multiName = 'multiprocessing'
         self.inDataQueue = multiprocessing.Queue()
         self.outDataQueue = multiprocessing.Queue()
         self.resultQueue = multiprocessing.Queue()
+        self.errorQueue = multiprocessing.Queue()
         # self.started_event = multiprocessing.Event()
         # self.finished_event = multiprocessing.Event()
         GenericProcessOrThread.__init__(self, func, inArrays, outArrays)
 
 
 class BackendThread(GenericProcessOrThread, threading.Thread):
-    def __init__(self, func, inArrays, outArrays):
+    def __init__(self, func, transformName, inArrays, outArrays):
         threading.Thread.__init__(self)
+        self.transformName = transformName
         self.multiName = 'multithreading'
         if sys.version_info < (3, 1):
             import Queue
@@ -459,6 +486,7 @@ class BackendThread(GenericProcessOrThread, threading.Thread):
         self.inDataQueue = Queue.Queue()
         self.outDataQueue = Queue.Queue()
         self.resultQueue = Queue.Queue()
+        self.errorQueue = Queue.Queue()
         # self.started_event = threading.Event()
         # self.finished_event = threading.Event()
         GenericProcessOrThread.__init__(self, func, inArrays, outArrays)

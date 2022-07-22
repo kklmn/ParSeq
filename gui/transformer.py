@@ -8,7 +8,7 @@ from silx.gui import qt
 
 
 class Transformer(qt.QObject):
-    ready = qt.pyqtSignal(qt.QWidget, str, float)
+    ready = qt.pyqtSignal(qt.QWidget, str, float, list)
 
     def prepare(self, transform, params={}, runDownstream=True, dataItems=None,
                 starter=None):
@@ -21,10 +21,11 @@ class Transformer(qt.QObject):
     def run(self):
         self.timeStart = time.time()
         # self.dataItems can be None; csi.selectedItems are processed then
-        self.transform.run(
+        errorItems = self.transform.run(
             params=self.params, runDownstream=self.runDownstream,
             dataItems=self.dataItems)
         self.thread().terminate()
         self.timeEnd = time.time()
         self.timeDuration = self.timeEnd - self.timeStart
-        self.ready.emit(self.starter, self.transform.name, self.timeDuration)
+        self.ready.emit(self.starter, self.transform.name, self.timeDuration,
+                        errorItems)

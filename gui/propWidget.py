@@ -528,7 +528,7 @@ class PropWidget(qt.QWidget):
         else:
             tr.run(params=params)
 
-    def _onTransformThreadReady(self, starter, tName='', duration=0):
+    def _onTransformThreadReady(self, starter, tName='', duration=0, err=None):
         if starter is not self:
             return
         if csi.DEBUG_LEVEL > 50:

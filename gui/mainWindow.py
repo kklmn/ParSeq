@@ -539,14 +539,21 @@ class MainWindowParSeq(qt.QMainWindow):
                 "}", " color: "+cc.name(qt.QColor.HexArgb)+";}")
             dock.setStyleSheet(ss)
 
-    def displayStatusMessage(self, txt, starter=None, what='', duration=0):
+    def displayStatusMessage(self, txt, starter=None, what='', duration=0,
+                             errorList=None):
         if 'ready' in txt:
             factor, unit, ff = (1e3, 'ms', '{0:.0f}') if duration < 1 else (
                 1, 's', '{0:.1f}')
             ss = what + ' finished in ' + ff + ' {1}'
+            if errorList:
+                errNames = [it.alias for it in errorList]
+                combinedNames = cco.combine_names(errNames)
+                ss += ', <span style="background-color:red; color:white;">'
+                ss += '<b> with errors in' + combinedNames + '</b>'
+                ss += '</span>'
             self.statusBarLeft.setText(ss.format(duration*factor, unit))
-            return
-        self.statusBarLeft.setText(txt)
+        else:
+            self.statusBarLeft.setText(txt)
 
     def save_perspective(self, configObject=config.configGUI):
         floating = [dock.isFloating() for dock, _, _ in self.docks.values()]

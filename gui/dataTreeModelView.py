@@ -813,6 +813,9 @@ class DataTreeView(qt.QTreeView):
 
         self.actionRemove = self._addAction("Remove", self.deleteItems, "Del")
 
+        self.actionCopyError = self._addAction(
+            "Copy error traceback", self.copyError, "Ctrl+C")
+
         self.actionAUCC = self._addAction(
             "Auto update collective colors", self.autoUpdateColors)
         self.actionAUCC.setCheckable(True)
@@ -867,6 +870,12 @@ class DataTreeView(qt.QTreeView):
                     except AttributeError:
                         pass
                 menu.addAction(self.actionLines)
+
+        for item in csi.selectedTopItems:
+            if item.error is not None:
+                menu.addSeparator()
+                menu.addAction(self.actionCopyError)
+                break
 
         menu.exec_(self.viewport().mapToGlobal(point))
 
@@ -994,6 +1003,15 @@ class DataTreeView(qt.QTreeView):
         except Exception:
             newInd = csi.model.createIndex(0, 0, csi.model.rootItem)
         self.setCurrentIndex(newInd)
+
+    def copyError(self):
+        for item in csi.selectedTopItems:
+            if item.error is not None:
+                inst = qt.QCoreApplication.instance()
+                cb = inst.clipboard()
+                cb.clear(mode=cb.Clipboard)
+                cb.setText(item.error, mode=cb.Clipboard)
+                return
 
     def setLines(self, column=0):
         if self.node is None:

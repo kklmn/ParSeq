@@ -100,7 +100,9 @@ class TreeItem(object):
                 if isinstance(self.name, type("")):
                     res = self.name
             elif hasattr(self, 'madeOf'):  # instance of Spectrum
-                if isinstance(self.madeOf, (type(""), dict)):
+                if self.error is not None:
+                    return self.error
+                elif isinstance(self.madeOf, (type(""), dict)):
                     if isinstance(self.madeOf, type("")):
                         res = self.madeOf
                     else:
@@ -425,6 +427,7 @@ class Spectrum(TreeItem):
         self.parentItem = parentItem
         self.childItems = []
         self.branch = None  # can be a group of branched out items
+        self.error = None  # if a transform fails, contains traceback
         self.isVisible = True
         self.beingTransformed = False
         if parentItem is None:  # i.e. self is the root item
