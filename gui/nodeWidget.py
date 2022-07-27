@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "19 Jul 2022"
+__date__ = "27 Jul 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -181,8 +181,9 @@ class NodeWidget(qt.QWidget):
         labelIncludeFilter = qt.QLabel('include')
         self.editIncludeFilter = qt.QLineEdit()
         self.editIncludeFilter.setToolTip(
+            "A list of comma separated wildcards.\n"
             "For quick jump into a location:\npaste its path in front of the\n"
-            "wildcard filter(s) and press Enter")
+            "wildcard filter(s) and press Enter.")
         self.editIncludeFilter.returnPressed.connect(self.setIncludeFilter)
         if hasattr(self.node, 'includeFilters'):
             self.editIncludeFilter.setText(', '.join(self.node.includeFilters))
@@ -192,8 +193,9 @@ class NodeWidget(qt.QWidget):
         self.editExcludeFilter.returnPressed.connect(self.setExcludeFilter)
         if hasattr(self.node, 'excludeFilters'):
             self.editExcludeFilter.setText(', '.join(self.node.excludeFilters))
+        self.editExcludeFilter.setToolTip("comma separated wildcards")
 
-        self.files = FileTreeView(self.node)
+        self.files = FileTreeView(self.node, splitterInner)
 #        self.files.doubleClicked.connect(self.loadFiles)
         self.filesAutoAddCB = qt.QCheckBox("auto append fresh file TODO", self)
 
@@ -416,14 +418,14 @@ class NodeWidget(qt.QWidget):
         if lst:
             dirname = osp.dirname(lst[0])
             if dirname:
+                lst[0] = lst[0][len(dirname)+1:]
+                self.node.includeFilters = lst
+                self.editIncludeFilter.setText(', '.join(lst))
+                self.files.initModel()
                 self.files.gotoWhenReady(dirname)
-                self.node.includeFilters = lst[1:]
-                self.editIncludeFilter.setText(
-                    ', '.join(self.node.includeFilters))
-                self.files.setNameFilters(self.node.includeFilters)
                 return
         self.node.includeFilters = lst
-        self.files.setNameFilters()
+        self.files.initModel()
 
     def setExcludeFilter(self):
         txt = self.editExcludeFilter.text()
@@ -432,7 +434,7 @@ class NodeWidget(qt.QWidget):
             if lst == self.node.excludeFilters:
                 return
         self.node.excludeFilters = lst
-        self.files.setNameFilters()
+        self.files.initModel()
 
     def _makeAxisLabels(self, labels, for3Dtitle=False):
         res = []
@@ -899,12 +901,6 @@ class NodeWidget(qt.QWidget):
         items = csi.model.importData(
             fileNamesFull, parentItem, insertAt, dataFormat=df,
             originNodeName=self.node.name)
-
-        mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
-        for item in items:
-            row = item.row()
-            index = csi.model.createIndex(row, 0, item)
-            csi.selectionModel.select(index, mode)
 
     def shouldShowColumnDialog(self):
         for it in csi.selectedItems:

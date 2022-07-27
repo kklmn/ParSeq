@@ -682,7 +682,8 @@ class EyeHeader(qt.QHeaderView):
         c0 = rect.center()
         x0, y0 = c0.x(), c0.y()
         ww, hh = round(min(2.5*radius0, rect.width()//2)), round(radius0)
-        painter.drawArc(x0-ww, round(y0-radius0), ww*2, hh*5+1, 35*16, 110*16)
+        painter.drawArc(
+            x0-ww, round(y0-radius0), ww*2, hh*5+1, 35*16, 110*16)
         painter.drawArc(
             x0-ww, round(y0+radius0), ww*2, -hh*5+3, -35*16, -110*16)
 
@@ -696,12 +697,14 @@ class EyeHeader(qt.QHeaderView):
                 # self.paintCheckBox(painter, rect)
                 # rect.moveTo(rect.x(), rect.y()-6)
                 # self.paintEye(painter, rect)
+
                 rect.moveTo(rect.x(), rect.y()-12)
                 self.paintEye(painter, rect)
                 rect.moveTo(rect.x(), rect.y()+12)
                 self.paintEye(painter, rect)
                 rect.moveTo(rect.x(), rect.y()+12)
                 self.paintEye(painter, rect)
+
             else:
                 self.paintEye(painter, rect, pupilR=2.8)
 

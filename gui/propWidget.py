@@ -385,8 +385,7 @@ class PropWidget(qt.QWidget):
         else:
             edit.setToolTip('')
 
-    def registerPropWidget(
-            self, widgets, caption, prop, transformName=None, **kw):
+    def registerPropWidget(self, widgets, caption, prop, **kw):
         """Recognized *kw*:
 
         *convertType*:
@@ -433,6 +432,10 @@ class PropWidget(qt.QWidget):
                     break
             else:
                 raise ValueError("unknown widgetType {0}".format(className))
+            try:
+                transformName = self.node.transformsOut[0].name
+            except Exception:
+                transformName = None
             self.propWidgets[widget] = dict(
                 widgetTypeIndex=iwt, caption=caption, prop=prop,
                 transformName=transformName, kw=kw)
@@ -508,7 +511,10 @@ class PropWidget(qt.QWidget):
                         break
             else:
                 raise ValueError('unknown parameter {0}'.format(key))
-            tr = csi.transforms[tName]
+            if tName:
+                tr = csi.transforms[tName]
+            else:
+                return
             if '.' not in key:
                 key = cco.expandTransformParam(key)
             dataItems = csi.selectedItems
@@ -636,12 +642,3 @@ class PropWidget(qt.QWidget):
             # elif dd['widgetTypeIndex'] == 7:  # 'combobox'
             #     gpd.updateDataFromComboBox(widget, dd['prop'])
         self.updateProp()
-
-    def getNextTansform(self, tName):
-        """returns the next (in the downstream direction) transform object"""
-        nextTrInd = list(csi.transforms.keys()).index(tName) + 1
-        try:
-            nextTrName = list(csi.transforms.keys())[nextTrInd]
-            return csi.transforms[nextTrName]
-        except IndexError:
-            return
