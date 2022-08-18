@@ -91,6 +91,7 @@ class Transform(object):
         if self.name in csi.transforms:
             raise ValueError("A transform '{0}' already exists. One instance "
                              "is allowed".format(self.name))
+        self.isHeadNode = len(csi.transforms) == 0
         csi.transforms[self.name] = self
 
         if self not in fromNode.transformsOut:
@@ -174,7 +175,8 @@ class Transform(object):
             workers, workedItems = [], []
 
         for idata, data in enumerate(items):
-            if data.state[self.fromNode.name] == cco.DATA_STATE_BAD:
+            if (not self.isHeadNode and
+                    data.state[self.fromNode.name] == cco.DATA_STATE_BAD):
                 data.state[self.toNode.name] = cco.DATA_STATE_BAD
                 if csi.DEBUG_LEVEL > 20:
                     print('bad data at', self.fromNode.name, data.alias)
@@ -265,7 +267,8 @@ class Transform(object):
                     errorMsg = 'failed "{0}" transform for data: {1}'.format(
                         self.name, data.alias)
                     errorMsg += "\nwith the followith traceback:\n"
-                    errorMsg += "".join(traceback.format_exc())
+                    tb = traceback.format_exc()
+                    errorMsg += "".join(tb[:-1])  # remove last empty line
                     if csi.DEBUG_LEVEL > 20:
                         print(errorMsg)
                     data.error = errorMsg
@@ -376,7 +379,7 @@ class GenericProcessOrThread(object):
         for key in self.outArrays:
             try:
                 res[key] = getattr(item, key)
-            except AttributeError:
+            except AttributeError:  # arrays can be conditionally missing
                 pass
         if csi.DEBUG_LEVEL > 20:
             print('put_out_data keys', res.keys())
@@ -423,7 +426,8 @@ class GenericProcessOrThread(object):
             errorMsg = 'Failed "{0}" transform for data: {1}'.format(
                 self.transformName, data.alias)
             errorMsg += "\nwith the followith traceback:\n"
-            errorMsg += "".join(traceback.format_exc())
+            tb = traceback.format_exc()
+            errorMsg += "".join(tb[:-1])  # remove last empty line
             self.put_error(errorMsg)
             if csi.DEBUG_LEVEL > 20:
                 print(errorMsg)

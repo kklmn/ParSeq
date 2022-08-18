@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "10 Apr 2022"
+__date__ = "12 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
 
-import time
+# import time
 import numpy as np
 # from collections import OrderedDict
 # from functools import partial
@@ -78,9 +78,9 @@ class RoiModel(qt.QAbstractTableModel):
             return qt.Qt.NoItemFlags
         res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsSelectable
         column = index.column()
-        if column == 1:
+        if column == 1:  # use
             res |= qt.Qt.ItemIsUserCheckable
-        elif column in (0, 2):
+        elif column in (0, 2):  # label, geometry
             res |= qt.Qt.ItemIsEditable
         return res
 
@@ -100,13 +100,14 @@ class RoiModel(qt.QAbstractTableModel):
             elif column == 3:  # counts
                 while len(self.roiCounts) < row+1:
                     self.roiCounts.append(0)
-                return '{0}'.format(self.roiCounts[row])
+                return '{0:.0f}'.format(self.roiCounts[row])
         elif role == qt.Qt.CheckStateRole:
             if column == 1:  # use
                 return int(
                     qt.Qt.Checked if roi.isVisible() else qt.Qt.Unchecked)
         elif role == qt.Qt.ToolTipRole:
-            return roi.__class__.__name__
+            return "{0}\ncan be removed via the plot's popup menu".format(
+                roi.__class__.__name__)
         elif role == qt.Qt.TextAlignmentRole:
             if column == 1:
                 return qt.Qt.AlignCenter
@@ -161,7 +162,7 @@ class RoiModel(qt.QAbstractTableModel):
             innerR, outerR = roi.getInnerRadius(), roi.getOuterRadius()
             startAngle, endAngle = geom.startAngle, geom.endAngle
             text = 'center: {0:.1f}, {1:.1f}\nradii: {2:.1f}, {3:.1f}\n'\
-                'angles: {4:.3f}, {5:.3f}'.format(
+                'angles: {4:.4f}, {5:.4f}'.format(
                     x, y, innerR, outerR, startAngle, endAngle)
         else:
             text = ''
@@ -197,17 +198,28 @@ class RoiModel(qt.QAbstractTableModel):
 class RoiToolBar(qt.QToolBar):
     """A toolbar which hide itself if no actions are visible"""
 
-    def __init__(self, parent, roiManager):
+    def __init__(self, parent, roiManager, roiClasses):
         super().__init__(parent)
         # self.setStyleSheet('QToolBar{margin: 0px 10px;}')
         self.setIconSize(qt.QSize(24, 24))
 
         # to add more, add classes from:
-        # silx.gui.plot.items.roi.RegionOfInterestManager.ROI_CLASSES
-        action = roiManager.getInteractionModeAction(ArcROI)
-        self.addAction(action)
-        action = roiManager.getInteractionModeAction(RectangleROI)
-        self.addAction(action)
+        # silx.gui.plot.items.roi.RegionOfInterestManager.ROI_CLASSES:
+        # roi_items.PointROI,
+        # roi_items.CrossROI,
+        # roi_items.RectangleROI,
+        # roi_items.CircleROI,
+        # roi_items.EllipseROI,
+        # roi_items.PolygonROI,
+        # roi_items.LineROI,
+        # roi_items.HorizontalLineROI,
+        # roi_items.VerticalLineROI,
+        # roi_items.ArcROI,
+        # roi_items.HorizontalRangeROI,
+        for roiClass in roiClasses:
+            action = roiManager.getInteractionModeAction(roiClass)
+            action.setSingleShot(True)
+            self.addAction(action)
 
         self.modeSelectorAction = RoiModeSelectorAction(self)
         self.modeSelectorAction.setRoiManager(roiManager)
@@ -272,7 +284,8 @@ class RoiTableView(qt.QTableView):
             return
         selectedIndex = self.selectionModel().selectedRows()[0]
         manager = self.roiModel.roiManager
-        manager.setCurrentRoi(manager.getRois()[selectedIndex.row()])
+        rois = manager.getRois()
+        manager.setCurrentRoi(rois[selectedIndex.row()])
 
     def currentRoiChanged(self, roi):
         rois = self.roiModel.roiManager.getRois()
@@ -282,7 +295,45 @@ class RoiTableView(qt.QTableView):
             pass
 
 
-class RoiWidget(qt.QWidget):
+class RoiWidgetBase(qt.QWidget):
+    def _updateRoiLabelPos(self, roi):
+        labelPosX, labelPosY = roi._handleLabel.getPosition()
+        plot = self.plot._plot if self.is3dStack else self.plot
+        lims = plot.getYAxis().getLimits()
+        if labelPosY > lims[1]:
+            labelPosY = lims[1]
+        elif labelPosY < (lims[0] + 0.05*(lims[1]-lims[0])):
+            labelPosY = (lims[0] + 0.05*(lims[1]-lims[0]))
+        roi._handleLabel.setPosition(labelPosX, labelPosY)
+
+    def updateCounts(self):
+        if self.dataToCount is None:
+            return
+        data = self.dataToCount
+        rois = self.roiManager.getRois()
+        if len(rois) == 0:
+            return
+        model = self.table.roiModel
+        while len(model.roiCounts) < len(rois):
+            model.roiCounts.append(0)
+        for row, roi in enumerate(rois):
+            geom = model.getRoiGeometry(roi)
+            if self.is3dStack:
+                iframe = self.plot._browser.value()
+                frame = data[iframe, :, :]
+            else:
+                frame = data
+            sh = frame.shape
+            xs = np.arange(sh[1])[None, :]
+            ys = np.arange(sh[0])[:, None]
+            m = uma.get_roi_mask(geom, xs, ys)
+            model.roiCounts[row] = frame[m].sum()
+        ind0 = model.index(0, 3)
+        inde = model.index(row, 3)
+        model.dataChanged.emit(ind0, inde)
+
+
+class RoiWidgetWithKeyFrames(RoiWidgetBase):
     maxVisibleTableRows = 4  # in the scroll area
 
     def __init__(self, parent, plot, wantExtrapolate=True):
@@ -300,18 +351,20 @@ class RoiWidget(qt.QWidget):
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
 
-        roiToolbar = RoiToolBar(self, self.roiManager)
-        layout.addWidget(roiToolbar)
+        roiClasses = ArcROI, RectangleROI
+        self.roiToolbar = RoiToolBar(self, self.roiManager, roiClasses)
+        layout.addWidget(self.roiToolbar)
+
         self.table = RoiTableView(self, self.roiManager, plot)
         layout.addWidget(self.table)
         if self.is3dStack:
             layoutF = qt.QHBoxLayout()
             keyFrameLabel = qt.QLabel('Key frames')
             layoutF.addWidget(keyFrameLabel)
-            self.keyFramesFrame = qt.QFrame(self)
-            layoutF.addWidget(self.keyFramesFrame, 1)
+            keyFramesFrame = qt.QFrame(self)
+            layoutF.addWidget(keyFramesFrame, 1)
             self.keyFramesLayout = gco.FlowLayout()
-            self.keyFramesFrame.setLayout(self.keyFramesLayout)
+            keyFramesFrame.setLayout(self.keyFramesLayout)
             # self.keyFrameEdit = qt.QLineEdit()
             # layoutF.addWidget(self.keyFrameEdit, 1)
             layout.addLayout(layoutF)
@@ -329,6 +382,7 @@ class RoiWidget(qt.QWidget):
         layout.addStretch()
         self.setLayout(layout)
 
+        self.dataToCount = None
         self.roiManager.sigRoiChanged.connect(self.syncRoi)
 
     def updateFrameIndex(self, ind):
@@ -353,16 +407,6 @@ class RoiWidget(qt.QWidget):
             self.bypassForUpdate = True
             model.setRoi(roi, roiKW)
 
-    def _updateRoiLabelPos(self, roi):
-        labelPosX, labelPosY = roi._handleLabel.getPosition()
-        plot = self.plot._plot if self.is3dStack else self.plot
-        lims = plot.getYAxis().getLimits()
-        if labelPosY > lims[1]:
-            labelPosY = lims[1]
-        elif labelPosY < (lims[0] + 0.05*(lims[1]-lims[0])):
-            labelPosY = (lims[0] + 0.05*(lims[1]-lims[0]))
-        roi._handleLabel.setPosition(labelPosX, labelPosY)
-
     def syncRoi(self):
         rois = self.roiManager.getRois()
         for roi in rois:
@@ -380,6 +424,7 @@ class RoiWidget(qt.QWidget):
             curRoi = rois[0]
         if curRoi is None:
             return
+
         model = self.table.roiModel
         if not self.bypassForUpdate:
             if self.is3dStack:
@@ -407,6 +452,7 @@ class RoiWidget(qt.QWidget):
             ind0 = model.index(0, 2)
             inde = model.index(len(rois)-1, 2)
             model.dataChanged.emit(ind0, inde)
+        self.updateCounts()
 
     def setKeyFrames(self, roiKeyFrames):
         """For setting up the widget from an external dictionary of key frames.
@@ -471,7 +517,7 @@ class RoiWidget(qt.QWidget):
                 roi.setVisible(bool(use))
                 model.setRoi(roi, roiKW)
             model.reset()
-            # model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
         self.bypassForSetup = False
 
     def _addKeyFrameWidget(self, key):
@@ -509,23 +555,82 @@ class RoiWidget(qt.QWidget):
                 print(e)
                 print('The dict of rois is broken')
 
-    def updateCounts(self, data):
+
+class RoiWidgetSingleArc(RoiWidgetBase):
+    def __init__(self, parent, plot):
+        super().__init__(parent)
+        self.plot = plot
+        self.is3dStack = hasattr(self.plot, '_plot')
+        if self.is3dStack:
+            self.roiManager = RoiManager(plot._plot)
+        else:
+            self.roiManager = RoiManager(plot)
+
+        layout = qt.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        roiClasses = ArcROI,
+        self.roiToolbar = RoiToolBar(self, self.roiManager, roiClasses)
+        layout.addWidget(self.roiToolbar)
+
+        self.table = RoiTableView(self, self.roiManager, plot)
+        layout.addWidget(self.table)
+
+        self.acceptButton = qt.QPushButton('Accept ROI')
+        layout.addWidget(self.acceptButton, 1)
+        layout.addStretch()
+        self.setLayout(layout)
+
+        self.dataToCount = None
+        self.roiManager.sigRoiChanged.connect(self.syncRoi)
+
+        horHeaders = self.table.horizontalHeader()
+        self.table.setFixedHeight(horHeaders.height() + 2)
+
+        self.setSizePolicy(qt.QSizePolicy.Minimum, qt.QSizePolicy.Minimum)
+
+    def syncRoi(self):
+        rois = self.roiManager.getRois()
+        actions = self.roiToolbar.actions()
+        actions[0].setEnabled(len(rois) == 0)
+        for roi in rois:
+            self._updateRoiLabelPos(roi)
+        horHeaders = self.table.horizontalHeader()
+        newHeight = horHeaders.height() + 2 + self.table.rowHeight(0)
+        self.table.setFixedHeight(newHeight)
+
+        curRoi = self.roiManager.getCurrentRoi()
+        if curRoi is None and rois:
+            curRoi = rois[0]
+        if curRoi is None:
+            return
+
+        model = self.table.roiModel
+        row = rois.index(curRoi)
+        ind = model.index(row, 2)
+        model.dataChanged.emit(ind, ind)
+        self.updateCounts()
+
+    def setRoi(self, roiDict):
+        roiDict.pop('kind', '')
+        roiDict.pop('use', '')
+        name = roiDict.pop('name', 'arc')
         rois = self.roiManager.getRois()
         model = self.table.roiModel
-        while len(model.roiCounts) < len(rois):
-            model.roiCounts.append(0)
-        for row, roi in enumerate(rois):
-            geom = model.getRoiGeometry(roi)
-            if self.is3dStack:
-                iframe = self.plot._browser.value()
-                frame = data[iframe, :, :]
-            else:
-                frame = data
-            sh = frame.shape
-            xs = np.arange(sh[1])[None, :]
-            ys = np.arange(sh[0])[:, None]
-            m = uma.get_roi_mask(geom, xs, ys)
-            model.roiCounts[row] = frame[m].sum()
-        ind0 = model.index(0, 3)
-        inde = model.index(row, 3)
-        model.dataChanged.emit(ind0, inde)
+        model.reset()
+        if len(rois) == 0:
+            roi = ArcROI()
+            self.roiManager.addRoi(roi)
+        else:
+            roi = rois[0]
+        roi.setName(name)
+        roi.setVisible(True)
+        model.setRoi(roi, roiDict)
+        self.roiManager.setCurrentRoi(roi)
+        model.reset()
+        model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+
+    def getRoi(self):
+        curRoi = self.roiManager.getCurrentRoi()
+        model = self.table.roiModel
+        return model.getRoiGeometry(curRoi)

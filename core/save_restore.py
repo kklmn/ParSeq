@@ -37,7 +37,7 @@ def load_project(fname, qMessageBox=None, restore_perspective=None):
         restore_perspective(configProject)
     dataTree = config.get(configProject, 'Root', 'tree', [])
     if not dataTree:
-        print("No valid data in this project file")
+        print("No valid data tree specified in this project file")
         return
     root = csi.dataRootItem
     colorPolicyName = config.get(configProject, 'Root', 'colorPolicy',

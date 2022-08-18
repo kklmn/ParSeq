@@ -187,17 +187,17 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         self._rootPath = None
         self.proxyModel = None
         # self.layoutAboutToBeChanged.connect(self.resetModel)
-        self.layoutChanged.connect(self.onLayoutChanged)
+        # self.layoutChanged.connect(self.onLayoutChanged)
         self.directoryLoaded.connect(self.onDirectoryLoaded)
 
     def resetModel(self):
-        self.requestSaveExpand.emit()
+        # self.requestSaveExpand.emit()
         self.beginResetModel()
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
-    def onLayoutChanged(self):
-        self.requestRestoreExpand.emit()
+    # def onLayoutChanged(self):
+    #     self.requestRestoreExpand.emit()
 
     def headerData(self, section, orientation, role):
         if section == 3:
@@ -246,6 +246,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         if idH5 in self.h5Model.nodesH5:
             # print('NODE_HDF5', self.h5Model.nodeFromIndex(indexH5).obj.name)
             return NODE_HDF5
+
         id0 = index.internalId()
         # fileInfo = self.fileInfo(index)
         # filename = fileInfo.filePath()
@@ -317,12 +318,25 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         if nodeType == NODE_FS:
             return super().canFetchMore(parent)
         elif nodeType == NODE_HDF5_HEAD:
-            return self.h5Model.canFetchMore(self.mapFStoH5(parent))
+            # return self.h5Model.canFetchMore(self.mapFStoH5(parent))
+            return True
         elif nodeType == NODE_HDF5:
             return self.h5Model.canFetchMore(self.mapToH5(parent))
         else:
             return False
             # raise ValueError('unknown node type in `canFetchMore`')
+
+    def fetchMore(self, parent):
+        nodeType = self.nodeType(parent)
+        if nodeType == NODE_FS:
+            super().fetchMore(parent)
+        elif nodeType == NODE_HDF5_HEAD:
+            self.h5Model.fetchMore(self.mapFStoH5(parent))
+        elif nodeType == NODE_HDF5:
+            self.h5Model.fetchMore(self.mapToH5(parent))
+        else:
+            pass
+            # raise ValueError('unknown node type in `fetchMore`')
 
     def onDirectoryLoaded(self, path):
         """fetch Hdf5's"""
@@ -331,18 +345,34 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         # a small c:, which breaks the inclusion checking, that's why lower():
         self.folders.append(path.lower())
         parent = self.indexFileName(path)
-        # t0 = time.time()
+        t0 = time.time()
         # print('loading', path, self.rowCount(parent))
+
         countHdf5 = 0
         self.beginInsertRows(parent, 0, -1)
         for row in range(self.rowCount(parent)):
             indexFS = self.index(row, 0, parent)
             if not indexFS.isValid():
                 continue
+
             intId = indexFS.internalId()
             if (intId not in self.nodesHead and intId not in self.nodesNoHead):
                 fileInfo = self.fileInfo(indexFS)
                 fname = fileInfo.filePath()
+
+                # if (not isinstance(self.proxyModel, qt.QSortFilterProxyModel)
+                #         and hasattr(self.transformNode, 'excludeFilters')):
+                #     excluded = False
+                #     for filt in self.transformNode.excludeFilters:
+                #         if not filt:
+                #             continue
+                #         if re.search(filt.replace('*', '+'), fname):
+                #             excluded = True
+                #             break
+                #     if excluded:
+                #         self.nodesNoHead.append(intId)
+                #         continue
+
                 ext = fileInfo.suffix()
                 if ext in NEXUS_HDF5_EXT:
                     try:
@@ -359,26 +389,17 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                         self.nodesNoHead.append(intId)
                 else:
                     self.nodesNoHead.append(intId)
+
         self.endInsertRows()
-        if countHdf5 > 0:
-            self.layoutChanged.emit()
-        # print("loaded {0} htf5's in {1} s".format(countHdf5, time.time()-t0))
+        # if countHdf5 > 0:
+        #     self.layoutChanged.emit()
+        if csi.mainWindow and countHdf5 > 0:
+            stat = "loaded {0} hdf5's".format(countHdf5)
+            csi.mainWindow.displayStatusMessage(stat, duration=time.time()-t0)
 
         if self.pendingPath:
             if self.pendingPath[0].lower() == path.lower():
                 self.pathReady.emit(self.pendingPath[1])
-
-    def fetchMore(self, parent):
-        nodeType = self.nodeType(parent)
-        if nodeType == NODE_FS:
-            super().fetchMore(parent)
-        elif nodeType == NODE_HDF5_HEAD:
-            self.h5Model.fetchMore(self.mapFStoH5(parent))
-        elif nodeType == NODE_HDF5:
-            self.h5Model.fetchMore(self.mapToH5(parent))
-        else:
-            pass
-            # raise ValueError('unknown node type in `fetchMore`')
 
     def interpretArrayFormula(self, dataStr, treeObj, kind):
         """Returnes a list of (expr, d[xx]-styled-expr, data-keys, shape).
@@ -706,10 +727,10 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 indexH5 = self.h5Model.index(row, column, parentH5)
                 indexFS = self.mapFromH5(indexH5)
 
-            # intId = indexH5.internalId()
-            # if intId not in self.h5Model.nodesH5:
-            #     # should never come here
-            #     self.h5Model.nodesH5.append(intId)
+            intId = indexH5.internalId()
+            if intId not in self.h5Model.nodesH5:
+                # should never come here
+                self.h5Model.nodesH5.append(intId)
             return indexFS
 
         indexFS = super().index(row, column, parent)
@@ -905,11 +926,11 @@ class FileTreeView(qt.QTreeView):
             "View text file (will be diplayed in 'metadata' panel)",
             self.viewTextFile, "F3")
 
-        # uncomment for testing the file model:
-        from ..tests.modeltest import ModelTest
-        self.ModelTest = ModelTest
-        self.actionTestModel = self._addAction(
-            "Test file model", self.testModel)
+        # # uncomment for testing the file model:
+        # from ..tests.modeltest import ModelTest
+        # self.ModelTest = ModelTest
+        # self.actionTestModel = self._addAction(
+        #     "Test file model", self.testModel)
 
     def initModel(self):
         try:
@@ -1200,15 +1221,15 @@ class FileTreeView(qt.QTreeView):
         self.setExpanded(indexHead, True)
         self.scrollTo(model.index(row, 0, indexHead))
 
-    def saveExpand(self, parent=qt.QModelIndex()):
-        if not parent.isValid():
-            self._expandedNodes = []
-        for row in range(self.model().rowCount(parent)):
-            ind = self.model().index(row, 0, parent)
-            if self.model().rowCount(ind) > 0:
-                if self.isExpanded(ind):
-                    self._expandedNodes.append(ind.data())
-                self.saveExpand(ind)
+    # def saveExpand(self, parent=qt.QModelIndex()):
+    #     if not parent.isValid():
+    #         self._expandedNodes = []
+    #     for row in range(self.model().rowCount(parent)):
+    #         ind = self.model().index(row, 0, parent)
+    #         if self.model().rowCount(ind) > 0:
+    #             if self.isExpanded(ind):
+    #                 self._expandedNodes.append(ind.data())
+    #             self.saveExpand(ind)
 
     def expandFurther(self, index):
         """Further expand a tree node if it has only one child."""
@@ -1216,19 +1237,19 @@ class FileTreeView(qt.QTreeView):
             child = self.model().index(0, 0, index)
             self.expand(child)
 
-    def restoreExpand(self, parent=qt.QModelIndex()):
-        if not parent.isValid():
-            if len(self._expandedNodes) == 0:
-                return
-        # try:
-        for row in range(self.model().rowCount(parent)):
-            ind = self.model().index(row, 0, parent)
-            if self.model().rowCount(ind) > 0:
-                if ind.data() in self._expandedNodes:
-                    self.setExpanded(ind, True)
-                self.restoreExpand(ind)
-        # except Exception:
-        #     pass
+    # def restoreExpand(self, parent=qt.QModelIndex()):
+    #     if not parent.isValid():
+    #         if len(self._expandedNodes) == 0:
+    #             return
+    #     # try:
+    #     for row in range(self.model().rowCount(parent)):
+    #         ind = self.model().index(row, 0, parent)
+    #         if self.model().rowCount(ind) > 0:
+    #             if ind.data() in self._expandedNodes:
+    #                 self.setExpanded(ind, True)
+    #             self.restoreExpand(ind)
+    #     # except Exception:
+    #     #     pass
 
     def selChanged(self, selected, deselected):
         # self.updateForSelectedFiles(selected.indexes()) #  × num of columns

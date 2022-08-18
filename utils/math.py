@@ -70,6 +70,6 @@ def interpolate_frames(keyFrameGeometries, ind, wantExtrapolate=True):
         savedRoi = {k0: v0 if isinstance(v0, (str, bool)) else
                     (np.array(v1)-np.array(v0))*rr + np.array(v0)
                     for (k0, v0), (k1, v1) in zip(
-                        savedRoi0.items(), savedRoi1.items())}
+                        sorted(savedRoi0.items()), sorted(savedRoi1.items()))}
         res.append(savedRoi)
     return res

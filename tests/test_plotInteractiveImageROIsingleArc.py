@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+from functools import partial
 import numpy as np
 
 from silx.gui import qt
-# from silx.gui.plot.items.roi import ArcROI, RectangleROI
 
 import sys; sys.path.append('../..')  # analysis:ignore
-from parseq.gui.roi import RoiWidget
+from parseq.gui.roi import RoiWidgetSingleArc
 
-ndim = 3
+ndim = 2
+nx, ny = 1920, 1200
 if ndim == 2:
     from silx.gui.plot import Plot2D
 elif ndim == 3:
@@ -19,8 +20,8 @@ else:
 
 
 def dummy_image():
-    x = np.linspace(-1.5, 1.5, 1920)
-    y = np.linspace(-1.5, 1.5, 1200)
+    x = np.linspace(-1.5, 1.5, nx)
+    y = np.linspace(-1.5, 1.5, ny)
     xv, yv = np.meshgrid(x, y)
     signal = np.exp(-(xv**2 / 0.45**2 + yv**2 / 0.15**2))
     noise = 0.3 * np.random.random(size=signal.shape)
@@ -39,7 +40,7 @@ elif ndim == 3:
     plot = StackView()
     plot.setColormap('viridis')
     stack = np.stack([image for i in range(10)])
-    print(stack.shape)
+    # print(stack.shape)
     plot.setStack(stack)
 
 plot.setKeepDataAspectRatio(False)
@@ -54,17 +55,25 @@ def roiDockVisibilityChanged(visible):
         roiWidget.roiManager.stop()
 
 
-roiKeyFrames = {
-    0: [dict(kind='ArcROI', name='arc1', center=(0, 500),
-             innerRadius=500, outerRadius=510, startAngle=-1, endAngle=1),
-        dict(kind='RectangleROI', name='rect', origin=(0, 0), size=(50, 900))],
-    7: [dict(kind='ArcROI', name='arc1', center=(100, 500),
-             innerRadius=500, outerRadius=550, startAngle=-1, endAngle=1),
-        dict(kind='RectangleROI', name='rect', origin=(200, 100),
-             size=(50, 900))],
-    }
-roiWidget = RoiWidget(None, plot)
-roiWidget.setKeyFrames(roiKeyFrames)
+def acceptROI(roiWidget):
+    roi = roiWidget.roiManager.getCurrentRoi()
+    geom = roi._geometry
+    cx, cy = list(geom.center)
+    radius = (roi.getInnerRadius() + roi.getOuterRadius()) * 0.5
+    outY = np.arange(ny)
+    outX = cx + (radius**2 - (outY - cy)**2)**0.5
+    print((outX[0], outY[0]), (outX[-1], outY[-1]))
+    return outX, outY
+
+
+roiDict = dict(kind='ArcROI', name='arc1', center=(-1000, 1000),
+               innerRadius=1950, outerRadius=2050,
+               startAngle=-0.5, endAngle=0.1)
+roiWidget = RoiWidgetSingleArc(None, plot)
+roiWidget.setRoi(roiDict)
+roiWidget.dataToCount = stack if ndim == 3 else image
+roiWidget.acceptButton.clicked.connect(partial(acceptROI, roiWidget))
+
 dock = qt.QDockWidget('Image ROI')
 dock.setWidget(roiWidget)
 dock.visibilityChanged.connect(roiDockVisibilityChanged)

@@ -506,7 +506,7 @@ class Spectrum(TreeItem):
                 csi.dataRootItem.kwargs.get('transformParams', {}))
             runDownstream = kwargs.pop(
                 'runDownstream',
-                csi.dataRootItem.kwargs.get('runDownstream', True))
+                csi.dataRootItem.kwargs.get('runDownstream', False))
             if csi.withGUI:
                 self.init_plot_props()
                 plotProps = kwargs.pop('plotProps', {})

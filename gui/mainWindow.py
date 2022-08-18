@@ -173,8 +173,8 @@ class MainWindowParSeq(qt.QMainWindow):
 
         self.beforeTransformSignal.connect(partial(self.updateTabStatus, 1))
         self.afterTransformSignal.connect(partial(self.updateTabStatus, 0))
-        self.beforeDataTransformSignal.connect(self.updateItemView)
-        self.afterDataTransformSignal.connect(self.updateItemView)
+        self.beforeDataTransformSignal.connect(partial(self.updateItemView, 1))
+        self.afterDataTransformSignal.connect(partial(self.updateItemView, 0))
 
         self.dataChanged()
 
@@ -510,14 +510,15 @@ class MainWindowParSeq(qt.QMainWindow):
         csi.transformer.deleteLater()
         super().closeEvent(event)
 
-    def updateItemView(self, items):
-        for item in items:
-            ind = csi.model.indexFromItem(item)
-            # nodes = [csi.currentNode]
-            nodes = csi.nodes.values()
-            for node in nodes:
-                node.widget.tree.dataChanged(ind, ind)
-            node.widget.tree.update()
+    def updateItemView(self, state, items):
+        if state == 1:
+            for item in items:
+                ind = csi.model.indexFromItem(item)
+                # nodes = [csi.currentNode]
+                nodes = csi.nodes.values()
+                for node in nodes:
+                    node.widget.tree.dataChanged(ind, ind)
+                node.widget.tree.update()
 
     def updateTabStatus(self, state, nodeWidget):
         if self.tabWiget is None:
@@ -549,8 +550,14 @@ class MainWindowParSeq(qt.QMainWindow):
                 errNames = [it.alias for it in errorList]
                 combinedNames = cco.combine_names(errNames)
                 ss += ', <span style="background-color:red; color:white;">'
-                ss += '<b> with errors in' + combinedNames + '</b>'
+                ss += '<b> with errors in' + combinedNames
+                ss += ', see traceback in data tooltip</b>'
                 ss += '</span>'
+            self.statusBarLeft.setText(ss.format(duration*factor, unit))
+        elif 'hdf5' in txt:
+            factor, unit, ff = (1e3, 'ms', '{0:.0f}') if duration < 1 else (
+                1, 's', '{0:.1f}')
+            ss = txt + ' in ' + ff + ' {1}'
             self.statusBarLeft.setText(ss.format(duration*factor, unit))
         else:
             self.statusBarLeft.setText(txt)

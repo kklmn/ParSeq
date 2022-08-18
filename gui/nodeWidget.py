@@ -443,8 +443,9 @@ class NodeWidget(qt.QWidget):
             if label in node.arrays:
                 u = node.getProp(label, 'plotUnit')
                 if for3Dtitle:
+                    space = '' if ('°' in u) or ('^o' in u) else ' '
                     ll = node.getProp(label, 'plotLabel') + \
-                        '[{0}] = {1:#.4g} ' + u
+                        '[{0}] = {1:#.4g}' + space + u
                 else:
                     sU = u" ({0})".format(u) if u else ""
                     ll = "{0}{1}".format(node.getProp(label, 'plotLabel'), sU)
@@ -594,13 +595,14 @@ class NodeWidget(qt.QWidget):
         node = self.node
         if keepExtent:
             self._storePlotState()
-        # # self.plot.clear()
+        # self.plot.clear()
         # yUnits = node.getPropList('plotUnit', keys=yNames)
         # yLabels = node.getPropList('plotLabel', keys=yNames)
 
         if node.plotDimension == 1:
             self.plot.clearCurves()
             self.plot.clearImages()
+            # self.plot.clearMarkers()
             nPlottedItems = 0
             leftAxisColumns, rightAxisColumns = [], []
             leftAxisUnits, rightAxisUnits = [], []
@@ -681,6 +683,7 @@ class NodeWidget(qt.QWidget):
         if node.plotDimension == 2:
             self.plot.clearCurves()
             self.plot.clearImages()
+            # self.plot.clearMarkers()
             if len(csi.selectedItems) > 0:
                 item = csi.selectedItems[0]  # it could be the last one but
                 # then when going with arrows up and down in the data tree and
@@ -708,7 +711,9 @@ class NodeWidget(qt.QWidget):
                                origin=(xOrigin, yOrigin),
                                scale=(xScale, yScale))
         if node.plotDimension == 3:
+            self.plot._plot.clearCurves()
             self.plot._plot.clearImages()
+            # self.plot._plot.clearMarkers()
             item = None
             if len(csi.selectedItems) > 0:
                 item = csi.selectedItems[0]

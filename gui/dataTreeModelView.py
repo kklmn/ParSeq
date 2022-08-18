@@ -232,6 +232,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             else:  # in the same thread
                 tr.run(dataItems=bottomItems+topItems)
                 tr.widget.replotAllDownstream(tr.name)
+
         # # ...then branchedItems:
         # if len(csi.transforms.values()) > 0:
         #     tr = list(csi.transforms.values())[0]

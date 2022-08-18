@@ -386,7 +386,14 @@ class PropWidget(qt.QWidget):
             edit.setToolTip('')
 
     def registerPropWidget(self, widgets, caption, prop, **kw):
-        """Recognized *kw*:
+        """
+        *widget*: a sequence of widgets or a single widget
+
+        *caption*: str, will appear in the popup menu in its "apply to" part.
+
+        *prop*: str or a sequence of str.
+
+        Recognized *kw*:
 
         *convertType*:
         *hideEmpty*:
@@ -432,8 +439,10 @@ class PropWidget(qt.QWidget):
                     break
             else:
                 raise ValueError("unknown widgetType {0}".format(className))
+
             try:
-                transformName = self.node.transformsOut[0].name
+                # transformName = self.node.transformsOut[0].name
+                transformName = self.node.transformIn.name
             except Exception:
                 transformName = None
             self.propWidgets[widget] = dict(
@@ -504,11 +513,13 @@ class PropWidget(qt.QWidget):
         else:
             for dd in (list(self.propWidgets.values()) +
                        list(self.exclusivePropGroups.values())):
-                if 'prop' in dd:
+                try:
                     if dd['prop'].endswith(key):
                         # may start with 'transformParams'
                         tName = dd['transformName']
                         break
+                except Exception:  # dd['prop'] can be a list
+                    continue
             else:
                 raise ValueError('unknown parameter {0}'.format(key))
             if tName:
