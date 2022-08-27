@@ -110,7 +110,15 @@ class AboutDialog(qt.QDialog):
             PyQt_version = qt.PYQT_VERSION_STR
         locos = pythonplatform.platform(terse=True)
         if 'Linux' in locos:
-            locos = " ".join(pythonplatform.linux_distribution())
+            try:
+                locos = " ".join(pythonplatform.linux_distribution())
+            except AttributeError:  # no platform.linux_distribution in py3.8
+                try:
+                    import distro
+                    locos = " ".join(distro.linux_distribution())
+                except ImportError:
+                    print("do 'pip install distro' for a better view of Linux"
+                          " distro string")
         if isOpenCL:
             vercl = cl.VERSION
             if isinstance(vercl, (list, tuple)):

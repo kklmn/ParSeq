@@ -216,8 +216,16 @@ class DataTreeModel(qt.QAbstractItemModel):
         self.beginResetModel()
         items = parentItem.insert_data(data, insertAt, **kwargs)
         topItems = [it for it in items if it in parentItem.childItems]
-        bottomItems = [it for it in items if it not in parentItem.childItems
-                       and (not isinstance(it.madeOf, dict))]
+        bottomItems = []
+        for it in items:
+            if hasattr(it, 'madeOf'):
+                if it not in parentItem.childItems and \
+                        (not isinstance(it.madeOf, dict)):
+                    bottomItems.append(it)
+            else:
+                if it not in parentItem.childItems:
+                    bottomItems.append(it)
+
         # branchedItems = [
         #     it for it in items if it not in parentItem.childItems
         #     and isinstance(it.madeOf, dict)]
@@ -876,6 +884,8 @@ class DataTreeView(qt.QTreeView):
                 menu.addAction(self.actionLines)
 
         for item in csi.selectedTopItems:
+            if not hasattr(item, 'error'):
+                continue
             if item.error is not None:
                 menu.addSeparator()
                 menu.addAction(self.actionCopyError)

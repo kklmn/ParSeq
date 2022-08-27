@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "20 Sep 2018"
+__date__ = "27 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import os, sys; sys.path.append('../..')  # analysis:ignore
@@ -56,10 +56,10 @@ def test_TreeItem(withGUI):
 
 
 def test_Spectrum(withGUI):  # with convenience functions
-    import parseq_XES_scan as myapp
+    from parseq.tests import testapp
 
-    myapp.make_pipeline(withGUI)
-    myapp.load_test_data()
+    testapp.make_pipeline(withGUI)
+    testapp.load_test_data()
 
     if withGUI:
         from silx.gui import qt

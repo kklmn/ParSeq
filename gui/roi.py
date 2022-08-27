@@ -334,6 +334,10 @@ class RoiTableView(qt.QTableView):
         horHeaders = self.horizontalHeader()
         newHeight = horHeaders.height() + 2 + heights
         self.setFixedHeight(newHeight)
+        if rows <= self.maxVisibleTableRows:
+            self.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
+        else:
+            self.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOn)
 
 
 class RoiWidgetBase(qt.QWidget):

@@ -159,8 +159,11 @@ except AttributeError:
             myQtWeb.QWebEngineView.__init__(self, parent)
             if qt.BINDING.lower().startswith(('pyqt5', 'pyside2')):
                 settings = myQtWeb.QWebEngineSettings.globalSettings()
-                settings.setAttribute(
-                    myQtWeb.QWebEngineSettings.ShowScrollBars, False)
+                try:
+                    settings.setAttribute(
+                        myQtWeb.QWebEngineSettings.ShowScrollBars, False)
+                except AttributeError:  # added in Qt 5.10
+                    pass
 
             web_page = WebPage(self)
             self.setPage(web_page)

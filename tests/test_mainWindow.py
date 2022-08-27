@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "20 Sep 2018"
+__date__ = "27 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import sys; sys.path.append('../..')  # analysis:ignore
 import parseq.core.singletons as csi
-import parseq_XES_scan as myapp
+from parseq.tests import testapp
 
 
 def test(withGUI=True, withTestData=True):
-    myapp.make_pipeline(withGUI)
+    testapp.make_pipeline(withGUI)
 
     if withTestData:
-        myapp.load_test_data()
+        testapp.load_test_data()
 
     if withGUI:
         node0 = list(csi.nodes.values())[0]

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "22 Apr 2021"
+__date__ = "27 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
 
 # import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
@@ -9,7 +9,7 @@ from silx.gui import qt
 
 import os, sys; sys.path.append('../..')  # analysis:ignore
 from parseq.gui.fileDialogs import SaveProjectDlg
-import parseq_XES_scan as myapp
+from parseq.tests import testapp
 
 
 def showRes(res):
@@ -17,7 +17,7 @@ def showRes(res):
 
 
 def test():
-    myapp.make_pipeline(withGUI=True)
+    testapp.make_pipeline(withGUI=True)
     app = qt.QApplication(sys.argv)
 
     dlg = SaveProjectDlg()

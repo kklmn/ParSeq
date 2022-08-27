@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "20 Sep 2018"
+__date__ = "27 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
 
 from silx.gui import qt
 
 import sys; sys.path.append('../..')  # analysis:ignore
 from parseq.gui.aboutDialog import AboutDialog
-import parseq_XES_scan as myapp
+
+from parseq.tests import testapp
 
 
 def test():
-    myapp.make_pipeline(True)
-
+    testapp.make_pipeline(withGUI=True)
     app = qt.QApplication(sys.argv)
     mainWindow = AboutDialog(None)
     mainWindow.show()

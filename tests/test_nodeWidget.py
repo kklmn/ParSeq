@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "20 Sep 2018"
+__date__ = "27 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
 
 from silx.gui import qt
@@ -8,11 +8,11 @@ from silx.gui import qt
 import sys; sys.path.append('../..')  # analysis:ignore
 import parseq.core.singletons as csi
 from parseq.gui.nodeWidget import NodeWidget
-import parseq_XES_scan as myapp
+from parseq.tests import testapp
 
 
 def test():
-    myapp.make_pipeline(withGUI=True)
+    testapp.make_pipeline(withGUI=True)
 
     app = qt.QApplication(sys.argv)
     node = list(csi.nodes.values())[0]
@@ -20,7 +20,7 @@ def test():
     nodeWidget.splitter.setSizes([1, 1, 1, 1])
 
     # load test data
-    myapp.load_test_data()
+    testapp.load_test_data()
     nodeWidget.tree.dataChanged()
     # select the 1st item (it is a group)
     nodeWidget.tree.setCurrentIndex(csi.model.index(0))

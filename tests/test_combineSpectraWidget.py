@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "20 Sep 2018"
+__date__ = "27 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
 
+import sys; sys.path.append('../..')  # analysis:ignore
 from silx.gui import qt
 
-import sys; sys.path.append('../..')  # analysis:ignore
 from parseq.gui.combineSpectra import CombineSpectraWidget
-import parseq_XES_scan as myapp
+from parseq.tests import testapp
 
 
 def test():
-    myapp.make_pipeline(withGUI=True)
-    myapp.load_test_data()
+    testapp.make_pipeline(withGUI=True)
+    testapp.load_test_data()
 
     app = qt.QApplication(sys.argv)
     mainWindow = CombineSpectraWidget()

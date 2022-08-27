@@ -623,6 +623,8 @@ class LineProps(qt.QDialog):
     def accept(self):
         self.setColorOptions()
         self.setLineOptions()
-        if hasattr(self.node, 'widget'):
+        try:  # self.node.widget may be None in tests
             self.node.widget.replot()
+        except Exception:
+            pass
         super().accept()

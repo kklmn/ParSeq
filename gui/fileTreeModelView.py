@@ -942,7 +942,10 @@ class FileTreeView(qt.QTreeView):
         model = FileSystemWithHdf5Model(self.transformNode, self)
         # model = qt.QFileSystemModel(self)  # only for test purpose
 
-        model.setOption(qt.QFileSystemModel.DontUseCustomDirectoryIcons)
+        try:
+            model.setOption(qt.QFileSystemModel.DontUseCustomDirectoryIcons)
+        except AttributeError:  # added in Qt 5.14
+            pass
         model.setFilter(
             qt.QDir.AllDirs | qt.QDir.AllEntries | qt.QDir.NoDotAndDotDot)
         model.setNameFilterDisables(False)
