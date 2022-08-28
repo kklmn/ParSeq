@@ -22,7 +22,7 @@ class ColumnFormatWidget(PropWidget):
         self.tabWidget = qt.QTabWidget(self)
         self.tabWidget.setStyleSheet(
             "QTabWidget>QWidget>QWidget {background: palette(window);}"
-            "QTabBar::tab {padding:4px;padding-left:8px;padding-right:8px;}"
+            "QTabBar::tab {padding:4px;padding-left:6px;padding-right:6px;}"
             "QTabBar::tab:selected {background: white;}"
             "QTabBar::tab:hover {background: #6087cefa;}"
             )

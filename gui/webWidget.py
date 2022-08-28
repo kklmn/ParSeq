@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "3 Mar 2022"
+__date__ = "28 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import re
@@ -17,6 +17,8 @@ from sphinx.errors import SphinxError
 import codecs
 
 from ..core import singletons as csi
+
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu"
 
 CONFDIR = osp.join(osp.dirname(osp.dirname(osp.abspath(__file__))), 'help')
 GUIDIR = osp.dirname(osp.abspath(__file__))

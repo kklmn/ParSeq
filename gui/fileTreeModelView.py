@@ -215,8 +215,8 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         if not indexFrom.isValid():
             return qt.QModelIndex()
         assert indexFrom.model() is modelFrom
-        ii = indexFrom.internalPointer()
-        # ii = indexFrom.internalId()
+        # ii = indexFrom.internalPointer()  # don't use! seg fault on Linux
+        ii = indexFrom.internalId()
         # try:
         index = modelTo.createIndex(indexFrom.row(), indexFrom.column(), ii)
         assert index.model() is modelTo
@@ -896,9 +896,11 @@ class FileTreeView(qt.QTreeView):
             if parent is not None:
                 self.parent().setMouseTracking(True)
 
-        self.setMinimumSize(
-            qt.QSize(int(COLUMN_NAME_WIDTH*csi.screenFactor), 250))
-        self.setColumnWidth(0, int(COLUMN_NAME_WIDTH*csi.screenFactor))
+        # self.setMinimumSize(
+        #     qt.QSize(int(COLUMN_NAME_WIDTH*csi.screenFactor), 250))
+        # self.setColumnWidth(0, int(COLUMN_NAME_WIDTH*csi.screenFactor))
+        self.setMinimumSize(qt.QSize(COLUMN_NAME_WIDTH, 250))
+        self.setColumnWidth(0, COLUMN_NAME_WIDTH)
         self.setIndentation(NODE_INDENTATION)
         self.setSortingEnabled(True)
         self.sortByColumn(0, qt.Qt.AscendingOrder)
