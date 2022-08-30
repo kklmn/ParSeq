@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "19 Apr 2022"
+__date__ = "30 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -102,9 +102,11 @@ class TreeItem(object):
             elif hasattr(self, 'madeOf'):  # instance of Spectrum
                 if self.error is not None:
                     return self.error
-                elif isinstance(self.madeOf, (type(""), dict)):
+                elif isinstance(self.madeOf, (type(""), dict, tuple, list)):
                     if isinstance(self.madeOf, type("")):
                         res = self.madeOf
+                    elif isinstance(self.madeOf, (tuple, list)):
+                        res = self.meta['shortText']
                     else:
                         res = ""
                     if self.aliasExtra:
@@ -595,6 +597,7 @@ class Spectrum(TreeItem):
                 self.create_data()
         elif isinstance(self.madeOf, (list, tuple)):
             self.dataType = DATA_COMBINATION
+            self.colorTag = 5
             if shouldLoadNow:
                 self.calc_combined()
             if self.alias == 'auto':
@@ -992,6 +995,11 @@ class Spectrum(TreeItem):
         # define metadata
         self.meta['text'] = '{0} of {1}'.format(
             combineNames[what], ', '.join(it.alias for it in madeOf))
+        names = [it.alias for it in self.madeOf]
+        combinedNames = cco.combine_names(names)
+        self.meta['shortText'] = '{0} of [{1}]'.format(
+            combineNames[what], combinedNames)
+
 #        self.meta['modified'] = osp.getmtime(madeOf)
         self.meta['modified'] = time.strftime("%a, %d %b %Y %H:%M:%S")
         self.meta['size'] = -1
@@ -1000,51 +1008,58 @@ class Spectrum(TreeItem):
             assert isinstance(madeOf, (list, tuple))
             toNode = csi.nodes[self.originNodeName]
 
-            xNames = []
-            # check equal length of data to combine:
-            len0 = 0
-            for arrayName in toNode.arrays:
-                if toNode.getProp(arrayName, 'role').startswith('x'):
-                    xNames.append(arrayName)
-                setName = toNode.getProp(arrayName, 'raw')
-                for data in madeOf:
-                    lenN = len(getattr(data, setName))
-                    if len0 == 0:
-                        len0 = lenN
-                    else:
-                        assert len0 == lenN
+            # if no 'raw' present, returns arrayName itself:
+            dNames = toNode.getPropList('raw')
+            xNames = toNode.getPropList('raw', role='x')
+            dims = toNode.getPropList('ndim')
+
+            # check equal shape of data to combine:
+            shapes = [None]*4
+            for dName, dim in zip(dNames, dims):
+                if 0 < dim < 4:
+                    for data in madeOf:
+                        sh = getattr(data, dName).shape
+                        if shapes[dim] is None:
+                            shapes[dim] = sh
+                        else:
+                            assert shapes[dim] == sh
 
             for data in madeOf:
                 if self not in data.combinesTo:
                     data.combinesTo.append(self)
 
-            # x is so far taken from the 1st spectrum:  # TODO
+            ns = len(madeOf)
+            # x is average over all contributing spectra:
             for arrayName in xNames:
-                setName = toNode.getProp(arrayName, 'raw')
-                arr = np.array(getattr(madeOf[0], setName))
-                setattr(self, setName, arr)
+                sumx = 0
+                for data in madeOf:
+                    setName = toNode.getProp(arrayName, 'raw')
+                    sumx += np.array(getattr(data, setName))
+                setattr(self, setName, sumx/ns)
 
-            lenC = len(madeOf)
-            for arrayName in toNode.arrays:
+            dimArray = None
+            for arrayName, dim in zip(dNames, dims):
                 if arrayName in xNames:
                     continue
                 if what in (COMBINE_AVE, COMBINE_SUM, COMBINE_RMS):
                     s = sum(getattr(data, arrayName) for data in madeOf)
                     if what == COMBINE_AVE:
-                        v = s / lenC
+                        v = s / ns
                     elif what == COMBINE_SUM:
                         v = s
                     elif what == COMBINE_RMS:
-                        s2 = sum((getattr(d, arrayName) - s/lenC)**2
+                        s2 = sum((getattr(d, arrayName) - s/ns)**2
                                  for d in madeOf)
-                        v = (s2 / lenC)**0.5
+                        v = (s2 / ns)**0.5
                 elif what == COMBINE_PCA:
                     raise NotImplementedError  # TODO
                 else:
                     raise ValueError("unknown data combination")
                 setattr(self, arrayName, v)
+                if dim == toNode.plotDimension:
+                    dimArray = v
 
-            self.meta['length'] = len(v)
+            self.meta['length'] = len(dimArray) if dimArray is not None else 0
             self.state[toNode.name] = cco.DATA_STATE_GOOD
         except AssertionError:
             self.state[toNode.name] = cco.DATA_STATE_MATHERROR

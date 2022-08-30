@@ -63,12 +63,15 @@ class Transform(object):
 
     *nThreads* or *nProcesses* can be > 1 to use threading or multiprocessing.
     If both are > 1, threading is used. If *nThreads* or *nProcesses* > 1, the
-    lists *inArrays* and *outArrays* must be defined to send those arrays over
-    process-shared queues.
+    lists *inArrays* and *outArrays* must be defined to send the operational
+    arrays (those present in run_main(data)) over process-shared queues. The
+    value can be an integer, 'all' or 'half' which refer to the hardware limit
+    multiprocessing.cpu_count().
+
 
     """
-    nThreads = 1  # can be 'all' or 'half'
-    nProcesses = 1  # can be 'all' or 'half'
+    nThreads = 1
+    nProcesses = 1
     inArrays = []
     outArrays = []
 

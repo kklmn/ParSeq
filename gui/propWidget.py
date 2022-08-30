@@ -400,6 +400,9 @@ class PropWidget(qt.QWidget):
         *emptyMeans*:
         *copyValue*:
 
+        *transformName* str,
+            the transform to run after the given widgets will have changed.
+            Defaults to `self.node.transformIn.name`.
         """
         prop = cco.expandTransformParam(prop)
         if not isinstance(widgets, (list, tuple)):
@@ -442,7 +445,8 @@ class PropWidget(qt.QWidget):
 
             try:
                 # transformName = self.node.transformsOut[0].name
-                transformName = self.node.transformIn.name
+                transformName = kw.pop(
+                    'transformName', self.node.transformIn.name)
             except Exception:
                 transformName = None
             self.propWidgets[widget] = dict(

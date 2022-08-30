@@ -69,7 +69,7 @@ class CombineSpectraWidget(PropWidget):
         return group
 
     def doStopHere(self, checked):
-        print(csi.selectedItems)
+        # print(csi.selectedItems)
         for it in csi.selectedItems:
             it.terminalNodeName = self.node.name if checked else None
             it.colorTag = 0
@@ -111,7 +111,7 @@ class CombineSpectraWidget(PropWidget):
 #        isStopHere = self.stopHereCB.checkState() == qt.Qt.Checked
         isStoppedAt = self.combineStopCB.checkState() == qt.Qt.Checked
         kw = dict(dataFormat={'combine': ind}, colorTag=ind,
-                  originNodeName=self.node.name)
+                  originNodeName=self.node.name, runDownstream=True)
         if isStoppedAt:
             for it in csi.selectedItems:
                 it.terminalNodeName = self.combineStop.currentText()

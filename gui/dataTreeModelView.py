@@ -48,7 +48,8 @@ BKGND = {cco.DATA_STATE_GOOD: None,
          cco.DATA_STATE_MATHERROR: MATHERROR_BKGND}
 
 FONT_COLOR_TAG = ['black', gco.COLOR_HDF5_HEAD, gco.COLOR_FS_COLUMN_FILE,
-                  gco.COLOR_UNDEFINED, gco.COLOR_ROI, 'magenta', 'cyan']
+                  gco.COLOR_UNDEFINED, gco.COLOR_ROI, gco.COLOR_COMBINED,
+                  'cyan']
 LEFT_SYMBOL = u"\u25c4"  # ◄
 RIGHT_SYMBOL = u"\u25ba"  # ►
 
