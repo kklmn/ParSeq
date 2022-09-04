@@ -74,6 +74,7 @@ class Transform(object):
     nProcesses = 1
     inArrays = []
     outArrays = []
+    progressTimeDelta = 1.0  # sec
 
     def __init__(self, fromNode, toNode):
         """
@@ -149,6 +150,20 @@ class Transform(object):
         # data = csi.selectedItems[0]
         # dtparams = data.transformParams
 
+    def get_progress1(self, alias, progress):
+        if hasattr(self.toNode, 'widget'):
+            if self.toNode.widget is not None:
+                self.toNode.widget.tree.transformProgress.emit(
+                    [alias, progress.value])
+
+    def get_progressN(self, alias, worker):
+        if hasattr(self.toNode, 'widget'):
+            if self.toNode.widget is not None:
+                ps = worker.get_progress()
+                if len(ps) == 0:
+                    return
+                self.toNode.widget.tree.transformProgress.emit([alias, ps[-1]])
+
     def run(self, params={}, updateUndo=True, runDownstream=True,
             dataItems=None):
         np.seterr(all='raise')
@@ -217,10 +232,11 @@ class Transform(object):
                 print('IMPORTANT!: remove "self" from "run_main()" '
                       'parameters as this is a static method, '
                       'not an instance method')
-            if workerClass is not None:
+
+            if workerClass is not None:  # with multipro
                 worker = workerClass(
                     self.__class__.run_main, self.__class__.name,
-                    self.inArrays, self.outArrays)
+                    self.inArrays, self.outArrays, self.progressTimeDelta)
                 workers.append(worker)
                 workedItems.append(data)
                 if len(workers) == cpus or idata == len(items)-1:
@@ -235,6 +251,11 @@ class Transform(object):
 
                     for worker, item in zip(workers, workedItems):
                         worker.put_in_data(item)
+                        if 'progress' in args and self.sendSignals:
+                            worker.timer = NTimer(self.progressTimeDelta,
+                                                  self.get_progressN,
+                                                  [item.alias, worker])
+                            worker.timer.start()
                         worker.start()
                         item.beingTransformed = True
                     for worker, item in zip(workers, workedItems):
@@ -245,27 +266,42 @@ class Transform(object):
                         item.error = worker.get_error()
                         item.beingTransformed = False
                     for worker in workers:
+                        if 'progress' in args and self.sendSignals:
+                            worker.timer.cancel()
                         worker.join(60.)
 
                     if self.sendSignals:
                         csi.mainWindow.afterDataTransformSignal.emit(
                             workedItems)
                     workers, workedItems = [], []
-            else:
+            else:  # no multipro
                 data.beingTransformed = True
                 if self.sendSignals:
                     csi.mainWindow.beforeDataTransformSignal.emit([data])
                 if csi.DEBUG_LEVEL > 1:
                     print('run "{0}" for {1}'.format(self.name, data.alias))
-                # args = getargspec(self.run_main)
                 try:
+                    argVals = [data]
                     if 'allData' in args:
                         allData = csi.allLoadedItems
-                        res = self.run_main(data, allData)
+                        argVals.append(allData)
+                    if 'progress' in args:
+                        progress = DataProxy()
+                        progress.value = 1.
+                        argVals.append(progress)
+                        timer = NTimer(
+                            self.progressTimeDelta, self.get_progress1,
+                            [data.alias, progress])
+                        timer.start()
                     else:
-                        res = self.run_main(data)
+                        timer = None
+                    res = self.run_main(*argVals)
+                    if timer is not None:
+                        timer.cancel()
                     data.error = None
                 except Exception:
+                    if timer is not None:
+                        timer.cancel()
                     res = None
                     errorMsg = 'failed "{0}" transform for data: {1}'.format(
                         self.name, data.alias)
@@ -305,7 +341,7 @@ class Transform(object):
             csi.mainWindow.beforeTransformSignal.emit(self.toNode.widget)
 
     @staticmethod
-    def run_main(data, allData):
+    def run_main(data, allData, progress):
         """The actual functionality of Transform comes here."""
         raise NotImplementedError  # must be overridden
 
@@ -413,6 +449,18 @@ class GenericProcessOrThread(object):
     def get_error(self):
         return retry_on_eintr(self.errorQueue.get)
 
+    def put_progress(self):
+        self.progressQueue.put_nowait(self.progress.value)
+
+    def get_progress(self):
+        values = []
+        try:
+            while not self.progressQueue.empty():
+                values.append(retry_on_eintr(self.progressQueue.get_nowait))
+        except Exception:
+            pass
+        return values
+
     def run(self):
         # self.started_event.set()
         if csi.DEBUG_LEVEL > 20:
@@ -421,7 +469,18 @@ class GenericProcessOrThread(object):
         data = DataProxy()
         self.get_in_data(data)
         try:
-            res = self.func(data)
+            args = getargspec(self.func)[0]
+            if 'progress' in args:
+                self.progress = DataProxy()
+                self.progress.value = 1.
+                timer = NTimer(self.progressTimeDelta, self.put_progress)
+                timer.start()
+                res = self.func(data, self.progress)
+                timer.cancel()
+                self.progress.value = 1.
+                self.put_progress()
+            else:
+                res = self.func(data)
             self.put_results(res)
             self.put_error(None)
         except Exception:
@@ -466,9 +525,11 @@ class DataProxy(object):
 
 
 class BackendProcess(GenericProcessOrThread, multiprocessing.Process):
-    def __init__(self, func, transformName, inArrays, outArrays):
+    def __init__(self, func, transformName, inArrays, outArrays,
+                 progressTimeDelta):
         multiprocessing.Process.__init__(self)
         self.transformName = transformName
+        self.progressTimeDelta = progressTimeDelta
         self.multiName = 'multiprocessing'
         self.inDataQueue = multiprocessing.Queue()
         self.outDataQueue = multiprocessing.Queue()
@@ -476,13 +537,16 @@ class BackendProcess(GenericProcessOrThread, multiprocessing.Process):
         self.errorQueue = multiprocessing.Queue()
         # self.started_event = multiprocessing.Event()
         # self.finished_event = multiprocessing.Event()
+        self.progressQueue = multiprocessing.Queue()
         GenericProcessOrThread.__init__(self, func, inArrays, outArrays)
 
 
 class BackendThread(GenericProcessOrThread, threading.Thread):
-    def __init__(self, func, transformName, inArrays, outArrays):
+    def __init__(self, func, transformName, inArrays, outArrays,
+                 progressTimeDelta):
         threading.Thread.__init__(self)
         self.transformName = transformName
+        self.progressTimeDelta = progressTimeDelta
         self.multiName = 'multithreading'
         if sys.version_info < (3, 1):
             import Queue
@@ -496,4 +560,43 @@ class BackendThread(GenericProcessOrThread, threading.Thread):
         self.errorQueue = Queue.Queue()
         # self.started_event = threading.Event()
         # self.finished_event = threading.Event()
+        self.progressQueue = Queue.Queue()
         GenericProcessOrThread.__init__(self, func, inArrays, outArrays)
+
+
+class NTimer(threading.Timer):
+    def run(self):
+        while not self.finished.wait(self.interval):
+            self.function(*self.args, **self.kwargs)
+
+
+def run_transforms(items, parentItem):
+    topItems = [it for it in items if it in parentItem.childItems]
+    bottomItems = [it for it in items if it not in parentItem.childItems
+                   and (not isinstance(it.madeOf, dict))]
+    # branchedItems = [
+    #     it for it in items if it not in parentItem.childItems
+    #     and isinstance(it.madeOf, dict)]
+
+    # first bottomItems, then topItems...:
+    if len(csi.transforms.values()) > 0:
+        tr = list(csi.transforms.values())[0]
+        if csi.transformer is not None:  # with a threaded transform
+            csi.transformer.prepare(
+                tr, dataItems=bottomItems+topItems, starter=tr.widget)
+            csi.transformer.thread().start()
+        else:  # in the same thread
+            tr.run(dataItems=bottomItems+topItems)
+            if hasattr(tr, 'widget'):  # when with GUI
+                tr.widget.replotAllDownstream(tr.name)
+
+    # # ...then branchedItems:
+    # if len(csi.transforms.values()) > 0:
+    #     tr = list(csi.transforms.values())[0]
+    #     if csi.transformer is not None:  # with a threaded transform
+    #         csi.transformer.prepare(
+    #             tr, dataItems=branchedItems, starter=tr.widget)
+    #         csi.transformer.thread().start()
+    #     else:  # in the same thread
+    #         tr.run(dataItems=branchedItems)
+    #         tr.widget.replotAllDownstream(tr.name)

@@ -106,7 +106,11 @@ class TreeItem(object):
                     if isinstance(self.madeOf, type("")):
                         res = self.madeOf
                     elif isinstance(self.madeOf, (tuple, list)):
-                        res = self.meta['shortText']
+                        what = self.dataFormat['combine']
+                        names = [it.alias for it in self.madeOf]
+                        cNames = cco.combine_names(names)
+                        res = '{0} of [{1}]'.format(combineNames[what], cNames)
+                        # res = self.meta['shortText']
                     else:
                         res = ""
                     if self.aliasExtra:
@@ -430,6 +434,7 @@ class Spectrum(TreeItem):
         self.childItems = []
         self.branch = None  # can be a group of branched out items
         self.error = None  # if a transform fails, contains traceback
+        self.progress = 1.
         self.isVisible = True
         self.beingTransformed = False
         if parentItem is None:  # i.e. self is the root item
@@ -995,10 +1000,6 @@ class Spectrum(TreeItem):
         # define metadata
         self.meta['text'] = '{0} of {1}'.format(
             combineNames[what], ', '.join(it.alias for it in madeOf))
-        names = [it.alias for it in self.madeOf]
-        combinedNames = cco.combine_names(names)
-        self.meta['shortText'] = '{0} of [{1}]'.format(
-            combineNames[what], combinedNames)
 
 #        self.meta['modified'] = osp.getmtime(madeOf)
         self.meta['modified'] = time.strftime("%a, %d %b %Y %H:%M:%S")
@@ -1156,6 +1157,14 @@ class Spectrum(TreeItem):
                         dataFormatCopy['dataSource'][ind] = dsabs
 
                 dataFormat = json.dumps(dataFormatCopy)
+                dataFormat = dataFormat.replace('null', 'None')
+                config.put(configProject, item.alias, 'dataFormat', dataFormat)
+            elif isinstance(item.madeOf, (list, tuple)):
+                config.put(configProject, item.alias, 'madeOf',
+                           str(item.madeOf))
+                dataFormat = json.dumps(item.dataFormat)
+                what = item.dataFormat['combine']
+                dataFormat += "  # {0}='{1}'".format(what, combineNames[what])
                 dataFormat = dataFormat.replace('null', 'None')
                 config.put(configProject, item.alias, 'dataFormat', dataFormat)
             elif isinstance(item.madeOf, dict):

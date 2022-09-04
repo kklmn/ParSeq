@@ -7,6 +7,7 @@ from silx.gui import qt
 
 from ..core import spectra as csp
 from ..core import singletons as csi
+from ..core import transforms as ctr
 from .propWidget import PropWidget
 from . import propsOfData as gpd
 
@@ -111,16 +112,25 @@ class CombineSpectraWidget(PropWidget):
 #        isStopHere = self.stopHereCB.checkState() == qt.Qt.Checked
         isStoppedAt = self.combineStopCB.checkState() == qt.Qt.Checked
         kw = dict(dataFormat={'combine': ind}, colorTag=ind,
-                  originNodeName=self.node.name, runDownstream=True)
+                  originNodeName=self.node.name, runDownstream=False)
         if isStoppedAt:
             for it in csi.selectedItems:
                 it.terminalNodeName = self.combineStop.currentText()
         isMoveToGroup = self.combineMoveToGroupCB.checkState() == qt.Qt.Checked
         model = self.node.widget.tree.model()
+
         model.beginResetModel()
-        csi.selectedItems[0].parentItem.insert_item(
-            csi.selectedItems, csi.selectedItems[0].row(), **kw)
+        first = csi.selectedItems[0]
+        prnt = first.parentItem
+        newItem = prnt.insert_item(list(csi.selectedItems), first.row(), **kw)
+        ctr.run_transforms([newItem], prnt)
         model.endResetModel()
         model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+
         if isMoveToGroup:
             self.node.widget.tree.groupItems()
+
+        mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
+        row = newItem.row()
+        index = model.createIndex(row, 0, newItem)
+        csi.selectionModel.select(index, mode)

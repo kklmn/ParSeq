@@ -153,6 +153,12 @@ class MyHdf5TreeModel(Hdf5TreeModel):
         else:
             return qt.QModelIndex()
 
+    def getHDF5NodePath(self, node):
+        if node.parent is None or not hasattr(node.parent, 'basename'):
+            return ''
+        else:
+            return '/'.join((self.getHDF5NodePath(node.parent), node.basename))
+
 
 # class MySortFilterProxyModel(qt.QSortFilterProxyModel):
 # !!! Do not use QSortFilterProxyModel as it interferes with the joint of
@@ -460,7 +466,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
 
     def hasH5ChildPath(self, node, path):
         if node.dataLink(qt.Qt.DisplayRole) == 'External':
-            nodePath = self.getHDF5NodePath(node)
+            nodePath = self.h5Model.getHDF5NodePath(node)
         else:
             nodePath = node.obj.name
         pathInH5 = '/'.join((nodePath, path))
@@ -579,7 +585,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         class_ = node.h5Class
         if class_ == silx_io.utils.H5Type.DATASET:
             if node.dataLink(qt.Qt.DisplayRole) == 'External':
-                nodePath = self.getHDF5NodePath(node)
+                nodePath = self.h5Model.getHDF5NodePath(node)
             else:
                 nodePath = node.obj.name
             try:
@@ -592,12 +598,6 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 return nodePath, None
         return None, None
 
-    def getHDF5NodePath(self, node):
-        if node.parent is None or not hasattr(node.parent, 'basename'):
-            return ''
-        else:
-            return '/'.join((self.getHDF5NodePath(node.parent), node.basename))
-
     def getHDF5FullPath(self, index):
         nodeType = self.nodeType(index)
         if nodeType not in (NODE_HDF5_HEAD, NODE_HDF5):
@@ -609,7 +609,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
 
         node = self.h5Model.nodeFromIndex(indexH5)
         if node.dataLink(qt.Qt.DisplayRole) == 'External':
-            nodePath = self.getHDF5NodePath(node)
+            nodePath = self.h5Model.getHDF5NodePath(node)
         else:
             nodePath = node.obj.name
         return 'silx:' + '::'.join((node.obj.file.filename, nodePath))
@@ -659,7 +659,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                     node = self.h5Model.nodeFromIndex(indexH5)
                     if node.dataLink(qt.Qt.DisplayRole) == 'External':
                         path = node.obj.name
-                        truePath = self.getHDF5NodePath(node)
+                        truePath = self.h5Model.getHDF5NodePath(node)
                         res = res.replace(path, truePath)
                         res = res.replace(' Dataset', ' External Dataset')
                     return res
@@ -815,7 +815,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 try:
                     node = self.h5Model.nodeFromIndex(indexH5)
                     if node.dataLink(qt.Qt.DisplayRole) == 'External':
-                        npath = self.getHDF5NodePath(node)
+                        npath = self.h5Model.getHDF5NodePath(node)
                     else:
                         npath = node.obj.name
                     path = 'silx:' + '::'.join((node.obj.file.filename, npath))
@@ -1237,10 +1237,20 @@ class FileTreeView(qt.QTreeView):
     #             self.saveExpand(ind)
 
     def expandFurther(self, index):
-        """Further expand a tree node if it has only one child."""
-        if self.model().rowCount(index) == 1:
-            child = self.model().index(0, 0, index)
+        """Further expand a tree node if it has only one child, and it has a
+        group `measurement`."""
+        model = self.model()
+
+        if model.rowCount(index) == 1:
+            child = model.index(0, 0, index)
             self.expand(child)
+
+        nodeType = model.nodeType(index)
+        if nodeType == NODE_HDF5:
+            res = model.h5Model.indexFromPath(index, 'measurement')
+            if res.isValid():
+                child = model.index(res.row(), 0, index)
+                self.expand(child)
 
     # def restoreExpand(self, parent=qt.QModelIndex()):
     #     if not parent.isValid():

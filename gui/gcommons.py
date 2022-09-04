@@ -24,7 +24,7 @@ COLOR_ROI = '#f7b43e'
 COLOR_COMBINED = '#ff00ff'
 
 GROUP_COLOR = qt.QColor('#f4f0f0')
-BUSY_COLOR_BGND = qt.QColor('#ffff44')
+BUSY_COLOR_BGND = qt.QColor('#ffe9a1')
 BUSY_COLOR_FGND = qt.QColor('#aaaa00')
 BAD_COLOR = qt.QColor('#f47070')
 UNDEFINED_COLOR = qt.QColor('#aaaaaa')

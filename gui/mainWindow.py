@@ -258,8 +258,7 @@ class MainWindowParSeq(qt.QMainWindow):
             dock = QDockWidgetNoClose(tabName, self)
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
-            dock.defStyleSheet = "QDockWidget {font: bold; font-size: " + \
-                str(fontSize) + "pt; padding-left: 5px;}"
+            dock.defStyleSheet = "QDockWidget {font: bold; padding-left: 5px;}"
             dock.setStyleSheet(dock.defStyleSheet)
             self.addDockWidget(qt.Qt.TopDockWidgetArea, dock)
             nodeWidget = NodeWidget(node, dock)
@@ -375,7 +374,8 @@ class MainWindowParSeq(qt.QMainWindow):
                 continue
             if node.widget.tree is None:
                 continue
-            node.widget.tree.dataChanged()
+            node.widget.tree.model().dataChanged.emit(
+                qt.QModelIndex(), qt.QModelIndex())
 
     def selChanged(self):
         if len(csi.selectedItems) == 0:
@@ -517,7 +517,7 @@ class MainWindowParSeq(qt.QMainWindow):
                 # nodes = [csi.currentNode]
                 nodes = csi.nodes.values()
                 for node in nodes:
-                    node.widget.tree.dataChanged(ind, ind)
+                    node.widget.tree.model().dataChanged.emit(ind, ind)
                 node.widget.tree.update()
 
     def updateTabStatus(self, state, nodeWidget):

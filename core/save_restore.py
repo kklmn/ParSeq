@@ -15,6 +15,7 @@ import h5py
 from ..core import config
 from ..core import singletons as csi
 from ..core import spectra as csp
+from ..core import transforms as ctr
 from ..gui import gcommons as gco
 
 __fdir__ = os.path.abspath(os.path.dirname(__file__))
@@ -57,28 +58,7 @@ def load_project(fname, qMessageBox=None, restore_perspective=None):
         csi.model.importData(dataTree, configData=configProject)
     else:
         items = root.insert_data(dataTree, configData=configProject)
-        run_transforms(items, root)
-
-
-def run_transforms(items, parentItem):
-    topItems = [it for it in items if it in parentItem.childItems]
-    bottomItems = [it for it in items if it not in parentItem.childItems
-                   and (not isinstance(it.madeOf, dict))]
-    # branchedItems = [
-    #     it for it in items if it not in parentItem.childItems
-    #     and isinstance(it.madeOf, dict)]
-
-    # first bottomItems, then topItems...:
-    if len(csi.transforms.values()) > 0:
-        tr = list(csi.transforms.values())[0]
-        if csi.transformer is not None:  # with a threaded transform
-            csi.transformer.prepare(
-                tr, dataItems=bottomItems+topItems, starter=tr.widget)
-            csi.transformer.thread().start()
-        else:  # in the same thread
-            tr.run(dataItems=bottomItems+topItems)
-            if hasattr(tr, 'widget'):  # when with GUI
-                tr.widget.replotAllDownstream(tr.name)
+        ctr.run_transforms(items, root)
 
 
 def save_project(fname, save_perspective=None):

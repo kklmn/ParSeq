@@ -27,6 +27,7 @@ from silx.gui import qt
 
 from ..core import commons as cco
 from ..core import singletons as csi
+from ..core import transforms as ctr
 from . import gcommons as gco
 from . import undoredo as gur
 from .plotOptions import lineStyles, lineSymbols, noSymbols, LineProps
@@ -52,6 +53,8 @@ FONT_COLOR_TAG = ['black', gco.COLOR_HDF5_HEAD, gco.COLOR_FS_COLUMN_FILE,
                   'cyan']
 LEFT_SYMBOL = u"\u25c4"  # ◄
 RIGHT_SYMBOL = u"\u25ba"  # ►
+
+PROGRESS_ROLE = qt.Qt.UserRole + 1
 
 
 class DataTreeModel(qt.QAbstractItemModel):
@@ -110,6 +113,8 @@ class DataTreeModel(qt.QAbstractItemModel):
                     if node.widget.onTransform:
                         return
             return item.tooltip()
+        elif role == PROGRESS_ROLE:
+            return item.progress if item.beingTransformed else None
         elif role == qt.Qt.BackgroundRole:
             if item.beingTransformed and index.column() == 0:
                 return BUSY_BKGND
@@ -122,7 +127,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             if index.column() < len(csi.modelLeadingColumns):
                 return qt.QColor(FONT_COLOR_TAG[item.colorTag])
             else:
-                return qt.QColor(item.color())
+                return qt.QColor(item.color)
         elif role == qt.Qt.FontRole:
             if item.childItems and (index.column() == 0):  # group in bold
                 myFont = qt.QFont()
@@ -216,43 +221,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             parentItem = self.rootItem
         self.beginResetModel()
         items = parentItem.insert_data(data, insertAt, **kwargs)
-        topItems = [it for it in items if it in parentItem.childItems]
-        bottomItems = []
-        for it in items:
-            if hasattr(it, 'madeOf'):
-                if it not in parentItem.childItems and \
-                        (not isinstance(it.madeOf, dict)):
-                    bottomItems.append(it)
-            else:
-                if it not in parentItem.childItems:
-                    bottomItems.append(it)
-
-        # branchedItems = [
-        #     it for it in items if it not in parentItem.childItems
-        #     and isinstance(it.madeOf, dict)]
-
-        # first bottomItems, then topItems...:
-        if len(csi.transforms.values()) > 0:
-            tr = list(csi.transforms.values())[0]
-            if True:  # with a threaded transform
-                csi.transformer.prepare(
-                    tr, dataItems=bottomItems+topItems, starter=tr.widget)
-                csi.transformer.thread().start()
-            else:  # in the same thread
-                tr.run(dataItems=bottomItems+topItems)
-                tr.widget.replotAllDownstream(tr.name)
-
-        # # ...then branchedItems:
-        # if len(csi.transforms.values()) > 0:
-        #     tr = list(csi.transforms.values())[0]
-        #     if True:  # with a threaded transform
-        #         csi.transformer.prepare(
-        #             tr, dataItems=branchedItems, starter=tr.widget)
-        #         csi.transformer.thread().start()
-        #     else:  # in the same thread
-        #         tr.run(dataItems=branchedItems)
-        #         tr.widget.replotAllDownstream(tr.name)
-
+        ctr.run_transforms(items, parentItem)
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
@@ -509,10 +478,45 @@ class SelectionModel(qt.QItemSelectionModel):
     pass
 
 
-class LineStyleDelegate(qt.QItemDelegate):
-    def __init__(self, parent=None):
-        qt.QItemDelegate.__init__(self, parent)
+class DataNameDelegate(qt.QItemDelegate):
+    def paint(self, painter, option, index):
+        # if index.column() == 1:
+        #     super().paint(painter, option, index)
+        data = index.data(qt.Qt.DisplayRole)
+        if data is None:
+            return
+        rect = option.rect.translated(0, 0)  # a copy of option.rect
+        progress = index.data(PROGRESS_ROLE)
+        if progress is not None:
+            rect.setWidth(int(progress*rect.width()))
+        painter.save()
+        painter.setRenderHint(qt.QPainter.Antialiasing, False)
+        painter.setPen(qt.Qt.NoPen)
+        bd = index.data(qt.Qt.BackgroundRole)
+        if (option.state & qt.QStyle.State_Selected or
+            option.state & qt.QStyle.State_MouseOver) and bd not in [
+                BUSY_BKGND]:
+            color = self.parent().palette().highlight().color()
+            color.setAlphaF(0.15)
+        else:
+            color = bd
+        if color is not None:
+            painter.setBrush(color)
+        painter.drawRect(rect)
 
+        fd = index.data(qt.Qt.ForegroundRole)
+        painter.setPen(qt.QPen(fd))
+
+        font = index.data(qt.Qt.FontRole)
+        if font is not None:
+            painter.setFont(font)
+        rect = option.rect
+        painter.drawText(option.rect, qt.Qt.AlignLeft, "{0}".format(data))
+
+        painter.restore()
+
+
+class LineStyleDelegate(qt.QItemDelegate):
     def paint(self, painter, option, index):
         if csi.currentNode is not None:
             node = csi.currentNode
@@ -528,11 +532,11 @@ class LineStyleDelegate(qt.QItemDelegate):
         painter.save()
         painter.setRenderHint(qt.QPainter.Antialiasing, False)
         painter.setPen(qt.Qt.NoPen)
-        if ((option.state & qt.QStyle.State_Selected or
-            option.state & qt.QStyle.State_MouseOver)) and bknd not in [
+        if (option.state & qt.QStyle.State_Selected or
+            option.state & qt.QStyle.State_MouseOver) and bknd not in [
                 BAD_BKGND, UNDEFINED_BKGND, NOTFOUND_BKGND, MATHERROR_BKGND]:
             color = self.parent().palette().highlight().color()
-            color.setAlphaF(0.1)
+            color.setAlphaF(0.15)
         else:
             color = bknd
         if color is not None:
@@ -720,6 +724,9 @@ class EyeHeader(qt.QHeaderView):
 
 
 class DataTreeView(qt.QTreeView):
+
+    transformProgress = qt.pyqtSignal(list)  # alias, progress.value
+
     def __init__(self, node=None, parent=None):
         super().__init__(parent)
         self.node = node
@@ -751,6 +758,8 @@ class DataTreeView(qt.QTreeView):
         self.setColumnWidth(0, int(COLUMN_NAME_WIDTH*csi.screenFactor))
         self.setColumnWidth(1, int(COLUMN_EYE_WIDTH*csi.screenFactor))
         if node is not None:
+            dataNameDelegate = DataNameDelegate(self)
+            self.setItemDelegateForColumn(0, dataNameDelegate)
             totalWidth = 0
             leadingColumns = len(csi.modelLeadingColumns)
             for i, col in enumerate(csi.modelDataColumns):
@@ -801,8 +810,10 @@ class DataTreeView(qt.QTreeView):
         self.customContextMenuRequested.connect(self.onCustomContextMenu)
         self.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
 
+        self.transformProgress.connect(self.updateProgress)
+
         self.makeActions()
-        self.dataChanged()
+        self.model().dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
     def setCustomSelectionMode(self, mode=1):
         if mode == 0:
@@ -1088,3 +1099,10 @@ class DataTreeView(qt.QTreeView):
     def dropEvent(self, event):
         csi.currentNode = self.node
         super().dropEvent(event)
+
+    def updateProgress(self, trData):
+        alias, progress = trData
+        item = csi.dataRootItem.find_data_item(alias)
+        item.progress = progress if item.beingTransformed else 1.
+        ind = csi.model.indexFromItem(item)
+        self.model().dataChanged.emit(ind, ind)
