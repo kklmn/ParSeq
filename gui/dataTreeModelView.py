@@ -53,6 +53,12 @@ FONT_COLOR_TAG = ['black', gco.COLOR_HDF5_HEAD, gco.COLOR_FS_COLUMN_FILE,
                   'cyan']
 LEFT_SYMBOL = u"\u25c4"  # ◄
 RIGHT_SYMBOL = u"\u25ba"  # ►
+SELECTION_ALPHA = 0.15
+# CHECKED_SYMBOL = u"\u2611"  # ☑
+# UNCHECKED_SYMBOL = u"\u2610"  # ☐
+# CHECKED_SYMBOL = u"\u2714"  # ✔
+# CHECKED_SYMBOL = u"\u2713"  # ✓
+# UNCHECKED_SYMBOL = None
 
 PROGRESS_ROLE = qt.Qt.UserRole + 1
 
@@ -221,6 +227,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             parentItem = self.rootItem
         self.beginResetModel()
         items = parentItem.insert_data(data, insertAt, **kwargs)
+        ctr.connect_combined(items, parentItem)
         ctr.run_transforms(items, parentItem)
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
@@ -497,7 +504,7 @@ class DataNameDelegate(qt.QItemDelegate):
             option.state & qt.QStyle.State_MouseOver) and bd not in [
                 BUSY_BKGND]:
             color = self.parent().palette().highlight().color()
-            color.setAlphaF(0.15)
+            color.setAlphaF(SELECTION_ALPHA)
         else:
             color = bd
         if color is not None:
@@ -513,6 +520,54 @@ class DataNameDelegate(qt.QItemDelegate):
         rect = option.rect
         painter.drawText(option.rect, qt.Qt.AlignLeft, "{0}".format(data))
 
+        painter.restore()
+
+
+class DataCheckDelegate(qt.QItemDelegate):
+    coords = [(-5, 1), (-2, 4), (5, -4), 'open, 1.5']
+
+    def paint(self, painter, option, index):
+        painter.save()
+        painter.setRenderHint(qt.QPainter.Antialiasing, True)
+        painter.setPen(qt.Qt.NoPen)
+        bd = index.data(qt.Qt.BackgroundRole)
+        if (option.state & qt.QStyle.State_Selected or
+            option.state & qt.QStyle.State_MouseOver) and bd not in [
+                BUSY_BKGND]:
+            color = self.parent().palette().highlight().color()
+            color.setAlphaF(SELECTION_ALPHA)
+        else:
+            color = bd
+        if color is not None:
+            painter.setBrush(color)
+        painter.drawRect(option.rect)
+
+        state = index.data(qt.Qt.CheckStateRole)
+        if state == qt.Qt.Checked:
+            pointerPath = qt.QPainterPath()
+            pointerPath.moveTo(*self.coords[0])
+            for xy in self.coords[1:]:
+                if isinstance(xy, tuple):
+                    pointerPath.lineTo(*xy)
+                if isinstance(xy, type('')):
+                    end = xy.split(',')
+                    if end[0] == 'close':
+                        pointerPath.closeSubpath()
+            thick = float(end[1].strip())
+            if option.state & qt.QStyle.State_Enabled:
+                if option.state & qt.QStyle.State_MouseOver:
+                    painter.setPen(qt.QPen(qt.Qt.darkBlue, thick))
+                else:
+                    painter.setPen(qt.QPen(qt.Qt.darkGray, thick))
+            else:
+                painter.setPen(qt.QPen(qt.Qt.lightGray, thick))
+            pointerPath.translate(option.rect.x() + option.rect.width()//2,
+                                  option.rect.y() + option.rect.height()//2)
+            color = qt.QColor(qt.Qt.white)
+            color.setAlphaF(0.)
+            symbolBrush = qt.QBrush(color)
+            painter.setBrush(symbolBrush)
+            painter.drawPath(pointerPath)
         painter.restore()
 
 
@@ -536,7 +591,7 @@ class LineStyleDelegate(qt.QItemDelegate):
             option.state & qt.QStyle.State_MouseOver) and bknd not in [
                 BAD_BKGND, UNDEFINED_BKGND, NOTFOUND_BKGND, MATHERROR_BKGND]:
             color = self.parent().palette().highlight().color()
-            color.setAlphaF(0.15)
+            color.setAlphaF(SELECTION_ALPHA)
         else:
             color = bknd
         if color is not None:
@@ -621,7 +676,10 @@ class LineStyleDelegate(qt.QItemDelegate):
                 painter.drawPath(symbolPath)
         elif type(data) is not tuple:
             if isinstance(data, int):
-                painter.setPen(qt.QPen(qt.Qt.lightGray))
+                if option.state & qt.QStyle.State_MouseOver:
+                    painter.setPen(qt.QPen(qt.Qt.darkBlue))
+                else:
+                    painter.setPen(qt.QPen(qt.Qt.lightGray))
             else:
                 painter.setPen(qt.QPen(qt.Qt.black))
             font = painter.font()
@@ -760,6 +818,8 @@ class DataTreeView(qt.QTreeView):
         if node is not None:
             dataNameDelegate = DataNameDelegate(self)
             self.setItemDelegateForColumn(0, dataNameDelegate)
+            dataCheckDelegate = DataCheckDelegate(self)
+            self.setItemDelegateForColumn(1, dataCheckDelegate)
             totalWidth = 0
             leadingColumns = len(csi.modelLeadingColumns)
             for i, col in enumerate(csi.modelDataColumns):

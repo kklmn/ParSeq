@@ -150,7 +150,7 @@ class Node(object):
             *nodeName2* can be None, the right end is infinite then.
 
         *node1in* and *node2in*: bool
-            define whether the interval is closed or open.
+            define whether the interval is closed (when True) or open.
         """
         node1 = csi.nodes[nodeName1]
         node2 = csi.nodes[nodeName2] if nodeName2 else None

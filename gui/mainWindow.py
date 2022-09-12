@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "20 Jul 2022"
+__date__ = "12 Sep 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -19,7 +19,7 @@ from silx.gui import qt
 from ..core import config
 from ..core import singletons as csi
 from ..core import commons as cco
-from ..core import spectra as csp
+# from ..core import spectra as csp
 from ..core import save_restore as csr
 from ..gui import undoredo as gur
 from .nodeWidget import NodeWidget
@@ -384,13 +384,13 @@ class MainWindowParSeq(qt.QMainWindow):
         combinedNames = cco.combine_names(selNames)
 
         cLoaded = len([it for it in csi.allLoadedItems if it.dataType in
-                       [csp.DATA_DATASET, csp.DATA_COLUMN_FILE]])
+                       [cco.DATA_DATASET, cco.DATA_COLUMN_FILE]])
         cBranched = len([it for it in csi.allLoadedItems if it.dataType ==
-                         csp.DATA_BRANCH])
+                         cco.DATA_BRANCH])
         cCreated = len([it for it in csi.allLoadedItems if it.dataType ==
-                        csp.DATA_FUNCTION])
+                        cco.DATA_FUNCTION])
         cCombined = len([it for it in csi.allLoadedItems if it.dataType ==
-                         csp.DATA_COMBINATION])
+                         cco.DATA_COMBINATION])
         cData = cLoaded + cBranched + cCreated + cCombined
 
         self.saveAction.setEnabled(cData > 0)
@@ -550,7 +550,7 @@ class MainWindowParSeq(qt.QMainWindow):
                 errNames = [it.alias for it in errorList]
                 combinedNames = cco.combine_names(errNames)
                 ss += ', <span style="background-color:red; color:white;">'
-                ss += '<b> with errors in' + combinedNames
+                ss += '<b> with errors in ' + combinedNames
                 ss += ', see traceback in data tooltip</b>'
                 ss += '</span>'
             self.statusBarLeft.setText(ss.format(duration*factor, unit))

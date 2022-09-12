@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "12 Sep 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import itertools
@@ -9,6 +9,11 @@ MAX_HEADER_LINES = 256
 MIME_TYPE_DATA = 'parseq-data-model-items'
 MIME_TYPE_TEXT = 'text/uri-list'
 MIME_TYPE_HDF5 = 'parseq-hdf5-model-items'
+
+(DATA_COLUMN_FILE, DATA_DATASET, DATA_COMBINATION, DATA_FUNCTION, DATA_GROUP,
+ DATA_BRANCH) = range(6)
+COMBINE_NONE, COMBINE_AVE, COMBINE_SUM, COMBINE_PCA, COMBINE_RMS = range(5)
+combineNames = '', 'ave', 'sum', 'PCA', 'RMS'
 
 (DATA_STATE_GOOD, DATA_STATE_BAD, DATA_STATE_UNDEFINED, DATA_STATE_NOTFOUND,
  DATA_STATE_MATHERROR) = 1, 0, -1, -2, -3

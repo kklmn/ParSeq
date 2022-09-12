@@ -13,7 +13,7 @@ from silx.gui import qt, colors, icons
 
 from ..core import singletons as csi
 from ..core import commons as cco
-from ..core import spectra as csp
+# from ..core import spectra as csp
 from ..core.config import configLoad
 from ..gui import fileTreeModelView as gft
 from ..gui.fileTreeModelView import FileTreeView
@@ -819,7 +819,7 @@ class NodeWidget(qt.QWidget):
 
     def shouldUpdateFileModel(self):
         for it in csi.selectedItems:
-            if it.dataType in (csp.DATA_COLUMN_FILE, csp.DATA_DATASET) and\
+            if it.dataType in (cco.DATA_COLUMN_FILE, cco.DATA_DATASET) and\
                     csi.nodes[it.originNodeName] is self.node:
                 return it.madeOf
 
@@ -903,13 +903,13 @@ class NodeWidget(qt.QWidget):
         # file format
 
         # df['dataSource'] = [col[0][0] for col in colRecs]
-        items = csi.model.importData(
+        csi.model.importData(
             fileNamesFull, parentItem, insertAt, dataFormat=df,
             originNodeName=self.node.name)
 
     def shouldShowColumnDialog(self):
         for it in csi.selectedItems:
-            if it.dataType in (csp.DATA_COLUMN_FILE, csp.DATA_DATASET) and\
+            if it.dataType in (cco.DATA_COLUMN_FILE, cco.DATA_DATASET) and\
                     csi.nodes[it.originNodeName] is self.node:
                 return True
         return False
@@ -928,11 +928,21 @@ class NodeWidget(qt.QWidget):
         self.metadata.setText(cs)
 
     def updateTransforms(self):
-        # try:
-        if hasattr(self.transformWidget, 'setUIFromData'):
-            self.transformWidget.setUIFromData()
-        # except AttributeError:  # when transformWidget is QWidget
-        #     pass
+        dataType = csi.selectedItems[0].dataType
+        for data in csi.selectedItems:
+            if dataType != data.dataType:
+                dataType = None
+                break
+        if (dataType == cco.DATA_COMBINATION and
+            not self.node.is_between_nodes(
+                data.originNodeName, data.terminalNodeName,
+                node1in=False)):
+            self.transformWidget.setEnabled(False)
+        else:
+            self.transformWidget.setEnabled(True)
+            # in tests, transformWidget is a QWidget instance:
+            if hasattr(self.transformWidget, 'setUIFromData'):
+                self.transformWidget.setUIFromData()
 
     def linkClicked(self, url):
         strURL = str(url.toString())

@@ -5,9 +5,10 @@ __date__ = "17 Nov 2018"
 
 from silx.gui import qt
 
-from ..core import spectra as csp
+# from ..core import spectra as csp
 from ..core import singletons as csi
 from ..core import transforms as ctr
+from ..core import commons as cco
 from .propWidget import PropWidget
 from . import propsOfData as gpd
 
@@ -30,7 +31,7 @@ class CombineSpectraWidget(PropWidget):
 
     def makeCombineDataGroup(self):
         self.combineType = qt.QComboBox()
-        self.combineType.addItems(csp.combineNames)
+        self.combineType.addItems(cco.combineNames)
         self.combineType.currentIndexChanged.connect(self.combineTypeChanged)
         self.combineNLabel = qt.QLabel("N=")
         self.combineN = qt.QSpinBox()
@@ -102,7 +103,7 @@ class CombineSpectraWidget(PropWidget):
         ind = self.combineType.currentIndex()
         if ind == 0:
             return
-        if ind == csp.COMBINE_PCA:
+        if ind == cco.COMBINE_PCA:
             msgBox = qt.QMessageBox()
             msgBox.information(self, 'Not implemented',
                                'PCA is not implemented yet',
@@ -121,9 +122,9 @@ class CombineSpectraWidget(PropWidget):
 
         model.beginResetModel()
         first = csi.selectedItems[0]
-        prnt = first.parentItem
-        newItem = prnt.insert_item(list(csi.selectedItems), first.row(), **kw)
-        ctr.run_transforms([newItem], prnt)
+        pit = first.parentItem
+        newItem = pit.insert_item(list(csi.selectedItems), first.row(), **kw)
+        ctr.run_transforms([newItem], pit)
         model.endResetModel()
         model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 

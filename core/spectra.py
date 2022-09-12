@@ -21,11 +21,6 @@ from ..utils.format import format_memory_size
 
 DEFAULT_COLOR_AUTO_UPDATE = False
 
-DATA_COLUMN_FILE, DATA_DATASET, DATA_COMBINATION, DATA_FUNCTION, DATA_GROUP,\
-    DATA_BRANCH = range(6)
-COMBINE_NONE, COMBINE_AVE, COMBINE_SUM, COMBINE_PCA, COMBINE_RMS = range(5)
-combineNames = '', 'ave', 'sum', 'PCA', 'RMS'
-
 
 class TreeItem(object):
     def __init__(self, name, parentItem=None, insertAt=None, **kwargs):
@@ -107,9 +102,13 @@ class TreeItem(object):
                         res = self.madeOf
                     elif isinstance(self.madeOf, (tuple, list)):
                         what = self.dataFormat['combine']
-                        names = [it.alias for it in self.madeOf]
+                        if type(self.madeOf[0]) is str:
+                            names = self.madeOf
+                        else:
+                            names = [it.alias for it in self.madeOf]
                         cNames = cco.combine_names(names)
-                        res = '{0} of [{1}]'.format(combineNames[what], cNames)
+                        res = '{0} of [{1}]'.format(
+                            cco.combineNames[what], cNames)
                         # res = self.meta['shortText']
                     else:
                         res = ""
@@ -124,6 +123,8 @@ class TreeItem(object):
                                 res += ds
                     if csi.currentNode is not None:
                         node = csi.currentNode
+                        tr = node.transformIn
+                        trname = tr.name if tr is not None else None
                         if self.state[node.name] == cco.DATA_STATE_NOTFOUND:
                             if res:
                                 res += '\n'
@@ -162,6 +163,13 @@ class TreeItem(object):
                                     size = sys.getsizeof(arr)
                                     res += '\n{0}: {1}'.format(
                                         whatSize, format_memory_size(size))
+                                if trname in self.transfortmTimes:
+                                    tt = self.transfortmTimes[trname]
+                                    factor, unit, ff = \
+                                        (1e3, 'ms', '{1:.0f}') if tt < 1\
+                                        else (1, 's', '{1:.1f}')
+                                    ss = '\nmade by "{0}" in ' + ff + ' {2}'
+                                    res += ss.format(trname, tt*factor, unit)
                             except Exception as e:
                                 res += '\n' + str(e)
                         elif self.state[node.name] == cco.DATA_STATE_UNDEFINED:
@@ -375,6 +383,10 @@ class Spectrum(TreeItem):
         'madeOf', 'madeOf_relative', 'dataFormat', 'dataFormat_relative',
         'suffix', 'originNodeName', 'terminalNodeName', 'transformNames',
         'colorTag', 'color')
+    configFieldsCombined = (  # to parse ini file section of combined data
+        'madeOf', 'dataFormat',
+        'suffix', 'originNodeName', 'terminalNodeName', 'transformNames',
+        'colorTag', 'color')
     configFieldsGroup = (  # to parse ini file section of group
          'colorPolicy', 'colorTag', 'colorAutoUpdate')
 
@@ -434,6 +446,7 @@ class Spectrum(TreeItem):
         self.childItems = []
         self.branch = None  # can be a group of branched out items
         self.error = None  # if a transform fails, contains traceback
+        self.transfortmTimes = {}
         self.progress = 1.
         self.isVisible = True
         self.beingTransformed = False
@@ -490,7 +503,7 @@ class Spectrum(TreeItem):
         self.hasChanged = False
         self.state = dict((nn, cco.DATA_STATE_UNDEFINED) for nn in csi.nodes)
         self.aliasExtra = None  # for extra name qualifier
-        self.meta = {}
+        self.meta = {'text': '', 'modified': '', 'size': 0}
         self.combinesTo = []  # list of instances of Spectrum if not empty
 
         self.transformParams = {}  # each transform will add to this dict
@@ -511,6 +524,9 @@ class Spectrum(TreeItem):
             transformParams = kwargs.pop(
                 'transformParams',
                 csi.dataRootItem.kwargs.get('transformParams', {}))
+            shouldLoadNow = kwargs.pop(
+                'shouldLoadNow',
+                csi.dataRootItem.kwargs.get('shouldLoadNow', True))
             runDownstream = kwargs.pop(
                 'runDownstream',
                 csi.dataRootItem.kwargs.get('runDownstream', False))
@@ -520,12 +536,13 @@ class Spectrum(TreeItem):
                 if plotProps:
                     self.plotProps.update(plotProps)
 
-            self.read_data(runDownstream=runDownstream,
+            self.read_data(shouldLoadNow=shouldLoadNow,
+                           runDownstream=runDownstream,
                            copyTransformParams=copyTransformParams,
                            transformParams=transformParams)
         elif isinstance(self.madeOf, str) and not self.dataFormat:
             # i.e. is a group
-            self.dataType = DATA_GROUP
+            self.dataType = cco.DATA_GROUP
             if csi.withGUI:
                 from ..gui import gcommons as gco
                 cp = (kwargs.pop('colorPolicy', 'loop1')).lower()
@@ -588,20 +605,20 @@ class Spectrum(TreeItem):
                   copyTransformParams=True, transformParams={}):
         toNode = csi.nodes[self.originNodeName]
         if isinstance(self.madeOf, dict):
-            self.dataType = DATA_BRANCH
+            self.dataType = cco.DATA_BRANCH
             if self.alias == 'auto':
                 self.alias = '{0}_{1}'.format(
                     self.parentItem.alias, self.parentItem.child_count())
             if shouldLoadNow:
                 self.branch_data()
         elif callable(self.madeOf):
-            self.dataType = DATA_FUNCTION
+            self.dataType = cco.DATA_FUNCTION
             if self.alias == 'auto':
                 self.alias = "generated_{0}".format(self.madeOf.__name__)
             if shouldLoadNow:
                 self.create_data()
         elif isinstance(self.madeOf, (list, tuple)):
-            self.dataType = DATA_COMBINATION
+            self.dataType = cco.DATA_COMBINATION
             self.colorTag = 5
             if shouldLoadNow:
                 self.calc_combined()
@@ -611,13 +628,14 @@ class Spectrum(TreeItem):
                     cs = cco.common_substring((cs, data.alias))
                 what = self.dataFormat['combine']
                 lenC = len(self.madeOf)
-                self.alias = "{0}_{1}{2}".format(cs, combineNames[what], lenC)
+                self.alias = "{0}_{1}{2}".format(
+                    cs, cco.combineNames[what], lenC)
         elif isinstance(self.madeOf, str):
             self.madeOf = self.madeOf.replace('\\', '/')
             if self.madeOf.startswith('silx:'):
-                self.dataType = DATA_DATASET
+                self.dataType = cco.DATA_DATASET
             else:
-                self.dataType = DATA_COLUMN_FILE
+                self.dataType = cco.DATA_COLUMN_FILE
             self.set_auto_color_tag()
             if shouldLoadNow:
                 self.read_file()
@@ -686,9 +704,9 @@ class Spectrum(TreeItem):
             self.colorTag = 3
             return
 
-        if self.dataType == DATA_DATASET:
+        if self.dataType == cco.DATA_DATASET:
             self.colorTag = 1
-        elif self.dataType == DATA_COLUMN_FILE:
+        elif self.dataType == cco.DATA_COLUMN_FILE:
             self.colorTag = 2
 
     def check_shape(self):
@@ -728,11 +746,11 @@ class Spectrum(TreeItem):
                         'dataFormat' in configData[name]):
                     tmp = {entry: config.get(configData, name, entry)
                            for entry in self.configFieldsData}
+                    tmp['alias'] = name
                     dataFormatFull = dict(tmp['dataFormat'])
                     dataFormatRel = tmp['dataFormat_relative']
                     if dataFormatRel is not None:
                         tmp['dataFormat'] = tmp['dataFormat_relative']
-                    tmp['alias'] = name
                     if 'colorIndividual' in configData[name]:
                         tmp['colorIndividual'] = config.get(
                             configData, name, 'colorIndividual')
@@ -747,12 +765,9 @@ class Spectrum(TreeItem):
                     tmp['transformParams'] = trParams
                     name = tmp.pop('madeOf_relative')
                     nameFull = tmp.pop('madeOf')
-                elif isinstance(madeOf, dict):
+                elif isinstance(madeOf, (dict, list, tuple)):
                     tmp = {entry: config.get(configData, name, entry)
-                           for entry in self.configFieldsData}
-                    del tmp['dataFormat_relative']
-                    del tmp['madeOf_relative']
-                    tmp['dataFormat'] = {}
+                           for entry in self.configFieldsCombined}
                     tmp['alias'] = name
                     trParams = {}
                     for tr in csi.transforms.values():
@@ -760,7 +775,20 @@ class Spectrum(TreeItem):
                             trParams[key] = config.get(configData, name, key,
                                                        default=val)
                     tmp['transformParams'] = trParams
-                    name = tmp.pop('madeOf')
+                    if isinstance(madeOf, dict):
+                        tmp['dataFormat'] = {}
+                        name = tmp.pop('madeOf')
+                    elif isinstance(madeOf, (list, tuple)):
+                        name = tmp.pop('madeOf')
+                        tmp['shouldLoadNow'] = False
+                        # for spName in madeOf:
+                        #     item = self.get_top().find_data_item(spName)
+                        #     if item is None:
+                        #         raise ValueError(
+                        #             'Error while loading "{0}": '
+                        #             'no data "{1}" among the loaded ones!'
+                        #             .format(tmp['alias'], spName))
+                        #     name.append(item)
                     nameFull = None
                 elif 'colorPolicy' in configData[name]:  # group entry
                     tmp = {entry: config.get(configData, name, entry)
@@ -841,9 +869,9 @@ class Spectrum(TreeItem):
         formatSection = 'Format_' + toNode.name
         config.configLoad[formatSection] = dict(df)
 
-        if self.dataType == DATA_COLUMN_FILE:
+        if self.dataType == cco.DATA_COLUMN_FILE:
             header = cco.get_header(madeOf, df)
-        elif self.dataType == DATA_DATASET:
+        elif self.dataType == cco.DATA_DATASET:
             header = []
             try:
                 label = silx_io.get_data(madeOf + "/" + df["labelName"])
@@ -877,7 +905,7 @@ class Spectrum(TreeItem):
                                        [None for arr in toNode.arrays])
             if dataSource is None:
                 raise ValueError('bad dataSource settings')
-            if self.dataType == DATA_COLUMN_FILE:
+            if self.dataType == cco.DATA_COLUMN_FILE:
                 with np.warnings.catch_warnings():
                     np.warnings.simplefilter("ignore")
                     arrs = np.genfromtxt(madeOf, unpack=True, **df)
@@ -886,7 +914,7 @@ class Spectrum(TreeItem):
 
             for aName, txt, sliceStr in zip(
                     toNode.arrays, dataSource, sliceStrs):
-                if self.dataType == DATA_COLUMN_FILE:
+                if self.dataType == cco.DATA_COLUMN_FILE:
                     if isinstance(txt, int):
                         arr = arrs[txt]
                     else:
@@ -916,7 +944,7 @@ class Spectrum(TreeItem):
 
         self.convert_units(conversionFactors)
         # define metadata
-        if self.dataType == DATA_COLUMN_FILE:
+        if self.dataType == cco.DATA_COLUMN_FILE:
             self.meta['text'] = r''.join(header)
             self.meta['modified'] = time.strftime(
                 "%a, %d %b %Y %H:%M:%S", time.gmtime(osp.getmtime(madeOf)))
@@ -999,7 +1027,7 @@ class Spectrum(TreeItem):
         what = self.dataFormat['combine']
         # define metadata
         self.meta['text'] = '{0} of {1}'.format(
-            combineNames[what], ', '.join(it.alias for it in madeOf))
+            cco.combineNames[what], ', '.join(it.alias for it in madeOf))
 
 #        self.meta['modified'] = osp.getmtime(madeOf)
         self.meta['modified'] = time.strftime("%a, %d %b %Y %H:%M:%S")
@@ -1011,7 +1039,8 @@ class Spectrum(TreeItem):
 
             # if no 'raw' present, returns arrayName itself:
             dNames = toNode.getPropList('raw')
-            xNames = toNode.getPropList('raw', role='x')
+            xNames = toNode.getPropList('raw', role='x') +\
+                toNode.getPropList('raw', role='0D')
             dims = toNode.getPropList('ndim')
 
             # check equal shape of data to combine:
@@ -1030,11 +1059,11 @@ class Spectrum(TreeItem):
                     data.combinesTo.append(self)
 
             ns = len(madeOf)
-            # x is average over all contributing spectra:
+            # x and 0D as average over all contributing spectra:
             for arrayName in xNames:
                 sumx = 0
+                setName = toNode.getProp(arrayName, 'raw')
                 for data in madeOf:
-                    setName = toNode.getProp(arrayName, 'raw')
                     sumx += np.array(getattr(data, setName))
                 setattr(self, setName, sumx/ns)
 
@@ -1042,17 +1071,17 @@ class Spectrum(TreeItem):
             for arrayName, dim in zip(dNames, dims):
                 if arrayName in xNames:
                     continue
-                if what in (COMBINE_AVE, COMBINE_SUM, COMBINE_RMS):
+                if what in (cco.COMBINE_AVE, cco.COMBINE_SUM, cco.COMBINE_RMS):
                     s = sum(getattr(data, arrayName) for data in madeOf)
-                    if what == COMBINE_AVE:
+                    if what == cco.COMBINE_AVE:
                         v = s / ns
-                    elif what == COMBINE_SUM:
+                    elif what == cco.COMBINE_SUM:
                         v = s
-                    elif what == COMBINE_RMS:
+                    elif what == cco.COMBINE_RMS:
                         s2 = sum((getattr(d, arrayName) - s/ns)**2
                                  for d in madeOf)
                         v = (s2 / ns)**0.5
-                elif what == COMBINE_PCA:
+                elif what == cco.COMBINE_PCA:
                     raise NotImplementedError  # TODO
                 else:
                     raise ValueError("unknown data combination")
@@ -1064,7 +1093,10 @@ class Spectrum(TreeItem):
             self.state[toNode.name] = cco.DATA_STATE_GOOD
         except AssertionError:
             self.state[toNode.name] = cco.DATA_STATE_MATHERROR
-            self.meta['text'] += '\nThe conbined arrays have different lengths'
+            msg = '\nThe conbined arrays have different lengths'
+            self.meta['text'] += msg
+            if csi.DEBUG_LEVEL > 50:
+                print('calc_combined', self.alias, msg)
 
     def branch_data(self):
         """Case of *madeOf* as dict, when branching out."""
@@ -1163,8 +1195,8 @@ class Spectrum(TreeItem):
                 config.put(configProject, item.alias, 'madeOf',
                            str(item.madeOf))
                 dataFormat = json.dumps(item.dataFormat)
-                what = item.dataFormat['combine']
-                dataFormat += "  # {0}='{1}'".format(what, combineNames[what])
+                cf = item.dataFormat['combine']
+                dataFormat += "  # {0}='{1}'".format(cf, cco.combineNames[cf])
                 dataFormat = dataFormat.replace('null', 'None')
                 config.put(configProject, item.alias, 'dataFormat', dataFormat)
             elif isinstance(item.madeOf, dict):

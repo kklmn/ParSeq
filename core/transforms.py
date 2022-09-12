@@ -14,6 +14,7 @@ if sys.version_info < (3, 1):
 else:
     from inspect import getfullargspec as getargspec
 
+import time
 import multiprocessing
 import threading
 import errno
@@ -150,19 +151,112 @@ class Transform(object):
         # data = csi.selectedItems[0]
         # dtparams = data.transformParams
 
-    def get_progress1(self, alias, progress):
+    def _get_progress1(self, alias, progress):
         if hasattr(self.toNode, 'widget'):
             if self.toNode.widget is not None:
                 self.toNode.widget.tree.transformProgress.emit(
                     [alias, progress.value])
 
-    def get_progressN(self, alias, worker):
+    def _get_progressN(self, alias, worker):
         if hasattr(self.toNode, 'widget'):
             if self.toNode.widget is not None:
                 ps = worker.get_progress()
                 if len(ps) == 0:
                     return
                 self.toNode.widget.tree.transformProgress.emit([alias, ps[-1]])
+
+    def _run_multi_worker(self, workers, workedItems, args):
+        wt = workers[0].workerType
+        if csi.DEBUG_LEVEL > 1:
+            print('run "{0}" in {1} {2}{3} for {4}'.format(
+                self.name, len(workers), wt, '' if len(workers) == 1 else 's',
+                [d.alias for d in workedItems]))
+        if self.sendSignals:
+            csi.mainWindow.beforeDataTransformSignal.emit(workedItems)
+
+        for worker, item in zip(workers, workedItems):
+            if not worker.put_in_data(item):
+                item.state[self.toNode.name] = cco.DATA_STATE_BAD
+                item.beingTransformed = False
+                continue
+            else:
+                item.beingTransformed = True
+            if 'progress' in args and self.sendSignals:
+                worker.timer = NTimer(
+                    self.progressTimeDelta,
+                    self._get_progressN, [item.alias, worker])
+                worker.timer.start()
+            worker.start()
+            item.transfortm_t0 = time.time()
+
+        for worker, item in zip(workers, workedItems):
+            if not item.beingTransformed:
+                continue
+            worker.get_out_data(item)
+            res = worker.get_results(self)
+            item.state[self.toNode.name] = cco.DATA_STATE_GOOD\
+                if res else cco.DATA_STATE_BAD
+            item.error = worker.get_error()
+            item.transfortmTimes[self.name] = time.time() - item.transfortm_t0
+
+        for worker, item in zip(workers, workedItems):
+            if 'progress' in args and self.sendSignals:
+                worker.timer.cancel()
+            if not item.beingTransformed:
+                continue
+            worker.join(60.)
+            item.beingTransformed = False
+
+        if self.sendSignals:
+            csi.mainWindow.afterDataTransformSignal.emit(workedItems)
+
+    def _run_single_worker(self, data, args):
+        data.beingTransformed = True
+        data.transfortm_t0 = time.time()
+        if self.sendSignals:
+            csi.mainWindow.beforeDataTransformSignal.emit([data])
+        if csi.DEBUG_LEVEL > 1:
+            print('run "{0}" for {1}'.format(self.name, data.alias))
+        try:
+            argVals = [data]
+            if 'allData' in args:
+                allData = csi.allLoadedItems
+                argVals.append(allData)
+            if 'progress' in args:
+                progress = DataProxy()
+                progress.value = 1.
+                argVals.append(progress)
+                timer = NTimer(self.progressTimeDelta, self._get_progress1,
+                               [data.alias, progress])
+                timer.start()
+            else:
+                timer = None
+            res = self.run_main(*argVals)
+            if timer is not None:
+                timer.cancel()
+            data.error = None
+        except Exception:
+            if timer is not None:
+                timer.cancel()
+            res = None
+            errorMsg = 'failed "{0}" transform for data: {1}'.format(
+                self.name, data.alias)
+            errorMsg += "\nwith the followith traceback:\n"
+            tb = traceback.format_exc()
+            errorMsg += "".join(tb[:-1])  # remove last empty line
+            if csi.DEBUG_LEVEL > 20:
+                print(errorMsg)
+            data.error = errorMsg
+        if isinstance(res, dict):
+            for field in res:
+                setattr(self, field, res[field])
+        data.state[self.toNode.name] = cco.DATA_STATE_GOOD \
+            if res is not None else cco.DATA_STATE_BAD
+        data.beingTransformed = False
+        data.transfortmTimes[self.name] = \
+            time.time() - data.transfortm_t0
+        if self.sendSignals:
+            csi.mainWindow.afterDataTransformSignal.emit([data])
 
     def run(self, params={}, updateUndo=True, runDownstream=True,
             dataItems=None):
@@ -182,17 +276,21 @@ class Transform(object):
         if self.nThreads > 1:
             workerClass = BackendThread
             cpus = self.nThreads
-            workerStr = 'thread'
         elif self.nProcesses > 1:
             workerClass = BackendProcess
             cpus = self.nProcesses
-            workerStr = 'process'
         else:
             workerClass = None
         if workerClass is not None:
             workers, workedItems = [], []
 
-        for idata, data in enumerate(items):
+        args = getargspec(self.__class__.run_main)[0]
+        if args[0] == 'self':
+            print('IMPORTANT!: remove "self" from "run_main()" '
+                  'parameters as this is a static method, '
+                  'not an instance method')
+
+        for data in items:
             if (not self.isHeadNode and
                     data.state[self.fromNode.name] == cco.DATA_STATE_BAD):
                 data.state[self.toNode.name] = cco.DATA_STATE_BAD
@@ -209,7 +307,8 @@ class Transform(object):
                             data.originNodeName, data.terminalNodeName) and
                         self.toNode.is_between_nodes(
                             data.originNodeName, data.terminalNodeName)):
-                    data.state[self.toNode.name] = cco.DATA_STATE_UNDEFINED
+                    if data.dataType != cco.DATA_COMBINATION:
+                        data.state[self.toNode.name] = cco.DATA_STATE_UNDEFINED
                     if csi.DEBUG_LEVEL > 20:
                         print(data.alias, 'not between "{0}" and "{1}"'.format(
                             self.fromNode.name, self.toNode.name))
@@ -218,7 +317,8 @@ class Transform(object):
                 #     continue
             elif isinstance(data.transformNames, (tuple, list)):
                 if self.name not in data.transformNames:
-                    data.state[self.toNode.name] = cco.DATA_STATE_UNDEFINED
+                    if data.dataType != cco.DATA_COMBINATION:
+                        data.state[self.toNode.name] = cco.DATA_STATE_UNDEFINED
                     if csi.DEBUG_LEVEL > 20:
                         print(data.alias, 'not between "{0}" and "{1}"'.format(
                             self.fromNode.name, self.toNode.name))
@@ -227,98 +327,20 @@ class Transform(object):
                 raise ValueError('unknown `transformNames`="{0}" for "{1}"'
                                  .format(data.transformNames, data.alias))
 
-            args = getargspec(self.__class__.run_main)[0]
-            if args[0] == 'self':
-                print('IMPORTANT!: remove "self" from "run_main()" '
-                      'parameters as this is a static method, '
-                      'not an instance method')
-
             if workerClass is not None:  # with multipro
                 worker = workerClass(
                     self.__class__.run_main, self.__class__.name,
                     self.inArrays, self.outArrays, self.progressTimeDelta)
                 workers.append(worker)
                 workedItems.append(data)
-                if len(workers) == cpus or idata == len(items)-1:
-                    if csi.DEBUG_LEVEL > 1:
-                        print('run "{0}" in {1} {2}{3} for {4}'.format(
-                            self.name, len(workers), workerStr,
-                            '' if len(workers) == 1 else 's',
-                            [d.alias for d in workedItems]))
-                    if self.sendSignals:
-                        csi.mainWindow.beforeDataTransformSignal.emit(
-                            workedItems)
-
-                    for worker, item in zip(workers, workedItems):
-                        worker.put_in_data(item)
-                        if 'progress' in args and self.sendSignals:
-                            worker.timer = NTimer(self.progressTimeDelta,
-                                                  self.get_progressN,
-                                                  [item.alias, worker])
-                            worker.timer.start()
-                        worker.start()
-                        item.beingTransformed = True
-                    for worker, item in zip(workers, workedItems):
-                        worker.get_out_data(item)
-                        res = worker.get_results(self)
-                        item.state[self.toNode.name] = cco.DATA_STATE_GOOD\
-                            if res else cco.DATA_STATE_BAD
-                        item.error = worker.get_error()
-                        item.beingTransformed = False
-                    for worker in workers:
-                        if 'progress' in args and self.sendSignals:
-                            worker.timer.cancel()
-                        worker.join(60.)
-
-                    if self.sendSignals:
-                        csi.mainWindow.afterDataTransformSignal.emit(
-                            workedItems)
+                if len(workers) == cpus:
+                    self._run_multi_worker(workers, workedItems, args)
                     workers, workedItems = [], []
             else:  # no multipro
-                data.beingTransformed = True
-                if self.sendSignals:
-                    csi.mainWindow.beforeDataTransformSignal.emit([data])
-                if csi.DEBUG_LEVEL > 1:
-                    print('run "{0}" for {1}'.format(self.name, data.alias))
-                try:
-                    argVals = [data]
-                    if 'allData' in args:
-                        allData = csi.allLoadedItems
-                        argVals.append(allData)
-                    if 'progress' in args:
-                        progress = DataProxy()
-                        progress.value = 1.
-                        argVals.append(progress)
-                        timer = NTimer(
-                            self.progressTimeDelta, self.get_progress1,
-                            [data.alias, progress])
-                        timer.start()
-                    else:
-                        timer = None
-                    res = self.run_main(*argVals)
-                    if timer is not None:
-                        timer.cancel()
-                    data.error = None
-                except Exception:
-                    if timer is not None:
-                        timer.cancel()
-                    res = None
-                    errorMsg = 'failed "{0}" transform for data: {1}'.format(
-                        self.name, data.alias)
-                    errorMsg += "\nwith the followith traceback:\n"
-                    tb = traceback.format_exc()
-                    errorMsg += "".join(tb[:-1])  # remove last empty line
-                    if csi.DEBUG_LEVEL > 20:
-                        print(errorMsg)
-                    data.error = errorMsg
-                if isinstance(res, dict):
-                    for field in res:
-                        setattr(self, field, res[field])
-                data.state[self.toNode.name] = cco.DATA_STATE_GOOD \
-                    if res is not None else cco.DATA_STATE_BAD
-                data.beingTransformed = False
-                if self.sendSignals:
-                    csi.mainWindow.afterDataTransformSignal.emit([data])
+                self._run_single_worker(data, args)
+        if workerClass is not None:  # with multipro on remaining workedItems
+            if len(workers) > 0:
+                self._run_multi_worker(workers, workedItems, args)
 
         postItems = [it for it in items
                      if it.state[self.toNode.name] == cco.DATA_STATE_GOOD]
@@ -357,8 +379,11 @@ class Transform(object):
                 if (csi.nodes[d.originNodeName] is self.toNode) and \
                         (d not in toBeUpdated):
                     toBeUpdated.append(d)
-        for d in toBeUpdated:
-            d.calc_combined()
+        if toBeUpdated:
+            for d in toBeUpdated:
+                d.calc_combined()
+            if self.fromNode.name == self.toNode.name:
+                self.run(dataItems=toBeUpdated, runDownstream=False)
 
         if self.sendSignals:
             csi.mainWindow.afterTransformSignal.emit(self.toNode.widget)
@@ -371,6 +396,7 @@ class Transform(object):
                 if self is tr:
                     continue
                 newItems = dataItems.copy()
+                newItems += [it for it in toBeUpdated if it not in newItems]
                 for data in dataItems:
                     if data.branch is not None:
                         newItems += [it for it in data.branch.get_items()
@@ -395,25 +421,24 @@ class GenericProcessOrThread(object):
             try:
                 res[key] = getattr(item, key)
             except AttributeError as e:
-                print(e)
-                print('for spectrum {0}'.format(item.alias))
-                print('also check the capitalization of array names in nodes '
-                      'and transforms')
-                raise e
+                print('{0} for spectrum {1}'.format(e, item.alias))
+                # raise e
+                return False
         if csi.DEBUG_LEVEL > 20:
-            print('put_in_data keys', res.keys())
+            print('put_in_data keys', item.alias, res.keys())
         self.inDataQueue.put(res)
+        return True
 
     def get_in_data(self, item):
-        if csi.DEBUG_LEVEL > 20:
-            print('get_in_data enter')
         outDict = retry_on_eintr(self.inDataQueue.get)
         for field in outDict:
             setattr(item, field, outDict[field])
         if csi.DEBUG_LEVEL > 20:
-            print('get_in_data exit', item.alias)
+            print('get_in_data exit', item.alias, outDict.keys())
 
     def put_out_data(self, item):
+        if csi.DEBUG_LEVEL > 20:
+            print('put_out_data enter', item.alias)
         res = {'transformParams': item.transformParams}
         for key in self.outArrays:
             try:
@@ -421,26 +446,30 @@ class GenericProcessOrThread(object):
             except AttributeError:  # arrays can be conditionally missing
                 pass
         if csi.DEBUG_LEVEL > 20:
-            print('put_out_data keys', res.keys())
+            print('put_out_data exit', item.alias, res.keys())
         self.outDataQueue.put(res)
 
     def get_out_data(self, item):
         if csi.DEBUG_LEVEL > 20:
-            print('get_out_data enter')
+            print('get_out_data enter', item.alias)
         outDict = retry_on_eintr(self.outDataQueue.get)
         for field in outDict:
             setattr(item, field, outDict[field])
         if csi.DEBUG_LEVEL > 20:
-            print('get_out_data exit', item.alias)
+            print('get_out_data exit', item.alias, outDict.keys())
 
     def put_results(self, obj):
         self.resultQueue.put(obj)
 
     def get_results(self, obj):
+        if csi.DEBUG_LEVEL > 20:
+            print('get_results enter', obj.name)
         res = retry_on_eintr(self.resultQueue.get)
         if isinstance(res, dict):
             for field in res:
                 setattr(obj, field, res[field])
+        if csi.DEBUG_LEVEL > 20:
+            print('get_results exit', obj.name, res)
         return res is not None
 
     def put_error(self, obj):
@@ -531,6 +560,7 @@ class BackendProcess(GenericProcessOrThread, multiprocessing.Process):
         self.transformName = transformName
         self.progressTimeDelta = progressTimeDelta
         self.multiName = 'multiprocessing'
+        self.workerType = 'process'
         self.inDataQueue = multiprocessing.Queue()
         self.outDataQueue = multiprocessing.Queue()
         self.resultQueue = multiprocessing.Queue()
@@ -548,6 +578,7 @@ class BackendThread(GenericProcessOrThread, threading.Thread):
         self.transformName = transformName
         self.progressTimeDelta = progressTimeDelta
         self.multiName = 'multithreading'
+        self.workerType = 'thread'
         if sys.version_info < (3, 1):
             import Queue
         else:
@@ -570,13 +601,33 @@ class NTimer(threading.Timer):
             self.function(*self.args, **self.kwargs)
 
 
+def connect_combined(items, parentItem):
+    toBeUpdated = []
+    for item in items:
+        if isinstance(item.madeOf, (list, tuple)):
+            newMadeOf = []
+            for itemName in item.madeOf:
+                if isinstance(itemName, str):
+                    dataItem = parentItem.find_data_item(itemName)
+                    newMadeOf.append(dataItem)
+                    if item not in dataItem.combinesTo:
+                        dataItem.combinesTo.append(item)
+            if newMadeOf:
+                item.madeOf = newMadeOf
+                toBeUpdated.append(item)
+    try:
+        for d in toBeUpdated:
+            d.calc_combined()
+    except AttributeError:
+        pass
+
+
 def run_transforms(items, parentItem):
     topItems = [it for it in items if it in parentItem.childItems]
     bottomItems = [it for it in items if it not in parentItem.childItems
-                   and (not isinstance(it.madeOf, dict))]
-    # branchedItems = [
-    #     it for it in items if it not in parentItem.childItems
-    #     and isinstance(it.madeOf, dict)]
+                   and (not isinstance(it.madeOf, (dict, list, tuple)))]
+    # dependentItems = [it for it in items if it not in parentItem.childItems
+    #                   and isinstance(it.madeOf, (dict, list, tuple))]
 
     # first bottomItems, then topItems...:
     if len(csi.transforms.values()) > 0:
@@ -590,13 +641,14 @@ def run_transforms(items, parentItem):
             if hasattr(tr, 'widget'):  # when with GUI
                 tr.widget.replotAllDownstream(tr.name)
 
-    # # ...then branchedItems:
+    # no need for this, it is invoked in run_post:
+    # # ...then dependentItems:
     # if len(csi.transforms.values()) > 0:
     #     tr = list(csi.transforms.values())[0]
     #     if csi.transformer is not None:  # with a threaded transform
     #         csi.transformer.prepare(
-    #             tr, dataItems=branchedItems, starter=tr.widget)
+    #             tr, dataItems=dependentItems, starter=tr.widget)
     #         csi.transformer.thread().start()
     #     else:  # in the same thread
-    #         tr.run(dataItems=branchedItems)
+    #         tr.run(dataItems=dependentItems)
     #         tr.widget.replotAllDownstream(tr.name)
