@@ -30,7 +30,7 @@ Main features
    multiply selected data and (b) applying a specific parameter or a group of
    parameters to a later selected subset of data.
 
--  Undo and redo for all treatment steps.
+-  Undo and redo for most of treatment steps.
 
 -  Entering into the analysis pipeline at any node, not only at the head of the
    pipeline.
@@ -75,8 +75,9 @@ How to use
 ----------
 
 Either install ParSeq and a ParSeq pipeline application by their installers to
-the standard location or put them to any folder, rename them by their package
+the standard location or put them to any folder, rename them to their package
 names (`parseq` and e.g. `parseq_XES_scan`) and start the `*_start.py` file
 of the pipeline. You can try it with `--test` to load test data and/or
-`--noGUI` but an assumed pattern is to load a project file; use the test
-project file located at `parseq_XES_scan/saved/NbO2.pspj`.
+`--noGUI` to run the pipeline fully in the terminal and plot only the end
+results but an assumed pattern is to load a project file; use the test project
+file located at `parseq_XES_scan/saved/NbO2.pspj`.

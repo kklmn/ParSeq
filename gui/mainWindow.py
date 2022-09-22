@@ -11,6 +11,7 @@ import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 import textwrap
 import re
 import shutil
+import psutil
 
 from silx.gui import qt
 
@@ -125,6 +126,7 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
 
 
 class MainWindowParSeq(qt.QMainWindow):
+    intervalCPU = 1000
     beforeTransformSignal = qt.pyqtSignal(qt.QWidget)
     afterTransformSignal = qt.pyqtSignal(qt.QWidget)
     beforeDataTransformSignal = qt.pyqtSignal(list)
@@ -163,9 +165,19 @@ class MainWindowParSeq(qt.QMainWindow):
 #        self.statusBar.setStyleSheet("QStatusBar {min-height: 20;}")
 
         self.statusBarLeft = qt.QLabel("ready")
+        self.statusBarCenter = qt.QLabel("")
+        self.statusBarCenter.setToolTip("total number of data by categories")
+        self.statusBarSpacer = qt.QLabel(" ")
         self.statusBarRight = qt.QLabel("")
+        self.statusBarRight.setToolTip("memory and CPU usage")
         self.statusBar.addWidget(self.statusBarLeft)
+        self.statusBar.addPermanentWidget(self.statusBarCenter)
+        self.statusBar.addPermanentWidget(self.statusBarSpacer)
         self.statusBar.addPermanentWidget(self.statusBarRight)
+        self.timerCPU = qt.QTimer(self)
+        self.timerCPU.timeout.connect(self.updateCPU)
+        self.timerCPU.start(self.intervalCPU)
+        self.updateCPU()
 
         self.restore_perspective()
 
@@ -219,7 +231,7 @@ class MainWindowParSeq(qt.QMainWindow):
         self.redoAction.setMenu(redoMenu)
         menu = self.redoAction.menu()
         menu.aboutToShow.connect(partial(self.populateRedoMenu, menu))
-        self.setEnableUredoRedo()
+        self.setEnableUndoRedo()
 
         infoAction = qt.QAction(
             qt.QIcon(osp.join(self.iconDir, "icon-info.png")),
@@ -405,7 +417,7 @@ class MainWindowParSeq(qt.QMainWindow):
         sCreated = '{0} created'.format(cCreated) if cCreated else ''
         sCombined = '{0} combined'.format(cCombined) if cCombined else ''
         ss = [s for s in (sLoaded, sBranched, sCreated, sCombined) if s]
-        self.statusBarRight.setText(', '.join(ss))
+        self.statusBarCenter.setText(', '.join(ss))
 
     def nodeChanged(self, node, visible):
         if visible:
@@ -418,10 +430,31 @@ class MainWindowParSeq(qt.QMainWindow):
         # menu = self.sender()
         for action in menu.actions()[menu.nHeaderActions:]:
             menu.removeAction(action)
+        icon = qt.QIcon(osp.join(self.iconDir, "icon-undo.png"))
         for ientry, entry in reversed(list(enumerate(csi.undo))):
+            subAction = qt.QWidgetAction(self)
             text = gur.getStrRepr(entry)
-            subAction = qt.QAction(qt.QIcon(osp.join(
-                self.iconDir, "icon-undo.png")), text, self)
+
+            menuWidget = qt.QWidget(self)
+            menuWidget.setStyleSheet(
+                "QWidget:hover{background-color: #edd400;}")
+            labelIcon = qt.QLabel(menuWidget)
+            labelIcon.setPixmap(icon.pixmap(ICON_SIZE//2, ICON_SIZE//2))
+            labelText = qt.QLabel(text, menuWidget)
+            labelText.setAttribute(qt.Qt.WA_TranslucentBackground)
+            labelText.setAttribute(qt.Qt.WA_TransparentForMouseEvents)
+            closeButton = gco.CloseButton(menuWidget)
+            closeButton.clicked.connect(
+                partial(self._removeFromUndo, ientry, subAction))
+
+            wlayout = qt.QHBoxLayout()
+            wlayout.setContentsMargins(2, 2, 2, 2)
+            wlayout.addWidget(labelIcon)
+            wlayout.addWidget(labelText, 1)
+            wlayout.addWidget(closeButton)
+            menuWidget.setLayout(wlayout)
+            subAction.setDefaultWidget(menuWidget)
+
             subAction.triggered.connect(partial(self.slotUndo, ientry))
             menu.addAction(subAction)
 
@@ -429,12 +462,45 @@ class MainWindowParSeq(qt.QMainWindow):
         # menu = self.sender()
         for action in menu.actions():
             menu.removeAction(action)
+        icon = qt.QIcon(osp.join(self.iconDir, "icon-redo.png"))
         for ientry, entry in reversed(list(enumerate(csi.redo))):
+            subAction = qt.QWidgetAction(self)
             text = gur.getStrRepr(entry)
-            subAction = qt.QAction(qt.QIcon(osp.join(
-                self.iconDir, "icon-redo.png")), text, self)
+
+            menuWidget = qt.QWidget(self)
+            menuWidget.setStyleSheet(
+                "QWidget:hover{background-color: #99b00b;}")
+            labelIcon = qt.QLabel(menuWidget)
+            labelIcon.setPixmap(icon.pixmap(ICON_SIZE//2, ICON_SIZE//2))
+            labelText = qt.QLabel(text, menuWidget)
+            labelText.setAttribute(qt.Qt.WA_TranslucentBackground)
+            labelText.setAttribute(qt.Qt.WA_TransparentForMouseEvents)
+            closeButton = gco.CloseButton(menuWidget)
+            closeButton.clicked.connect(
+                partial(self._removeFromRedo, ientry, subAction))
+
+            wlayout = qt.QHBoxLayout()
+            wlayout.setContentsMargins(2, 2, 2, 2)
+            wlayout.addWidget(labelIcon)
+            wlayout.addWidget(labelText, 1)
+            wlayout.addWidget(closeButton)
+            menuWidget.setLayout(wlayout)
+            subAction.setDefaultWidget(menuWidget)
+
             subAction.triggered.connect(partial(self.slotRedo, ientry))
             menu.addAction(subAction)
+
+    def _removeFromUndo(self, ind, subAction):
+        del csi.undo[ind]
+        menu = self.undoAction.menu()
+        menu.removeAction(subAction)
+        self.setEnableUndoRedo()
+
+    def _removeFromRedo(self, ind, subAction):
+        del csi.redo[ind]
+        menu = self.redoAction.menu()
+        menu.removeAction(subAction)
+        self.setEnableUndoRedo()
 
     def slotUndo(self, ind):
         gur.upplyUndo(ind)
@@ -442,7 +508,7 @@ class MainWindowParSeq(qt.QMainWindow):
     def slotRedo(self, ind):
         gur.upplyRedo(ind)
 
-    def setEnableUredoRedo(self):
+    def setEnableUndoRedo(self):
         self.undoAction.setEnabled(len(csi.undo) > 0)
         self.redoAction.setEnabled(len(csi.redo) > 0)
 
@@ -499,6 +565,7 @@ class MainWindowParSeq(qt.QMainWindow):
         config.put(config.configLoad, 'Project', csi.pipelineName, fname)
 
     def closeEvent(self, event):
+        self.timerCPU.stop()
         self.save_perspective()
         if len(csi.selectedItems) > 0:
             csi.selectedItems[0].save_transform_params()
@@ -512,13 +579,16 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def updateItemView(self, state, items):
         if state == 1:
-            for item in items:
-                ind = csi.model.indexFromItem(item)
-                # nodes = [csi.currentNode]
-                nodes = csi.nodes.values()
-                for node in nodes:
-                    node.widget.tree.model().dataChanged.emit(ind, ind)
-                node.widget.tree.update()
+            try:
+                for item in items:
+                    ind = csi.model.indexFromItem(item)
+                    # nodes = [csi.currentNode]
+                    nodes = csi.nodes.values()
+                    for node in nodes:
+                        node.widget.tree.model().dataChanged.emit(ind, ind)
+                    node.widget.tree.update()
+            except TypeError:  # when an item is removed during transformation
+                pass
 
     def updateTabStatus(self, state, nodeWidget):
         if self.tabWiget is None:
@@ -561,6 +631,10 @@ class MainWindowParSeq(qt.QMainWindow):
             self.statusBarLeft.setText(ss.format(duration*factor, unit))
         else:
             self.statusBarLeft.setText(txt)
+
+    def updateCPU(self):
+        res = psutil.virtual_memory().percent, psutil.cpu_percent()
+        self.statusBarRight.setText('mem {0:.0f}%   CPU {1:.0f}%'.format(*res))
 
     def save_perspective(self, configObject=config.configGUI):
         floating = [dock.isFloating() for dock, _, _ in self.docks.values()]

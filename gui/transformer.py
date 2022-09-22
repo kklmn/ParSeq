@@ -27,5 +27,6 @@ class Transformer(qt.QObject):
         self.thread().terminate()
         self.timeEnd = time.time()
         self.timeDuration = self.timeEnd - self.timeStart
+        self.dataItems = None  # remove the reference to data
         self.ready.emit(self.starter, self.transform.name, self.timeDuration,
                         errorItems)

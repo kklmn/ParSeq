@@ -928,6 +928,8 @@ class NodeWidget(qt.QWidget):
         self.metadata.setText(cs)
 
     def updateTransforms(self):
+        if len(csi.selectedItems) < 1:
+            return
         dataType = csi.selectedItems[0].dataType
         for data in csi.selectedItems:
             if dataType != data.dataType:

@@ -29,7 +29,7 @@ Main features
    multiply selected data and (b) applying a specific parameter or a group of
    parameters to a later selected subset of data.
 
--  Undo and redo for all treatment steps.
+-  Undo and redo for most of treatment steps.
 
 -  Entering into the analysis pipeline at any node, not only at the head of the
    pipeline.
@@ -74,16 +74,18 @@ How to use
 ----------
 
 Either install ParSeq and a ParSeq pipeline application by their installers to
-the standard location or put them to any folder and start the `*_start.py` file
+the standard location or put them to any folder, rename them to their package
+names (`parseq` and e.g. `parseq_XES_scan`) and start the `*_start.py` file
 of the pipeline. You can try it with `--test` to load test data and/or
-`--noGUI` but an assumed pattern is to load a project file; use the test
-project file located at `parseq_XES_scan/saved/NbO2.pspj`.
+`--noGUI` to run the pipeline fully in the terminal and plot only the end
+results but an assumed pattern is to load a project file; use the test project
+file located at `parseq_XES_scan/saved/NbO2.pspj`.
 
 """
 
 setup(
     name='parseq',
-    version='0.6.10',
+    version='0.7.0',
     description='ParSeq is a python software library for Parallel execution of'
                 ' Sequential data analysis.',
     long_description=long_description,
@@ -106,7 +108,7 @@ setup(
         'parseq.gui': ['_images/*.*']},
     install_requires=['numpy>=1.8.0', 'scipy>=0.17.0', 'matplotlib>=2.0.0',
                       'sphinx>=1.6.2', 'autopep8', 'h5py', 'silx',
-                      'hdf5plugin'],
+                      'hdf5plugin', 'psutil'],
     classifiers=['Development Status :: 3 - Alpha',
                  'Intended Audience :: Science/Research',
                  'Natural Language :: English',

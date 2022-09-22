@@ -35,7 +35,7 @@ def upplyUndo(ind):
         pass
     else:
         csi.redo.append(lastEntry)
-    csi.mainWindow.setEnableUredoRedo()
+    csi.mainWindow.setEnableUndoRedo()
     if hasattr(lastEntry[0], 'undoProps'):  # lastEntry[0] is PropWidget
         lastEntry[0].undoProps(lastEntry)
     elif isinstance(lastEntry[0], list):
@@ -54,7 +54,7 @@ def upplyRedo(ind):
     else:
         lastEntry = csi.redo.pop()
     csi.undo.append(lastEntry)
-    csi.mainWindow.setEnableUredoRedo()
+    csi.mainWindow.setEnableUndoRedo()
     if hasattr(lastEntry[0], 'redoProps'):  # lastEntry[0] is PropWidget
         lastEntry[0].redoProps(lastEntry)
     elif isinstance(lastEntry[0], csp.Spectrum):
@@ -75,11 +75,13 @@ def getStrRepr(entry):
         elif len(params) > 1:
             return '{0} to {1}'.format(strChange, combinedNames)
     elif isinstance(entry[0], list):
+        warn = ', <span style="color:red;"> still in memory, ' + \
+            'use the cross ➜ to free up memory </span>'
         if isinstance(entry[0][0], csp.Spectrum):
-            spectra, parents, rows, strChange = entry
+            spectra, struct, strChange = entry
             selNames = [it.alias for it in spectra]
             combinedNames = cco.combine_names(selNames)
-            return '{0} {1}'.format(strChange, combinedNames)
+            return '{0} {1} {2}'.format(strChange, combinedNames, warn)
 
 
 def pushTransformToUndo(propWidget, dataItems, params, values, strChange=''):
@@ -121,10 +123,13 @@ def pushTransformToUndo(propWidget, dataItems, params, values, strChange=''):
     if len(items) > 0 and hasattr(csi.mainWindow, 'undoAction'):  # has changed
         csi.undo.append(
             [propWidget, items, params, prevValues, values, strChange])
-        csi.mainWindow.setEnableUredoRedo()
+        csi.mainWindow.setEnableUndoRedo()
 
 
-def pushDataToUndo(data, parents, rows, strChange=''):
+def pushDataToUndo(data, struct, strChange=''):
+    """
+    struct = [(d.parentItem, d.childItems.copy(), d.row()) for d in data]
+    """
     if len(data) > 0 and hasattr(csi.mainWindow, 'undoAction'):
-        csi.undo.append([data, parents, rows, strChange])
-        csi.mainWindow.setEnableUredoRedo()
+        csi.undo.append([data, struct, strChange])
+        csi.mainWindow.setEnableUndoRedo()

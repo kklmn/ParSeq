@@ -20,6 +20,7 @@ core.singletons.selectedTopItems lists.
 """
 # !!! SEE CODERULES.TXT !!!
 
+import sys
 from functools import partial
 import pickle
 
@@ -168,6 +169,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             return
         if item.parentItem is csi.dataRootItem:
             return
+
         # make group (un)checked if all group items are (un)checked:
         siblingsEqual = False
         for itemSib in item.parentItem.childItems:
@@ -239,13 +241,25 @@ class DataTreeModel(qt.QAbstractItemModel):
             csi.selectionModel.select(index, mode)
         return items
 
+    def _removeFromGlobalLists(self, item):
+        for ll in (csi.selectedItems, csi.selectedTopItems,
+                   csi.recentlyLoadedItems, csi.allLoadedItems):
+            if item in ll:
+                ll.remove(item)
+
     def removeData(self, data):
-        gur.pushDataToUndo(
-            data.copy(), [it.parentItem for it in data],
-            [it.row() for it in data], strChange='remove')
+        struct = [(d.parentItem, d.childItems.copy(), d.row()) for d in data]
+        gur.pushDataToUndo(data.copy(), struct, strChange='remove')
         self.beginResetModel()
         for item in reversed(data):
-            item.delete()
+            item.removeFromParent()
+            self._removeFromGlobalLists(item)
+
+            # subs = item.get_items(True)
+            subs = item.childItems
+            for subItem in reversed(subs):
+                subItem.removeFromParent()
+                self._removeFromGlobalLists(subItem)
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
         self.needReplot.emit()
@@ -254,12 +268,14 @@ class DataTreeModel(qt.QAbstractItemModel):
         if undoEntry[-1] != 'remove':
             return
         self.beginResetModel()
-        for data, parentItem, row in zip(*undoEntry[0:3]):
+        data, struct = undoEntry[0:2]
+        for item, (parentItem, childItems, row) in zip(data, struct):
+            item.childItems = childItems
             if parentItem is not csi.dataRootItem and parentItem.row() is None:
-                csi.dataRootItem.childItems.append(data)
-                data.parentItem = csi.dataRootItem
+                csi.dataRootItem.childItems.append(item)
+                item.parentItem = csi.dataRootItem
             else:
-                parentItem.childItems.insert(row, data)
+                parentItem.childItems.insert(row, item)
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
         self.needReplot.emit()
@@ -281,14 +297,14 @@ class DataTreeModel(qt.QAbstractItemModel):
             item.parentItem = parentItem.parentItem
             del siblings[row]
             if parentItem.child_count() == 0:
-                parentItem.delete()
+                parentItem.removeFromParent()
         elif (siblings[row-to].child_count() > 0):
             insertAt = len(siblings[row-to].childItems) if to == +1 else 0
             siblings[row-to].childItems.insert(insertAt, item)
             item.parentItem = siblings[row-to]
             del siblings[row]
             if parentItem.child_count() == 0:
-                parentItem.delete()
+                parentItem.removeFromParent()
         else:
             siblings[row-to], siblings[row] = siblings[row], siblings[row-to]
         self.endResetModel()
@@ -314,7 +330,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             item.parentItem = group
             del parentItem.childItems[row]
             if parentItem.child_count() == 0:
-                parentItem.delete()
+                parentItem.removeFromParent()
         self.endResetModel()
         if hasattr(group.parentItem, 'colorAutoUpdate'):
             group.colorAutoUpdate = group.parentItem.colorAutoUpdate
@@ -398,7 +414,7 @@ class DataTreeModel(qt.QAbstractItemModel):
                     item.parentItem = newParentItem
                     del oldParentItem.childItems[oldRow]
                     if oldParentItem.child_count() == 0:
-                        oldParentItem.delete()
+                        oldParentItem.removeFromParent()
             self.endResetModel()
             for parent in parents:
                 parent.init_colors()
@@ -895,7 +911,8 @@ class DataTreeView(qt.QTreeView):
             "Make group", self.groupItems, "Ctrl+G")
         self.actionUngroup = self._addAction("Ungroup", self.ungroup, "Ctrl+U")
 
-        self.actionRemove = self._addAction("Remove", self.deleteItems, "Del")
+        self.actionRemove = self._addAction(
+            "Remove", self.removeItemsView, "Del")
 
         self.actionCopyError = self._addAction(
             "Copy error traceback", self.copyError, "Ctrl+C")
@@ -1058,7 +1075,7 @@ class DataTreeView(qt.QTreeView):
             index = csi.model.createIndex(row, 0, item)
             csi.selectionModel.select(index, mode)
 
-    def deleteItems(self):
+    def removeItemsView(self):
         msg = qt.QMessageBox()
         msg.setIcon(qt.QMessageBox.Question)
         nd = len(csi.selectedTopItems)
@@ -1069,18 +1086,27 @@ class DataTreeView(qt.QTreeView):
             qt.QMessageBox.Yes | qt.QMessageBox.No, qt.QMessageBox.Yes)
         if res == qt.QMessageBox.No:
             return
+
         prevRow = csi.selectedTopItems[0].row()
         prevParentItem = csi.selectedTopItems[0].parentItem
+        # toRemove = csi.selectedTopItems.copy()
         csi.model.removeData(csi.selectedTopItems)
+
+        # # to check that the removed items have gone:
+        # import objgraph
+        # for item in toRemove:
+        #     objgraph.show_backrefs(
+        #         item,
+        #         filename='graph-{0}.png'.format(item.alias).replace('/', ''))
+
         csi.selectionModel.clear()
         if csi.model.rowCount() == 0:
-            csi.selectedItems[:] = []
-            csi.selectedTopItems[:] = []
             if csi.mainWindow is not None:
                 csi.mainWindow.selChanged()
             if csi.DEBUG_LEVEL > 0:
                 self.setWindowTitle('')
             return
+
         # select same row:
         try:
             prevRow = min(prevRow, len(prevParentItem.childItems)-1)

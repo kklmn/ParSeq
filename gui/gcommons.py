@@ -81,6 +81,46 @@ class MultiLineEditDelegate(qt.QStyledItemDelegate):
     #                        option.rect.width(), option.rect.height()-10)
 
 
+class RichTextPushButton(qt.QPushButton):
+    def __init__(self, text, parent):
+        super().__init__(parent)
+        self.__lbl = qt.QLabel(self)
+        self.lbl = self.__lbl
+        self.__lbl.setText(text)
+        self.__lyt = qt.QHBoxLayout()
+        self.__lyt.setContentsMargins(4, 0, 0, 0)
+        self.__lyt.setSpacing(0)
+        self.setLayout(self.__lyt)
+        # self.__lbl.setAttribute(qt.Qt.WA_TranslucentBackground)
+        self.__lbl.setAttribute(qt.Qt.WA_TransparentForMouseEvents)
+        self.__lbl.setSizePolicy(qt.QSizePolicy.Expanding,
+                                 qt.QSizePolicy.Expanding)
+        self.__lbl.setTextFormat(qt.Qt.RichText)
+        self.__lyt.addWidget(self.__lbl)
+        return
+
+    def setText(self, text):
+        self.__lbl.setText(text)
+        self.updateGeometry()
+        return
+
+    def sizeHint(self):
+        s = qt.QPushButton.sizeHint(self)
+        w = self.__lbl.sizeHint()
+        s.setWidth(w.width())
+        s.setHeight(w.height())
+        return s
+
+
+class CloseButton(qt.QToolButton):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setFixedSize(16, 16)
+        self.setIcon(icons.getQIcon('remove'))
+        self.setStyleSheet("QToolButton{border-radius: 8px;}"
+                           "QToolButton:hover{background-color: #ffe0e6;}")
+
+
 class StrLabelWithCloseButton(qt.QFrame):
     delete = qt.pyqtSignal(str)
 
@@ -93,14 +133,9 @@ class StrLabelWithCloseButton(qt.QFrame):
         txtLabel.setFixedSize(bbox.width()+8, bbox.height()+2)
         txtLabel.setStyleSheet("QLabel{border-radius: 4px;}")
 
-        closeButton = qt.QToolButton()
-        closeButton.setFixedSize(16, 16)
-        closeButton.setIcon(icons.getQIcon('remove'))
+        closeButton = CloseButton(self)
         closeButton.setToolTip("remove this text field")
         closeButton.clicked.connect(self.__close)
-        closeButton.setStyleSheet(
-            "QToolButton{border-radius: 8px;}"
-            "QToolButton:hover{background-color: #ffe0e6;}")
 
         layout = qt.QHBoxLayout()
         layout.setContentsMargins(4, 0, 2, 1)
@@ -135,14 +170,9 @@ class IntButtonWithCloseButton(qt.QFrame):
             "QPushButton{border-radius: 4px;}" +
             "QPushButton:hover{{background-color: {0};}}".format(COLOR_ROI))
 
-        closeButton = qt.QToolButton()
-        closeButton.setFixedSize(16, 16)
-        closeButton.setIcon(icons.getQIcon('remove'))
+        closeButton = CloseButton(self)
         closeButton.setToolTip("remove this key frame")
         closeButton.clicked.connect(self.__close)
-        closeButton.setStyleSheet(
-            "QToolButton{border-radius: 8px;}"
-            "QToolButton:hover{background-color: #ffe0e6;}")
 
         layout = qt.QHBoxLayout()
         layout.setContentsMargins(2, 0, 2, 0)

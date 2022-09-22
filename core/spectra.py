@@ -99,7 +99,7 @@ class TreeItem(object):
                     return self.error
                 elif isinstance(self.madeOf, (type(""), dict, tuple, list)):
                     if isinstance(self.madeOf, type("")):
-                        res = self.madeOf
+                        res = str(self.madeOf)
                     elif isinstance(self.madeOf, (tuple, list)):
                         what = self.dataFormat['combine']
                         if type(self.madeOf[0]) is str:
@@ -287,11 +287,9 @@ class TreeItem(object):
             if i is None:
                 return False
 
-    def delete(self):
+    def removeFromParent(self):
         try:
             self.parentItem.childItems.remove(self)
-            if self.parentItem.child_count() == 0:
-                self.parentItem.delete()
         except (AttributeError, ValueError):
             pass
 
@@ -1303,7 +1301,7 @@ class Spectrum(TreeItem):
                 self.branch.colorAutoUpdate = \
                     self.branch.parentItem.colorAutoUpdate
         while self.branch.child_count() > nbrunch:
-            self.branch.childItems[-1].delete()
+            self.branch.childItems[-1].removeFromParent()
         while self.branch.child_count() < nbrunch:
             kw = dict(
                 alias='{0}_{1}{2}'.format(self.alias, label,
