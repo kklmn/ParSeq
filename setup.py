@@ -125,8 +125,10 @@ setup(
                  'Intended Audience :: Science/Research',
                  'Natural Language :: English',
                  'Operating System :: OS Independent',
-                 'Programming Language :: Python :: 3',
+                 'Programming Language :: Python',
                  'License :: OSI Approved :: MIT License',
                  'Intended Audience :: Science/Research',
-                 'Topic :: Graphical User Interface']
+                 'Topic :: Scientific/Engineering',
+                 'Topic :: Software Development',
+                 'Topic :: Software Development :: User Interfaces']
     )
