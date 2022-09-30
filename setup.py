@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup
 
-# get it from parseq/help/top.rst
+# get it from parseq/help/top.rst, change imagezoom:: to image::
 long_description = r"""
 ParSeq
 ======
@@ -18,7 +18,7 @@ ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
 
 A screenshot of a scanning XES analysis pipeline as an application example:
 
-.. imagezoom:: _images/node1.png
+.. image:: _images/node1.png
    :scale: 50 %
 
 Main features
