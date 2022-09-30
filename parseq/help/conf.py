@@ -17,78 +17,15 @@ if on_rtd:
         def __getattr__(cls, name):
             return MagicMock()
 
-    MOCK_MODULES = ['pyopencl',
-                    # 'PyQt5', 'PyQt5.QtCore', 'PyQt5.QtGui', 'PyQt5.QtWidgets',
-                    # 'PyQt5.QtWebEngineWidgets',
-                    'silx', 'silx.gui', 'silx.io', 'numpy',
-                    ]
+    MOCK_MODULES = [
+        # 'pyopencl',
+        # 'PyQt5', 'PyQt5.QtCore', 'PyQt5.QtGui', 'PyQt5.QtWidgets',
+        # 'PyQt5.QtWebEngineWidgets',
+        'silx', 'silx.gui', 'silx.io', 'numpy',
+        ]
     sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 __fdir__ = os.path.dirname(os.path.abspath(__file__))
-
-
-def execute_shell_command(cmd, repo_dir):
-    """Executes a shell command in a subprocess, waiting until it has completed.
-
-    :param cmd: Command to execute.
-    :param work_dir: Working directory path.
-    """
-    pipe = subprocess.Popen(cmd, shell=True, cwd=repo_dir,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out, error) = pipe.communicate()
-    print(out, error)
-    pipe.wait()
-
-
-def git_clone(repo_url, repo_dir):
-    cmd = 'git clone --depth 1 -b master ' + repo_url + ' ' + repo_dir
-    execute_shell_command(cmd, repo_dir)
-
-
-def onerror(func, path, exc_info):
-    """
-    Error handler for ``shutil.rmtree``.
-    https://stackoverflow.com/questions/2656322/
-        shutil-rmtree-fails-on-windows-with-access-is-denied
-
-    Usage : ``shutil.rmtree(path, onerror=onerror)``
-    """
-    import stat
-    if not os.access(path, os.W_OK):
-        # Is the error an access error ?
-        os.chmod(path, stat.S_IWUSR)
-        func(path)
-    else:
-        raise
-
-
-def load_res():
-    if os.path.exists(os.path.join(__fdir__, "_images")):
-        return  # already exists from the 1st run (rtfd has several runs)
-
-    repo_dir = os.path.join(__fdir__, "tmp")
-    while os.path.exists(repo_dir):
-        repo_dir += "t"
-    os.makedirs(repo_dir)
-
-    repo_url = "https://github.com/kklmn/ParSeq.git"
-    git_clone(repo_url, repo_dir)
-
-    for dd in ["_images", "_videos", "_static", "_templates", "_themes"]:
-        try:
-            shutil.move(os.path.join(repo_dir, "doc", dd), __fdir__)
-        except shutil.Error:
-            pass
-    for ff in os.listdir(os.path.join(repo_dir, "doc")):
-        # print(ff)
-        if ff == 'conf.py':
-            continue
-        try:
-            shutil.move(os.path.join(repo_dir, "doc", ff), __fdir__)
-        except shutil.Error:
-            pass
-
-    shutil.rmtree(repo_dir, onerror=onerror)
 
 
 # import Cloud
@@ -219,14 +156,7 @@ html_favicon = "_images/parseq.ico"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-if on_rtd:
-    # html_theme = 'default'
-    html_static_path = []
-    # for keeping Download ZIP smaller:
-    # load_res()  # load doc resources from a dedicated branch
-else:
-    # html_theme = 'nature'
-    html_static_path = ['_static']
+html_static_path = ['_static']
 html_theme_options["body_min_width"] = '96%'
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
