@@ -1,3 +1,3 @@
 .. _howto:
 
-.. automodule:: core
+.. automodule:: parseq.core
