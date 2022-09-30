@@ -84,5 +84,5 @@ results but an assumed pattern is to load a project ``.pspj`` file from GUI.
 Documentation
 -------------
 
-See the documentation at http://parseq.readthedocs.io 
+See the documentation inside ParSeq or at http://parseq.readthedocs.io 
 [![Documentation Status](https://readthedocs.org/projects/parseq/badge/?version=latest)](https://parseq.readthedocs.io/en/latest/?badge=latest)
