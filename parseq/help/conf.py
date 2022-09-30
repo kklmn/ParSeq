@@ -21,7 +21,7 @@ if on_rtd:
         # 'pyopencl',
         # 'PyQt5', 'PyQt5.QtCore', 'PyQt5.QtGui', 'PyQt5.QtWidgets',
         # 'PyQt5.QtWebEngineWidgets',
-        'silx', 'silx.gui', 'silx.io', 'numpy',
+        # 'silx', 'silx.gui', 'silx.io', 'numpy',
         ]
     sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
