@@ -223,7 +223,7 @@ if on_rtd:
     # html_theme = 'default'
     html_static_path = []
     # for keeping Download ZIP smaller:
-    load_res()  # load doc resources from a dedicated branch
+    # load_res()  # load doc resources from a dedicated branch
 else:
     # html_theme = 'nature'
     html_static_path = ['_static']
