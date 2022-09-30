@@ -2,12 +2,12 @@
 from setuptools import setup
 
 # get it from parseq/help/top.rst
-long_description = u"""
+long_description = r"""
 ParSeq
 ======
 
-Package ParSeq is a python software library for :underline:`Par`\ allel execution
-of :underline:`Seq`\ uential data analysis. It implements a general analysis
+Package ParSeq is a python software library for **Par**\ allel execution
+of **Seq**\ uential data analysis. It implements a general analysis
 framework with an adjustable data model (supports grouping, renaming, moving
 and drag-and-drop), plotters for 1D, 2D and 3D data, cross-data analysis
 routines and flexible widget work space suitable for single- and multi-screen
@@ -115,7 +115,8 @@ setup(
         'parseq': ['*.py', '*.md', 'CODERULES.txt', 'LICENSE',
                    'help/*.*', 'help/_images/*.*', 'help/_static/*.*',
                    'help/_templates/*.*', 'help/exts/*.*',
-                   'help/_themes/*/*.*', 'help/_themes/*/*/*.*'],
+                   'help/_themes/*/*.*', 'help/_themes/*/*/*.*',
+                   'tests/*.png'],
         'parseq.gui': ['_images/*.*']},
     install_requires=['numpy>=1.8.0', 'scipy>=0.17.0', 'matplotlib>=2.0.0',
                       'sphinx>=1.6.2', 'autopep8', 'h5py', 'silx',
