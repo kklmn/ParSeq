@@ -80,3 +80,7 @@ names (``parseq`` and e.g. ``parseq_XES_scan``) and start the ``*_start.py``
 file of the pipeline. You can try it with ``--test`` to load test data and/or
 ``--noGUI`` to run the pipeline fully in the terminal and plot only the end
 results but an assumed pattern is to load a project ``.pspj`` file from GUI.
+
+Documentation
+See the documentation at http://parseq.readthedocs.io 
+[![Documentation Status](https://readthedocs.org/projects/parseq/badge/?version=latest)](https://parseq.readthedocs.io/en/latest/?badge=latest)
