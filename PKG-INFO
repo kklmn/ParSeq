@@ -12,10 +12,12 @@ Classifier: Development Status :: 5 - Production/Stable
 Classifier: Intended Audience :: Science/Research
 Classifier: Natural Language :: English
 Classifier: Operating System :: OS Independent
-Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Intended Audience :: Science/Research
-Classifier: Topic :: Graphical User Interface
+Classifier: Topic :: Scientific/Engineering
+Classifier: Topic :: Software Development
+Classifier: Topic :: Software Development :: User Interfaces
 Description-Content-Type: text/x-rst
 License-File: LICENSE
 
