@@ -20,7 +20,7 @@ if on_rtd:
     MOCK_MODULES = ['pyopencl',
                     # 'PyQt5', 'PyQt5.QtCore', 'PyQt5.QtGui', 'PyQt5.QtWidgets',
                     # 'PyQt5.QtWebEngineWidgets',
-                    'numpy']
+                    ]
     sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 __fdir__ = os.path.dirname(os.path.abspath(__file__))
