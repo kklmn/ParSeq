@@ -22,27 +22,28 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu"
 
 CONFDIR = osp.join(osp.dirname(osp.dirname(osp.abspath(__file__))), 'help')
 GUIDIR = osp.dirname(osp.abspath(__file__))
+PARSEQDIR = osp.dirname(osp.abspath(GUIDIR))
+COREDIR = osp.join(PARSEQDIR, 'core')
+GLOBDIR = osp.dirname(osp.abspath(PARSEQDIR))
+
 DOCDIR = osp.expanduser(osp.join('~', '.parseq', 'doc'))
-
-try:
-    shutil.rmtree(DOCDIR)
-except FileNotFoundError:
-    pass
-shutil.copytree(osp.join(CONFDIR, '_images'), osp.join(DOCDIR, '_images'))
-for ico in ['1', '2', '3', 'n']:
-    fname = 'icon-item-{0}dim-32.png'.format(ico)
-    shutil.copy2(osp.join(GUIDIR, '_images', fname),
-                 osp.join(DOCDIR, '_images', fname))
-shutil.copytree(osp.join(CONFDIR, '_themes'), osp.join(DOCDIR, '_themes'))
-shutil.copy2(osp.join(CONFDIR, 'conf.py'), osp.join(DOCDIR, 'conf.py'))
-
-CSS_PATH = osp.join(DOCDIR, '_static')
-CSS_PATH = re.sub('\\\\', '/', CSS_PATH)
-JS_PATH = CSS_PATH
-shouldScaleMath = qt.BINDING == "PyQt4" and sys.platform == 'win32'
+HELPDIR = osp.expanduser(osp.join('~', '.parseq', 'help'))
+HELPFILE = osp.join(HELPDIR, '_build', 'index.html')
 
 
-def generate_context(name='', argspec='', note=''):
+def make_context(task, name='', argspec='', note=''):
+    if task == 'help':
+        BASEDIR = HELPDIR
+    elif task == 'docs':
+        BASEDIR = DOCDIR
+    else:
+        raise ValueError('unspecified task')
+
+    CSS_PATH = osp.join(BASEDIR, '_static')
+    CSS_PATH = re.sub('\\\\', '/', CSS_PATH)
+    JS_PATH = CSS_PATH
+    shouldScaleMath = qt.BINDING == "PyQt4" and sys.platform == 'win32'
+
     context = {'name': name,
                'argspec': argspec,
                'note': note,
@@ -52,13 +53,9 @@ def generate_context(name='', argspec='', note=''):
     return context
 
 
-def sphinxify(context):
-    """
-    Largely modified Spyder's sphinxify.
-    """
+def sphinxify(task, context, wantMessages=False):
     if csi.DEBUG_LEVEL > 20:
         print('enter sphinxify')
-    srcdir = osp.join(DOCDIR, '_sources')
 
     # Add a class to several characters on the argspec. This way we can
     # highlight them using css, in a similar way to what IPython does.
@@ -69,13 +66,28 @@ def sphinxify(context):
         argspec = argspec.replace(
             char, '<span class="argspec-highlight">' + char + '</span>')
     context['argspec'] = argspec
+    confoverrides = {'html_context': context}
 
-    confoverrides = {'html_context': context,
-                     'extensions': ['sphinx.ext.mathjax', ]}
+    if task == 'help':
+        srcdir = HELPDIR
+        confdir = HELPDIR
+        outdir = osp.join(HELPDIR, '_build')
+        doctreedir = osp.join(HELPDIR, 'doctrees')
+        confoverrides['extensions'] = [
+            'sphinx.ext.autodoc', 'sphinx.ext.mathjax', 'animation']
+    elif task == 'docs':
+        srcdir = osp.join(DOCDIR, '_sources')
+        confdir = DOCDIR
+        outdir = DOCDIR
+        doctreedir = osp.join(DOCDIR, 'doctrees')
+        confoverrides['extensions'] = ['sphinx.ext.mathjax']
+    else:
+        raise ValueError('unspecified task')
 
-    doctreedir = osp.join(DOCDIR, 'doctrees')
-    sphinx_app = Sphinx(srcdir, DOCDIR, DOCDIR, doctreedir, 'html',
-                        confoverrides, status=None, warning=None,
+    status, warning = [sys.stderr]*2 if wantMessages else [None]*2
+    # os.chdir(srcdir)
+    sphinx_app = Sphinx(srcdir, confdir, outdir, doctreedir, 'html',
+                        confoverrides, status=status, warning=warning,
                         freshenv=True, warningiserror=False, tags=None)
     try:
         sphinx_app.build()
@@ -174,9 +186,52 @@ except AttributeError:
 class SphinxWorker(qt.QObject):
     html_ready = qt.pyqtSignal()
 
-    def prepare(self, docs, docNames, docArgspec="", docNote="", img_path=""):
+    def prepareHelp(self, argspec="", note=""):
+        try:
+            shutil.rmtree(HELPDIR)
+        except FileNotFoundError:
+            pass
+        shutil.copytree(CONFDIR, HELPDIR)
+        # insert abs path to parseq into conf.py:
+        with open(osp.join(CONFDIR, 'conf.py'), 'r') as f:
+            data = f.read()
+        data = data.replace(
+            "sys.path.insert(0, '../..')",
+            "sys.path.insert(0, r'" + GLOBDIR + "')")
+        with open(osp.join(HELPDIR, 'conf.py'), 'w') as f:
+            f.write(data)
+
+        outdir = osp.join(HELPDIR, '_build')
+        if not osp.exists(outdir):
+            os.makedirs(outdir)
+        self.argspec = argspec
+        self.note = note
+
+    def prepareDocs(self, docs, docNames, argspec="", note=""):
+        try:
+            shutil.rmtree(DOCDIR)
+        except FileNotFoundError:
+            pass
+
+        # copy images
+        impath = osp.join(csi.appPath, 'doc', '_images')
+        if osp.exists(impath):
+            dst = osp.join(DOCDIR, '_images')
+            shutil.copytree(impath, dst, dirs_exist_ok=True)
+
+        shutil.copytree(osp.join(CONFDIR, '_images'),
+                        osp.join(DOCDIR, '_images'), dirs_exist_ok=True)
+        for ico in ['1', '2', '3', 'n']:
+            fname = 'icon-item-{0}dim-32.png'.format(ico)
+            shutil.copy2(osp.join(GUIDIR, '_images', fname),
+                         osp.join(DOCDIR, '_images', fname))
+        shutil.copytree(osp.join(CONFDIR, '_themes'),
+                        osp.join(DOCDIR, '_themes'))
+        shutil.copy2(osp.join(CONFDIR, 'conf_doc.py'),
+                     osp.join(DOCDIR, 'conf.py'))
+
         srcdir = osp.join(DOCDIR, '_sources')
-        if not os.path.exists(srcdir):
+        if not osp.exists(srcdir):
             os.makedirs(srcdir)
 
         for doc, docName in zip(docs, docNames):
@@ -193,15 +248,11 @@ class SphinxWorker(qt.QObject):
                 docName = docName.replace(' ', '_')
                 f.write("   {0}.rst\n".format(docName))
 
-        self.docArgspec = docArgspec
-        self.docNote = docNote
-        # self.img_path = img_path
+        self.argspec = argspec
+        self.note = note
 
-    def render(self):
-        cntx = generate_context(
-            name='',
-            argspec=self.docArgspec,
-            note=self.docNote)
-        sphinxify(cntx)
+    def render(self, task='docs'):
+        cnx = make_context(task, name='', argspec=self.argspec, note=self.note)
+        sphinxify(task, cnx)
         self.thread().terminate()
         self.html_ready.emit()

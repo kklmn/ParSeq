@@ -1,4 +1,20 @@
 # -*- coding: utf-8 -*-
+u"""
+Data model
+----------
+
+The ParSeq data model is a hierarchical tree model, where each element has zero
+or more children. If an element has zero children, it is called item and is a
+data container. If an element has at least one child, it is called group. All
+items and groups are instances of :class:`Spectrum`.
+
+The tree model can be manipulated in a script, and the following reference
+documentation explains how. Otherwise, most typically it is used within the
+ParSeq GUI, where the tree model feeds the `model-view-controller
+<https://doc.qt.io/qt-6/model-view-programming.html>`_ software architecture of
+Qt, where the user does not have to know about the underlying objects and
+methods. See :ref:`Notes on usage of GUI <notesgui>`.
+"""
 __author__ = "Konstantin Klementiev"
 __date__ = "30 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
@@ -63,14 +79,14 @@ class TreeItem(object):
         except ValueError:
             return
 
-    def _childItemsRepr(self):
+    def _child_items_repr(self):
         return '[' + ', '.join(repr(it) for it in self.childItems) + ']'
 
     def __repr__(self):
         if self.parentItem is None:
-            return self._childItemsRepr()
+            return self._child_items_repr()
         if self.childItems:
-            return "'{0}', {1}".format(self.alias, self._childItemsRepr())
+            return "'{0}', {1}".format(self.alias, self._child_items_repr())
         return "'" + self.alias + "'"
 
     def tooltip(self):
@@ -199,7 +215,7 @@ class TreeItem(object):
             if not hasattr(self, 'plotProps'):  # i.e. is a group
                 return len(self.get_items())
             node, key = csi.modelDataColumns[column-leadingColumns]
-            role = node.getProp(key, 'role')
+            role = node.get_prop(key, 'role')
             if role.startswith('0'):
                 try:
                     res = getattr(self, key)
@@ -207,7 +223,7 @@ class TreeItem(object):
                     return "---"
                 if res is None:
                     return "---"
-                formatStr = node.getProp(key, 'plotLabel')
+                formatStr = node.get_prop(key, 'plotLabel')
                 if '{' not in formatStr:
                     formatStr = '{0}'
                 return formatStr.format(res)
@@ -233,6 +249,8 @@ class TreeItem(object):
             item.isVisible = bool(value)
 
     def find_data_item(self, alias=None):
+        u"""Finds the first data item with a given alias. Returns None if
+        fails."""
         if alias is None:
             return
         for item in self.get_items():
@@ -243,6 +261,9 @@ class TreeItem(object):
         return csi.dataRootItem
 
     def get_items(self, alsoGroupHeads=False):
+        u"""Returns a list of all items in a given group, also included in all
+        subgroups."""
+
         items = []
         for item in self.childItems:
             if item.childItems:
@@ -287,7 +308,7 @@ class TreeItem(object):
             if i is None:
                 return False
 
-    def removeFromParent(self):
+    def remove_from_parent(self):
         try:
             self.parentItem.childItems.remove(self)
         except (AttributeError, ValueError):
@@ -296,7 +317,7 @@ class TreeItem(object):
     def insert_item(self, name, insertAt=None, **kwargs):
         return TreeItem(name, self, insertAt, **kwargs)
 
-    def insert_data(self, data, insertAt=None, isTop=True, **kwargs):
+    def insert_data(self, data, insertAt=None, **kwargs):
         items = []
         if hasattr(self, 'alias'):
             alias = self.alias
@@ -318,8 +339,7 @@ class TreeItem(object):
                 elif isinstance(subdata, (list, tuple)):
                     if si in items:
                         items.remove(si)
-                    subItems = si.insert_data(
-                        subdata, isTop=False, **kwargs)  # no insertAt
+                    subItems = si.insert_data(subdata, **kwargs)  # no insertAt
                 else:
                     raise ValueError(
                         "data in '{0}' must be a sequence or a string, not {1}"
@@ -373,9 +393,16 @@ class TreeItem(object):
 
 
 class Spectrum(TreeItem):
-    #  TODO describe configFieldsData and configFieldsGroup
-
-    """ bla """
+    u"""
+    This class is the main building block of the ParSeq data model and is
+    either a group that contains other instances of :class:`Spectrum` or an
+    item (data container). All elements, except the root, have a parent
+    referred to by `parentItem` field, and parents have their children in a
+    list `childItems`. Only the root item is explicitly created by the
+    constructor of :class:`Spectrum`, and this is done in the module that
+    defines the pipeline. All other tree elements are typically created by the
+    parent’s :meth:`insert_data` or :meth:`insert_item` methods.
+    """
 
     configFieldsData = (  # to parse ini file section of data
         'madeOf', 'madeOf_relative', 'dataFormat', 'dataFormat_relative',
@@ -389,55 +416,61 @@ class Spectrum(TreeItem):
          'colorPolicy', 'colorTag', 'colorAutoUpdate')
 
     def __init__(self, madeOf, parentItem=None, insertAt=None, **kwargs):
-        """This object implements either a group that containes other instances
-        of Spectrum or a data container.
+        u"""
+        *madeOf*
+            is either a file name, a callable, a list of other
+            :class:`Spectrum` instances (for making a combination) or a
+            dictionary (for creating branches).
 
-        *madeOf* is either a file name, a callable, a list of other Spectrum
-        instances (for making a combination) or a dictionary (for creating
-        branches).
+        *parentItem*
+            is another :class:`Spectrum` instance or None (for the tree root).
 
-        *insertAt* is the position in parentItem.childItems list. If None, the
-        spectrum is appended.
+        *insertAt*: int
+            the position in `parentItem.childItems` list. If None, the spectrum
+            is appended.
 
-        *kwargs* defaults to the dictionary: dict(alias='auto', dataFormat={},
-        originNodeName=None, terminalNodeName=None, transformNames='each',
-        copyTransformParams=True).
-        The default kwargs can be changed in `csi.dataRootItem.kwargs`, where
-        `csi.dataRootItem` is the root item of the data model that gets
-        instantiated in the definition of the pipeline.
+        *kwargs*: dict
+            defaults to the dictionary: dict(alias='auto', dataFormat={},
+            originNodeName=None, terminalNodeName=None, transformNames='each',
+            copyTransformParams=True). The default *kwargs* can be changed in
+            `parseq.core.singletons.dataRootItem.kwargs`, where `dataRootItem`
+            is the root item of the data model that gets instantiated in the
+            module that defines the pipeline.
 
-        *dataFormat* is assumed to be empty for a data group and non-empty for
-        a spectrum.
+            *dataFormat*: dict
+                is assumed to be an empty dict for a data group and must be
+                non-empty for a data item. As a minimum, it defines the key
+                `dataSource` and sets it to a list of hdf5 names (when for
+                hdf5 data), column numbers or expressions of 'Col1', 'Col2'
+                etc variables (when for column data). It may define
+                'conversionFactors' as a list of either floats or strings;
+                a float is a multiplicative factor that converts to the node's
+                array unit and a string is another unit that cannot be
+                converted to the node's array unit, e.g. the node defines an
+                array with a 'mA' unit while the data was measured with a
+                'count' unit. It may define 'metadata': a comma separated str
+                of hdf5 attribute names that define metadata.
 
-        *dataFormat*: dict
-        As a minimum, it defines the key 'dataSource' and sets it to a list of
-        hdf5 names (for the hdf5 data), column numbers or expressions of
-        'Col1', 'Col2' etc variables (for column data). It may define
-        'conversionFactors' as a list of either floats or strings; a foat is a
-        multiplicaive factor that converts to the node's array unit and a
-        string is another unit that cannot be converted to the node's array
-        unit, e.g. the node defines an array with a 'mA' unit while the data
-        was measured with a 'count' unit. It may define a comma separated str
-        of hdf5 attribute names that define metadata.
+            *originNodeName*, *terminalNodeName*: str
+                The data propagation is between origin node and terminal node,
+                both ends are included. If undefined, they default to the 0th
+                node (the head of the pipeline) and the open end(s). If a node
+                is between the origin node and the terminal node (in the data
+                propagation sense) then the data is present in the node's data
+                tree view as *alias* and is displayed in the plot.
 
-        The data propagation is between origin node and terminal node, both
-        ends are included. *originNodeName* and *terminalNodeName* (str)
-        are keys in the OrderedDict `core.singletons.nodes`. If undefined, they
-        default to the 0th node (the head of the pipeline) and the open end(s).
-        If a node is between the origin node and the terminal node (in the data
-        propagation sense) then the data is present in the node's data manager
-        as *alias* and is displayed in the plot.
+            *transformNames*
+                A list of transform names (or a single str 'each'). It defines
+                whether a particular transform should be run for this data.
 
-        *transformNames* is a list of transform names (or a single str 'each').
-        It defines whether a particular transform should be run for this data.
-
-        *copyTransformParams* bool, default True.
-        Controls the way the *transformParams* of the Spectrum are initialized:
-        If False, they are copied from *defaultParams* of all transforms. If
-        True, they are copied from the first selected spectrum when at least
-        one is selected or otherwise from the ini file.
-
+            *copyTransformParams*: bool, default True.
+                Controls the way the *transformParams* of the Spectrum are
+                initialized: If False, they are copied from *defaultParams* of
+                all transforms. If True, they are copied from the first
+                selected spectrum when at least one is selected or otherwise
+                from the ini file.
         """
+
         assert len(csi.nodes) > 0, "A data pipeline must be first created."
         self.madeOf = madeOf
         self.parentItem = parentItem
@@ -578,9 +611,9 @@ class Spectrum(TreeItem):
                 for ind, yName in enumerate(node.plotYArrays):
                     plotParams = {}
                     plotParams['yaxis'] = \
-                        'right' if node.getProp(yName, 'role').endswith(
+                        'right' if node.get_prop(yName, 'role').endswith(
                             'right') else 'left'
-                    nodePlotParams = node.getProp(yName, 'plotParams')
+                    nodePlotParams = node.get_prop(yName, 'plotParams')
                     for k, v in nodePlotParams.items():
                         if isinstance(v, (list, tuple)):
                             pv = v[ind]
@@ -594,7 +627,7 @@ class Spectrum(TreeItem):
         if column < leadingColumns:
             return cco.DATA_STATE_GOOD
         node, key = csi.modelDataColumns[column-leadingColumns]
-        role = node.getProp(key, 'role')
+        role = node.get_prop(key, 'role')
         if role.startswith('0'):
             return cco.DATA_STATE_GOOD
         return self.state[node.name]
@@ -717,7 +750,7 @@ class Spectrum(TreeItem):
             else:
                 stem = arrName
                 sl = '0'
-            checkName = toNode.getProp(stem, 'raw')
+            checkName = toNode.get_prop(stem, 'raw')
             arr = getattr(self, checkName)
             shape = arr.shape[eval(sl)]
             if iarr == 0:
@@ -727,7 +760,23 @@ class Spectrum(TreeItem):
                 return False
         return True
 
+    def insert_data(self, data, insertAt=None, **kwargs):
+        u"""This method inserts a tree-like structure *data* into the list of
+        children. An example of *data*:
+        :code:`data=["groupName", ["fName1.dat", "fName2.dat"]]` for a group
+        with two items in it. All other key word parameters lumped into
+        *kwargs* are the same as of :meth:`__init__`.
+        """
+        return super().insert_data(data, insertAt, **kwargs)
+
     def insert_item(self, name, insertAt=None, **kwargs):
+        u"""
+        This method inserts a data item *name* into the list of children. All
+        other key word parameters lumped into *kwargs* are the same as of
+        :meth:`__init__` and additionally *configData* that can pass an
+        instance `config.ConfigParser()` that contains a saved project.
+        """
+
         """This method searches for one or more sequences in the elements of
         `dataSource` list. If found, these sequences should be of an equal
         length and the same number of spectra will be added to the data model
@@ -916,9 +965,9 @@ class Spectrum(TreeItem):
                     if isinstance(txt, int):
                         arr = arrs[txt]
                     else:
-                        arr = self.interpretArrayFormula(txt, arrs)
+                        arr = self.interpret_array_formula(txt, arrs)
                 else:
-                    arr = self.interpretArrayFormula(txt)
+                    arr = self.interpret_array_formula(txt)
                     if sliceStr:
                         if 'axis' in sliceStr or 'sum' in sliceStr:  # sum axes
                             sumlst = sliceStr[sliceStr.find('=')+1:].split(',')
@@ -928,7 +977,7 @@ class Spectrum(TreeItem):
                                                for slc in sliceStr.split(','))
                             arr = arr[sliceTuple]
 
-                setName = toNode.getProp(aName, 'raw')
+                setName = toNode.get_prop(aName, 'raw')
                 try:
                     setattr(self, setName, arr)
                 except Exception:
@@ -966,7 +1015,7 @@ class Spectrum(TreeItem):
         config.put(config.configLoad, 'Data', toNode.name, toSave)
         config.write_configs((1, 0, 0))
 
-    def interpretArrayFormula(self, colStr, treeObj=None):
+    def interpret_array_formula(self, colStr, treeObj=None):
         try:
             # to expand string expressions
             colStr = str(eval(colStr))
@@ -1008,7 +1057,7 @@ class Spectrum(TreeItem):
         for aName, cFactor in zip(toNode.arrays, conversionFactors):
             if not cFactor or isinstance(cFactor, type("")):
                 continue
-            setName = toNode.getProp(aName, 'raw')
+            setName = toNode.get_prop(aName, 'raw')
             try:
                 arr = getattr(self, setName)
                 arr *= cFactor
@@ -1036,10 +1085,10 @@ class Spectrum(TreeItem):
             toNode = csi.nodes[self.originNodeName]
 
             # if no 'raw' present, returns arrayName itself:
-            dNames = toNode.getPropList('raw')
-            xNames = toNode.getPropList('raw', role='x') +\
-                toNode.getPropList('raw', role='0D')
-            dims = toNode.getPropList('ndim')
+            dNames = toNode.get_arrays_prop('raw')
+            xNames = toNode.get_arrays_prop('raw', role='x') +\
+                toNode.get_arrays_prop('raw', role='0D')
+            dims = toNode.get_arrays_prop('ndim')
 
             # check equal shape of data to combine:
             shapes = [None]*4
@@ -1060,7 +1109,7 @@ class Spectrum(TreeItem):
             # x and 0D as average over all contributing spectra:
             for arrayName in xNames:
                 sumx = 0
-                setName = toNode.getProp(arrayName, 'raw')
+                setName = toNode.get_prop(arrayName, 'raw')
                 for data in madeOf:
                     sumx += np.array(getattr(data, setName))
                 setattr(self, setName, sumx/ns)
@@ -1134,7 +1183,7 @@ class Spectrum(TreeItem):
             res = self.madeOf(self, **self.dataFormat)
             if res is not None:
                 for arrayName, arr in zip(toNode.arrays, res):
-                    setName = toNode.getProp(arrayName, 'raw')
+                    setName = toNode.get_prop(arrayName, 'raw')
                     setattr(self, setName, arr)
             self.state[toNode.name] = cco.DATA_STATE_GOOD
         except Exception as e:
@@ -1301,7 +1350,7 @@ class Spectrum(TreeItem):
                 self.branch.colorAutoUpdate = \
                     self.branch.parentItem.colorAutoUpdate
         while self.branch.child_count() > nbrunch:
-            self.branch.childItems[-1].removeFromParent()
+            self.branch.childItems[-1].remove_from_parent()
         while self.branch.child_count() < nbrunch:
             kw = dict(
                 alias='{0}_{1}{2}'.format(self.alias, label,

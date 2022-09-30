@@ -1,0 +1,15 @@
+{% extends "!layout.html" %}
+
+{% set css_files = css_files + ['_static/thumbnail.css'] %}
+
+{% set script_files = script_files + ["_static/animation.js"] %}
+
+{% block rootrellink %}
+       <li><a href="{{ pathto('index') }}">home</a>&nbsp|&nbsp;</li>
+       <li><a href="{{ pathto('search') }}">search</a>&nbsp|&nbsp;</li>
+{% endblock %}
+
+{% block sidebarlogo %}
+<a href="{{ pathto('index') }}">
+<img src="_static/parseq_big.png" border="0" width=80% alt="ParSeq logo"/></a>
+{% endblock %}

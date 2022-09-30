@@ -87,7 +87,7 @@ class AboutDialog(qt.QDialog):
         self.canLoadHTML = False
         self.sphinxWorker.html_ready.connect(self._on_sphinx_html_ready)
         rawTexts = [self.makeTextMain(), self.makeTextPipeline()]
-        self.sphinxWorker.prepare(rawTexts, self.tabNames)
+        self.sphinxWorker.prepareDocs(rawTexts, self.tabNames)
         self.sphinxThread.start()
 
     def _on_sphinx_html_ready(self):

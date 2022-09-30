@@ -1,8 +1,8 @@
 ParSeq
 ======
 
-Package ParSeq is a python software library for <ins>Par</ins>allel execution
-of <ins>Seq</ins>uential data analysis. It implements a general analysis
+Package ParSeq is a python software library for :underline:`Par`\ allel execution
+of :underline:`Seq`\ uential data analysis. It implements a general analysis
 framework with an adjustable data model (supports grouping, renaming, moving
 and drag-and-drop), plotters for 1D, 2D and 3D data, cross-data analysis
 routines and flexible widget work space suitable for single- and multi-screen
@@ -13,8 +13,8 @@ ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
 
 A screenshot of a scanning XES analysis pipeline as an application example:
 
-<p align="center">
-  <img src="help/_images/node1.png" width=1200 /></p>
+.. imagezoom:: _images/node1.png
+   :scale: 50 %
 
 Main features
 -------------
@@ -62,14 +62,14 @@ via scripts or GUI. The mechanisms for creating nodes and transformations,
 connecting them together and creating Qt widgets for the transformations are
 exemplified by separately installed analysis packages:
 
-- [ParSeq-XES-scan](https://github.com/kklmn/ParSeq-XES-scan)
-- [ParSeq-XES-dispersive](https://github.com/kklmn/ParSeq-XES-dispersive)
+- `ParSeq-XES-scan <https://github.com/kklmn/ParSeq-XES-scan>`_
+- `ParSeq-XES-dispersive <https://github.com/kklmn/ParSeq-XES-dispersive>`_
 
 Dependencies
 ------------
 
-- [silx](https://github.com/silx-kit/silx) -- is used for plotting and Qt imports.
-- [sphinx](https://github.com/sphinx-doc/sphinx) -- for building html documentation.
+- `silx <https://github.com/silx-kit/silx>`_ -- used for plotting and Qt imports.
+- `sphinx <https://github.com/sphinx-doc/sphinx>`_ -- for building html documentation.
 
 Launch an example
 -----------------
@@ -80,3 +80,9 @@ names (``parseq`` and e.g. ``parseq_XES_scan``) and start the ``*_start.py``
 file of the pipeline. You can try it with ``--test`` to load test data and/or
 ``--noGUI`` to run the pipeline fully in the terminal and plot only the end
 results but an assumed pattern is to load a project ``.pspj`` file from GUI.
+
+Hosting and contact
+-------------------
+
+The ParSeq project is hosted on `GitHub <https://github.com/kklmn/ParSeq>`_.
+Please use the project’s Issues tab to get help or report an issue.

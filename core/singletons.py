@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "29 Sep 2022"
 # !!! SEE CODERULES.TXT !!!
 
 from collections import deque, OrderedDict
@@ -13,6 +13,7 @@ undo = deque(maxlen=MAX_LEN_UNDO)
 redo = deque(maxlen=MAX_LEN_REDO)
 undoGrouping = True
 
+# defined by the app
 pipelineName = "must be defined by the app"
 appPath = "must be defined by the app"
 appIconPath = None
@@ -22,6 +23,7 @@ appDescription = None
 appAuthor = None
 appLicense = None
 appVersion = None
+# end defined by the app
 
 nodes = OrderedDict()
 transforms = OrderedDict()

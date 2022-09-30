@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-__author__ = "Konstantin Klementiev"
-__date__ = "27 Jul 2022"
 u"""
 The `files and containers` model is a file system model (qt.QFileSystemModel)
 extended by the hdf5 model from silx (silx.gui.hdf5.Hdf5TreeModel), so that
 hdf5 containers can be viewed in the same tree.
-
 """
+__author__ = "Konstantin Klementiev"
+__date__ = "27 Jul 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import os
@@ -528,9 +527,9 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         lres = []
         try:
             datas = df.get('dataSource', [])  # from dataEdits
-            slices = df.get('slices', ['' for ds in datas])  # from sliceEdits
+            slcs = df.get('slices', ['' for ds in datas])  # from sliceEdits
             for idata, (data, slc, nd) in enumerate(zip(
-                    datas, slices, self.transformNode.getPropList('ndim'))):
+                    datas, slcs, self.transformNode.get_arrays_prop('ndim'))):
                 if len(data) == 0:
                     return
                 colEval = self.interpretArrayFormula(data, nodeH5, 'h5')
@@ -1082,8 +1081,8 @@ class FileTreeView(qt.QTreeView):
                 strSumOf = 'of the sum '
 
             if len(arrayPaths) > 0 and self.transformNode:
-                yLbls = self.transformNode.getPropList('qLabel')
-                ndims = self.transformNode.getPropList('ndim')
+                yLbls = self.transformNode.get_arrays_prop('qLabel')
+                ndims = self.transformNode.get_arrays_prop('ndim')
                 for iLbl, (yLbl, ndim) in enumerate(zip(yLbls, ndims)):
                     if not shape:
                         continue

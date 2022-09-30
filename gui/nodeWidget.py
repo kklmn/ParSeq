@@ -286,8 +286,8 @@ class NodeWidget(qt.QWidget):
                 self.splitterPlot, **self.backend
                 )
         elif node.plotDimension == 1:
-            xLbl = node.getPropList('qLabel', role='x')[0]
-            yLbl = node.getPropList('qLabel', role='y')[0]
+            xLbl = node.get_arrays_prop('qLabel', role='x')[0]
+            yLbl = node.get_arrays_prop('qLabel', role='y')[0]
             self.plot = Plot1D(
                 self.splitterPlot,
                 position=[(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)],
@@ -441,14 +441,14 @@ class NodeWidget(qt.QWidget):
         node = self.node
         for label in labels:
             if label in node.arrays:
-                u = node.getProp(label, 'plotUnit')
+                u = node.get_prop(label, 'plotUnit')
                 if for3Dtitle:
                     space = '' if ('°' in u) or ('^o' in u) else ' '
-                    ll = node.getProp(label, 'plotLabel') + \
+                    ll = node.get_prop(label, 'plotLabel') + \
                         '[{0}] = {1:#.4g}' + space + u
                 else:
                     sU = u" ({0})".format(u) if u else ""
-                    ll = "{0}{1}".format(node.getProp(label, 'plotLabel'), sU)
+                    ll = "{0}{1}".format(node.get_prop(label, 'plotLabel'), sU)
                 res.append(ll)
             else:
                 if for3Dtitle:
@@ -465,7 +465,7 @@ class NodeWidget(qt.QWidget):
         if not self.shouldPlotItem(item):
             return ""
         node = self.node
-        labels = node.getProp(node.plot3DArray, 'plotLabel')
+        labels = node.get_prop(node.plot3DArray, 'plotLabel')
         axisLabels = self._makeAxisLabels(labels, True)
         title = axisLabels[self.plot._perspective]
         if '{1' in title:
@@ -494,21 +494,21 @@ class NodeWidget(qt.QWidget):
         node = self.node
         if node.plotDimension == 1:
             try:
-                unit = node.getPropList('plotUnit', role='x')[0]
+                unit = node.get_arrays_prop('plotUnit', role='x')[0]
                 strUnit = u" ({0})".format(unit) if unit else ""
             except AttributeError:
                 strUnit = ''
             self.plotXLabel = u"{0}{1}".format(
-                node.getProp(node.plotXArray, 'plotLabel'), strUnit)
+                node.get_prop(node.plotXArray, 'plotLabel'), strUnit)
             self.plot.setGraphXLabel(label=self.plotXLabel)
         elif node.plotDimension == 2:
-            labels = node.getProp(node.plot2DArray, 'plotLabel')
+            labels = node.get_prop(node.plot2DArray, 'plotLabel')
             axisLabels = self._makeAxisLabels(labels)
             self.plot.getXAxis().setLabel(axisLabels[0])
             self.plot.getYAxis().setLabel(axisLabels[1])
         elif node.plotDimension == 3:
             self.plot.setColormap(COLORMAP)
-            labels = node.getProp(node.plot3DArray, 'plotLabel')
+            labels = node.get_prop(node.plot3DArray, 'plotLabel')
             axisLabels = self._makeAxisLabels(labels)
             self.plot.setLabels(axisLabels)
 
@@ -596,8 +596,8 @@ class NodeWidget(qt.QWidget):
         if keepExtent:
             self._storePlotState()
         # self.plot.clear()
-        # yUnits = node.getPropList('plotUnit', keys=yNames)
-        # yLabels = node.getPropList('plotLabel', keys=yNames)
+        # yUnits = node.get_arrays_prop('plotUnit', yNames)
+        # yLabels = node.get_arrays_prop('plotLabel', yNames)
 
         if node.plotDimension == 1:
             self.plot.clearCurves()
@@ -657,7 +657,7 @@ class NodeWidget(qt.QWidget):
                             if cN not in leftAxisUnits:
                                 leftAxisUnits.append(cN)
                         else:
-                            unit = node.getProp(yN, 'plotUnit')
+                            unit = node.get_prop(yN, 'plotUnit')
                             if unit:
                                 if unit not in leftAxisUnits:
                                     leftAxisUnits.append(unit)
@@ -668,7 +668,7 @@ class NodeWidget(qt.QWidget):
                             if cN not in rightAxisUnits:
                                 rightAxisUnits.append(cN)
                         else:
-                            unit = node.getProp(yN, 'plotUnit')
+                            unit = node.get_prop(yN, 'plotUnit')
                             if unit:
                                 if unit not in rightAxisUnits:
                                     rightAxisUnits.append(unit)
@@ -759,7 +759,7 @@ class NodeWidget(qt.QWidget):
     def _makeYLabel(self, yNames, yUnits):
         if not yNames:
             return ""
-        yLabels = self.node.getPropList('plotLabel', keys=yNames)
+        yLabels = self.node.get_arrays_prop('plotLabel', yNames)
         axisLabel = ", ".join(yLabels)
         axisUnit = ", ".join(yUnits)
         if len(axisUnit) > 0:

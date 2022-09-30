@@ -25,10 +25,10 @@ def _test():
 
     node = Node1()
     print(node.plotXArray, node.plotYArrays)
-    print(node.getProp('e', 'role'))
-    print(node.getPropList('qLabel'))
-    print(node.getPropList('qLabel', role='x')[0])
-    print(node.getPropList('qLabel', role='y'))
+    print(node.get_prop('e', 'role'))
+    print(node.get_arrays_prop('qLabel'))
+    print(node.get_arrays_prop('qLabel', role='x')[0])
+    print(node.get_arrays_prop('qLabel', role='y'))
 
 
 if __name__ == '__main__':

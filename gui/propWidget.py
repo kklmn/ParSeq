@@ -1,4 +1,22 @@
 # -*- coding: utf-8 -*-
+u"""
+User transformation widgets
+---------------------------
+
+If the data pipeline is supposed to take user actions from GUI, each
+transformation node should have a dedicated Qt widget that sets relevant
+transformation parameters. ParSeq offers the base class :class:`PropWidget`
+that reduces the task of creating a widget down to instantiating Qt control
+elements, putting them in a Qt layout and registering them. The docstrings of
+the user widget class will be built by ParSeq using Sphinx documentation system
+into an html file that will be displayed under the corresponding widget window
+or in a web browser.
+
+User transformation widgets can profit from using `silx library
+<https://www.silx.org/>`_, as ParSeq already uses it heavily. It has many
+widgets that are internally integrated to plotting e.g. ROIs. A good first
+point of interaction with silx is its collection of examples.
+"""
 __author__ = "Konstantin Klementiev"
 __date__ = "23 Jul 2021"
 # !!! SEE CODERULES.TXT !!!
@@ -45,7 +63,20 @@ def stepByWithUpdate(self, oldStepBy, parent, key, steps):
 
 
 class PropWidget(qt.QWidget):
+    u"""The base class for user transformation widgets and a few internal
+    ParSeq widgets. The main idea of this class is to automatize a number of
+    tasks: setting GUI from data, changing transformation parameters of data
+    from GUI, copying parameters to other data, starting transformation and
+    inserting user changes into undo and redo lists.
+    """
+
     def __init__(self, parent=None, node=None):
+        u"""*node* is the corresponding transformation node, instance of
+        :class:`.Node`. This parental __init__() must be invoked in the derived
+        classes at the top of their __init__() constructors. In the constructor
+        of the derived class, the user should create control elements and
+        register them by using the methods listed below.
+        """
         super().__init__(parent)
         self.node = node
         self.hideInitialView = False
@@ -387,23 +418,36 @@ class PropWidget(qt.QWidget):
 
     def registerPropWidget(self, widgets, caption, prop, **kw):
         """
-        *widget*: a sequence of widgets or a single widget
+        Registers one or more widgets and connects them to one or more
+        transformation parameters.
+
+        *widget*: a sequence of widgets or a single widget.
 
         *caption*: str, will appear in the popup menu in its "apply to" part.
 
-        *prop*: str or a sequence of str.
+        *prop*: str or a sequence of str, transformation parameter name(s).
 
-        Recognized *kw*:
+        Optional key words:
 
-        *convertType*:
-        *hideEmpty*:
-        *emptyMeans*:
-        *copyValue*:
+        *convertType*: a Python type or a list of types, same length as *prop*,
+        that is applied to the widget value.
 
-        *transformName* str,
-            the transform to run after the given widgets will have changed.
-            Defaults to `self.node.transformIn.name`.
+        *hideEmpty*: bool, applicable to edit GUI elements. If True and the
+        *prop* is None or an empty str, the edit element is not visible.
+
+        *emptyMeans*: a value that is assigned to *prop* when the edit element
+        is empty.
+
+        *copyValue*: a single value or a list of length of *prop*. When copy
+        *prop* to other data items, this specific value can be copied. If
+        *copyValue* is a list of length of *prop*, it can mix specific values
+        and a str 'from data' that signals that the corresponding prop is taken
+        from the actual data transformation parameter.
+
+        *transformName* str, the transform to run after the given widgets have
+        changed. Defaults to `self.node.transformIn.name`.
         """
+
         prop = cco.expandTransformParam(prop)
         if not isinstance(widgets, (list, tuple)):
             widgets = [widgets]
@@ -462,8 +506,12 @@ class PropWidget(qt.QWidget):
                 self.propWidgets[widget]['copyValue'] = copyValue
 
     def registerPropGroup(self, groupWidget, widgets, caption):
-        """This is a group of individual widgets, each with its own data
-        properties."""
+        u"""
+        Registers a group widget (QGroupBox) that contains individual
+        *widgets*, each with its own data properties. This group will appear in
+        the copy popup menu.
+        """
+
         self.propGroups[groupWidget] = dict(widgets=widgets, caption=caption)
 
     def registerExclusivePropGroup(
@@ -487,6 +535,19 @@ class PropWidget(qt.QWidget):
             widgets=widgets, caption=caption, props=props, kw=kw)
 
     def registerStatusLabel(self, widget, prop, **kw):
+        u"""
+        Registers a status widget (typically QLabel) that gets updated when the
+        transformation has been completed. The widget must have `setData()` or
+        `setText()` method.
+
+        Optional key words:
+
+        *hideEmpty*: same as in :meth:`registerPropWidget()`.
+
+        *textFormat*: format specification, as in Python’s `format() function
+        <https://docs.python.org/library/string.html#format-specification-mini-language>`_
+        e.g. '.4f' .
+        """
         prop = cco.expandTransformParam(prop)
         if not (hasattr(widget, 'setData') or hasattr(widget, 'setText')):
             className = widget.metaObject().className()

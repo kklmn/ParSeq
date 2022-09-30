@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup
 
+# get it from parseq/help/top.rst
 long_description = u"""
 ParSeq
 ======
 
-Package ParSeq is a python software library for <ins>Par</ins>allel execution
-of <ins>Seq</ins>uential data analysis. It implements a general analysis
+Package ParSeq is a python software library for :underline:`Par`\ allel execution
+of :underline:`Seq`\ uential data analysis. It implements a general analysis
 framework with an adjustable data model (supports grouping, renaming, moving
 and drag-and-drop), plotters for 1D, 2D and 3D data, cross-data analysis
 routines and flexible widget work space suitable for single- and multi-screen
@@ -14,6 +15,11 @@ computers. It also gives a structure to implement particular analysis pipelines
 as relatively lightweight Python packages.
 
 ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
+
+A screenshot of a scanning XES analysis pipeline as an application example:
+
+.. imagezoom:: _images/node1.png
+   :scale: 50 %
 
 Main features
 -------------
@@ -54,38 +60,42 @@ Main features
    built from doc strings. The help pages are built by Sphinx at the startup
    time.
 
-ParSeq creates a data analysis pipeline consisting of nodes and transforms
-which connect the nodes. The pipeline is fed with data (spectra or images),
+ParSeq creates a data analysis pipeline consisting of nodes and transformations
+that connect the nodes. The pipeline is fed with data (spectra or images),
 possibly entering the pipeline at various nodes. The pipeline can be operated
-via scripts or GUI. The mechanisms for creating nodes and transforms,
-connecting them together and creating Qt widgets for the transforms are
+via scripts or GUI. The mechanisms for creating nodes and transformations,
+connecting them together and creating Qt widgets for the transformations are
 exemplified by separately installed analysis packages:
 
 - `ParSeq-XES-scan <https://github.com/kklmn/ParSeq-XES-scan>`_
+- `ParSeq-XES-dispersive <https://github.com/kklmn/ParSeq-XES-dispersive>`_
 
 Dependencies
 ------------
 
-silx -- is used for plotting and Qt imports.
-hdf5plugin -- provides HDF5 compression filters and makes them usable from h5py.
-sphinx -- for building html documentation.
+- `silx <https://github.com/silx-kit/silx>`_ -- used for plotting and Qt imports.
+- `sphinx <https://github.com/sphinx-doc/sphinx>`_ -- for building html documentation.
 
-How to use
-----------
+Launch an example
+-----------------
 
 Either install ParSeq and a ParSeq pipeline application by their installers to
 the standard location or put them to any folder, rename them to their package
-names (`parseq` and e.g. `parseq_XES_scan`) and start the `*_start.py` file
-of the pipeline. You can try it with `--test` to load test data and/or
-`--noGUI` to run the pipeline fully in the terminal and plot only the end
-results but an assumed pattern is to load a project file; use the test project
-file located at `parseq_XES_scan/saved/NbO2.pspj`.
+names (``parseq`` and e.g. ``parseq_XES_scan``) and start the ``*_start.py``
+file of the pipeline. You can try it with ``--test`` to load test data and/or
+``--noGUI`` to run the pipeline fully in the terminal and plot only the end
+results but an assumed pattern is to load a project ``.pspj`` file from GUI.
 
+Hosting and contact
+-------------------
+
+The ParSeq project is hosted on `GitHub <https://github.com/kklmn/ParSeq>`_.
+Please use the project’s Issues tab to get help or report an issue.
 """
 
 setup(
     name='parseq',
-    version='0.7.0',
+    version='0.8.0',
     description='ParSeq is a python software library for Parallel execution of'
                 ' Sequential data analysis.',
     long_description=long_description,
@@ -99,21 +109,21 @@ setup(
     # python_requires=,
     zip_safe=False,  # True: build zipped egg, False: unzipped
     packages=['parseq', 'parseq.core', 'parseq.gui', 'parseq.tests',
-              'parseq.third_party', 'parseq.utils'],
+              'parseq.third_party', 'parseq.utils', 'parseq.help'],
     package_dir={'parseq': '.'},
     package_data={
         'parseq': ['*.py', '*.md', 'CODERULES.txt', 'LICENSE',
-                   'help/*.py', 'help/_images/*.*',
+                   'help/*.*', 'help/_images/*.*', 'help/_static/*.*',
+                   'help/_templates/*.*', 'help/exts/*.*',
                    'help/_themes/*/*.*', 'help/_themes/*/*/*.*'],
         'parseq.gui': ['_images/*.*']},
     install_requires=['numpy>=1.8.0', 'scipy>=0.17.0', 'matplotlib>=2.0.0',
                       'sphinx>=1.6.2', 'autopep8', 'h5py', 'silx',
                       'hdf5plugin', 'psutil'],
-    classifiers=['Development Status :: 3 - Alpha',
+    classifiers=['Development Status :: 5 - Production/Stable',
                  'Intended Audience :: Science/Research',
                  'Natural Language :: English',
                  'Operating System :: OS Independent',
-                 'Programming Language :: Python :: 2',
                  'Programming Language :: Python :: 3',
                  'License :: OSI Approved :: MIT License',
                  'Intended Audience :: Science/Research',

@@ -127,13 +127,13 @@ class ColumnFormatWidget(PropWidget):
         dataLayout = qt.QVBoxLayout()
         dataLayout.setContentsMargins(2, 0, 0, 0)
         for ia, arrayName in enumerate(self.node.arrays):
-            role = self.node.getProp(arrayName, 'role')
+            role = self.node.get_prop(arrayName, 'role')
             if role.startswith('0'):
                 continue
             arrayLayout = qt.QHBoxLayout()
             arrayLayout.setContentsMargins(0, 0, 0, 0)
-            lbl = self.node.getProp(arrayName, 'qLabel')
-            unit = self.node.getProp(arrayName, 'qUnit')
+            lbl = self.node.get_prop(arrayName, 'qLabel')
+            unit = self.node.get_prop(arrayName, 'qUnit')
             if unit:
                 lbl += '({0})'.format(unit)
             dataLabel = qt.QLabel(lbl)
@@ -177,13 +177,13 @@ class ColumnFormatWidget(PropWidget):
         dataLayout = qt.QVBoxLayout()
         dataLayout.setContentsMargins(2, 0, 0, 0)
         for ia, arrayName in enumerate(self.node.arrays):
-            role = self.node.getProp(arrayName, 'role')
+            role = self.node.get_prop(arrayName, 'role')
             if role.startswith('0'):
                 continue
             arrayLayout = qt.QHBoxLayout()
             arrayLayout.setContentsMargins(0, 0, 0, 0)
-            lbl = self.node.getProp(arrayName, 'qLabel')
-            unit = self.node.getProp(arrayName, 'qUnit')
+            lbl = self.node.get_prop(arrayName, 'qLabel')
+            unit = self.node.get_prop(arrayName, 'qUnit')
             if unit:
                 lbl += '({0})'.format(unit)
             dataLabel = qt.QLabel(lbl)

@@ -260,7 +260,7 @@ class LineProps(qt.QDialog):
         self.tabWidget = qt.QTabWidget(parent=self)
         self.tabs = []
         self.node = node
-        yNs = node.getPropList('qLabel', role='y')
+        yNs = node.get_arrays_prop('qLabel', role='y')
         for yN in yNs:
             tab = self.makeTab()
             self.tabWidget.addTab(tab, yN)

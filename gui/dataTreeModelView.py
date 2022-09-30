@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-__author__ = "Konstantin Klementiev"
-__date__ = "19 Jul 2022"
 u"""
 The `DataTreeModel` implements view model of a collection of data loaded into a
 Parseq app. The model has several columns: the 1st one is the data name
@@ -16,8 +14,9 @@ core.singletons.dataRootItem.
 
 The selected items can be accessed by core.singletons.selectedItems and
 core.singletons.selectedTopItems lists.
-
 """
+__author__ = "Konstantin Klementiev"
+__date__ = "19 Jul 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -69,7 +68,7 @@ class DataTreeModel(qt.QAbstractItemModel):
     needReplot = qt.pyqtSignal()
 
     def __init__(self, parent=None):
-        super(DataTreeModel, self).__init__(parent)
+        super().__init__(parent)
         self.rootItem = csi.dataRootItem
 
     def rowCount(self, parent=qt.QModelIndex()):
@@ -83,7 +82,7 @@ class DataTreeModel(qt.QAbstractItemModel):
     def flags(self, index):
         if not index.isValid():
             return qt.Qt.NoItemFlags
-        # res = super(DataTreeModel, self).flags(index) |
+        # res = super().flags(index) |
         res = qt.Qt.ItemIsSelectable | qt.Qt.ItemIsDragEnabled | \
             qt.Qt.ItemIsDropEnabled
         if index.column() == 1:
@@ -252,13 +251,13 @@ class DataTreeModel(qt.QAbstractItemModel):
         gur.pushDataToUndo(data.copy(), struct, strChange='remove')
         self.beginResetModel()
         for item in reversed(data):
-            item.removeFromParent()
+            item.remove_from_parent()
             self._removeFromGlobalLists(item)
 
             # subs = item.get_items(True)
             subs = item.childItems
             for subItem in reversed(subs):
-                subItem.removeFromParent()
+                subItem.remove_from_parent()
                 self._removeFromGlobalLists(subItem)
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
@@ -297,14 +296,14 @@ class DataTreeModel(qt.QAbstractItemModel):
             item.parentItem = parentItem.parentItem
             del siblings[row]
             if parentItem.child_count() == 0:
-                parentItem.removeFromParent()
+                parentItem.remove_from_parent()
         elif (siblings[row-to].child_count() > 0):
             insertAt = len(siblings[row-to].childItems) if to == +1 else 0
             siblings[row-to].childItems.insert(insertAt, item)
             item.parentItem = siblings[row-to]
             del siblings[row]
             if parentItem.child_count() == 0:
-                parentItem.removeFromParent()
+                parentItem.remove_from_parent()
         else:
             siblings[row-to], siblings[row] = siblings[row], siblings[row-to]
         self.endResetModel()
@@ -330,7 +329,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             item.parentItem = group
             del parentItem.childItems[row]
             if parentItem.child_count() == 0:
-                parentItem.removeFromParent()
+                parentItem.remove_from_parent()
         self.endResetModel()
         if hasattr(group.parentItem, 'colorAutoUpdate'):
             group.colorAutoUpdate = group.parentItem.colorAutoUpdate
@@ -366,7 +365,7 @@ class DataTreeModel(qt.QAbstractItemModel):
 
 #    def canDropMimeData(self, data, action, row, column, parent):
 #        print(data.formats())
-#        return super(DataTreeModel, self).canDropMimeData(
+#        return super().canDropMimeData(
 #             data, action, row, column, parent)
 
     def dropMimeData(self, mimedata, action, row, column, parent):
@@ -414,7 +413,7 @@ class DataTreeModel(qt.QAbstractItemModel):
                     item.parentItem = newParentItem
                     del oldParentItem.childItems[oldRow]
                     if oldParentItem.child_count() == 0:
-                        oldParentItem.removeFromParent()
+                        oldParentItem.remove_from_parent()
             self.endResetModel()
             for parent in parents:
                 parent.init_colors()
@@ -457,7 +456,7 @@ class DataTreeModel(qt.QAbstractItemModel):
 
 class HeaderModel(qt.QAbstractItemModel):
     def __init__(self, parent=None, node=None):
-        super(HeaderModel, self).__init__(parent)
+        super().__init__(parent)
         self.rootItem = csi.dataRootItem
         self.node = node
         self.plotDimension = 1 if node is None else self.node.plotDimension
@@ -472,7 +471,7 @@ class HeaderModel(qt.QAbstractItemModel):
                 return csi.modelLeadingColumns[section]
             else:
                 node, key = csi.modelDataColumns[section-leadingColumns]
-                return node.getProp(key, 'qLabel')
+                return node.get_prop(key, 'qLabel')
         elif role == qt.Qt.ToolTipRole:
             if section == 0:
                 return self.rootItem.tooltip()
@@ -484,10 +483,10 @@ class HeaderModel(qt.QAbstractItemModel):
                         "only one image can be displayed at a time"
             else:
                 node, key = csi.modelDataColumns[section-leadingColumns]
-                role = node.getProp(key, 'role')
+                role = node.get_prop(key, 'role')
                 if role.startswith('0'):
-                    label = node.getProp(key, 'qLabel')
-                    unit = node.getProp(key, 'qUnit')
+                    label = node.get_prop(key, 'qLabel')
+                    unit = node.get_prop(key, 'qUnit')
                     unitStr = ' ({0})'.format(unit) if unit else ''
                     return label + unitStr
                 else:
@@ -844,9 +843,9 @@ class DataTreeView(qt.QTreeView):
                 if isHidden:
                     continue
                 fm = qt.QFontMetrics(self.font())
-                role = col[0].getProp(col[1], 'role')
+                role = col[0].get_prop(col[1], 'role')
                 if role.startswith('0'):
-                    width = fm.width(col[0].getProp(col[1], 'qLabel')) + 20
+                    width = fm.width(col[0].get_prop(col[1], 'qLabel')) + 20
                 else:
                     width = LEGEND_WIDTH
                 totalWidth += width
@@ -995,7 +994,7 @@ class DataTreeView(qt.QTreeView):
                 # csi.model.setVisible(csi.dataRootItem, False, True)
         else:
             node, key = csi.modelDataColumns[column-leadingColumns]
-            role = node.getProp(key, 'role')
+            role = node.get_prop(key, 'role')
             if role.startswith('0'):
                 return
             self.setLines(column - leadingColumns)

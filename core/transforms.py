@@ -1,6 +1,16 @@
 # -*- coding: utf-8 -*-
+u"""
+Data transformations
+--------------------
+
+Data transformations provide values for all the arrays defined in one
+transformation node given arrays defined in another transformation node. Each
+transformation defines a dictionary of transformation parameters; the values of
+these parameters are individual per data item. Each transformation in a
+pipeline requires subclassing from :class:`Transform`.
+"""
 __author__ = "Konstantin Klementiev"
-__date__ = "23 Jul 2021"
+__date__ = "24 Sep 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -48,29 +58,32 @@ from .config import configTransforms
 
 
 class Transform(object):
-    """Parental Transform class. Must be subclassed to define the following
-    class variables:
+    u"""
+    Parental Transform class. Must be subclassed to define the following class
+    variables:
 
-    *name*: str.
-        The name must be unique.
+    *name*: str name that must be unique within the pipeline.
 
-    *defaultParams*: dict of default parameters of transform for new data.
+    *defaultParams*: dict of default transformation parameters for new data.
 
     Transforms, if several are present, must be instantiated in the order of
     data flow.
 
-    The method run_main(data) must be declared with @staticmethod. It returns
-    True if the transformation is successful otherwise it returns False.
+    The method :meth:`run_main` must be declared with @staticmethod
+    decorator. A returned not None value indicates success.
 
     *nThreads* or *nProcesses* can be > 1 to use threading or multiprocessing.
     If both are > 1, threading is used. If *nThreads* or *nProcesses* > 1, the
     lists *inArrays* and *outArrays* must be defined to send the operational
-    arrays (those present in run_main(data)) over process-shared queues. The
+    arrays (those used in :meth:`run_main`) over process-shared queues. The
     value can be an integer, 'all' or 'half' which refer to the hardware limit
-    multiprocessing.cpu_count().
+    `multiprocessing.cpu_count()`.
 
-
+    *progressTimeDelta*, float, default 1.0 sec, a timeout delta to report on
+    transformation progress. Only needed if :meth:`run_main` is defined with
+    a parameter *progress*.
     """
+
     nThreads = 1
     nProcesses = 1
     inArrays = []
@@ -79,8 +92,8 @@ class Transform(object):
 
     def __init__(self, fromNode, toNode):
         """
-        *fromNode* and *toNode* are instances of :class:`core.nodes.Node`. They
-        may be the same object.
+        *fromNode* and *toNode* are instances of :class:`.Node`. They may be
+        the same object.
         """
         if (not hasattr(self, 'name')) or (not hasattr(self, 'defaultParams')):
             raise NotImplementedError(
@@ -266,11 +279,10 @@ class Transform(object):
         items = dataItems if dataItems is not None else csi.selectedItems
         self.run_pre(params, items, updateUndo)
 
+        nC = multiprocessing.cpu_count()
         if isinstance(self.nThreads, type('')):
-            nC = multiprocessing.cpu_count()
             self.nThreads = nC//2 if self.nThreads.startswith('h') else nC
         if isinstance(self.nProcesses, type('')):
-            nC = multiprocessing.cpu_count()
             self.nProcesses = nC//2 if self.nProcesses.startswith('h') else nC
 
         if self.nThreads > 1:
@@ -285,10 +297,14 @@ class Transform(object):
             workers, workedItems = [], []
 
         args = getargspec(self.__class__.run_main)[0]
+        if 'allData' in args and workerClass is not None:
+            raise SyntaxError(
+                'IMPORTANT: remove "allData" when running in multithreading'
+                ' or multiprocessing!')
         if args[0] == 'self':
-            print('IMPORTANT!: remove "self" from "run_main()" '
-                  'parameters as this is a static method, '
-                  'not an instance method')
+            raise SyntaxError(
+                'IMPORTANT: remove "self" from "run_main()" parameters as'
+                ' this is a static method, not an instance method!')
 
         for data in items:
             if (not self.isHeadNode and
@@ -363,8 +379,35 @@ class Transform(object):
             csi.mainWindow.beforeTransformSignal.emit(self.toNode.widget)
 
     @staticmethod
-    def run_main(data, allData, progress):
-        """The actual functionality of Transform comes here."""
+    def run_main(data):
+        u"""
+        Provides the actual functionality of the class.
+        Other possible signatures:
+
+        | run_main(data, allData, progress)
+        | run_main(data, allData)
+        | run_main(data, progress)
+
+        *data* is a data item, instance of :class:`.Spectrum`.
+
+        *allData* and *progress* are both optional in the method’s signature.
+        The keyword names must be kept as given above if they are used and must
+        be in this given order if both are present.
+
+        *allData* is a list of all data items living in the data model. If
+        *allData* is needed, both *nThreads* or *nProcesses* must be set to 1.
+
+        *progress* is an object having a field `value`. A heavy transformation
+        should periodically update this field, like this:
+        :code:`progress.value = 0.5` (means 50% completion). If used with GUI,
+        progress will be visualized as an expanding colored background
+        rectangle in the data tree. Quick transformations do not need progress
+        reporting.
+
+        Should an error happen during the transformation, the error state will
+        be notified in the ParSeq status bar and the traceback will be shown in
+        the data item's tooltip in the data tree view.
+        """
         raise NotImplementedError  # must be overridden
 
     def run_post(self, dataItems, runDownstream=True):
@@ -602,9 +645,10 @@ class NTimer(threading.Timer):
 
 
 def connect_combined(items, parentItem):
+    """Used at project loading to connect combined data to underlying data."""
     toBeUpdated = []
     for item in items:
-        if isinstance(item.madeOf, (list, tuple)):
+        if isinstance(item.madeOf, (list, tuple)):  # combined
             newMadeOf = []
             for itemName in item.madeOf:
                 if isinstance(itemName, str):

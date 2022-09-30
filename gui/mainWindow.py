@@ -12,6 +12,9 @@ import textwrap
 import re
 import shutil
 import psutil
+import glob
+import inspect
+import webbrowser
 
 from silx.gui import qt
 
@@ -53,8 +56,8 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
             # Custom title bar:
             self.titleBar = qt.QWidget(self)
             self.titleBar.setAutoFillBackground(True)
-            self.titleBar.setStyleSheet(
-                "QWidget {font: bold; font-size: " + str(fontSize) + "pt;}")
+            # self.titleBar.setStyleSheet(
+            #     "QWidget {font: bold; font-size: " + str(fontSize) + "pt;}")
             pal = self.titleBar.palette()
             pal.setColor(qt.QPalette.Window, qt.QColor("lightgray"))
             self.titleBar.setPalette(pal)
@@ -154,6 +157,7 @@ class MainWindowParSeq(qt.QMainWindow):
             partial(self.displayStatusMessage, u'ready'))
         csi.mainWindow = self
         self.setWindowTitle(u"ParSeq  \u2014  " + csi.pipelineName)
+        self.helpFile = gww.HELPFILE
 
         self.initTabs()
 
@@ -235,15 +239,15 @@ class MainWindowParSeq(qt.QMainWindow):
 
         infoAction = qt.QAction(
             qt.QIcon(osp.join(self.iconDir, "icon-info.png")),
-            "About ParSeq…", self)
+            "About ParSeq… Ctrl+I", self)
         infoAction.setShortcut('Ctrl+I')
         infoAction.triggered.connect(self.slotAbout)
 
         helpAction = qt.QAction(
             qt.QIcon(osp.join(self.iconDir, "icon-help.png")),
-            "Help…", self)
+            "Help… Ctrl+?", self)
         helpAction.setShortcut('Ctrl+?')
-        helpAction.triggered.connect(self.slotAbout)
+        helpAction.triggered.connect(self.slotHelp)
 
         self.toolbar = self.addToolBar("Toolbar")
         # iconSize = int(32 * csi.screenFactor)
@@ -305,12 +309,14 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.visibilityChanged.connect(partial(self.nodeChanged, node))
             dock.topLevelChanged.connect(dock.changeWindowFlags)
 
+        for node in csi.nodes.values():
+            if hasattr(node.widget.transformWidget, 'extraGUISetup'):
+                node.widget.transformWidget.extraGUISetup()
+
         dock0.raise_()
         if node0:
             node0.tree.setFocus()
             csi.currentNode = node0.node
-
-        self.makeHelpPages()
 
         self.tabWiget = None
         for tab in self.findChildren(qt.QTabBar):
@@ -323,41 +329,89 @@ class MainWindowParSeq(qt.QMainWindow):
 
         self.setTabIcons()
 
-    def makeHelpPages(self):
-        # copy images
-        impath = osp.join(csi.appPath, 'doc', '_images')
-        if osp.exists(impath):
-            dst = osp.join(gww.DOCDIR, '_images')
-            # print(dest_impath, osp.exists(dst))
-            shutil.copytree(impath, dst, dirs_exist_ok=True)
+        self.makeHelpPages()
+        self.makeDocPages()
 
+    def makeHelpPages(self):
+        if not osp.exists(self.helpFile):
+            shouldBuild = True
+        else:
+            latest = []
+            for files in [glob.glob(osp.join(gww.CONFDIR, '*')),
+                          glob.glob(osp.join(gww.GUIDIR, '*.py')),
+                          glob.glob(osp.join(gww.COREDIR, '*.py'))]:
+                latest.append(max(files, key=osp.getmtime))
+            tSource = max(map(osp.getmtime, latest))
+            tDoc = osp.getmtime(self.helpFile)
+            shouldBuild = tSource > tDoc  # source newer than doc
+        if not shouldBuild:
+            return
+
+        self.sphinxThread = qt.QThread(self)
+        self.sphinxWorker = gww.SphinxWorker()
+        self.sphinxWorker.moveToThread(self.sphinxThread)
+        self.sphinxThread.started.connect(partial(
+            self.sphinxWorker.render, 'help'))
+        self.sphinxWorker.html_ready.connect(self._on_help_ready)
+        if csi.DEBUG_LEVEL > -1:
+            print('building help...')
+        self.sphinxWorker.prepareHelp()
+        self.sphinxThread.start()
+
+    def _on_help_ready(self):
+        if csi.DEBUG_LEVEL > -1:
+            print('help ready')
+
+    def makeDocPages(self):
         rawTexts, rawTextNames = [], []
         for i, (name, node) in enumerate(csi.nodes.items()):
             if node.widget is None:
-                continue
-            if hasattr(node.widget.transformWidget, 'extraGUISetup'):
-                node.widget.transformWidget.extraGUISetup()
-            tr = node.transformIn
-            if tr is None:
                 continue
             if node.widgetClass is None:
                 continue
             if not node.widgetClass.__doc__:
                 continue
+
+            shouldBuild = True
+            try:
+                tSource = osp.getmtime(inspect.getfile(node.widgetClass))
+                docName = name.replace(' ', '_')
+                fname = osp.join(gww.DOCDIR, docName) + '.html'
+                if osp.exists(fname):
+                    tDoc = osp.getmtime(fname)
+                    shouldBuild = tSource > tDoc  # source newer than doc
+            except Exception:
+                pass
+            if not shouldBuild:
+                continue
+
             rawTexts.append(textwrap.dedent(node.widgetClass.__doc__))
             rawTextNames.append(name)
 
-        # make help pages
+        # make doc pages
         if rawTexts:
+            # copy images
+            impath = osp.join(csi.appPath, 'doc', '_images')
+            if osp.exists(impath):
+                dst = osp.join(gww.DOCDIR, '_images')
+                shutil.copytree(impath, dst, dirs_exist_ok=True)
+
             self.sphinxThread = qt.QThread(self)
             self.sphinxWorker = gww.SphinxWorker()
             self.sphinxWorker.moveToThread(self.sphinxThread)
-            self.sphinxThread.started.connect(self.sphinxWorker.render)
-            self.sphinxWorker.html_ready.connect(self._on_sphinx_html_ready)
-            self.sphinxWorker.prepare(rawTexts, rawTextNames)
+            self.sphinxThread.started.connect(partial(
+                self.sphinxWorker.render, 'docs'))
+            self.sphinxWorker.html_ready.connect(self._on_docs_ready)
+            if csi.DEBUG_LEVEL > -1:
+                print('building docs...')
+            self.sphinxWorker.prepareDocs(rawTexts, rawTextNames)
             self.sphinxThread.start()
+        else:
+            self._on_docs_ready(shouldReport=False)
 
-    def _on_sphinx_html_ready(self):
+    def _on_docs_ready(self, shouldReport=True):
+        if shouldReport and csi.DEBUG_LEVEL > -1:
+            print('docs ready')
         for name, node in csi.nodes.items():
             if node.widget is None:
                 continue
@@ -515,6 +569,11 @@ class MainWindowParSeq(qt.QMainWindow):
     def slotAbout(self):
         lineDialog = AboutDialog(self)
         lineDialog.exec_()
+
+    def slotHelp(self):
+        if not osp.exists(self.helpFile):
+            return
+        webbrowser.open_new_tab(self.helpFile)
 
     def slotSaveProject(self):
         dlg = SaveProjectDlg(self)

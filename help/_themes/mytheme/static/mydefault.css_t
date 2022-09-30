@@ -11,33 +11,6 @@
 
 @import url("basic.css");
 
-/* --- Metadata style --- */
-div.metadata {
-    margin-top: 10px;
-    margin-bottom: 15px;
-    margin-right: 1px;
-    padding: 1px;
-    background-color: #EEEEEE;
-    border: 1px solid #C9C9C9;
-    border-radius: 6px 6px 6px 6px;
-    box-shadow: 1px 1px 7px #CACACA;
-}
-
-div.metadata p {
-    margin: 7px 0px 7px 10px;
-}
-
-span.def {
-    font-family: monospace;
-    font-size: 90%;
-}
-
-span.argspec-highlight {
-    color: red;
-    font-size: 110%;
-    font-weight: 900;
-}
-
 /* -- page layout ----------------------------------------------------------- */
 
 body {
@@ -49,12 +22,34 @@ body {
     padding: 0;
 }
 
+dl.field-list {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+dl.field-list > dt {
+    flex-basis: 10%;
+    font-weight: bold;
+    padding: 0em;
+    margin: 0em;
+}
+ 
+dl.field-list > dd {
+    flex-basis: 90%;
+    padding: 0em;
+    margin: 0em;
+}
+
+dl.field-list > dt:after {
+    content: ":";
+}
+
 div.document {
     background-color: {{ theme_sidebarbgcolor }};
 }
 
 div.documentwrapper {
-/*    float: left; */
+    float: left;
     width: 100%;
 }
 
@@ -237,7 +232,6 @@ div.body h3 { font-size: 140%; }
 div.body h4 { font-size: 120%; }
 div.body h5 { font-size: 110%; }
 div.body h6 { font-size: 100%; }
-div img {vertical-align: middle}
 
 a.headerlink {
     color: {{ theme_headlinkcolor }};
@@ -299,6 +293,10 @@ p.admonition-title:after {
     content: ":";
 }
 
+.underline {
+  text-decoration: underline;
+}
+
 pre {
     padding: 5px;
     background-color: {{ theme_codebgcolor }};
@@ -335,82 +333,4 @@ div.viewcode-block:target {
     background-color: #f4debf;
     border-top: 1px solid #ac9;
     border-bottom: 1px solid #ac9;
-}
-
-.red {
-    color:red;
-}
-
-.bigger {
-    color:green;
-    font-size: 125%;
-}
-
-.underline {
-  text-decoration: underline;
-}
-
-.pipeline {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 5px;
-}
-
-.pipeline-rank {
-    display: flex;
-    flex-direction: row;
-    padding: 5px;
-}
-
-.pipeline-transforms {
-    display: grid;
-    grid-auto-columns: 1fr;
-    grid-auto-flow: column;
-    padding: 2px;
-}
-
-.pipeline-node {
-    padding: 5px;
-    margin: 0px;
-    margin-left: 10px;
-    width: auto;
-    //height: 22px;
-    border-radius: 11px;
-    background: #dde;
-    box-shadow: 1px 2px 3px #aac, inset 0px 0px 7px rgba(0,0,0,1);
-    vertical-align: middle;
-    text-align: center;
-}
-
-.pipeline-tr {
-    padding: 5px;
-    margin: 0px;
-    margin-left: 10px;
-    width: auto;
-    height: 12px;
-    line-height: 12px;
-}
-
-.pipeline-tr:nth-of-type(odd) {
-    text-align: right;
-}
-
-.pipeline-tr:nth-of-type(even) {
-    text-align: left;
-}
-
-svg {    
-    position: absolute;
-    left: 0px;
-    top: 0px;
-    margin: auto;
-    width: 100%;
-    height: 100%;
-}
-
-svg .shadow {
-    stroke-width: 3;
-    stroke-linecap: round;
-    fill: none;
 }
