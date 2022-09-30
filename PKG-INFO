@@ -23,8 +23,8 @@ License-File: LICENSE
 ParSeq
 ======
 
-Package ParSeq is a python software library for :underline:`Par`\ allel execution
-of :underline:`Seq`\ uential data analysis. It implements a general analysis
+Package ParSeq is a python software library for **Par**\ allel execution
+of **Seq**\ uential data analysis. It implements a general analysis
 framework with an adjustable data model (supports grouping, renaming, moving
 and drag-and-drop), plotters for 1D, 2D and 3D data, cross-data analysis
 routines and flexible widget work space suitable for single- and multi-screen
