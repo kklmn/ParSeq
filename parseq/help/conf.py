@@ -10,21 +10,13 @@ import subprocess
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 
 if on_rtd:
-    from unittest.mock import MagicMock
-
-    class Mock(MagicMock):
-        @classmethod
-        def __getattr__(cls, name):
-            return MagicMock()
-
-    MOCK_MODULES = [
+    autodoc_mock_imports = [
         # 'pyopencl',
         # 'PyQt5', 'PyQt5.QtCore', 'PyQt5.QtGui', 'PyQt5.QtWidgets',
         # 'PyQt5.QtWebEngineWidgets',
         'numpy',
         'silx', 'silx.gui', 'silx.io',
         ]
-    sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 __fdir__ = os.path.dirname(os.path.abspath(__file__))
 
