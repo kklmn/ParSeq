@@ -23,7 +23,7 @@ if on_rtd:
                     'PyQt5.QtSql',
                     'matplotlib.backends.backend_qt5agg',
                     'PySide', 'PySide.QtCore',
-                    'cv2', 'numpy', 'silx']
+                    'cv2', 'numpy', 'silx', 'silx.io', 'silx.gui']
     sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 __fdir__ = os.path.dirname(os.path.abspath(__file__))
