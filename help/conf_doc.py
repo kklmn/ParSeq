@@ -26,7 +26,7 @@ master_doc = 'content'
 
 # General information about the project.
 project = u'ParSeqDocs'
-copyright = u'2019 Konstantin Klementiev'
+copyright = u'2018 Konstantin Klementiev'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
