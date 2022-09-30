@@ -100,6 +100,7 @@ def load_res():
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, '../..')
+sys.path.insert(0, '..')
 sys.path.insert(0, '.')
 sys.path.append(os.path.abspath('exts'))
 # autodoc_mock_imports = ["PyQt5.QtWebKitWidgets"]
