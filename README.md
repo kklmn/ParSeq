@@ -75,11 +75,11 @@ Launch an example
 -----------------
 
 Either install ParSeq and a ParSeq pipeline application by their installers to
-the standard location or put them to any folder, rename them to their package
-names (``parseq`` and e.g. ``parseq_XES_scan``) and start the ``*_start.py``
-file of the pipeline. You can try it with ``--test`` to load test data and/or
-``--noGUI`` to run the pipeline fully in the terminal and plot only the end
-results but an assumed pattern is to load a project ``.pspj`` file from GUI.
+the standard location or put their main folders to any folder and start the
+``*_start.py`` file of the pipeline. You can try it with ``--test`` to load
+test data and/or ``--noGUI`` to run the pipeline fully in the terminal and plot
+only the end results but an assumed pattern is to load a project ``.pspj`` file
+from GUI.
 
 Documentation
 -------------
