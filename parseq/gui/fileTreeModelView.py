@@ -491,6 +491,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             cdf['skip_header'] = cdf.pop('skiprows', 0)
             dataS = cdf.pop('dataSource', [])
             cdf.pop('conversionFactors', [])
+            cdf.pop('metadata', [])
             with np.warnings.catch_warnings():
                 np.warnings.simplefilter("ignore")
                 arrs = np.genfromtxt(fname, unpack=True, max_rows=2, **cdf)

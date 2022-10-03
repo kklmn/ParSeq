@@ -279,6 +279,16 @@ class ColumnFormatWidget(PropWidget):
             return
         return dres
 
+    def setHeader(self, formats):
+        formatsLower = {k.lower(): v for k, v in formats.items()}
+        for rb, ed, kw in zip(
+                self.radioButtons, self.edits, self.headerKW):
+            if kw.lower() in formatsLower:
+                rb.setChecked(True)
+                ed.setText(formatsLower[kw.lower()])
+            else:
+                rb.setChecked(False)
+
     def setTexts(self, formats, section, edits):
         if section not in formats:
             return
@@ -318,6 +328,7 @@ class ColumnFormatWidget(PropWidget):
         del self.metadata[path]
 
     def setDataFormat(self, formats):
+        self.setHeader(formats)
         self.setTexts(formats, 'datasource', self.dataEdits)
         self.setTexts(formats, 'slices', self.sliceEdits)
         self.setTexts(formats, 'conversionfactors', self.conversionEdits)

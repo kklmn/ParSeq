@@ -950,6 +950,7 @@ class Spectrum(TreeItem):
             sliceStrs = df.pop('slices', ['' for ds in dataSource])
             conversionFactors = df.pop('conversionFactors',
                                        [None for arr in toNode.arrays])
+            df.pop('metadata', None)
             if dataSource is None:
                 raise ValueError('bad dataSource settings')
             if self.dataType == cco.DATA_COLUMN_FILE:
@@ -1011,7 +1012,9 @@ class Spectrum(TreeItem):
         end = self.madeOf.find('::') if '::' in self.madeOf else None
         path = self.madeOf[start:end]
         abspath = osp.abspath(path).replace('\\', '/')
-        toSave = self.madeOf[:start] + abspath + self.madeOf[end:]
+        toSave = self.madeOf[:start] + abspath
+        if end is not None:
+            toSave += self.madeOf[end:]
         config.put(config.configLoad, 'Data', toNode.name, toSave)
         config.write_configs((1, 0, 0))
 
