@@ -1188,6 +1188,8 @@ class DataTreeView(qt.QTreeView):
     def updateProgress(self, trData):
         alias, progress = trData
         item = csi.dataRootItem.find_data_item(alias)
+        if item is None:
+            return
         item.progress = progress if item.beingTransformed else 1.
         ind = csi.model.indexFromItem(item)
         self.model().dataChanged.emit(ind, ind)

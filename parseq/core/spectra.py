@@ -638,14 +638,14 @@ class Spectrum(TreeItem):
         if isinstance(self.madeOf, dict):
             self.dataType = cco.DATA_BRANCH
             if self.alias == 'auto':
-                self.alias = '{0}_{1}'.format(
+                tmpalias = '{0}_{1}'.format(
                     self.parentItem.alias, self.parentItem.child_count())
             if shouldLoadNow:
                 self.branch_data()
         elif callable(self.madeOf):
             self.dataType = cco.DATA_FUNCTION
             if self.alias == 'auto':
-                self.alias = "generated_{0}".format(self.madeOf.__name__)
+                tmpalias = "generated_{0}".format(self.madeOf.__name__)
             if shouldLoadNow:
                 self.create_data()
         elif isinstance(self.madeOf, (list, tuple)):
@@ -659,7 +659,7 @@ class Spectrum(TreeItem):
                     cs = cco.common_substring((cs, data.alias))
                 what = self.dataFormat['combine']
                 lenC = len(self.madeOf)
-                self.alias = "{0}_{1}{2}".format(
+                tmpalias = "{0}_{1}{2}".format(
                     cs, cco.combineNames[what], lenC)
         elif isinstance(self.madeOf, str):
             self.madeOf = self.madeOf.replace('\\', '/')
@@ -689,25 +689,18 @@ class Spectrum(TreeItem):
                     tmpalias += ': {0}'.format(self.aliasExtra)
                 if self.suffix:
                     tmpalias += self.suffix
-
-                # check duplicates:
-                allLoadedItemNames = []
-                for d in csi.allLoadedItems:
-                    if d is self:
-                        continue
-                    lfn = d.madeOf[5:] if d.madeOf.startswith('silx:') else \
-                        d.madeOf
-                    lfns = osp.normcase(osp.abspath(lfn))
-                    if d.madeOf.startswith('silx:'):
-                        lfns = 'silx:' + lfns
-                    allLoadedItemNames.append(lfns)
-                allLoadedItemsCount = Counter(allLoadedItemNames)
-                n = allLoadedItemsCount[osp.normcase(self.madeOf)]
-                if n > 0:
-                    tmpalias += " ({0})".format(n)
-                self.alias = tmpalias
         else:
             raise ValueError('unknown data type of {0}'.format(self.alias))
+        if self.alias == 'auto':
+            # check duplicates:
+            allLoadedItemNames = [d.alias for d in csi.allLoadedItems
+                                  if d is not self]
+            if len(allLoadedItemNames) > 0:
+                allLoadedItemsCount = Counter(allLoadedItemNames)
+                n = allLoadedItemsCount[tmpalias]
+                if n > 0:
+                    tmpalias += " ({0})".format(n)
+            self.alias = tmpalias
 
 #        csi.undo.append([self, insertAt, lenData])
 
@@ -1215,10 +1208,14 @@ class Spectrum(TreeItem):
                 end = item.madeOf.find('::') if '::' in item.madeOf else None
                 path = item.madeOf[start:end]
                 abspath = osp.abspath(path).replace('\\', '/')
-                madeOf = item.madeOf[:start] + abspath + item.madeOf[end:]
+                madeOf = item.madeOf[:start] + abspath
+                if end is not None:
+                    madeOf += item.madeOf[end:]
                 config.put(configProject, item.alias, 'madeOf', madeOf)
                 relpath = osp.relpath(path, dirname).replace('\\', '/')
-                madeOfRel = item.madeOf[:start] + relpath + item.madeOf[end:]
+                madeOfRel = item.madeOf[:start] + relpath
+                if end is not None:
+                    madeOfRel += item.madeOf[end:]
                 config.put(configProject, item.alias, 'madeOf_relative',
                            madeOfRel)
 

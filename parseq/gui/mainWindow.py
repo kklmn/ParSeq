@@ -275,7 +275,7 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
             dock.defStyleSheet = "QDockWidget {font: bold; padding-left: 5px;}"
-            dock.setStyleSheet(dock.defStyleSheet)
+            # dock.setStyleSheet(dock.defStyleSheet)
             self.addDockWidget(qt.Qt.TopDockWidgetArea, dock)
             nodeWidget = NodeWidget(node, dock)
             # nodeWidget = None  # for testing fo app closure
@@ -318,13 +318,13 @@ class MainWindowParSeq(qt.QMainWindow):
             node0.tree.setFocus()
             csi.currentNode = node0.node
 
-        self.tabWiget = None
+        self.tabWidget = None
         for tab in self.findChildren(qt.QTabBar):
             if tab.tabText(0) == tabName0:
-                self.tabWiget = tab
+                self.tabWidget = tab
                 break
-        # self.tabWiget.setStyleSheet("QTabBar::tab { font:bold };")
-        # self.tabWiget.setStyleSheet(
+        # self.tabWidget.setStyleSheet("QTabBar::tab { font:bold };")
+        # self.tabWidget.setStyleSheet(
         #     "QTabBar::tab {width:32; padding-bottom: 8; padding-top: 8};")
 
         self.setTabIcons()
@@ -432,7 +432,7 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def setTabIcon(self, itab, dock, state=0):
         icon = dock.dimIconBusy if state == 1 else dock.dimIcon
-        self.tabWiget.setTabIcon(itab, icon)
+        self.tabWidget.setTabIcon(itab, icon)
 
     def dataChanged(self):
         for node in csi.nodes.values():
@@ -650,21 +650,21 @@ class MainWindowParSeq(qt.QMainWindow):
                 pass
 
     def updateTabStatus(self, state, nodeWidget):
-        if self.tabWiget is None:
+        if self.tabWidget is None:
             return
         dock, _, tabName = self.docks[nodeWidget]
         if dock.isFloating():
             dock.setFloatingTabColor(state)
         else:
             color = gco.BUSY_COLOR_FGND if state == 1 else 'black'
-            for itab in range(self.tabWiget.count()):
-                if self.tabWiget.tabText(itab) == tabName:
+            for itab in range(self.tabWidget.count()):
+                if self.tabWidget.tabText(itab) == tabName:
                     break
             else:
                 return
             self.setTabIcon(itab, dock, state)
             cc = qt.QColor(color)
-            self.tabWiget.setTabTextColor(itab, cc)
+            self.tabWidget.setTabTextColor(itab, cc)
             ss = dock.defStyleSheet.replace(
                 "}", " color: "+cc.name(qt.QColor.HexArgb)+";}")
             dock.setStyleSheet(ss)
