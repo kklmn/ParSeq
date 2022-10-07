@@ -622,15 +622,8 @@ class Spectrum(TreeItem):
                         plotParams[k] = pv
                     self.plotProps[node.name][yName] = plotParams
 
-    def get_state(self, column):
-        leadingColumns = len(csi.modelLeadingColumns)
-        if column < leadingColumns:
-            return cco.DATA_STATE_GOOD
-        node, key = csi.modelDataColumns[column-leadingColumns]
-        role = node.get_prop(key, 'role')
-        if role.startswith('0'):
-            return cco.DATA_STATE_GOOD
-        return self.state[node.name]
+    def get_state(self, nodeName):
+        return self.state[nodeName]
 
     def read_data(self, shouldLoadNow=True, runDownstream=False,
                   copyTransformParams=True, transformParams={}):

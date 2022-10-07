@@ -102,7 +102,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             res |= qt.Qt.ItemIsEditable
         return res
 
-    def data(self, index, role=qt.Qt.DisplayRole):
+    def data(self, index, role=qt.Qt.DisplayRole, nodeName=''):
         if not index.isValid():
             return
         item = index.internalPointer()
@@ -126,9 +126,8 @@ class DataTreeModel(qt.QAbstractItemModel):
                 return BUSY_BKGND
             if item.childItems:  # is a group
                 return GROUP_BKGND
-            color = BKGND[item.get_state(index.column())]
-            if color is not None:
-                return color
+            color = BKGND[item.get_state(nodeName)] if nodeName else None
+            return color
         elif role == qt.Qt.ForegroundRole:
             if index.column() < len(csi.modelLeadingColumns):
                 return qt.QColor(FONT_COLOR_TAG[item.colorTag])
@@ -500,7 +499,13 @@ class SelectionModel(qt.QItemSelectionModel):
     pass
 
 
-class DataNameDelegate(qt.QItemDelegate):
+class NodeDelegate(qt.QItemDelegate):
+    def __init__(self, parent, nodeName=''):
+        self.nodeName = nodeName
+        super().__init__(parent)
+
+
+class DataNameDelegate(NodeDelegate):
     def paint(self, painter, option, index):
         # if index.column() == 1:
         #     super().paint(painter, option, index)
@@ -515,9 +520,9 @@ class DataNameDelegate(qt.QItemDelegate):
         painter.setRenderHint(qt.QPainter.Antialiasing, False)
         painter.setPen(qt.Qt.NoPen)
         bd = index.data(qt.Qt.BackgroundRole)
+        # bd = index.model().data(index, qt.Qt.BackgroundRole, self.nodeName)
         if (option.state & qt.QStyle.State_Selected or
-            option.state & qt.QStyle.State_MouseOver) and bd not in [
-                BUSY_BKGND]:
+                option.state & qt.QStyle.State_MouseOver) and bd is None:
             color = self.parent().palette().highlight().color()
             color.setAlphaF(SELECTION_ALPHA)
         else:
@@ -538,17 +543,17 @@ class DataNameDelegate(qt.QItemDelegate):
         painter.restore()
 
 
-class DataCheckDelegate(qt.QItemDelegate):
+class DataCheckDelegate(NodeDelegate):
     coords = [(-5, 1), (-2, 4), (5, -4), 'open, 1.5']
 
     def paint(self, painter, option, index):
         painter.save()
         painter.setRenderHint(qt.QPainter.Antialiasing, True)
         painter.setPen(qt.Qt.NoPen)
-        bd = index.data(qt.Qt.BackgroundRole)
+        # bd = index.data(qt.Qt.BackgroundRole)
+        bd = index.model().data(index, qt.Qt.BackgroundRole, self.nodeName)
         if (option.state & qt.QStyle.State_Selected or
-            option.state & qt.QStyle.State_MouseOver) and bd not in [
-                BUSY_BKGND]:
+                option.state & qt.QStyle.State_MouseOver) and bd is None:
             color = self.parent().palette().highlight().color()
             color.setAlphaF(SELECTION_ALPHA)
         else:
@@ -586,7 +591,7 @@ class DataCheckDelegate(qt.QItemDelegate):
         painter.restore()
 
 
-class LineStyleDelegate(qt.QItemDelegate):
+class LineStyleDelegate(NodeDelegate):
     def paint(self, painter, option, index):
         if csi.currentNode is not None:
             node = csi.currentNode
@@ -596,11 +601,12 @@ class LineStyleDelegate(qt.QItemDelegate):
         data = index.data(qt.Qt.DisplayRole)
         if data is None:
             return
-        bknd = index.data(qt.Qt.BackgroundRole)
+        # bknd = index.data(qt.Qt.BackgroundRole)
+        bknd = index.model().data(index, qt.Qt.BackgroundRole, self.nodeName)
 
         rect = option.rect
         painter.save()
-        painter.setRenderHint(qt.QPainter.Antialiasing, False)
+        painter.setRenderHint(qt.QPainter.Antialiasing, True)
         painter.setPen(qt.Qt.NoPen)
         if (option.state & qt.QStyle.State_Selected or
             option.state & qt.QStyle.State_MouseOver) and bknd not in [
@@ -831,9 +837,9 @@ class DataTreeView(qt.QTreeView):
         self.setColumnWidth(0, int(COLUMN_NAME_WIDTH*csi.screenFactor))
         self.setColumnWidth(1, int(COLUMN_EYE_WIDTH*csi.screenFactor))
         if node is not None:
-            dataNameDelegate = DataNameDelegate(self)
+            dataNameDelegate = DataNameDelegate(self, node.name)
             self.setItemDelegateForColumn(0, dataNameDelegate)
-            dataCheckDelegate = DataCheckDelegate(self)
+            dataCheckDelegate = DataCheckDelegate(self, node.name)
             self.setItemDelegateForColumn(1, dataCheckDelegate)
             totalWidth = 0
             leadingColumns = len(csi.modelLeadingColumns)
@@ -857,7 +863,7 @@ class DataTreeView(qt.QTreeView):
                 else:
                     horHeaders.setSectionResizeMode(
                         i+leadingColumns, qt.QHeaderView.Fixed)
-                lineStyleDelegate = LineStyleDelegate(self)
+                lineStyleDelegate = LineStyleDelegate(self, node.name)
                 self.setItemDelegateForColumn(
                     i+leadingColumns, lineStyleDelegate)
             self.setMinimumSize(qt.QSize(int(
