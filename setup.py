@@ -48,6 +48,9 @@ Main features
 -  Parallel execution of data analysis with multiprocessing or multithreading
    (can be opted by the piplene application).
 
+-  Informative error handling that provides alerts and stack traceback -- the
+   type and location of the occurred error.
+
 -  Export of the workflow into a project file. Export of data into various data
    formats (so far unstructured) with accompanied Python scripts that visualize
    the exported data for the user to tune their publication plots.
@@ -102,22 +105,28 @@ setup(
     long_description_content_type='text/x-rst',
     author='Konstantin Klementiev',
     author_email='konstantin.klementiev@gmail.com',
+    url='http://parseq.readthedocs.io',
     project_urls={'Source': 'https://github.com/kklmn/ParSeq'},
     platforms='OS Independent',
     license='MIT License',
     keywords='data-analysis pipeline framework gui synchrotron spectroscopy',
     # python_requires=,
     zip_safe=False,  # True: build zipped egg, False: unzipped
-    packages=['parseq', 'parseq.core', 'parseq.gui', 'parseq.tests',
-              'parseq.third_party', 'parseq.utils', 'parseq.help'],
-    package_dir={'parseq': '.'},
+    packages=['parseq',
+              'parseq.core',
+              'parseq.gui',
+              'parseq.help',
+              'parseq.tests', 'parseq.third_party', 'parseq.utils'],
+    # package_dir={'parseq': '.'},
     package_data={
-        'parseq': ['*.py', '*.md', 'CODERULES.txt', 'LICENSE',
-                   'help/*.*', 'help/_images/*.*', 'help/_static/*.*',
-                   'help/_templates/*.*', 'help/exts/*.*',
-                   'help/_themes/*/*.*', 'help/_themes/*/*/*.*',
-                   'tests/*.png'],
-        'parseq.gui': ['_images/*.*']},
+        'parseq': ['CODERULES.txt'],
+        'parseq.gui': ['_images/*.*'],
+        'parseq.help': [
+            '*.rst', '*.bat',
+            '_images/*.*', '_static/*.*', '_templates/*.*', 'exts/*.*',
+            '_themes/*/*.*', 'help/_themes/*/*/*.*'],
+        'parseq.tests': ['*.png'],
+        },
     install_requires=['numpy>=1.8.0', 'scipy>=0.17.0', 'matplotlib>=2.0.0',
                       'sphinx>=1.6.2', 'autopep8', 'h5py', 'silx',
                       'hdf5plugin', 'psutil'],

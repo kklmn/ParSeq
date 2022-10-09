@@ -65,6 +65,9 @@ Main features
 -  Parallel execution of data analysis with multiprocessing or multithreading
    (can be opted by the piplene application).
 
+-  Informative error handling that provides alerts and stack traceback -- the
+   type and location of the occurred error.
+
 -  Export of the workflow into a project file. Export of data into various data
    formats (so far unstructured) with accompanied Python scripts that visualize
    the exported data for the user to tune their publication plots.
