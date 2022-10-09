@@ -928,6 +928,9 @@ class FileTreeView(qt.QTreeView):
             "View text file (will be diplayed in 'metadata' panel)",
             self.viewTextFile, "F3")
 
+        self.setStyleSheet("QTreeView"
+                           "{selection-background-color: transparent;}")
+
         # # uncomment for testing the file model:
         # from ..tests.modeltest import ModelTest
         # self.ModelTest = ModelTest

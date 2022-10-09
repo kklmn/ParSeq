@@ -53,7 +53,7 @@ FONT_COLOR_TAG = ['black', gco.COLOR_HDF5_HEAD, gco.COLOR_FS_COLUMN_FILE,
                   'cyan']
 LEFT_SYMBOL = u"\u25c4"  # ◄
 RIGHT_SYMBOL = u"\u25ba"  # ►
-SELECTION_ALPHA = 0.15
+# SELECTION_ALPHA = 0.5
 # CHECKED_SYMBOL = u"\u2611"  # ☑
 # UNCHECKED_SYMBOL = u"\u2610"  # ☐
 # CHECKED_SYMBOL = u"\u2714"  # ✔
@@ -522,9 +522,9 @@ class DataNameDelegate(NodeDelegate):
         bd = index.data(qt.Qt.BackgroundRole)
         # bd = index.model().data(index, qt.Qt.BackgroundRole, self.nodeName)
         if (option.state & qt.QStyle.State_Selected or
-                option.state & qt.QStyle.State_MouseOver) and bd is None:
+                option.state & qt.QStyle.State_MouseOver):  # and bd is None:
             color = self.parent().palette().highlight().color()
-            color.setAlphaF(SELECTION_ALPHA)
+            # color.setAlphaF(SELECTION_ALPHA)
         else:
             color = bd
         if color is not None:
@@ -538,7 +538,7 @@ class DataNameDelegate(NodeDelegate):
         if font is not None:
             painter.setFont(font)
         rect = option.rect
-        painter.drawText(option.rect, qt.Qt.AlignLeft, "{0}".format(data))
+        painter.drawText(rect, qt.Qt.AlignLeft, "{0}".format(data))
 
         painter.restore()
 
@@ -553,9 +553,10 @@ class DataCheckDelegate(NodeDelegate):
         # bd = index.data(qt.Qt.BackgroundRole)
         bd = index.model().data(index, qt.Qt.BackgroundRole, self.nodeName)
         if (option.state & qt.QStyle.State_Selected or
-                option.state & qt.QStyle.State_MouseOver) and bd is None:
+            option.state & qt.QStyle.State_MouseOver) and bd not in [
+                BAD_BKGND, UNDEFINED_BKGND, NOTFOUND_BKGND, MATHERROR_BKGND]:
             color = self.parent().palette().highlight().color()
-            color.setAlphaF(SELECTION_ALPHA)
+            # color.setAlphaF(SELECTION_ALPHA)
         else:
             color = bd
         if color is not None:
@@ -612,7 +613,7 @@ class LineStyleDelegate(NodeDelegate):
             option.state & qt.QStyle.State_MouseOver) and bknd not in [
                 BAD_BKGND, UNDEFINED_BKGND, NOTFOUND_BKGND, MATHERROR_BKGND]:
             color = self.parent().palette().highlight().color()
-            color.setAlphaF(SELECTION_ALPHA)
+            # color.setAlphaF(SELECTION_ALPHA)
         else:
             color = bknd
         if color is not None:
@@ -652,19 +653,19 @@ class LineStyleDelegate(NodeDelegate):
 
                 # > or < symbol
                 font = painter.font()
-                font.setFamily("Arial")
-                font.setPointSize(4 + round(lineWidth))
+                # font.setFamily("Arial")
+                font.setPointSize(4*round(lineWidth))
                 painter.setFont(font)
 
-                dh = 2
+                dh = int(lineWidth+1)
                 rect.setBottom(rect.bottom()-dh)
                 if axisY == -1:
                     painter.drawText(
-                        rect, qt.Qt.AlignLeft | qt.Qt.AlignVCenter,
+                        rect, int(qt.Qt.AlignLeft | qt.Qt.AlignVCenter),
                         LEFT_SYMBOL)
                 elif axisY == 1:
                     painter.drawText(
-                        rect, qt.Qt.AlignRight | qt.Qt.AlignVCenter,
+                        rect, int(qt.Qt.AlignRight | qt.Qt.AlignVCenter),
                         RIGHT_SYMBOL)
                 rect.setBottom(rect.bottom()+dh)
 
@@ -866,9 +867,12 @@ class DataTreeView(qt.QTreeView):
                 lineStyleDelegate = LineStyleDelegate(self, node.name)
                 self.setItemDelegateForColumn(
                     i+leadingColumns, lineStyleDelegate)
-            self.setMinimumSize(qt.QSize(int(
+            self.setMinimumSize(qt.QSize(int(   
                 (COLUMN_NAME_WIDTH + COLUMN_EYE_WIDTH + totalWidth) *
                 csi.screenFactor), 100))
+
+        self.setStyleSheet("QTreeView"
+                            "{selection-background-color: #cceeff;}")
 
         self.collapsed.connect(self.collapse)
         self.expanded.connect(self.expand)
