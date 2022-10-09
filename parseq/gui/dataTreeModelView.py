@@ -522,7 +522,8 @@ class DataNameDelegate(NodeDelegate):
         bd = index.data(qt.Qt.BackgroundRole)
         # bd = index.model().data(index, qt.Qt.BackgroundRole, self.nodeName)
         if (option.state & qt.QStyle.State_Selected or
-                option.state & qt.QStyle.State_MouseOver):  # and bd is None:
+            option.state & qt.QStyle.State_MouseOver) and bd not in [
+                BUSY_BKGND]:
             color = self.parent().palette().highlight().color()
             # color.setAlphaF(SELECTION_ALPHA)
         else:
@@ -867,12 +868,12 @@ class DataTreeView(qt.QTreeView):
                 lineStyleDelegate = LineStyleDelegate(self, node.name)
                 self.setItemDelegateForColumn(
                     i+leadingColumns, lineStyleDelegate)
-            self.setMinimumSize(qt.QSize(int(   
+            self.setMinimumSize(qt.QSize(int(
                 (COLUMN_NAME_WIDTH + COLUMN_EYE_WIDTH + totalWidth) *
                 csi.screenFactor), 100))
 
         self.setStyleSheet("QTreeView"
-                            "{selection-background-color: #cceeff;}")
+                           "{selection-background-color: #cceeff;}")
 
         self.collapsed.connect(self.collapse)
         self.expanded.connect(self.expand)
