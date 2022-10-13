@@ -220,6 +220,9 @@ class MainWindowParSeq(qt.QMainWindow):
         subAction.setChecked(csi.undoGrouping)
         subAction.triggered.connect(self.undoGroup)
         undoMenu.addAction(subAction)
+        subAction = qt.QAction('clear all undo actions', self)
+        subAction.triggered.connect(self.undoClear)
+        undoMenu.addAction(subAction)
         undoMenu.addSeparator()
         undoMenu.nHeaderActions = len(undoMenu.actions())
         self.undoAction.setMenu(undoMenu)
@@ -232,6 +235,11 @@ class MainWindowParSeq(qt.QMainWindow):
         self.redoAction.setShortcut('Ctrl+Shift+Z')
         self.redoAction.triggered.connect(partial(self.slotRedo, -1))
         redoMenu = qt.QMenu()
+        subAction = qt.QAction('clear all redo actions', self)
+        subAction.triggered.connect(self.redoClear)
+        redoMenu.addAction(subAction)
+        redoMenu.addSeparator()
+        redoMenu.nHeaderActions = len(redoMenu.actions())
         self.redoAction.setMenu(redoMenu)
         menu = self.redoAction.menu()
         menu.aboutToShow.connect(partial(self.populateRedoMenu, menu))
@@ -514,7 +522,7 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def populateRedoMenu(self, menu):
         # menu = self.sender()
-        for action in menu.actions():
+        for action in menu.actions()[menu.nHeaderActions:]:
             menu.removeAction(action)
         icon = qt.QIcon(osp.join(self.iconDir, "icon-redo.png"))
         for ientry, entry in reversed(list(enumerate(csi.redo))):
@@ -554,6 +562,14 @@ class MainWindowParSeq(qt.QMainWindow):
         del csi.redo[ind]
         menu = self.redoAction.menu()
         menu.removeAction(subAction)
+        self.setEnableUndoRedo()
+
+    def undoClear(self):
+        csi.undo.clear()
+        self.setEnableUndoRedo()
+
+    def redoClear(self):
+        csi.redo.clear()
         self.setEnableUndoRedo()
 
     def slotUndo(self, ind):
