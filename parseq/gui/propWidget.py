@@ -383,25 +383,25 @@ class PropWidget(qt.QWidget):
         self.setUIFromData()
 
     def undoProps(self, lastAction):
-        _, items, params, prevValues, values, _ = lastAction
+        _, dataItems, params, prevValues, values, _ = lastAction
         nChanged = 0
-        for item, prevs in zip(items, prevValues):
-            nChanged += gpd.copyProps([item], params, prevs,
-                                      self.shouldRemoveNonesFromProps)
+        for item, prevs in zip(dataItems, prevValues):
+            nChanged += gpd.copyProps(
+                [item], params, prevs, self.shouldRemoveNonesFromProps)
         if not nChanged:
             csi.mainWindow.displayStatusMessage('no changes')
             return
-        self.updateProp()
+        self.updateProp(dataItems=dataItems)
         self.setUIFromData()
 
     def redoProps(self, lastAction):
-        _, items, params, prevValues, values, _ = lastAction
-        nChanged = gpd.copyProps(items, params, values,
-                                 self.shouldRemoveNonesFromProps)
+        _, dataItems, params, prevValues, values, _ = lastAction
+        nChanged = gpd.copyProps(
+            dataItems, params, values, self.shouldRemoveNonesFromProps)
         if not nChanged:
             csi.mainWindow.displayStatusMessage('no changes')
             return
-        self.updateProp()
+        self.updateProp(dataItems=dataItems)
         self.setUIFromData()
 
     def gotoHDF5(self, path):
@@ -564,7 +564,9 @@ class PropWidget(qt.QWidget):
                 self.node.widget.cancelPropsToPickedData()
         event.accept()
 
-    def updateProp(self, key=None, value=None):
+    def updateProp(self, key=None, value=None, dataItems=None):
+        if dataItems is None:
+            dataItems = csi.selectedItems
         if key is None or value is None:
             params = {}
             tNames = [dd['transformName'] for dd in
@@ -593,7 +595,6 @@ class PropWidget(qt.QWidget):
                 return
             if '.' not in key:
                 key = cco.expandTransformParam(key)
-            dataItems = csi.selectedItems
             gur.pushTransformToUndo(self, dataItems, [key], [value])
             if isinstance(key, (list, tuple)):
                 param = key[-1]
@@ -605,10 +606,11 @@ class PropWidget(qt.QWidget):
             params = {param: value}
 
         if csi.transformer is not None:
-            csi.transformer.prepare(tr, params=params, starter=self)
+            csi.transformer.prepare(tr, params=params, dataItems=dataItems,
+                                    starter=self)
             csi.transformer.thread().start()
         else:
-            tr.run(params=params)
+            tr.run(params=params, dataItems=dataItems)
 
     def _onTransformThreadReady(self, starter, tName='', duration=0, err=None):
         if starter is not self:

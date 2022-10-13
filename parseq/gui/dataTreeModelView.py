@@ -19,7 +19,7 @@ __author__ = "Konstantin Klementiev"
 __date__ = "19 Jul 2022"
 # !!! SEE CODERULES.TXT !!!
 
-import sys
+# import sys
 from functools import partial
 import pickle
 

@@ -113,6 +113,9 @@ class TreeItem(object):
             elif hasattr(self, 'madeOf'):  # instance of Spectrum
                 if self.error is not None:
                     return self.error
+                elif self.beingTransformed:
+                    return '{0} is {1:.0f}% done'.format(
+                        self.beingTransformed, self.progress*100)
                 elif isinstance(self.madeOf, (type(""), dict, tuple, list)):
                     if isinstance(self.madeOf, type("")):
                         res = str(self.madeOf)

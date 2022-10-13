@@ -165,18 +165,24 @@ class Transform(object):
         # dtparams = data.transformParams
 
     def _get_progress1(self, alias, progress):
-        if hasattr(self.toNode, 'widget'):
-            if self.toNode.widget is not None:
-                self.toNode.widget.tree.transformProgress.emit(
-                    [alias, progress.value])
+        if not hasattr(self.toNode, 'widget'):
+            return
+        if self.toNode.widget is None:
+            return
+        self.toNode.widget.tree.transformProgress.emit([alias, progress.value])
 
-    def _get_progressN(self, alias, worker):
-        if hasattr(self.toNode, 'widget'):
-            if self.toNode.widget is not None:
-                ps = worker.get_progress()
-                if len(ps) == 0:
-                    return
-                self.toNode.widget.tree.transformProgress.emit([alias, ps[-1]])
+    def _get_progressN(self, alias, worker=None):
+        if not hasattr(self.toNode, 'widget'):
+            return
+        if self.toNode.widget is None:
+            return
+        if worker is None:
+            self.toNode.widget.tree.transformProgress.emit([alias, 1.0])
+        else:
+            ps = worker.get_progress()
+            if len(ps) == 0:
+                return
+            self.toNode.widget.tree.transformProgress.emit([alias, ps[-1]])
 
     def _run_multi_worker(self, workers, workedItems, args):
         wt = workers[0].workerType
@@ -193,7 +199,7 @@ class Transform(object):
                 item.beingTransformed = False
                 continue
             else:
-                item.beingTransformed = True
+                item.beingTransformed = self.name
             if 'progress' in args and self.sendSignals:
                 worker.timer = NTimer(
                     self.progressTimeDelta,
@@ -219,12 +225,14 @@ class Transform(object):
                 continue
             worker.join(60.)
             item.beingTransformed = False
+            if 'progress' in args and self.sendSignals:
+                self._get_progressN(item.alias)
 
         if self.sendSignals:
             csi.mainWindow.afterDataTransformSignal.emit(workedItems)
 
     def _run_single_worker(self, data, args):
-        data.beingTransformed = True
+        data.beingTransformed = self.name
         data.transfortm_t0 = time.time()
         if self.sendSignals:
             csi.mainWindow.beforeDataTransformSignal.emit([data])
@@ -248,6 +256,9 @@ class Transform(object):
             if timer is not None:
                 timer.cancel()
             data.error = None
+            if 'progress' in args:
+                progress.value = 1.
+                self._get_progress1(data.alias, progress)
         except Exception:
             if timer is not None:
                 timer.cancel()
