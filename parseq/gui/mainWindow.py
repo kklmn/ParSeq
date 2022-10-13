@@ -488,26 +488,26 @@ class MainWindowParSeq(qt.QMainWindow):
     def undoGroup(self):
         csi.undoGrouping = not csi.undoGrouping
 
-    def populateUndoMenu(self, menu):
+    def _populateMenu(self, menu, iconName, actionDeque, bkgndColor,
+                      closeSlot, actionSlot):
         # menu = self.sender()
         for action in menu.actions()[menu.nHeaderActions:]:
             menu.removeAction(action)
-        icon = qt.QIcon(osp.join(self.iconDir, "icon-undo.png"))
-        for ientry, entry in reversed(list(enumerate(csi.undo))):
+        icon = qt.QIcon(osp.join(self.iconDir, iconName))
+        for ientry, entry in reversed(list(enumerate(actionDeque))):
             subAction = qt.QWidgetAction(self)
             text = gur.getStrRepr(entry)
 
             menuWidget = qt.QWidget(self)
             menuWidget.setStyleSheet(
-                "QWidget:hover{background-color: #edd400;}")
+                "QWidget:hover{background-color: " + bkgndColor + ";}")
             labelIcon = qt.QLabel(menuWidget)
             labelIcon.setPixmap(icon.pixmap(ICON_SIZE//2, ICON_SIZE//2))
             labelText = qt.QLabel(text, menuWidget)
             labelText.setAttribute(qt.Qt.WA_TranslucentBackground)
             labelText.setAttribute(qt.Qt.WA_TransparentForMouseEvents)
             closeButton = gco.CloseButton(menuWidget)
-            closeButton.clicked.connect(
-                partial(self._removeFromUndo, ientry, subAction))
+            closeButton.clicked.connect(partial(closeSlot, ientry, subAction))
 
             wlayout = qt.QHBoxLayout()
             wlayout.setContentsMargins(2, 2, 2, 2)
@@ -517,40 +517,20 @@ class MainWindowParSeq(qt.QMainWindow):
             menuWidget.setLayout(wlayout)
             subAction.setDefaultWidget(menuWidget)
 
-            subAction.triggered.connect(partial(self.slotUndo, ientry))
+            subAction.triggered.connect(partial(actionSlot, ientry))
             menu.addAction(subAction)
+
+    def populateUndoMenu(self, menu):
+        kw = dict(iconName="icon-undo.png", actionDeque=csi.undo,
+                  bkgndColor="#edd400", closeSlot=self._removeFromUndo,
+                  actionSlot=self.slotUndo)
+        self._populateMenu(menu, **kw)
 
     def populateRedoMenu(self, menu):
-        # menu = self.sender()
-        for action in menu.actions()[menu.nHeaderActions:]:
-            menu.removeAction(action)
-        icon = qt.QIcon(osp.join(self.iconDir, "icon-redo.png"))
-        for ientry, entry in reversed(list(enumerate(csi.redo))):
-            subAction = qt.QWidgetAction(self)
-            text = gur.getStrRepr(entry)
-
-            menuWidget = qt.QWidget(self)
-            menuWidget.setStyleSheet(
-                "QWidget:hover{background-color: #99b00b;}")
-            labelIcon = qt.QLabel(menuWidget)
-            labelIcon.setPixmap(icon.pixmap(ICON_SIZE//2, ICON_SIZE//2))
-            labelText = qt.QLabel(text, menuWidget)
-            labelText.setAttribute(qt.Qt.WA_TranslucentBackground)
-            labelText.setAttribute(qt.Qt.WA_TransparentForMouseEvents)
-            closeButton = gco.CloseButton(menuWidget)
-            closeButton.clicked.connect(
-                partial(self._removeFromRedo, ientry, subAction))
-
-            wlayout = qt.QHBoxLayout()
-            wlayout.setContentsMargins(2, 2, 2, 2)
-            wlayout.addWidget(labelIcon)
-            wlayout.addWidget(labelText, 1)
-            wlayout.addWidget(closeButton)
-            menuWidget.setLayout(wlayout)
-            subAction.setDefaultWidget(menuWidget)
-
-            subAction.triggered.connect(partial(self.slotRedo, ientry))
-            menu.addAction(subAction)
+        kw = dict(iconName="icon-redo.png", actionDeque=csi.redo,
+                  bkgndColor="#99b00b", closeSlot=self._removeFromRedo,
+                  actionSlot=self.slotRedo)
+        self._populateMenu(menu, **kw)
 
     def _removeFromUndo(self, ind, subAction):
         del csi.undo[ind]
