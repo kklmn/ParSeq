@@ -786,7 +786,7 @@ class EyeHeader(qt.QHeaderView):
         painter.save()
         super().paintSection(painter, rect, logicalIndex)
         painter.restore()
-        painter.setRenderHint(qt.QPainter.Antialiasing)
+        painter.setRenderHint(qt.QPainter.Antialiasing, True)
         if logicalIndex == 1:
             if csi.dataRootItem.isVisible and self.plotDimension == 1:
                 # self.paintCheckBox(painter, rect)

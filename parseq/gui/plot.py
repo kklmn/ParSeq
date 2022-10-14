@@ -12,14 +12,12 @@ from ..core import singletons as csi
 
 class Plot1D(splot.PlotWindow):
     def __init__(self, parent=None, backend=None, position=True):
-        super().__init__(parent=parent, backend=backend,
-                         resetzoom=True, autoScale=True,
-                         logScale=True, grid=True,
-                         curveStyle=True, colormap=False,
-                         aspectRatio=False, yInverted=False,
-                         copy=True, save=True, print_=True,
-                         control=True, position=position,
-                         roi=False, mask=False, fit=False)
+        super().__init__(
+            parent=parent, backend=backend, resetzoom=True, autoScale=True,
+            logScale=True, grid=True, curveStyle=True, colormap=False,
+            aspectRatio=False, yInverted=False, copy=True, save=True,
+            print_=True, control=True, position=position, roi=False,
+            mask=False, fit=False)
         if parent is None:
             self.setWindowTitle('Plot1D')
         action = self.getFitAction()

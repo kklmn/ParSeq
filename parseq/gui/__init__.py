@@ -7,7 +7,7 @@ Load project
 ------------
 
 To start testing a GUI, load a test project, typically located in `saved`
-directory. The “Load project” dialog has a preview panel that displays all node
+directory. The "Load project" dialog has a preview panel that displays all node
 plots in the project, just browse over them.
 
 Docked node widgets
@@ -22,7 +22,7 @@ File tree and data formats, metadata
 ------------------------------------
 
 The file tree is by default visible only in the first node widget. If needed,
-make it visible/hidden by the vertical button “files & containers”.
+make it visible/hidden by the vertical button "files & containers".
 
 When you click on an entry in the data tree, the corresponding file or hdf5
 entry will get highlighted in the entrance transformation node widget. When you
@@ -71,10 +71,17 @@ Find more about their functionality `here
 <http://www.silx.org/doc/silx/latest/modules/gui/plot/index.html?highlight=plot#module-silx.gui.plot>`_.
 
 Bear in mind that if several items have the same alias, silx displays only one
-of them, so make sure aliases are unique.
+of them, so make sure aliases are unique. Parseq will try to append a numbered
+suffix to the alias if the added data have the same file name. Aliases can
+always be changed by the user.
 
 In 1D plotting window, clicking on a curve will select the corresponding data
-item in the data tree widget.
+item in the data tree widget. Auxiliary curves can be added in user-defined
+transformation widgets by specifying a method `extraPlot()`. The curves should
+have their `legend` property defined in the following format: the data item
+alias followed by a dot followed by a sub-name. If this convention is followed,
+the curves become clickable, which will select the corresponding data item in
+the data tree.
 
 Help panel
 ----------
