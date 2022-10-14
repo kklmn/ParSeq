@@ -533,8 +533,31 @@ class MainWindowParSeq(qt.QMainWindow):
         self._populateMenu(menu, **kw)
 
     def _removeFromUndo(self, ind, subAction):
-        del csi.undo[ind]
         menu = self.undoAction.menu()
+        if csi.undo[ind][-1] == 'remove':
+            # remove all other undo and redo entries that refer to deleted data
+            delItems = csi.undo[ind][0]
+            toDeleteUndo = [ind]
+            for ientry, entry in enumerate(csi.undo):
+                if entry[-1] == 'remove':
+                    continue
+                if any(it in entry[1] for it in delItems):
+                    if ientry not in toDeleteUndo:
+                        toDeleteUndo.append(ientry)
+            toDeleteRedo = []
+            for ientry, entry in enumerate(csi.redo):
+                if entry[-1] == 'remove':
+                    continue
+                if any(it in entry[1] for it in delItems):
+                    if ientry not in toDeleteRedo:
+                        toDeleteRedo.append(ientry)
+            for index in reversed(sorted(toDeleteUndo)):
+                del csi.undo[index]
+            for index in reversed(toDeleteRedo):
+                del csi.redo[index]
+            self.populateUndoMenu(menu)
+        else:
+            del csi.undo[ind]
         menu.removeAction(subAction)
         self.setEnableUndoRedo()
 

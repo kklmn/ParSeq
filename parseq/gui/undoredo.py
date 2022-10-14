@@ -21,7 +21,7 @@ class FloatRepr(reprlib.Repr):
 def upplyUndo(ind):
     """*undo* list has records of
     1) [propWidget, dataItems, params, prevValues, newValues, strChange],
-    2) [spectra, rows, strChange]
+    2) [dataItems, rows, strChange]  # 'remove'
     """
     if len(csi.undo) == 0:
         return
