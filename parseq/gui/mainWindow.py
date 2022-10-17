@@ -355,14 +355,14 @@ class MainWindowParSeq(qt.QMainWindow):
         if not shouldBuild:
             return
 
+        if csi.DEBUG_LEVEL > -1:
+            print('building help...')
         self.sphinxThread = qt.QThread(self)
         self.sphinxWorker = gww.SphinxWorker()
         self.sphinxWorker.moveToThread(self.sphinxThread)
         self.sphinxThread.started.connect(partial(
             self.sphinxWorker.render, 'help'))
         self.sphinxWorker.html_ready.connect(self._on_help_ready)
-        if csi.DEBUG_LEVEL > -1:
-            print('building help...')
         self.sphinxWorker.prepareHelp()
         self.sphinxThread.start()
 
@@ -647,6 +647,10 @@ class MainWindowParSeq(qt.QMainWindow):
         self.save_perspective()
         if len(csi.selectedItems) > 0:
             csi.selectedItems[0].save_transform_params()
+        nodes = csi.nodes.values()
+        for node in nodes:
+            if hasattr(node.widget.transformWidget, 'properties'):
+                node.widget.transformWidget.save_properties()
         config.write_configs()
         time.sleep(0.1)
         for dock, _, _ in self.docks.values():

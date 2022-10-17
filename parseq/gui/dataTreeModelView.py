@@ -64,7 +64,6 @@ PROGRESS_ROLE = qt.Qt.UserRole + 1
 
 
 class DataTreeModel(qt.QAbstractItemModel):
-
     needReplot = qt.pyqtSignal()
 
     def __init__(self, parent=None):
@@ -1146,6 +1145,9 @@ class DataTreeView(qt.QTreeView):
             if not csi.dataRootItem.isVisible:  # visible are those selected
                 for it in csi.selectedItems:
                     csi.model.setVisible(it, value, emit)
+            else:
+                if emit:
+                    csi.model.needReplot.emit()
         else:
             if value:
                 it = csi.selectedItems[0]

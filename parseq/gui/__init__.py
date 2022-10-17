@@ -52,7 +52,7 @@ error occurs during a transformation, the tooltip also contains the last
 exception traceback.
 
 In 1D transformation nodes, one can change the data visibility mode by clicking
-on the ‘eye ’header section. Try these modes while selecting different data
+on the "eye" header section. Try these modes while selecting different data
 entries or groups.
 
 Combine dialog
@@ -81,7 +81,7 @@ transformation widgets by specifying a method `extraPlot()`. The curves should
 have their `legend` property defined in the following format: the data item
 alias followed by a dot followed by a sub-name. If this convention is followed,
 the curves become clickable, which will select the corresponding data item in
-the data tree.
+the data tree. Selected data items are plotted on top of unselected items.
 
 Help panel
 ----------

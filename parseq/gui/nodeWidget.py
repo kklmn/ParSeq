@@ -630,6 +630,9 @@ class NodeWidget(qt.QWidget):
                     symbolsize = plotProps.pop('symbolsize', 2)
                     z = 1 if item in csi.selectedItems else 0
                     try:
+                        if hasattr(self.transformWidget, 'extraPlotTransform'):
+                            x, y = self.transformWidget.extraPlotTransform(
+                                item, node.plotXArray, x, yN, y)
                         self.plot.addCurve(
                             x, y, legend=curveLabel, color=item.color, z=z,
                             **plotProps)

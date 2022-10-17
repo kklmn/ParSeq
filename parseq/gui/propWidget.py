@@ -29,6 +29,7 @@ from silx.gui import qt
 
 from ..core import singletons as csi
 from ..core import commons as cco
+from ..core import config
 from . import undoredo as gur
 from . import propsOfData as gpd
 
@@ -70,6 +71,10 @@ class PropWidget(qt.QWidget):
     inserting user changes into undo and redo lists.
     """
 
+    # this dict is designed to hold widget-related properties, not data-related
+    # ones (the latter are stored in data.transformParams).
+    properties = dict()
+
     def __init__(self, parent=None, node=None):
         u"""*node* is the corresponding transformation node, instance of
         :class:`.Node`. This parental __init__() must be invoked in the derived
@@ -90,8 +95,23 @@ class PropWidget(qt.QWidget):
         # self.setContextMenuPolicy(qt.Qt.DefaultContextMenu)
         # self.customContextMenuRequested.connect(self.onCustomContextMenu)
 
+        self.read_ini_properties()
+
         if csi.transformer is not None:
             csi.transformer.ready.connect(self._onTransformThreadReady)
+
+    def read_ini_properties(self):
+        sec = self.__class__.__name__
+        if config.configTransforms.has_section(sec):
+            for key in self.properties:
+                try:
+                    testStr = config.configTransforms.get(sec, key)
+                except Exception:
+                    continue
+                try:
+                    self.properties[key] = eval(testStr)
+                except (SyntaxError, NameError):
+                    self.properties[key] = testStr
 
     def _addAction(self, menu, text, slot, shortcut=None):
         action = qt.QAction(text, self)
@@ -462,10 +482,10 @@ class PropWidget(qt.QWidget):
                     elif iwt == 1:  # 'label'
                         pass
                     elif iwt == 2:  # 'spinbox'
-                        # this method is bad as does updateProp while typing
+                        # this way is bad as it does updateProp while typing
                         # widget.valueChanged.connect(partial(
                         #     self.updatePropFromSpinBox, widget, prop))
-                        # replaced with using stepBy():
+                        # replaced with this way that uses stepBy():
                         widget.stepBy = partial(
                             stepByWithUpdate, widget, widget.stepBy, self,
                             prop)
@@ -703,6 +723,12 @@ class PropWidget(qt.QWidget):
     def extraSetUIFromData(self):
         pass
 
+    def extraPlot(self):
+        pass
+
+    def extraPlotTransform(self, dataItem, xName, x, yName, y):
+        return x, y
+
     def updateDataFromUI(self):
         for widget in self.exclusivePropGroups:
             dd = self.exclusivePropGroups[widget]
@@ -720,3 +746,9 @@ class PropWidget(qt.QWidget):
             # elif dd['widgetTypeIndex'] == 7:  # 'combobox'
             #     gpd.updateDataFromComboBox(widget, dd['prop'])
         self.updateProp()
+
+    def save_properties(self):
+        sec = self.__class__.__name__
+        for key in self.properties:
+            config.put(config.configTransforms, sec, key,
+                       str(self.properties[key]))
