@@ -692,8 +692,8 @@ class MainWindowParSeq(qt.QMainWindow):
                 "}", " color: "+cc.name(qt.QColor.HexArgb)+";}")
             dock.setStyleSheet(ss)
 
-    def displayStatusMessage(self, txt, starter=None, what='', duration=0,
-                             errorList=None):
+    def displayStatusMessage(self, txt, starter=None, what='', props={},
+                             duration=0, errorList=None):
         if 'ready' in txt:
             factor, unit, ff = (1e3, 'ms', '{0:.0f}') if duration < 1 else (
                 1, 's', '{0:.1f}')

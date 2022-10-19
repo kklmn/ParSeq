@@ -57,11 +57,15 @@ def roiDockVisibilityChanged(visible):
 roiKeyFrames = {
     0: [dict(kind='ArcROI', name='arc1', center=(0, 500),
              innerRadius=500, outerRadius=510, startAngle=-1, endAngle=1),
-        dict(kind='RectangleROI', name='rect', origin=(0, 0), size=(50, 900))],
+        dict(kind='RectangleROI', name='rect', origin=(0, 0), size=(50, 900)),
+        dict(kind='BandROI', name='band', begin=(100, 0), end=(500, 900),
+             width=50)],
     7: [dict(kind='ArcROI', name='arc1', center=(100, 500),
              innerRadius=500, outerRadius=550, startAngle=-1, endAngle=1),
         dict(kind='RectangleROI', name='rect', origin=(200, 100),
-             size=(50, 900))],
+             size=(50, 900)),
+        dict(kind='BandROI', name='band', begin=(200, 200), end=(800, 900),
+             width=90)],
     }
 roiWidget = RoiWidgetWithKeyFrames(None, plot)
 roiWidget.setKeyFrames(roiKeyFrames)

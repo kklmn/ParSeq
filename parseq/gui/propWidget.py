@@ -56,10 +56,10 @@ class QLineEditSelectRB(qt.QLineEdit):
 
 
 #  to replace the standard stepBy method of a SpinBox without inheritance:
-def stepByWithUpdate(self, oldStepBy, parent, key, steps):
+def stepByWithUpdate(self, oldStepBy, parent, dataItems, key, steps):
     oldStepBy(steps)
     self.setEnabled(False)  # to prevent double acting
-    parent.updateProp(key, self.value())
+    parent.updateProp(key, self.value(), dataItems)
     self.setEnabled(True)
 
 
@@ -447,7 +447,7 @@ class PropWidget(qt.QWidget):
 
         *prop*: str or a sequence of str, transformation parameter name(s).
 
-        Optional key words:
+        Optional key words (in **kw):
 
         *convertType*: a Python type or a list of types, same length as *prop*,
         that is applied to the widget value.
@@ -466,9 +466,14 @@ class PropWidget(qt.QWidget):
 
         *transformName* str, the transform to run after the given widgets have
         changed. Defaults to `self.node.transformIn.name`.
+
+        *dataItems* a list of data items, None (the transformation parameter)
+        will be applied to selected items) or 'all' (applied to all items).
         """
 
         prop = cco.expandTransformParam(prop)
+        dataItems = kw.pop('dataItems', None)
+
         if not isinstance(widgets, (list, tuple)):
             widgets = [widgets]
         for widget in widgets:
@@ -484,19 +489,22 @@ class PropWidget(qt.QWidget):
                     elif iwt == 2:  # 'spinbox'
                         # this way is bad as it does updateProp while typing
                         # widget.valueChanged.connect(partial(
-                        #     self.updatePropFromSpinBox, widget, prop))
+                        #     self.updatePropFromSpinBox, widget, dataItems,
+                        #     prop))
                         # replaced with this way that uses stepBy():
                         widget.stepBy = partial(
                             stepByWithUpdate, widget, widget.stepBy, self,
-                            prop)
+                            dataItems, prop)
                     elif iwt == 3:  # 'groupbox'
                         # widget.toggled.connect(
                         widget.clicked.connect(
-                            partial(self.updatePropFromCheckBox, widget, prop))
+                            partial(self.updatePropFromCheckBox, widget,
+                                    dataItems, prop))
                     elif iwt == 4:  # 'checkbox'
                         # widget.toggled.connect(
                         widget.clicked.connect(
-                            partial(self.updatePropFromCheckBox, widget, prop))
+                            partial(self.updatePropFromCheckBox, widget,
+                                    dataItems, prop))
                     elif iwt == 5:  # 'pushbutton'
                         pass
                     elif iwt == 6:  # 'tableview'
@@ -587,6 +595,9 @@ class PropWidget(qt.QWidget):
     def updateProp(self, key=None, value=None, dataItems=None):
         if dataItems is None:
             dataItems = csi.selectedItems
+        elif dataItems == 'all':
+            dataItems = csi.allLoadedItems
+
         if key is None or value is None:
             params = {}
             tNames = [dd['transformName'] for dd in
@@ -632,7 +643,8 @@ class PropWidget(qt.QWidget):
         else:
             tr.run(params=params, dataItems=dataItems)
 
-    def _onTransformThreadReady(self, starter, tName='', duration=0, err=None):
+    def _onTransformThreadReady(
+            self, starter, tName='', props={}, duration=0, err=None):
         if starter is not self:
             return
         if csi.DEBUG_LEVEL > 50:
@@ -643,8 +655,12 @@ class PropWidget(qt.QWidget):
             print('enter {0} {1}'.format(what, where))
         self.updateStatusWidgets()
         self.replotAllDownstream(tName)
+        self.extraPlotActionAfterTransform(props)
         if csi.DEBUG_LEVEL > 50:
             print('exit {0} {1}'.format(what, where))
+
+    def extraPlotActionAfterTransform(self, props):
+        return
 
     def replotAllDownstream(self, tName):
         if tName:
@@ -666,29 +682,30 @@ class PropWidget(qt.QWidget):
             elif hasattr(widget, 'setText'):
                 gpd.setEditFromData(widget, dd['prop'], **dd['kw'])
 
-    # def updatePropFromSpinBox(self, spinBox, key, value):
+    # def updatePropFromSpinBox(self, spinBox, dataItems, key, value):
     #     # spinBox = self.sender()  # doesn't work in PySide2
     #     if not spinBox.hasFocus():
     #         return
     #     spinBox.setEnabled(False)  # to prevent double acting
-    #     self.updateProp(key, value)
+    #     self.updateProp(key, value, dataItems)
     #     spinBox.setEnabled(True)
 
-    def updatePropFromCheckBox(self, checkBox, key, value):
+    def updatePropFromCheckBox(self, checkBox, dataItems, key, value):
         # checkBox = self.sender()  # doesn't work in PySide2
         if not checkBox.hasFocus():
             return
-        self.updateProp(key, value)
+        self.updateProp(key, value, dataItems)
 
-    def updatePropFromRadioButton(self, rButton, key, value, **kw):
-        self.updateProp(key, value)
+    def updatePropFromRadioButton(self, rButton, dataItems, key, value, **kw):
+        self.updateProp(key, value, dataItems)
 
-    def updatePropFromComboBox(self, comboBox, key, index, indexToValue=None):
+    def updatePropFromComboBox(self, comboBox, dataItems, key, index,
+                               indexToValue=None):
         # comboBox = self.sender()  # doesn't work in PySide2
         if not comboBox.hasFocus():
             return
         value = indexToValue[index] if indexToValue is not None else index
-        self.updateProp(key, value)
+        self.updateProp(key, value, dataItems)
 
     def setUIFromData(self):
         for widget in self.exclusivePropGroups:

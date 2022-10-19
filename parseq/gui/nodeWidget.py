@@ -589,8 +589,8 @@ class NodeWidget(qt.QWidget):
 
         if self.onTransform:
             return
-        if len(csi.allLoadedItems) == 0:
-            return
+        # if len(csi.allLoadedItems) == 0:
+        #     return
 
         node = self.node
         if keepExtent:

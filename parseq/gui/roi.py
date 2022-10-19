@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "12 Aug 2022"
+__date__ = "18 Oct 2022"
 # !!! SEE CODERULES.TXT !!!
 
 # import time
@@ -11,7 +11,8 @@ import numpy as np
 from silx.gui import qt
 from silx.gui.plot.tools.roi import (
     RegionOfInterestManager, RoiModeSelectorAction)
-from silx.gui.plot.items.roi import ArcROI, RectangleROI, PointROI, CrossROI
+from silx.gui.plot.items.roi import (
+    ArcROI, RectangleROI, BandROI, PointROI, CrossROI)
 
 from . import gcommons as gco
 from ..core import singletons as csi
@@ -33,6 +34,8 @@ class RoiManager(RegionOfInterestManager):
                 name = 'rect'
             elif isinstance(roi, ArcROI):
                 name = 'arc'
+            elif isinstance(roi, BandROI):
+                name = 'band'
             elif isinstance(roi, (CrossROI, PointROI)):
                 name = 'p'
             roi.setName('{0}{1}'.format(name, len(self.getRois())))
@@ -157,6 +160,11 @@ class RoiModel(qt.QAbstractTableModel):
                         innerRadius=roi.getInnerRadius(),
                         outerRadius=roi.getOuterRadius(),
                         startAngle=geom.startAngle, endAngle=geom.endAngle)
+        elif isinstance(roi, BandROI):
+            geom = roi.getGeometry()
+            return dict(kind='BandROI', name=roi.getName(),
+                        use=roi.isVisible(),
+                        begin=geom.begin, end=geom.end, width=geom.width)
         elif isinstance(roi, (CrossROI, PointROI)):
             return dict(kind=roi.__class__.__name__, name=roi.getName(),
                         use=roi.isVisible(),
@@ -178,6 +186,11 @@ class RoiModel(qt.QAbstractTableModel):
             text = 'center: {0:.1f}, {1:.1f}\nradii: {2:.1f}, {3:.1f}\n'\
                 'angles: {4:.4f}, {5:.4f}'.format(
                     x, y, innerR, outerR, startAngle, endAngle)
+        elif isinstance(roi, BandROI):
+            geom = roi.getGeometry()
+            text = 'begin: {0[0]:.1f}, {0[1]:.1f}\n'\
+                'end: {1[0]:.1f}, {1[1]:.1f}\n'\
+                'width: {2:.1f}'.format(geom.begin, geom.end, geom.width)
         elif isinstance(roi, (CrossROI, PointROI)):
             x, y = roi.getPosition()
             text = 'pos: {0:.3f}, {1:.3f}'.format(x, y)
@@ -199,6 +212,8 @@ class RoiModel(qt.QAbstractTableModel):
                     center=res['center'],
                     innerRadius=res['radii'][0], outerRadius=res['radii'][1],
                     startAngle=res['angles'][0], endAngle=res['angles'][1])
+            elif isinstance(roi, BandROI):
+                kw = res
             elif isinstance(roi, (CrossROI, PointROI)):
                 kw = res
             else:
@@ -210,7 +225,7 @@ class RoiModel(qt.QAbstractTableModel):
             return False
 
     def setRoi(self, roi, kw):
-        if isinstance(roi, (ArcROI, RectangleROI)):
+        if isinstance(roi, (RectangleROI, ArcROI, BandROI)):
             roi.setGeometry(**kw)
         elif isinstance(roi, (PointROI, CrossROI)):
             roi.setPosition(kw['pos'])
@@ -238,10 +253,12 @@ class RoiToolBar(qt.QToolBar):
         # roi_items.ArcROI,
         # roi_items.HorizontalRangeROI,
         for roiClassName in roiClassNames:
-            if roiClassName == 'ArcROI':
-                roiClass = ArcROI
-            elif roiClassName == 'RectangleROI':
+            if roiClassName == 'RectangleROI':
                 roiClass = RectangleROI
+            elif roiClassName == 'ArcROI':
+                roiClass = ArcROI
+            elif roiClassName == 'BandROI':
+                roiClass = BandROI
             elif roiClassName == 'CrossROI':
                 roiClass = CrossROI
             elif roiClassName == 'PointROI':
@@ -416,7 +433,7 @@ class RoiWidgetWithKeyFrames(RoiWidgetBase):
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
 
-        roiClassNames = 'ArcROI', 'RectangleROI'
+        roiClassNames = 'RectangleROI', 'ArcROI', 'BandROI'
         self.roiToolbar = RoiToolBar(self, self.roiManager, roiClassNames)
         layout.addWidget(self.roiToolbar)
 
@@ -544,10 +561,13 @@ class RoiWidgetWithKeyFrames(RoiWidgetBase):
                 kind = roiKW.pop('kind')
                 name = roiKW.pop('name', 'roi{0}'.format(iroi))
                 use = roiKW.pop('use', True)
-                if kind == 'ArcROI':
-                    roi = ArcROI()
-                elif kind == 'RectangleROI':
+                if kind == 'RectangleROI':
                     roi = RectangleROI()
+                elif kind == 'ArcROI':
+                    roi = ArcROI()
+                elif kind == 'BandROI':
+                    roi = BandROI()
+                    roi.setBounded(False)
                 else:
                     raise ValueError('unsupported ROI type')
                 roi.setName(name)
@@ -704,10 +724,13 @@ class RoiWidget(RoiWidgetBase):
                 roid.pop('use', True)
                 name = roid.pop('name', '')
                 # model.reset()
-                if kind == 'ArcROI':
-                    roi = ArcROI()
-                elif kind == 'RectangleROI':
+                if kind == 'RectangleROI':
                     roi = RectangleROI()
+                elif kind == 'ArcROI':
+                    roi = ArcROI()
+                elif kind == 'BandROI':
+                    roi = BandROI()
+                    roi.setBounded(False)
                 elif kind == 'PointROI':
                     roi = PointROI()
                 elif kind == 'CrossROI':

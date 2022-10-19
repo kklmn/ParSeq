@@ -35,7 +35,7 @@ class ColumnFormatWidget(PropWidget):
         self.tabWidget.setTabToolTip(
             ind, "for HDF5/SPEC datasets: use context menu on data arrays\n"
             "for column files: use expressions of variables `Col1`, `Col2`, …"
-            "\nor give a zero-based int column index")
+            "\n(zero-based!) or give a zero-based int column index")
 
         self.conversionTab = self.makeConversionTab()
         ind = self.tabWidget.addTab(self.conversionTab, 'conversion')
