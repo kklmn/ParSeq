@@ -151,13 +151,11 @@ class PropWidget(qt.QWidget):
                w in self.exclusivePropGroups for w in widgetsOver]
         if sum(out) == 0:
             return
-        tNames = [self.propWidgets[w]['transformName'] for w in widgetsOver
+        tNames = [self.propWidgets[w]['transformNames'] for w in widgetsOver
                   if w in self.propWidgets]
-        tName = tNames[0] if len(tNames) > 0 else None
-
         menu = qt.QMenu(self)
         self.fillMenuApply(widgetsOver, menu)
-        if tName is not None:
+        if len(tNames) > 0:
             menu.addSeparator()
             self.fillMenuReset(widgetsOver, menu)
 
@@ -183,7 +181,7 @@ class PropWidget(qt.QWidget):
         actionStr = 'apply {0}{1}'
         data = csi.selectedItems[0]
 
-        tName = None
+        tNames = []
         for widget in widgetsOver:
             if not widget.isEnabled():
                 continue
@@ -195,7 +193,7 @@ class PropWidget(qt.QWidget):
                 cap = self.propGroups[widget]['caption']
             elif widget in self.propWidgets:
                 propWidget = self.propWidgets[widget]
-                tName = propWidget['transformName']
+                tNames = propWidget['transformNames']
                 props = self._getPropListWidget(widget)
                 if 'copyValue' in propWidget:
                     res = propWidget['copyValue']
@@ -238,7 +236,7 @@ class PropWidget(qt.QWidget):
                 print('props', props)
                 print('values', values)
 
-        if tName is not None:
+        for tName in tNames:
             tr = csi.transforms[tName]
             keys = tr.defaultParams.keys()
             props = [cco.expandTransformParam(key) for key in keys]
@@ -274,7 +272,7 @@ class PropWidget(qt.QWidget):
 
         tr = None
         for widget in widgetsOver:
-            tName = None
+            tNames = []
             if not widget.isEnabled():
                 continue
             if widget in self.propGroups:
@@ -285,14 +283,16 @@ class PropWidget(qt.QWidget):
             elif widget in self.propWidgets:
                 props = self._getPropListWidget(widget)
                 cap = self.propWidgets[widget]['caption']
-                tName = self.propWidgets[widget]['transformName']
+                tNames = self.propWidgets[widget]['transformNames']
             elif widget in self.exclusivePropGroups:
                 props = self._getPropListExclusiveGroup(widget)
                 cap = self.exclusivePropGroups[widget]['caption']
             else:
                 continue
             values, validProps = [], []
-            if tName is not None:
+            for tName in tNames:
+                if tName is None:
+                    continue
                 tr = csi.transforms[tName]
                 for prop in props:
                     key = cco.shrinkTransformParam(prop)
@@ -464,8 +464,9 @@ class PropWidget(qt.QWidget):
         and a str 'from data' that signals that the corresponding prop is taken
         from the actual data transformation parameter.
 
-        *transformName* str, the transform to run after the given widgets have
-        changed. Defaults to `self.node.transformIn.name`.
+        *transformNames* list of str
+        The transforms to run after the given widgets have changed. Defaults to
+        the names in `self.node.transformsIn`.
 
         *dataItems* a list of data items, None (the transformation parameter)
         will be applied to selected items) or 'all' (applied to all items).
@@ -515,15 +516,11 @@ class PropWidget(qt.QWidget):
             else:
                 raise ValueError("unknown widgetType {0}".format(className))
 
-            try:
-                # transformName = self.node.transformsOut[0].name
-                transformName = kw.pop(
-                    'transformName', self.node.transformIn.name)
-            except Exception:
-                transformName = None
+            transformNames = kw.pop(
+                'transformNames', [tr.name for tr in self.node.transformsIn])
             self.propWidgets[widget] = dict(
                 widgetTypeIndex=iwt, caption=caption, prop=prop,
-                transformName=transformName, kw=kw)
+                transformNames=transformNames, kw=kw)
             copyValue = kw.pop('copyValue', None)
             if copyValue is not None:
                 if isinstance(prop, (list, tuple)) and \
@@ -543,13 +540,15 @@ class PropWidget(qt.QWidget):
         self.propGroups[groupWidget] = dict(widgets=widgets, caption=caption)
 
     def registerExclusivePropGroup(
-            self, groupWidget, rbuttons, caption, prop, transformName):
+            self, groupWidget, rbuttons, caption, prop, transformNames):
         """A checkable group that contains QRadioButtons that reflect an int
         prop."""
+        if isinstance(transformNames, str):
+            transformNames = [transformNames]
         prop = cco.expandTransformParam(prop)
         self.exclusivePropGroups[groupWidget] = dict(
             widgets=rbuttons, caption=caption, prop=prop,
-            transformName=transformName)
+            transformNames=transformNames)
         for irb, rb in enumerate(rbuttons):
             rb.clicked.connect(partial(
                 self.updatePropFromRadioButton, groupWidget, prop, irb))
@@ -597,16 +596,15 @@ class PropWidget(qt.QWidget):
             dataItems = csi.selectedItems
         elif dataItems == 'all':
             dataItems = csi.allLoadedItems
+        if len(dataItems) == 0:
+            return
 
         if key is None or value is None:
             params = {}
-            tNames = [dd['transformName'] for dd in
+            tNames = [dd['transformNames'] for dd in
                       list(self.propWidgets.values()) +
                       list(self.exclusivePropGroups.values())]
-            tName = tNames[0] if len(tNames) > 0 else None
-            if tName:
-                tr = csi.transforms[tName]
-            else:
+            if len(tNames) == 0:
                 return
         else:
             for dd in (list(self.propWidgets.values()) +
@@ -614,15 +612,13 @@ class PropWidget(qt.QWidget):
                 try:
                     if dd['prop'].endswith(key):
                         # may start with 'transformParams'
-                        tName = dd['transformName']
+                        tNames = dd['transformNames']
                         break
                 except Exception:  # dd['prop'] can be a list
                     continue
             else:
                 raise ValueError('unknown parameter {0}'.format(key))
-            if tName:
-                tr = csi.transforms[tName]
-            else:
+            if len(tNames) == 0:
                 return
             if '.' not in key:
                 key = cco.expandTransformParam(key)
@@ -636,9 +632,32 @@ class PropWidget(qt.QWidget):
                     key, type(key)))
             params = {param: value}
 
+        tr = None
+        data = dataItems[0]
+        # in the case when several transforms come to one node, we need to
+        # check which one to rune, there can be only one!
+        for tName in tNames:
+            if isinstance(tName, str):
+                tr = csi.transforms[tName]
+                if (tr.fromNode.is_between_nodes(
+                    data.originNodeName, data.terminalNodeName) and
+                    tr.toNode.is_between_nodes(
+                        data.originNodeName, data.terminalNodeName)):
+                    break
+            elif isinstance(tName, (list, tuple)):
+                for tN in tName:
+                    tr = csi.transforms[tN]
+                    if (tr.fromNode.is_between_nodes(
+                        data.originNodeName, data.terminalNodeName) and
+                        tr.toNode.is_between_nodes(
+                            data.originNodeName, data.terminalNodeName)):
+                        break
+        if tr is None:
+            return
+
         if csi.transformer is not None:
-            csi.transformer.prepare(tr, params=params, dataItems=dataItems,
-                                    starter=self)
+            csi.transformer.prepare(
+                tr, params=params, dataItems=dataItems, starter=self)
             csi.transformer.thread().start()
         else:
             tr.run(params=params, dataItems=dataItems)

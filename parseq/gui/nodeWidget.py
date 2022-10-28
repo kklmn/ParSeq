@@ -8,6 +8,7 @@ import os.path as osp
 import webbrowser
 from collections import Counter
 from functools import partial
+import traceback
 
 from silx.gui import qt, colors, icons
 
@@ -333,14 +334,13 @@ class NodeWidget(qt.QWidget):
         self.splitterTransform.setStretchFactor(1, 1)
 
     def makeTransformWidget(self, parent):
-        tr = self.node.transformIn
         hasWidgetClass = self.node.widgetClass is not None
         if hasWidgetClass:
             self.transformWidget = self.node.widgetClass(
                 parent=parent, node=self.node)
         else:
             self.transformWidget = qt.QWidget(parent)
-        if tr is not None:
+        for tr in self.node.transformsIn:
             tr.sendSignals = csi.mainWindow is not None
             tr.widget = self.transformWidget
 
@@ -361,8 +361,9 @@ class NodeWidget(qt.QWidget):
         if handle is None:
             return
         isVerical = splitter.orientation() == qt.Qt.Horizontal
-        if name == 'transform' and self.node.transformIn is not None:
-            nameBut = name + ': ' + self.node.transformIn.name
+        trNames = [tr.name for tr in self.node.transformsIn]
+        if trNames:
+            nameBut = name + ': ' + ', '.join(trNames)
         else:
             nameBut = name
         button = QSplitterButton(nameBut, handle, isVerical)
@@ -639,6 +640,8 @@ class NodeWidget(qt.QWidget):
                     except Exception as e:
                         print('plotting in {0} failed: {1}'.format(
                             self.node.name, e))
+                        tb = traceback.format_exc()
+                        print(tb)
                         continue
                     nPlottedItems += 1
                     symbol = plotProps.get('symbol', None)
@@ -685,7 +688,7 @@ class NodeWidget(qt.QWidget):
             self.plot.setGraphYLabel(label=self.plotRightYLabel, axis='right')
         if node.plotDimension == 2:
             self.plot.clearCurves()
-            self.plot.clearImages()
+            # self.plot.clearImages()  # clears roi lines
             # self.plot.clearMarkers()
             if len(csi.selectedItems) > 0:
                 item = csi.selectedItems[0]  # it could be the last one but
@@ -714,8 +717,8 @@ class NodeWidget(qt.QWidget):
                                origin=(xOrigin, yOrigin),
                                scale=(xScale, yScale))
         if node.plotDimension == 3:
-            self.plot._plot.clearCurves()
-            self.plot._plot.clearImages()
+            self.plot._plot.clearCurves()  # clears roi lines
+            # self.plot._plot.clearImages()
             # self.plot._plot.clearMarkers()
             item = None
             if len(csi.selectedItems) > 0:

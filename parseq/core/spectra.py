@@ -142,8 +142,6 @@ class TreeItem(object):
                                 res += ds
                     if csi.currentNode is not None:
                         node = csi.currentNode
-                        tr = node.transformIn
-                        trname = tr.name if tr is not None else None
                         if self.state[node.name] == cco.DATA_STATE_NOTFOUND:
                             if res:
                                 res += '\n'
@@ -182,13 +180,15 @@ class TreeItem(object):
                                     size = sys.getsizeof(arr)
                                     res += '\n{0}: {1}'.format(
                                         whatSize, format_memory_size(size))
-                                if trname in self.transfortmTimes:
-                                    tt = self.transfortmTimes[trname]
+                                for tr in node.transformsIn:
+                                    if tr.name not in self.transfortmTimes:
+                                        continue
+                                    tt = self.transfortmTimes[tr.name]
                                     factor, unit, ff = \
                                         (1e3, 'ms', '{1:.0f}') if tt < 1\
                                         else (1, 's', '{1:.1f}')
                                     ss = '\nmade by "{0}" in ' + ff + ' {2}'
-                                    res += ss.format(trname, tt*factor, unit)
+                                    res += ss.format(tr.name, tt*factor, unit)
                             except Exception as e:
                                 res += '\n' + str(e)
                         elif self.state[node.name] == cco.DATA_STATE_UNDEFINED:

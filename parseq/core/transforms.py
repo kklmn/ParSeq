@@ -114,7 +114,8 @@ class Transform(object):
 
         if self not in fromNode.transformsOut:
             fromNode.transformsOut.append(self)
-        toNode.transformIn = self
+        if self not in fromNode.transformsIn:
+            toNode.transformsIn.append(self)
         self.sendSignals = False
         self.read_ini_params()
 
@@ -194,17 +195,17 @@ class Transform(object):
             csi.mainWindow.beforeDataTransformSignal.emit(workedItems)
 
         for worker, item in zip(workers, workedItems):
+            if 'progress' in args and self.sendSignals:
+                worker.timer = NTimer(
+                    self.progressTimeDelta,
+                    self._get_progressN, [item.alias, worker])
+                worker.timer.start()
             if not worker.put_in_data(item):
                 item.state[self.toNode.name] = cco.DATA_STATE_BAD
                 item.beingTransformed = False
                 continue
             else:
                 item.beingTransformed = self.name
-            if 'progress' in args and self.sendSignals:
-                worker.timer = NTimer(
-                    self.progressTimeDelta,
-                    self._get_progressN, [item.alias, worker])
-                worker.timer.start()
             worker.start()
             item.transfortm_t0 = time.time()
 

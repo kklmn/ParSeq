@@ -115,7 +115,7 @@ class Node(object):
         # filled automatically by transforms:
         self.transformsOut = []  # list of transforms from this node
         # assigned automatically by transform:
-        self.transformIn = None
+        self.transformsIn = []
         csi.nodes[self.name] = self
 
         roles = self.get_arrays_prop('role')

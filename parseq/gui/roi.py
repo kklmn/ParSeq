@@ -567,7 +567,7 @@ class RoiWidgetWithKeyFrames(RoiWidgetBase):
                     roi = ArcROI()
                 elif kind == 'BandROI':
                     roi = BandROI()
-                    roi.setBounded(False)
+                    # roi.setBounded(False)
                 else:
                     raise ValueError('unsupported ROI type')
                 roi.setName(name)
