@@ -687,11 +687,13 @@ class PropWidget(qt.QWidget):
             csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
             tr.toNode.widget.replot()
             for subnode in tr.toNode.downstreamNodes:
-                subnode.widget.replot()
+                if subnode.widget is not None:
+                    subnode.widget.replot()
         else:
             self.node.widget.replot()
             for subnode in self.node.downstreamNodes:
-                subnode.widget.replot()
+                if subnode.widget is not None:
+                    subnode.widget.replot()
 
     def updateStatusWidgets(self):
         for widget in self.statusWidgets:

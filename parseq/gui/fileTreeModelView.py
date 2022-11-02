@@ -1115,12 +1115,13 @@ class FileTreeView(qt.QTreeView):
                                         needSlice=(len(shape), ndim)))
                 menu.addSeparator()
 
-            if len(arrayPaths) > 1:
-                for iLbl, yLbl in enumerate(yLbls):
-                    menu.addAction("Set as a list of {0} arrays".format(yLbl),
-                                   partial(self.setAsArray, iLbl, arrayPaths,
-                                           isList=True))
-                menu.addSeparator()
+                if len(arrayPaths) > 1:
+                    for iLbl, yLbl in enumerate(yLbls):
+                        menu.addAction(
+                            "Set as a list of {0} arrays".format(yLbl),
+                            partial(self.setAsArray, iLbl, arrayPaths,
+                                    isList=True))
+                    menu.addSeparator()
 
         isEnabled = False
         if self.transformNode is not None:
@@ -1355,6 +1356,8 @@ class FileTreeView(qt.QTreeView):
         edit.setText(txt)
 
     def addMetadata(self, paths):
+        if self.transformNode is None:
+            return
         subpaths = self._enrtySubpaths(paths)
         cf = self.transformNode.widget.columnFormat
         cf.addMetadata(subpaths)
