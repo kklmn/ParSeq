@@ -16,11 +16,12 @@ import pickle
 import time
 import numpy as np
 
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 
 import silx
 from distutils.version import LooseVersion  # , StrictVersion
-assert LooseVersion(silx.version) >= LooseVersion("0.9.0")
+assert LooseVersion(silx.version) >= LooseVersion("1.1.0")
 from silx.gui import qt
 import silx.io as silx_io
 from silx.gui.hdf5.Hdf5TreeModel import Hdf5TreeModel

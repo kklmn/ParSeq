@@ -398,7 +398,10 @@ class RoiWidgetBase(qt.QWidget):
                 model.roiCounts[row] = frame[mask].sum()
             elif isinstance(roi, BandROI):
                 xs = np.arange(sh[1])[None, :]
-                ys = self.dataToCountY[:, None]
+                if self.dataToCountY is not None:
+                    ys = self.dataToCountY[:, None]
+                else:
+                    ys = np.arange(sh[0])[:, None]
                 mask = uma.get_roi_mask(geom, xs, ys)
                 model.roiCounts[row] = frame[mask].sum()
             elif isinstance(roi, (CrossROI, PointROI)):
