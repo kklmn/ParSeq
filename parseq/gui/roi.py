@@ -19,7 +19,7 @@ from ..core import singletons as csi
 from ..utils import math as uma
 
 HEADERS = 'label', 'use', 'geometry', 'counts'
-columnWidths = 45, 32, 164, 52
+columnWidths = 45, 32, 164, 55
 
 
 class RoiManager(RegionOfInterestManager):
@@ -36,6 +36,7 @@ class RoiManager(RegionOfInterestManager):
                 name = 'arc'
             elif isinstance(roi, BandROI):
                 name = 'band'
+                roi.setAvailableInteractionModes([BandROI.UnboundedMode])
             elif isinstance(roi, (CrossROI, PointROI)):
                 name = 'p'
             roi.setName('{0}{1}'.format(name, len(self.getRois())))
@@ -164,7 +165,8 @@ class RoiModel(qt.QAbstractTableModel):
             geom = roi.getGeometry()
             return dict(kind='BandROI', name=roi.getName(),
                         use=roi.isVisible(),
-                        begin=geom.begin, end=geom.end, width=geom.width)
+                        begin=(geom.begin.x, geom.begin.y),
+                        end=(geom.end.x, geom.end.y), width=geom.width)
         elif isinstance(roi, (CrossROI, PointROI)):
             return dict(kind=roi.__class__.__name__, name=roi.getName(),
                         use=roi.isVisible(),
@@ -188,9 +190,9 @@ class RoiModel(qt.QAbstractTableModel):
                     x, y, innerR, outerR, startAngle, endAngle)
         elif isinstance(roi, BandROI):
             geom = roi.getGeometry()
-            text = 'begin: {0[0]:.1f}, {0[1]:.1f}\n'\
-                'end: {1[0]:.1f}, {1[1]:.1f}\n'\
-                'width: {2:.1f}'.format(geom.begin, geom.end, geom.width)
+            text = 'begin: {0[0]:.3f}, {0[1]:.3f}\n'\
+                'end: {1[0]:.3f}, {1[1]:.3f}\n'\
+                'width: {2:.3f}'.format(geom.begin, geom.end, geom.width)
         elif isinstance(roi, (CrossROI, PointROI)):
             x, y = roi.getPosition()
             text = 'pos: {0:.3f}, {1:.3f}'.format(x, y)
@@ -392,8 +394,13 @@ class RoiWidgetBase(qt.QWidget):
             if isinstance(roi, (RectangleROI, ArcROI)):
                 xs = np.arange(sh[1])[None, :]
                 ys = np.arange(sh[0])[:, None]
-                m = uma.get_roi_mask(geom, xs, ys)
-                model.roiCounts[row] = frame[m].sum()
+                mask = uma.get_roi_mask(geom, xs, ys)
+                model.roiCounts[row] = frame[mask].sum()
+            elif isinstance(roi, BandROI):
+                xs = np.arange(sh[1])[None, :]
+                ys = self.dataToCountY[:, None]
+                mask = uma.get_roi_mask(geom, xs, ys)
+                model.roiCounts[row] = frame[mask].sum()
             elif isinstance(roi, (CrossROI, PointROI)):
                 x, y = geom['pos']
                 xs = self.dataToCountX
@@ -567,7 +574,7 @@ class RoiWidgetWithKeyFrames(RoiWidgetBase):
                     roi = ArcROI()
                 elif kind == 'BandROI':
                     roi = BandROI()
-                    # roi.setBounded(False)
+                    roi.setAvailableInteractionModes([BandROI.UnboundedMode])
                 else:
                     raise ValueError('unsupported ROI type')
                 roi.setName(name)
@@ -730,18 +737,18 @@ class RoiWidget(RoiWidgetBase):
                     roi = ArcROI()
                 elif kind == 'BandROI':
                     roi = BandROI()
-                    roi.setBounded(False)
+                    roi.setAvailableInteractionModes([BandROI.UnboundedMode])
                 elif kind == 'PointROI':
                     roi = PointROI()
                 elif kind == 'CrossROI':
                     roi = CrossROI()
                 else:
                     raise ValueError('unsupported ROI {0}'.format(kind))
-                self.roiManager.addRoi(roi)
                 if name:
                     roi.setName(name)
                 roi.setVisible(True)
                 model.setRoi(roi, roid)
+                self.roiManager.addRoi(roi)
         else:
             for roi, roid in zip(rois, roiDicts):
                 kind = roid.pop('kind')
@@ -752,7 +759,6 @@ class RoiWidget(RoiWidgetBase):
                 roi.setVisible(bool(use))
                 model.setRoi(roi, roid)
 
-        self.roiManager.setCurrentRoi(roi)
         model.reset()
         model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 

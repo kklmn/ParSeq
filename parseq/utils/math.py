@@ -7,6 +7,12 @@ import numpy as np
 from scipy.interpolate import UnivariateSpline
 
 
+def line(xs, ys):
+    k = (ys[1] - ys[0]) / (xs[1] - xs[0])
+    b = ys[1] - k*xs[1]
+    return k, b
+
+
 def fwhm(x, y):
     try:
         if x[0] > x[-1]:
@@ -19,15 +25,21 @@ def fwhm(x, y):
 
 
 def get_roi_mask(geom, xs, ys):
-    if geom['kind'] == 'ArcROI':
+    if geom['kind'] == 'RectangleROI':
+        x, y = geom['origin']
+        w, h = geom['size']
+        return (xs >= x) & (xs <= x+w) & (ys >= y) & (ys <= y+h)
+    elif geom['kind'] == 'ArcROI':
         x, y = geom['center']
         r1, r2 = geom['innerRadius'], geom['outerRadius']
         dist2 = (xs-x)**2 + (ys-y)**2
         return (dist2 >= r1**2) & (dist2 <= r2**2)
-    elif geom['kind'] == 'RectangleROI':
-        x, y = geom['origin']
-        w, h = geom['size']
-        return (xs >= x) & (xs <= x+w) & (ys >= y) & (ys <= y+h)
+    elif geom['kind'] == 'BandROI':
+        x1, y1 = geom['begin']
+        x2, y2 = geom['end']
+        k, b = line((x1, x2), (y1, y2))
+        w = geom['width']
+        return (ys >= k*xs + b - w/2) & (ys <= k*xs + b + w/2)
     else:
         raise ValueError('unsupported ROI type')
 

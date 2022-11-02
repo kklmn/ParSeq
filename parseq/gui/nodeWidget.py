@@ -715,7 +715,7 @@ class NodeWidget(qt.QWidget):
             yOrigin, yScale = self.getCalibration(item, 'y')
             self.plot.addImage(image, colormap=colors.Colormap(COLORMAP),
                                origin=(xOrigin, yOrigin),
-                               scale=(xScale, yScale))
+                               scale=(xScale, yScale), z=-100)
         if node.plotDimension == 3:
             self.plot._plot.clearCurves()  # clears roi lines
             # self.plot._plot.clearImages()

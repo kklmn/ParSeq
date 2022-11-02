@@ -236,6 +236,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             row = item.row()
             index = self.createIndex(row, 0, item)
             csi.selectionModel.select(index, mode)
+            csi.selectionModel.setCurrentIndex(index, mode)
         return items
 
     def _removeFromGlobalLists(self, item):
@@ -1158,8 +1159,8 @@ class DataTreeView(qt.QTreeView):
                     csi.model.setVisible(it, value, emit)
 
     def selChanged(self):
-        if not self.hasFocus():
-            return
+        # if not self.hasFocus():
+        #     return
         csi.currentNode = self.node
 
         selectedIndexes = csi.selectionModel.selectedRows()

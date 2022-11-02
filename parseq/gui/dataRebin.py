@@ -4,9 +4,9 @@ __date__ = "28 Oct 2022"
 # !!! SEE CODERULES.TXT !!!
 
 from silx.gui import qt
-from ..core import singletons as csi
 
 ROWHEIGHT = 24
+HEADERHEIGHT = 28
 DOTSIZE = 2, 4
 DOTDELTA = 1
 
@@ -198,7 +198,7 @@ class DeltasHeaderView(qt.QHeaderView):
         self.deltasModel = deltasModel
         self.setModel(DeltasHeaderModel(deltasModel))
         self.hideLastBrace = hideLastBrace
-        self.setFixedHeight(ROWHEIGHT+4)
+        self.setFixedHeight(HEADERHEIGHT)
 
     def paintSection(self, painter, rect, logicalIndex):
         painter.setRenderHint(qt.QPainter.Antialiasing, True)
@@ -302,7 +302,7 @@ class VHeaderView(qt.QHeaderView):
             for it, t in enumerate([what, txt]):
                 rr = rect.translated(0, -8)  # a copy of rect
                 # rr.setHeight(4)
-                painter.drawText(rr.translated(0, it*14), alignment, t)
+                painter.drawText(rr.translated(0, it*12), alignment, t)
         else:
             painter.drawText(rect, alignment, txt)
 
@@ -349,10 +349,8 @@ class DoubleSpinBoxDelegate(qt.QStyledItemDelegate):
         return False
 
     def updateEditorGeometry(self, editor, option, index):
-        editor.setGeometry(
-            option.rect.x(), option.rect.y()+1,
-            option.rect.width(),
-            int(option.rect.height()/csi.screenFactor)-2)
+        editor.setGeometry(option.rect.x(), option.rect.y(),
+                           option.rect.width(), option.rect.height()-1)
 
 
 class SplittersTableView(qt.QTableView):
@@ -393,7 +391,7 @@ class SplittersTableView(qt.QTableView):
         self.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
         self.setShowGrid(False)
-        self.setFixedHeight(ROWHEIGHT+2)
+        self.setFixedHeight(ROWHEIGHT+1)
 
 
 class DeltasTableView(qt.QTableView):
@@ -438,7 +436,7 @@ class DeltasTableView(qt.QTableView):
         self.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
         # self.setShowGrid(False)
-        self.setFixedHeight(horHeader.height()+1 + (ROWHEIGHT+2)*3)
+        self.setFixedHeight(HEADERHEIGHT + (ROWHEIGHT+1)*3)
 
     def redrawHeader(self, orientation, logicalFirst, logicalLast):
         self.horizontalHeader().headerDataChanged(
