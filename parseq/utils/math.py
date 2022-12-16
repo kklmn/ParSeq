@@ -8,7 +8,10 @@ from scipy.interpolate import UnivariateSpline
 
 
 def line(xs, ys):
-    k = (ys[1] - ys[0]) / (xs[1] - xs[0])
+    try:
+        k = (ys[1] - ys[0]) / (xs[1] - xs[0])
+    except ZeroDivisionError:
+        return np.inf, 0.
     b = ys[1] - k*xs[1]
     return k, b
 
@@ -39,7 +42,10 @@ def get_roi_mask(geom, xs, ys):
         x2, y2 = geom['end']
         k, b = line((x1, x2), (y1, y2))
         w = geom['width']
-        return (ys >= k*xs + b - w/2) & (ys <= k*xs + b + w/2)
+        return (ys >= k*(xs-w/2) + b) & (ys <= k*(xs+w/2) + b)
+    elif geom['kind'] == 'HorizontalRangeROI':
+        vmin, vmax = geom['vmin'], geom['vmax']
+        return (xs >= vmin) & (xs <= vmax) & (ys > 0)
     else:
         raise ValueError('unsupported ROI type')
 
