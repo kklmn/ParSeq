@@ -269,7 +269,8 @@ class Transform(object):
             errorMsg += "\nwith the followith traceback:\n"
             tb = traceback.format_exc()
             errorMsg += "".join(tb[:-1])  # remove last empty line
-            if csi.DEBUG_LEVEL > 20:
+            # if csi.DEBUG_LEVEL > 20:
+            if True:
                 print(errorMsg)
             data.error = errorMsg
         if isinstance(res, dict):
@@ -575,7 +576,8 @@ class GenericProcessOrThread(object):
             tb = traceback.format_exc()
             errorMsg += "".join(tb[:-1])  # remove last empty line
             self.put_error(errorMsg)
-            if csi.DEBUG_LEVEL > 20:
+            # if csi.DEBUG_LEVEL > 20:
+            if True:
                 print(errorMsg)
         finally:
             self.put_out_data(data)

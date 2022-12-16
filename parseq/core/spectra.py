@@ -849,6 +849,8 @@ class Spectrum(TreeItem):
         dataSourceSplit = []
         for ds in dataSource:
             ds = str(ds)
+            if "np." in ds:
+                continue
             try:
                 # to expand possible list comprehension or string expressions
                 ds = str(eval(ds))
@@ -1008,6 +1010,12 @@ class Spectrum(TreeItem):
         config.write_configs((1, 0, 0))
 
     def interpret_array_formula(self, colStr, treeObj=None):
+        if "np." in colStr:
+            try:
+                arr = eval(colStr)
+                return arr
+            except Exception:
+                pass
         try:
             # to expand string expressions
             colStr = str(eval(colStr))
@@ -1047,11 +1055,16 @@ class Spectrum(TreeItem):
             return
         toNode = csi.nodes[self.originNodeName]
         for aName, cFactor in zip(toNode.arrays, conversionFactors):
-            if not cFactor or isinstance(cFactor, type("")):
+            if not cFactor:
                 continue
             setName = toNode.get_prop(aName, 'raw')
+            arr = getattr(self, setName)
             try:
-                arr = getattr(self, setName)
+                if isinstance(cFactor, str):
+                    if cFactor.startswith('transpose'):
+                        axes = eval(cFactor[9:])
+                        setattr(self, setName, arr.transpose(*axes))
+                    continue
                 arr *= cFactor
                 self.hasChanged = True
             except Exception as e:
