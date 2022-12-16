@@ -412,6 +412,12 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         *dataStr* may have several expressions with the syntax of a list or a
         tuple or just one expression if it is a simple string.
         """
+        if "np." in dataStr:
+            try:
+                arr = eval(dataStr)
+                return [(dataStr, None, None, arr.shape)]
+            except Exception:
+                pass
         try:
             # to expand list comprehension or string expressions
             dataStr = str(eval(dataStr))
@@ -1020,7 +1026,11 @@ class FileTreeView(qt.QTreeView):
                 head = path
             dirname = osp.dirname(osp.abspath(head)).replace('\\', '/')
             if dirname:
-                os.chdir(dirname)
+                try:
+                    os.chdir(dirname)
+                except FileNotFoundError as e:  # can happen if disk is removed
+                    print(e)
+                    return
             self.gotoWhenReady(path)
 
     def getSourceModel(self, index=None):

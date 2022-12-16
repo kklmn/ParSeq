@@ -40,9 +40,10 @@ class ColumnFormatWidget(PropWidget):
         self.conversionTab = self.makeConversionTab()
         ind = self.tabWidget.addTab(self.conversionTab, 'conversion')
         self.tabWidget.setTabToolTip(
-            ind, "give either a float factor,\n"
-            "a new str unit (not for abscissa) or\n"
-            "leave empty (no conversion)")
+            ind, "give one of:\n1) a float factor,\n"
+            "2) a new str unit (not for abscissa),\n"
+            "3) transpose(*axes), e.g. transpose(2, 1, 0)\n"
+            "4) leave empty (no conversion)")
 
         self.metadataTab = self.makeMetadataTab()
         ind = self.tabWidget.addTab(self.metadataTab, 'metadata')
@@ -297,7 +298,7 @@ class ColumnFormatWidget(PropWidget):
         except (SyntaxError, NameError):
             return
         for edit, pStr in zip(edits, params):
-            edit.setText(pStr)
+            edit.setText(str(pStr))
 
     def setMetadata(self, formats, section):
         if section not in formats:
