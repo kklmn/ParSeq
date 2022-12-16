@@ -73,6 +73,16 @@ def setComboBoxFromData(comboBox, prop, compareWith=None, defaultIndex=0):
         comboBox.setCurrentIndex(defaultIndex)
 
 
+def setRangeWidgetFromData(rWidget, prop):
+    common = getCommonPropInSelectedItems(prop)
+    rWidget.setRange(common)
+
+
+def setStateButtonsFromData(sb, prop):
+    common = getCommonPropInSelectedItems(prop)
+    sb.setActive(common)
+
+
 def setCButtonFromData(cButton, prop, compareWith=None):
     common = getCommonPropInSelectedItems(prop)
     if common is not None:

@@ -33,8 +33,9 @@ from ..core import config
 from . import undoredo as gur
 from . import propsOfData as gpd
 
-propWidgetTypes = ('edit', 'label', 'spinbox', 'groupbox', 'checkbox',
-                   'pushbutton', 'tableview', 'combobox')
+propWidgetTypes = (
+    'edit', 'label', 'spinbox', 'groupbox', 'checkbox', 'pushbutton',
+    'tableview', 'combobox', 'rangewidget', 'statebuttons')
 
 
 class FloatRepr(reprlib.Repr):
@@ -468,7 +469,7 @@ class PropWidget(qt.QWidget):
         The transforms to run after the given widgets have changed. Defaults to
         the names in `self.node.transformsIn`.
 
-        *dataItems* a list of data items, None (the transformation parameter)
+        *dataItems* a list of data items, None (the transformation parameter
         will be applied to selected items) or 'all' (applied to all items).
         """
 
@@ -512,12 +513,22 @@ class PropWidget(qt.QWidget):
                         pass
                     elif iwt == 7:  # 'combobox'
                         pass
+                    elif iwt == 8:  # 'rangewidget' from gui.roi
+                        widget.rangeChanged.connect(
+                            partial(self.updatePropFromRangeWidget, widget,
+                                    dataItems, prop))
+                    elif iwt == 9:  # 'statebuttons' from gui.roi
+                        widget.statesActive.connect(
+                            partial(self.updatePropFromStateButtons, widget,
+                                    dataItems, prop))
                     break
             else:
                 raise ValueError("unknown widgetType {0}".format(className))
 
             transformNames = kw.pop(
                 'transformNames', [tr.name for tr in self.node.transformsIn])
+            if isinstance(transformNames, str):
+                transformNames = [transformNames]
             self.propWidgets[widget] = dict(
                 widgetTypeIndex=iwt, caption=caption, prop=prop,
                 transformNames=transformNames, kw=kw)
@@ -536,13 +547,13 @@ class PropWidget(qt.QWidget):
         *widgets*, each with its own data properties. This group will appear in
         the copy popup menu.
         """
-
         self.propGroups[groupWidget] = dict(widgets=widgets, caption=caption)
 
     def registerExclusivePropGroup(
-            self, groupWidget, rbuttons, caption, prop, transformNames):
+            self, groupWidget, rbuttons, caption, prop, transformNames, **kw):
         """A checkable group that contains QRadioButtons that reflect an int
         prop."""
+        dataItems = kw.pop('dataItems', None)
         if isinstance(transformNames, str):
             transformNames = [transformNames]
         prop = cco.expandTransformParam(prop)
@@ -551,7 +562,7 @@ class PropWidget(qt.QWidget):
             transformNames=transformNames)
         for irb, rb in enumerate(rbuttons):
             rb.clicked.connect(partial(
-                self.updatePropFromRadioButton, groupWidget, prop, irb))
+                self.updatePropFromRadioButton, rb, dataItems, prop, irb))
 
     def registerExclusivePropGroupWithEdits(
             self, groupWidget, widgets, caption, props, **kw):
@@ -717,8 +728,11 @@ class PropWidget(qt.QWidget):
             return
         self.updateProp(key, value, dataItems)
 
-    def updatePropFromRadioButton(self, rButton, dataItems, key, value, **kw):
-        self.updateProp(key, value, dataItems)
+    def updatePropFromRadioButton(self, rButton, dataItems, key, irb, value):
+        if not rButton.hasFocus():
+            return
+        rButton.setChecked(True)
+        self.updateProp(key, irb, dataItems)
 
     def updatePropFromComboBox(self, comboBox, dataItems, key, index,
                                indexToValue=None):
@@ -726,6 +740,16 @@ class PropWidget(qt.QWidget):
         if not comboBox.hasFocus():
             return
         value = indexToValue[index] if indexToValue is not None else index
+        self.updateProp(key, value, dataItems)
+
+    def updatePropFromRangeWidget(self, widget, dataItems, key, value):
+        # if not widget.hasFocus():
+        #     return
+        self.updateProp(key, value, dataItems)
+
+    def updatePropFromStateButtons(self, widget, dataItems, key, value):
+        # if not widget.hasFocus():
+        #     return
         self.updateProp(key, value, dataItems)
 
     def setUIFromData(self):
@@ -755,6 +779,10 @@ class PropWidget(qt.QWidget):
                 gpd.setCButtonFromData(widget, dd['prop'])
             elif dd['widgetTypeIndex'] == 7:  # 'combobox'
                 gpd.setComboBoxFromData(widget, dd['prop'])
+            elif dd['widgetTypeIndex'] == 8:  # 'rangewidget'
+                gpd.setRangeWidgetFromData(widget, dd['prop'])
+            elif dd['widgetTypeIndex'] == 9:  # 'statebuttons'
+                gpd.setStateButtonsFromData(widget, dd['prop'])
         self.updateStatusWidgets()
         self.extraSetUIFromData()
 
@@ -783,6 +811,8 @@ class PropWidget(qt.QWidget):
                 gpd.updateDataFromSpinBox(widget, dd['prop'])
             # elif dd['widgetTypeIndex'] == 7:  # 'combobox'
             #     gpd.updateDataFromComboBox(widget, dd['prop'])
+            # elif dd['widgetTypeIndex'] == 8:  # 'rangewidget'
+            #     widget.acceptEdit()
         self.updateProp()
 
     def save_properties(self):

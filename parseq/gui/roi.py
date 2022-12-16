@@ -12,7 +12,7 @@ from silx.gui import qt
 from silx.gui.plot.tools.roi import (
     RegionOfInterestManager, RoiModeSelectorAction)
 from silx.gui.plot.items.roi import (
-    ArcROI, RectangleROI, BandROI, PointROI, CrossROI)
+    ArcROI, RectangleROI, BandROI, CrossROI, PointROI, HorizontalRangeROI)
 
 from . import gcommons as gco
 from ..core import singletons as csi
@@ -29,6 +29,7 @@ class RoiManager(RegionOfInterestManager):
         self.sigRoiAdded.connect(self.updateAddedRegionOfInterest)
 
     def updateAddedRegionOfInterest(self, roi):
+        # silx.gui.plot.tools.roi.RegionOfInterestManager.ROI_CLASSES:
         if roi.getName() == '':
             if isinstance(roi, RectangleROI):
                 name = 'rect'
@@ -39,6 +40,8 @@ class RoiManager(RegionOfInterestManager):
                 roi.setAvailableInteractionModes([BandROI.UnboundedMode])
             elif isinstance(roi, (CrossROI, PointROI)):
                 name = 'p'
+            elif isinstance(roi, HorizontalRangeROI):
+                name = 'range'
             roi.setName('{0}{1}'.format(name, len(self.getRois())))
 
         try:
@@ -171,6 +174,11 @@ class RoiModel(qt.QAbstractTableModel):
             return dict(kind=roi.__class__.__name__, name=roi.getName(),
                         use=roi.isVisible(),
                         pos=list(roi.getPosition()))
+        elif isinstance(roi, HorizontalRangeROI):
+            range_ = roi.getRange()
+            return dict(kind=roi.__class__.__name__, name=roi.getName(),
+                        use=roi.isVisible(),
+                        vmin=range_[0], vmax=range_[1])
         else:
             return dict()
 
@@ -196,6 +204,9 @@ class RoiModel(qt.QAbstractTableModel):
         elif isinstance(roi, (CrossROI, PointROI)):
             x, y = roi.getPosition()
             text = 'pos: {0:.3f}, {1:.3f}'.format(x, y)
+        elif isinstance(roi, HorizontalRangeROI):
+            range_ = roi.getRange()
+            text = 'range: {0[0]:.3f}, {0[1]:.3f}'.format(range_)
         else:
             text = ''
         return text
@@ -206,6 +217,7 @@ class RoiModel(qt.QAbstractTableModel):
             res = {}
             for row in txt.split('\n'):
                 res.update(eval('dict({0}))'.format(row)))
+
             if isinstance(roi, RectangleROI):
                 kw = dict(origin=res['origin'],
                           size=(res['width'], res['height']))
@@ -218,6 +230,8 @@ class RoiModel(qt.QAbstractTableModel):
                 kw = res
             elif isinstance(roi, (CrossROI, PointROI)):
                 kw = res
+            elif isinstance(roi, HorizontalRangeROI):
+                kw = dict(vmin=res['range'][0], vmax=res['range'][1])
             else:
                 return False
             self.setRoi(roi, kw)
@@ -231,6 +245,8 @@ class RoiModel(qt.QAbstractTableModel):
             roi.setGeometry(**kw)
         elif isinstance(roi, (PointROI, CrossROI)):
             roi.setPosition(kw['pos'])
+        elif isinstance(roi, HorizontalRangeROI):
+            roi.setRange(**kw)
 
 
 class RoiToolBar(qt.QToolBar):
@@ -242,7 +258,7 @@ class RoiToolBar(qt.QToolBar):
         self.setIconSize(qt.QSize(24, 24))
 
         # to add more, add classes from:
-        # silx.gui.plot.items.roi.RegionOfInterestManager.ROI_CLASSES:
+        # silx.gui.plot.tools.roi.RegionOfInterestManager.ROI_CLASSES:
         # roi_items.PointROI,
         # roi_items.CrossROI,
         # roi_items.RectangleROI,
@@ -265,6 +281,8 @@ class RoiToolBar(qt.QToolBar):
                 roiClass = CrossROI
             elif roiClassName == 'PointROI':
                 roiClass = PointROI
+            elif roiClassName == 'HorizontalRangeROI':
+                roiClass = HorizontalRangeROI
             else:
                 raise ValueError('unsupported ROI {0}'.format(roiClassName))
             action = roiManager.getInteractionModeAction(roiClass)
@@ -353,7 +371,7 @@ class RoiTableView(qt.QTableView):
         horHeaders = self.horizontalHeader()
         newHeight = horHeaders.height() + 2 + heights
         self.setFixedHeight(newHeight)
-        if rows <= self.maxVisibleTableRows:
+        if len(rois) <= self.maxVisibleTableRows:
             self.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
         else:
             self.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOn)
@@ -391,36 +409,44 @@ class RoiWidgetBase(qt.QWidget):
                 frame = data
             sh = frame.shape
 
-            if isinstance(roi, (RectangleROI, ArcROI)):
-                xs = np.arange(sh[1])[None, :]
-                ys = np.arange(sh[0])[:, None]
-                mask = uma.get_roi_mask(geom, xs, ys)
-                model.roiCounts[row] = frame[mask].sum()
-            elif isinstance(roi, BandROI):
-                xs = np.arange(sh[1])[None, :]
-                if self.dataToCountY is not None:
-                    ys = self.dataToCountY[:, None]
-                else:
+            try:
+                if isinstance(roi, (RectangleROI, ArcROI, HorizontalRangeROI)):
+                    xs = np.arange(sh[1])[None, :]
                     ys = np.arange(sh[0])[:, None]
-                mask = uma.get_roi_mask(geom, xs, ys)
-                model.roiCounts[row] = frame[mask].sum()
-            elif isinstance(roi, (CrossROI, PointROI)):
-                x, y = geom['pos']
-                xs = self.dataToCountX
-                ys = self.dataToCountY
-                if xs is not None:
-                    dx = xs[1] - xs[0]
-                    ix = np.searchsorted(xs+dx, x)
-                else:
-                    ix = int(x)
-                if ys is not None:
-                    dy = ys[1] - ys[0]
-                    iy = np.searchsorted(ys+dy, y)
-                else:
-                    iy = int(y)
-                ix = abs(min(ix, sh[1]-1))
-                iy = abs(min(iy, sh[0]-1))
-                model.roiCounts[row] = frame[iy, ix]
+                    mask = uma.get_roi_mask(geom, xs, ys)
+                    model.roiCounts[row] = frame[mask].sum()
+                elif isinstance(roi, BandROI):
+                    if self.dataToCountX is not None:
+                        xs = self.dataToCountX[None, :]
+                    else:
+                        xs = np.arange(sh[1])[None, :]
+                    if self.dataToCountY is not None:
+                        ys = self.dataToCountY[:, None]
+                    else:
+                        ys = np.arange(sh[0])[:, None]
+                    mask = uma.get_roi_mask(geom, xs, ys)
+                    model.roiCounts[row] = frame[mask].sum()
+                elif isinstance(roi, (CrossROI, PointROI)):
+                    x, y = geom['pos']
+                    xs = self.dataToCountX
+                    ys = self.dataToCountY
+                    if xs is not None:
+                        dx = xs[1] - xs[0]
+                        ix = np.searchsorted(xs+dx, x)
+                    else:
+                        ix = int(x)
+                    if ys is not None:
+                        dy = ys[1] - ys[0]
+                        iy = np.searchsorted(ys+dy, y)
+                    else:
+                        iy = int(y)
+                    ix = abs(min(ix, sh[1]-1))
+                    iy = abs(min(iy, sh[0]-1))
+                    model.roiCounts[row] = frame[iy, ix]
+            except IndexError as e:
+                raise e
+                print(e)
+                model.roiCounts[row] = 0
 
         ind0 = model.index(0, 3)
         inde = model.index(row, 3)
@@ -443,7 +469,8 @@ class RoiWidgetWithKeyFrames(RoiWidgetBase):
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
 
-        roiClassNames = 'RectangleROI', 'ArcROI', 'BandROI'
+        roiClassNames = ('RectangleROI', 'ArcROI', 'BandROI',
+                         'HorizontalRangeROI')
         self.roiToolbar = RoiToolBar(self, self.roiManager, roiClassNames)
         layout.addWidget(self.roiToolbar)
 
@@ -578,12 +605,16 @@ class RoiWidgetWithKeyFrames(RoiWidgetBase):
                 elif kind == 'BandROI':
                     roi = BandROI()
                     roi.setAvailableInteractionModes([BandROI.UnboundedMode])
+                elif kind == 'HorizontalRangeROI':
+                    roi = HorizontalRangeROI()
                 else:
                     raise ValueError('unsupported ROI type')
                 roi.setName(name)
                 roi.setVisible(bool(use))
                 model.setRoi(roi, roiKW)
                 self.roiManager.addRoi(roi)
+                # if kind == 'RectangleROI':
+                #     roi.setColor('white')  # has to be after addROI
             model.reset()
             rois = self.roiManager.getRois()
             if rois:
@@ -718,7 +749,11 @@ class RoiWidget(RoiWidgetBase):
             needReset = True
         else:
             for roi, roid in zip(rois, roiDicts):
-                if roi.__class__.__name__ != roid['kind']:
+                try:
+                    if roi.__class__.__name__ != roid['kind']:
+                        needReset = True
+                        break
+                except KeyError:
                     needReset = True
                     break
             else:
@@ -741,12 +776,15 @@ class RoiWidget(RoiWidgetBase):
                 elif kind == 'BandROI':
                     roi = BandROI()
                     roi.setAvailableInteractionModes([BandROI.UnboundedMode])
-                elif kind == 'PointROI':
-                    roi = PointROI()
                 elif kind == 'CrossROI':
                     roi = CrossROI()
+                elif kind == 'PointROI':
+                    roi = PointROI()
+                elif kind == 'HorizontalRangeROI':
+                    roi = HorizontalRangeROI()
                 else:
-                    raise ValueError('unsupported ROI {0}'.format(kind))
+                    continue
+                    # raise ValueError('unsupported ROI "{0}"'.format(kind))
                 if name:
                     roi.setName(name)
                 roi.setVisible(True)
@@ -774,3 +812,105 @@ class RoiWidget(RoiWidgetBase):
         rois = self.roiManager.getRois()
         model = self.table.roiModel
         return [model.getRoiGeometry(roi) for roi in rois]
+
+
+class RangeWidget(qt.QWidget):
+    rangeChanged = qt.pyqtSignal(list)
+
+    def __init__(self, parent, plot, caption, rangeName, color, initRange):
+        super().__init__(parent)
+        self.plot = plot
+        self.is3dStack = hasattr(self.plot, '_plot')
+        self.initRange = initRange  # method
+        self.rangeName = rangeName
+        self.roiManager = None
+        self.roi = None
+        self.color = color
+
+        layout = qt.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        panel = qt.QGroupBox(self)
+        panel.setFlat(False)
+        panel.setTitle(caption)
+        layoutP = qt.QHBoxLayout()
+        layoutP.setContentsMargins(10, 0, 0, 0)
+        self.rbAuto = qt.QRadioButton('auto', panel)
+        self.rbAuto.clicked.connect(self.setAutoRange)
+        layoutP.addWidget(self.rbAuto)
+        self.rbCustom = qt.QRadioButton('custom', panel)
+        self.rbCustom.setStyleSheet("QRadioButton{color: " + color + ";}")
+        self.rbCustom.clicked.connect(self.setCustomRange)
+        layoutP.addWidget(self.rbCustom)
+        self.editCustom = qt.QLineEdit()
+        self.editCustom.setStyleSheet("QLineEdit{color: " + color + ";}")
+        self.editCustom.returnPressed.connect(self.acceptEdit)
+        layoutP.addWidget(self.editCustom)
+        panel.setLayout(layoutP)
+        layout.addWidget(panel)
+        self.setLayout(layout)
+
+    def createRoi(self, vmin=None, vmax=None):
+        needNew = False
+        if self.roiManager is None:
+            if self.is3dStack:
+                self.roiManager = RoiManager(self.plot._plot)
+            else:
+                self.roiManager = RoiManager(self.plot)
+            needNew = True
+        else:
+            if len(self.roiManager.getRois()) == 0:
+                needNew = True
+        if needNew:
+            self.roi = HorizontalRangeROI()
+            self.roi.setName(self.rangeName)
+            if vmin is None or vmax is None:
+                vmin, vmax = self.initRange()
+            self.roi.setRange(vmin=vmin, vmax=vmax)
+            self.roiManager.addRoi(self.roi)
+            self.roi.setColor(self.color)
+            self.roiManager.sigRoiChanged.connect(self.syncRange)
+            self.roi.sigEditingFinished.connect(self.rangeFinished)
+
+    def setRange(self, ran):
+        if isinstance(ran, (tuple, list)):
+            if len(ran) == 2:
+                self.rbAuto.setChecked(False)
+                self.rbCustom.setChecked(True)
+                self.editCustom.setText("{0[0]:.1f}, {0[1]:.1f}".format(ran))
+                self.createRoi(*ran)
+                return
+        self.rbAuto.setChecked(True)
+        self.rbCustom.setChecked(False)
+
+    def setAutoRange(self):
+        if self.roi is not None:
+            self.roi.setVisible(False)
+        self.rangeChanged.emit([])
+        self.rbAuto.setChecked(True)
+        self.rbCustom.setChecked(False)
+
+    def setCustomRange(self):
+        self.createRoi()
+        vmin, vmax = self.roi.getRange()
+        self.roi.setVisible(True)
+        self.rangeChanged.emit([vmin, vmax])
+
+    def syncRange(self):
+        ran = self.roi.getRange()
+        self.setRange(ran)
+
+    def rangeFinished(self):
+        vmin, vmax = self.roi.getRange()
+        self.rangeChanged.emit([vmin, vmax])
+
+    def acceptEdit(self):
+        if self.roi is None:
+            return
+        txt = self.editCustom.text()
+        t1, t2 = txt.split(',')
+        try:
+            vmin = float(t1.strip())
+            vmax = float(t2.strip())
+            self.roi.setRange(vmin=vmin, vmax=vmax)
+        except Exception:
+            pass
