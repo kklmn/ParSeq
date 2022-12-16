@@ -444,7 +444,6 @@ class RoiWidgetBase(qt.QWidget):
                     iy = abs(min(iy, sh[0]-1))
                     model.roiCounts[row] = frame[iy, ix]
             except IndexError as e:
-                raise e
                 print(e)
                 model.roiCounts[row] = 0
 
