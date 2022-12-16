@@ -321,7 +321,7 @@ class NodeWidget(qt.QWidget):
     def fillSplitterTransform(self):
         self.help = QWebView(self.splitterTransform)
         # self.help.setHtml('no documentation available')
-        self.help.setMinimumSize(qt.QSize(200, 200))
+        self.help.setMinimumSize(qt.QSize(100, 100))
         self.help.page().setLinkDelegationPolicy(2)
         self.help.history().clear()
         self.help.page().history().clear()
@@ -538,35 +538,53 @@ class NodeWidget(qt.QWidget):
         if self.wasNeverPlotted:
             return
         if self.node.plotDimension == 3:
+            plot = self.plot._plot
             self.savedPlotProps['browser.value'] = self.plot._browser.value()
-            xlim = self.plot._plot.getXAxis().getLimits()
-            ylim = self.plot._plot.getYAxis().getLimits()
-        elif self.node.plotDimension in [1, 2]:
-            xlim = self.plot.getXAxis().getLimits()
-            ylim = self.plot.getYAxis().getLimits()
-            if self.node.plotDimension == 1:
-                ylimR = self.plot.getYAxis(axis='right').getLimits()
-                self.savedPlotProps['yaxisR.range'] = ylimR
+        elif self.node.plotDimension == 2:
+            plot = self.plot
+        elif self.node.plotDimension == 1:
+            plot = self.plot
+            ylimR = plot.getYAxis(axis='right').getLimits()
+            self.savedPlotProps['yaxisR.range'] = ylimR
         else:
             return
-        self.savedPlotProps['xaxis.range'] = xlim
-        self.savedPlotProps['yaxis.range'] = ylim
+        self.savedPlotProps['xaxis.range'] = plot.getXAxis().getLimits()
+        self.savedPlotProps['yaxis.range'] = plot.getYAxis().getLimits()
+
+        if self.node.plotDimension in [3, 2]:
+            self.savedPlotProps['cm.vmin'] = None
+            self.savedPlotProps['cm.vmax'] = None
+            activeImage = self.plot.getActiveImage()
+            if activeImage is not None:
+                cm = activeImage.getColormap()
+                self.savedPlotProps['cm.vmin'] = cm.getVMin()
+                self.savedPlotProps['cm.vmax'] = cm.getVMax()
 
     def _restorePlotState(self):
         if self.wasNeverPlotted:
             return
         if self.node.plotDimension == 3:
+            plot = self.plot._plot
             self.plot._browser.setValue(self.savedPlotProps['browser.value'])
-            self.plot._plot.getXAxis().setLimits(
-                *self.savedPlotProps['xaxis.range'])
-            self.plot._plot.getYAxis().setLimits(
-                *self.savedPlotProps['yaxis.range'])
-        elif self.node.plotDimension in [1, 2]:
-            self.plot.getXAxis().setLimits(*self.savedPlotProps['xaxis.range'])
-            self.plot.getYAxis().setLimits(*self.savedPlotProps['yaxis.range'])
-            if self.node.plotDimension == 1:
-                self.plot.getYAxis(axis='right').setLimits(
-                    *self.savedPlotProps['yaxisR.range'])
+        elif self.node.plotDimension == 2:
+            plot = self.plot
+        elif self.node.plotDimension == 1:
+            plot = self.plot
+            plot.getYAxis(axis='right').setLimits(
+                *self.savedPlotProps['yaxisR.range'])
+        else:
+            return
+        plot.getXAxis().setLimits(*self.savedPlotProps['xaxis.range'])
+        plot.getYAxis().setLimits(*self.savedPlotProps['yaxis.range'])
+
+        if self.node.plotDimension in [3, 2]:
+            activeImage = self.plot.getActiveImage()
+            if activeImage is not None:
+                cm = activeImage.getColormap()
+                if self.savedPlotProps['cm.vmin'] is not None:
+                    cm.setVMin(self.savedPlotProps['cm.vmin'])
+                if self.savedPlotProps['cm.vmax'] is not None:
+                    cm.setVMax(self.savedPlotProps['cm.vmax'])
 
     def getCalibration(self, item, axisStr):
         arr = None
