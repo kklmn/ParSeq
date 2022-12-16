@@ -27,6 +27,7 @@ class TestWidget(qt.QWidget):
 
 def test():
     app = qt.QApplication(sys.argv)
+    
     captions = 'pre-edge', 'edge', 'post-edge', 'EXAFS'
     deltas = (['dE', 1.0, 0.1, 10, 0.1],  # label, value, min, max, step
               ['dE', 0.2, 0.02, 2, 0.02],
