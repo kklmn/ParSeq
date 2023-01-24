@@ -32,6 +32,8 @@ class Plot1D(splot.PlotWindow):
             if ddict['button'] == "left":
                 self.activateCurve(ddict['label'])
                 qt.QToolTip.showText(self.cursor().pos(), ddict['label'])
+        # elif ddict['event'] == "limitsChanged":
+        #     print(ddict['ydata'])
 
     def activateCurve(self, label):
         alias = os.path.splitext(label)[0]

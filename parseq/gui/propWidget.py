@@ -37,6 +37,8 @@ propWidgetTypes = (
     'edit', 'label', 'spinbox', 'groupbox', 'checkbox', 'pushbutton',
     'tableview', 'combobox', 'rangewidget', 'statebuttons')
 
+spinBoxDelay = 600  # ms
+
 
 class FloatRepr(reprlib.Repr):
     def repr_float(self, value, level):
@@ -56,12 +58,12 @@ class QLineEditSelectRB(qt.QLineEdit):
         super().focusInEvent(e)
 
 
-#  to replace the standard stepBy method of a SpinBox without inheritance:
-def stepByWithUpdate(self, oldStepBy, parent, dataItems, key, steps):
-    oldStepBy(steps)
-    self.setEnabled(False)  # to prevent double acting
-    parent.updateProp(key, self.value(), dataItems)
-    self.setEnabled(True)
+# #  to replace the standard stepBy method of a SpinBox without inheritance:
+# def stepByWithUpdate(self, oldStepBy, parent, dataItems, key, steps):
+#     oldStepBy(steps)
+#     self.setEnabled(False)  # to prevent double acting
+#     parent.updateProp(key, self.value(), dataItems)
+#     self.setEnabled(True)
 
 
 class PropWidget(qt.QWidget):
@@ -95,6 +97,11 @@ class PropWidget(qt.QWidget):
         # self.setContextMenuPolicy(qt.Qt.CustomContextMenu)
         # self.setContextMenuPolicy(qt.Qt.DefaultContextMenu)
         # self.customContextMenuRequested.connect(self.onCustomContextMenu)
+
+        self.spinTimer = qt.QTimer(self)
+        self.spinTimer.setSingleShot(True)
+        self.spinTimer.timeout.connect(self.spinDelayed)
+        self.spinBoxProps = None
 
         self.read_ini_properties()
 
@@ -438,7 +445,7 @@ class PropWidget(qt.QWidget):
             edit.setToolTip('')
 
     def registerPropWidget(self, widgets, caption, prop, **kw):
-        """
+        u"""
         Registers one or more widgets and connects them to one or more
         transformation parameters.
 
@@ -448,7 +455,7 @@ class PropWidget(qt.QWidget):
 
         *prop*: str or a sequence of str, transformation parameter name(s).
 
-        Optional key words (in **kw):
+        Optional key words (in *kw*):
 
         *convertType*: a Python type or a list of types, same length as *prop*,
         that is applied to the widget value.
@@ -469,12 +476,17 @@ class PropWidget(qt.QWidget):
         The transforms to run after the given widgets have changed. Defaults to
         the names in `self.node.transformsIn`.
 
-        *dataItems* a list of data items, None (the transformation parameter
-        will be applied to selected items) or 'all' (applied to all items).
+        *dataItems* a list of data items
+        None (the transformation parameter will be applied to selected items)
+        or 'all' (applied to all items).
         """
 
         prop = cco.expandTransformParam(prop)
         dataItems = kw.pop('dataItems', None)
+        transformNames = kw.pop(
+            'transformNames', [tr.name for tr in self.node.transformsIn])
+        if isinstance(transformNames, str):
+            transformNames = [transformNames]
 
         if not isinstance(widgets, (list, tuple)):
             widgets = [widgets]
@@ -489,14 +501,17 @@ class PropWidget(qt.QWidget):
                     elif iwt == 1:  # 'label'
                         pass
                     elif iwt == 2:  # 'spinbox'
-                        # this way is bad as it does updateProp while typing
-                        # widget.valueChanged.connect(partial(
-                        #     self.updatePropFromSpinBox, widget, dataItems,
-                        #     prop))
-                        # replaced with this way that uses stepBy():
-                        widget.stepBy = partial(
-                            stepByWithUpdate, widget, widget.stepBy, self,
-                            dataItems, prop)
+                        widget.valueChanged.connect(partial(
+                            self.updatePropFromSpinBox, widget, dataItems,
+                            prop))
+                        widget.setKeyboardTracking(False)
+                        widget.editingFinished.connect(partial(
+                            self.spinBoxEditingFinished, widget, dataItems,
+                            prop))
+                        # # uses stepBy():
+                        # widget.stepBy = partial(
+                        #     stepByWithUpdate, widget, widget.stepBy, self,
+                        #     dataItems, prop)
                     elif iwt == 3:  # 'groupbox'
                         # widget.toggled.connect(
                         widget.clicked.connect(
@@ -512,7 +527,9 @@ class PropWidget(qt.QWidget):
                     elif iwt == 6:  # 'tableview'
                         pass
                     elif iwt == 7:  # 'combobox'
-                        pass
+                        widget.currentIndexChanged.connect(
+                            partial(self.updatePropFromComboBox, widget,
+                                    dataItems, prop, **kw))
                     elif iwt == 8:  # 'rangewidget' from gui.roi
                         widget.rangeChanged.connect(
                             partial(self.updatePropFromRangeWidget, widget,
@@ -525,10 +542,6 @@ class PropWidget(qt.QWidget):
             else:
                 raise ValueError("unknown widgetType {0}".format(className))
 
-            transformNames = kw.pop(
-                'transformNames', [tr.name for tr in self.node.transformsIn])
-            if isinstance(transformNames, str):
-                transformNames = [transformNames]
             self.propWidgets[widget] = dict(
                 widgetTypeIndex=iwt, caption=caption, prop=prop,
                 transformNames=transformNames, kw=kw)
@@ -542,10 +555,9 @@ class PropWidget(qt.QWidget):
                 self.propWidgets[widget]['copyValue'] = copyValue
 
     def registerPropGroup(self, groupWidget, widgets, caption):
-        u"""
-        Registers a group widget (QGroupBox) that contains individual
-        *widgets*, each with its own data properties. This group will appear in
-        the copy popup menu.
+        u"""Registers a group widget (QGroupBox) that contains individual
+        *widgets* , each with its own data properties. This group will appear
+        in the copy popup menu.
         """
         self.propGroups[groupWidget] = dict(widgets=widgets, caption=caption)
 
@@ -714,13 +726,25 @@ class PropWidget(qt.QWidget):
             elif hasattr(widget, 'setText'):
                 gpd.setEditFromData(widget, dd['prop'], **dd['kw'])
 
-    # def updatePropFromSpinBox(self, spinBox, dataItems, key, value):
-    #     # spinBox = self.sender()  # doesn't work in PySide2
-    #     if not spinBox.hasFocus():
-    #         return
-    #     spinBox.setEnabled(False)  # to prevent double acting
-    #     self.updateProp(key, value, dataItems)
-    #     spinBox.setEnabled(True)
+    def spinBoxEditingFinished(self, spinBox, dataItems, key):
+        # spinBox = self.sender()  # doesn't work in PySide2
+        if not spinBox.hasFocus():
+            return
+        self.updateProp(key, spinBox.value(), dataItems)
+
+    def updatePropFromSpinBox(self, spinBox, dataItems, key, value):
+        # spinBox = self.sender()  # doesn't work in PySide2
+        if not spinBox.hasFocus():
+            return
+        self.spinBoxProps = spinBox, dataItems, key, value
+        self.spinTimer.start(spinBoxDelay)
+
+    def spinDelayed(self):
+        if self.spinBoxProps is None:
+            return
+        spinBox, dataItems, key, value = self.spinBoxProps
+        self.updateProp(key, value, dataItems)
+        self.spinBoxProps = None
 
     def updatePropFromCheckBox(self, checkBox, dataItems, key, value):
         # checkBox = self.sender()  # doesn't work in PySide2
@@ -766,23 +790,25 @@ class PropWidget(qt.QWidget):
                 gpd.setRButtonGroupFromData(dd['widgets'], dd['prop'])
         for widget in self.propWidgets:
             dd = self.propWidgets[widget]
-            if dd['widgetTypeIndex'] == 0:  # 'edit'
-                txt = gpd.setEditFromData(widget, dd['prop'], **dd['kw'])
+            prop = dd['prop']
+            widgetTypeIndex = dd['widgetTypeIndex']
+            if widgetTypeIndex == 0:  # 'edit'
+                txt = gpd.setEditFromData(widget, prop, **dd['kw'])
                 self.changeTooltip(widget, txt)
-            elif dd['widgetTypeIndex'] == 1:  # 'label'
+            elif widgetTypeIndex == 1:  # 'label'
                 pass
-            elif dd['widgetTypeIndex'] == 2:  # 'spinbox'
-                gpd.setSpinBoxFromData(widget, dd['prop'])
-            elif dd['widgetTypeIndex'] == 3:  # 'groupbox'
-                gpd.setCButtonFromData(widget, dd['prop'])
-            elif dd['widgetTypeIndex'] == 4:  # 'checkbox'
-                gpd.setCButtonFromData(widget, dd['prop'])
-            elif dd['widgetTypeIndex'] == 7:  # 'combobox'
-                gpd.setComboBoxFromData(widget, dd['prop'])
-            elif dd['widgetTypeIndex'] == 8:  # 'rangewidget'
-                gpd.setRangeWidgetFromData(widget, dd['prop'])
-            elif dd['widgetTypeIndex'] == 9:  # 'statebuttons'
-                gpd.setStateButtonsFromData(widget, dd['prop'])
+            elif widgetTypeIndex == 2:  # 'spinbox'
+                gpd.setSpinBoxFromData(widget, prop)
+            elif widgetTypeIndex == 3:  # 'groupbox'
+                gpd.setCButtonFromData(widget, prop)
+            elif widgetTypeIndex == 4:  # 'checkbox'
+                gpd.setCButtonFromData(widget, prop)
+            elif widgetTypeIndex == 7:  # 'combobox'
+                gpd.setComboBoxFromData(widget, prop)
+            elif widgetTypeIndex == 8:  # 'rangewidget'
+                gpd.setRangeWidgetFromData(widget, prop)
+            elif widgetTypeIndex == 9:  # 'statebuttons'
+                gpd.setStateButtonsFromData(widget, prop)
         self.updateStatusWidgets()
         self.extraSetUIFromData()
 
@@ -809,8 +835,8 @@ class PropWidget(qt.QWidget):
                 gpd.updateDataFromEdit(widget, dd['prop'], **dd['kw'])
             elif dd['widgetTypeIndex'] == 2:  # 'spinbox'
                 gpd.updateDataFromSpinBox(widget, dd['prop'])
-            # elif dd['widgetTypeIndex'] == 7:  # 'combobox'
-            #     gpd.updateDataFromComboBox(widget, dd['prop'])
+            elif dd['widgetTypeIndex'] == 7:  # 'combobox'
+                gpd.updateDataFromComboBox(widget, dd['prop'])
             # elif dd['widgetTypeIndex'] == 8:  # 'rangewidget'
             #     widget.acceptEdit()
         self.updateProp()

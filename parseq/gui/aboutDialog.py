@@ -6,6 +6,7 @@ __date__ = "17 Mar 2019"
 import os
 import os.path as osp
 import re
+import sphinx
 from silx.gui import qt
 from silx import version as versilx
 import platform as pythonplatform
@@ -126,6 +127,7 @@ class AboutDialog(qt.QDialog):
         else:
             vercl = isOpenStatus
         strOpenCL = r'pyopencl {0}'.format(vercl)
+        strSphinx = 'Sphinx {0}'.format(sphinx.__version__)
         strSilx = r'silx {0}'.format(versilx)
         strParSeq = '{0}'.format(PARSEQPATH).replace('\\', '/')
         if type(self.parseq_pypi_version) is tuple:
@@ -165,11 +167,12 @@ class AboutDialog(qt.QDialog):
     {4}, Python {5}\n
     Qt {6}, {7} {8}\n
     {9}\n
-    {10}""".format(
-            parseq.__synopsis__, parseq.__doc__,
-            strParSeq, parseqversion,
-            locos, pythonplatform.python_version(), Qt_version, qt.BINDING,
-            PyQt_version, strOpenCL, strSilx, strParSeq)
+    {10}\n
+    {11}""".format(
+            parseq.__synopsis__, parseq.__doc__, strParSeq, parseqversion,
+            locos, pythonplatform.python_version(),
+            Qt_version, qt.BINDING, PyQt_version,
+            strOpenCL, strSphinx, strSilx)
 #        txt = txt.replace('imagezoom::', 'image::')
         return txt
 

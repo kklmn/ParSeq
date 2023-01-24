@@ -321,7 +321,7 @@ class NodeWidget(qt.QWidget):
     def fillSplitterTransform(self):
         self.help = QWebView(self.splitterTransform)
         # self.help.setHtml('no documentation available')
-        self.help.setMinimumSize(qt.QSize(100, 100))
+        self.help.setMinimumSize(qt.QSize(100, 5))
         self.help.page().setLinkDelegationPolicy(2)
         self.help.history().clear()
         self.help.page().history().clear()

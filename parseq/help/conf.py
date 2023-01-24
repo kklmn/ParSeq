@@ -4,8 +4,8 @@
 
 import sys
 import os
-import shutil
-import subprocess
+# import shutil
+# import subprocess
 
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 
@@ -118,13 +118,15 @@ html_theme = 'mytheme'
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    "rightsidebar": False,
+    # "rightsidebar": False,
     # "stickysidebar": True,
-    "collapsiblesidebar": True,
+    # "collapsiblesidebar": True,
     # "max_width": 20,
     # "externalrefs": True,
     # "roottarget": "index"
     }
+
+toc_object_entries = False
 
 # Add any paths that contain custom themes here, relative to this directory.
 html_theme_path = ["./_themes"]

@@ -98,7 +98,7 @@ Please use the project’s Issues tab to get help or report an issue.
 
 setup(
     name='parseq',
-    version='0.8.2',
+    version='0.8.3',
     description='ParSeq is a python software library for Parallel execution of'
                 ' Sequential data analysis.',
     long_description=long_description,
@@ -128,8 +128,8 @@ setup(
         'parseq.tests': ['*.png'],
         },
     install_requires=['numpy>=1.8.0', 'scipy>=0.17.0', 'matplotlib>=2.0.0',
-                      'sphinx>=1.6.2', 'autopep8', 'h5py', 'silx>=1.1.0',
-                      'hdf5plugin', 'psutil'],
+                      'sphinx>=1.6.2', 'sphinxcontrib-jquery', 'autopep8',
+                      'h5py', 'silx>=1.1.0', 'hdf5plugin', 'psutil'],
     classifiers=['Development Status :: 5 - Production/Stable',
                  'Intended Audience :: Science/Research',
                  'Natural Language :: English',

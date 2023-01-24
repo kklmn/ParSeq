@@ -6,13 +6,14 @@ __date__ = "18 Oct 2022"
 # import time
 import numpy as np
 # from collections import OrderedDict
-# from functools import partial
+from functools import partial
 
 from silx.gui import qt
 from silx.gui.plot.tools.roi import (
     RegionOfInterestManager, RoiModeSelectorAction)
 from silx.gui.plot.items.roi import (
-    ArcROI, RectangleROI, BandROI, CrossROI, PointROI, HorizontalRangeROI)
+    ArcROI, RectangleROI, BandROI, CrossROI, PointROI, HorizontalRangeROI,
+    InteractionModeMixIn)
 
 from . import gcommons as gco
 from ..core import singletons as csi
@@ -52,6 +53,25 @@ class RoiManager(RegionOfInterestManager):
         # roi.setSymbolSize(5)
         roi.setSelectable(True)
         roi.setEditable(True)
+
+    def _feedContextMenu(self, menu):
+        """when the default plot context menu is about to be displayed"""
+        roi = self.getCurrentRoi()
+        if roi is not None:
+            if roi.isEditable():
+                # Filter by data position
+                plot = self.parent()
+                pos = plot.getWidgetHandle().mapFromGlobal(qt.QCursor.pos())
+                data = plot.pixelToData(pos.x(), pos.y())
+                if roi.contains(data):
+                    if isinstance(roi, InteractionModeMixIn):
+                        self._contextMenuForInteractionMode(menu, roi)
+
+                # removeAction = qt.QAction(menu)
+                # removeAction.setText("Remove %s" % roi.getName())
+                # callback = partial(self.removeRoi, roi)
+                # removeAction.triggered.connect(callback)
+                # menu.addAction(removeAction)
 
 
 class RoiModel(qt.QAbstractTableModel):
@@ -813,23 +833,86 @@ class RoiWidget(RoiWidgetBase):
         return [model.getRoiGeometry(roi) for roi in rois]
 
 
-class RangeWidget(qt.QWidget):
+class RangeWidgetBase(qt.QWidget):
+    """
+    A derived class from `RangeWidgetBase` may define a method `convert` that
+    converts from spinbox values to roi limits and backward. The signature:
+    convert(direction, vmin, vmax), returns amin, amax.
+    """
     rangeChanged = qt.pyqtSignal(list)
 
+    def createRoi(self, vmin=None, vmax=None):
+        if self.plot is None:
+            return
+        needNew = False
+        if self.roiManager is None:
+            if self.is3dStack:
+                self.roiManager = RoiManager(self.plot._plot)
+            else:
+                self.roiManager = RoiManager(self.plot)
+            needNew = True
+        else:
+            if len(self.roiManager.getRois()) == 0:
+                needNew = True
+        if needNew:
+            try:
+                roi = self.roiClass()
+                roi.setName(self.rangeName)
+                if vmin is None or vmax is None:
+                    if callable(self.initRange):
+                        vmin, vmax = self.initRange()
+                    else:
+                        vmin, vmax = self.initRange[0:2]
+                if hasattr(self, 'convert'):
+                    vmin, vmax = self.convert(1, vmin, vmax)
+
+                if isinstance(roi, (CrossROI, PointROI)):
+                    roi.setPosition((vmin, vmax))
+                elif isinstance(roi, HorizontalRangeROI):
+                    roi.setRange(vmin=vmin, vmax=vmax)
+                self.roi = roi
+            except ValueError:
+                return
+            self.roiManager.addRoi(self.roi)
+            self.roi.setColor(self.color)
+            self.roiManager.sigRoiChanged.connect(self.syncRange)
+            self.roi.sigEditingFinished.connect(self.rangeFinished)
+
+    def syncRange(self):
+        if isinstance(self.roi, (CrossROI, PointROI)):
+            ran = self.roi.getPosition()
+        elif isinstance(self.roi, HorizontalRangeROI):
+            ran = self.roi.getRange()
+        if hasattr(self, 'convert'):
+            ran = self.convert(-1, *ran)
+        self.setRange(ran)
+
+    def rangeFinished(self):
+        if isinstance(self.roi, (CrossROI, PointROI)):
+            vmin, vmax = self.roi.getPosition()
+        elif isinstance(self.roi, HorizontalRangeROI):
+            vmin, vmax = self.roi.getRange()
+        if hasattr(self, 'convert'):
+            vmin, vmax = self.convert(-1, vmin, vmax)
+        self.rangeChanged.emit([vmin, vmax])
+
+
+class RangeWidget(RangeWidgetBase):
     def __init__(self, parent, plot, caption, rangeName, color, initRange):
         super().__init__(parent)
         self.plot = plot
-        self.is3dStack = hasattr(self.plot, '_plot')
+        self.is3dStack = hasattr(plot, '_plot')
         self.initRange = initRange  # method
         self.rangeName = rangeName
         self.roiManager = None
         self.roi = None
         self.color = color
+        self.roiClass = HorizontalRangeROI
 
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         panel = qt.QGroupBox(self)
-        panel.setFlat(False)
+        panel.setFlat(True)
         panel.setTitle(caption)
         layoutP = qt.QHBoxLayout()
         layoutP.setContentsMargins(10, 0, 0, 0)
@@ -847,28 +930,6 @@ class RangeWidget(qt.QWidget):
         panel.setLayout(layoutP)
         layout.addWidget(panel)
         self.setLayout(layout)
-
-    def createRoi(self, vmin=None, vmax=None):
-        needNew = False
-        if self.roiManager is None:
-            if self.is3dStack:
-                self.roiManager = RoiManager(self.plot._plot)
-            else:
-                self.roiManager = RoiManager(self.plot)
-            needNew = True
-        else:
-            if len(self.roiManager.getRois()) == 0:
-                needNew = True
-        if needNew:
-            self.roi = HorizontalRangeROI()
-            self.roi.setName(self.rangeName)
-            if vmin is None or vmax is None:
-                vmin, vmax = self.initRange()
-            self.roi.setRange(vmin=vmin, vmax=vmax)
-            self.roiManager.addRoi(self.roi)
-            self.roi.setColor(self.color)
-            self.roiManager.sigRoiChanged.connect(self.syncRange)
-            self.roi.sigEditingFinished.connect(self.rangeFinished)
 
     def setRange(self, ran):
         if isinstance(ran, (tuple, list)):
@@ -891,15 +952,9 @@ class RangeWidget(qt.QWidget):
     def setCustomRange(self):
         self.createRoi()
         vmin, vmax = self.roi.getRange()
+        if hasattr(self, 'convert'):
+            vmin, vmax = self.convert(-1, vmin, vmax)
         self.roi.setVisible(True)
-        self.rangeChanged.emit([vmin, vmax])
-
-    def syncRange(self):
-        ran = self.roi.getRange()
-        self.setRange(ran)
-
-    def rangeFinished(self):
-        vmin, vmax = self.roi.getRange()
         self.rangeChanged.emit([vmin, vmax])
 
     def acceptEdit(self):
@@ -910,6 +965,141 @@ class RangeWidget(qt.QWidget):
         try:
             vmin = float(t1.strip())
             vmax = float(t2.strip())
+            if hasattr(self, 'convert'):
+                vmin, vmax = self.convert(1, vmin, vmax)
             self.roi.setRange(vmin=vmin, vmax=vmax)
         except Exception:
             pass
+
+
+class RangeWidgetSplit(RangeWidgetBase):
+    rangeChanged = qt.pyqtSignal(list)
+    spinBoxDelay = 600  # ms
+
+    def __init__(self, parent, plot, var, optionsMin, optionsMax, rangeName,
+                 color, initRange, addVisibleCB=False):
+        """
+        *optionsMin*, *optionsMax*: list [min, max, step, decimals]
+        *initRange*: callable or 2-sequence
+        """
+        super().__init__(parent)
+        self.plot = plot
+        self.is3dStack = hasattr(plot, '_plot')
+        self.roiManager = None
+        self.roi = None
+        self.color = color
+        self.initRange = initRange
+        minLabelTxt, maxLabelTxt = var[0:2]
+        if 'min' in minLabelTxt:
+            self.roiClass = HorizontalRangeROI
+        else:
+            self.roiClass = CrossROI
+        varSuffix = var[2] if len(var) > 2 else None
+        self.rangeName = rangeName
+
+        self.spinTimer = qt.QTimer(self)
+        self.spinTimer.setSingleShot(True)
+        self.spinTimer.timeout.connect(self.spinDelayed)
+        self.spinBoxProps = None
+
+        layout = qt.QGridLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setVerticalSpacing(2)
+
+        minLabel = qt.QLabel(minLabelTxt)
+        layout.addWidget(minLabel, 0, 0, qt.Qt.AlignRight)
+        self.minSpinBox = qt.QDoubleSpinBox()
+        if optionsMin[0] is not None:
+            self.minSpinBox.setMinimum(optionsMin[0])
+        if optionsMin[1] is not None:
+            self.minSpinBox.setMaximum(optionsMin[1])
+        self.minSpinBox.setSingleStep(optionsMin[2])
+        self.minSpinBox.setDecimals(optionsMin[3])
+        self.minSpinBox.valueChanged.connect(partial(self.fromSpinBox, 0))
+        if varSuffix:
+            self.minSpinBox.setSuffix(varSuffix)
+        layout.addWidget(self.minSpinBox, 0, 1)
+
+        maxLabel = qt.QLabel(maxLabelTxt)
+        if 'min' in minLabelTxt:
+            layout.addWidget(maxLabel, 1, 0, qt.Qt.AlignRight)
+        else:
+            layout.setColumnStretch(2, 1)
+            layout.addWidget(maxLabel, 0, 3, qt.Qt.AlignRight)
+        self.maxSpinBox = qt.QDoubleSpinBox()
+        if optionsMax[0] is not None:
+            self.maxSpinBox.setMinimum(optionsMax[0])
+        if optionsMax[1] is not None:
+            self.maxSpinBox.setMaximum(optionsMax[1])
+        self.maxSpinBox.setSingleStep(optionsMax[2])
+        self.maxSpinBox.setDecimals(optionsMax[3])
+        self.maxSpinBox.setSpecialValueText("max data")
+        self.maxSpinBox.valueChanged.connect(partial(self.fromSpinBox, 1))
+        if varSuffix:
+            self.maxSpinBox.setSuffix(varSuffix)
+        if 'min' in minLabelTxt:
+            layout.addWidget(self.maxSpinBox, 1, 1)
+        else:
+            layout.addWidget(self.maxSpinBox, 0, 4)
+
+        if addVisibleCB:
+            self.visibleCB = qt.QCheckBox('visible range widget')
+            self.visibleCB.setStyleSheet(
+                "QCheckBox:checked{color: " + color + ";}")
+            self.visibleCB.setChecked(True)
+            self.visibleCB.toggled.connect(self.toggleVisible)
+            layout.addWidget(self.visibleCB, 0, 3, 1, 3)
+
+        layout.setColumnStretch(0, 0)
+        layout.setColumnStretch(1, 1)
+        self.setLayout(layout)
+
+    def setRange(self, ran):
+        if not isinstance(ran, (tuple, list)):
+            return
+        if len(ran) == 2:
+            if ran[0] is None or ran[1] is None:
+                if callable(self.initRange):
+                    vmin, vmax = self.initRange()
+                else:
+                    vmin, vmax = self.initRange[0], self.maxSpinBox.minimum()
+            self.minSpinBox.blockSignals(True)
+            self.maxSpinBox.blockSignals(True)
+            self.minSpinBox.setValue(vmin if ran[0] is None else ran[0])
+            self.maxSpinBox.setValue(vmax if ran[1] is None else ran[1])
+            self.minSpinBox.blockSignals(False)
+            self.maxSpinBox.blockSignals(False)
+            self.createRoi(*ran)
+            return
+
+    def fromSpinBox(self, ind, value):
+        if self.roi is None:
+            return
+        if ind == 0:
+            if hasattr(self, 'convert'):
+                vnew, _ = self.convert(1, value, None)
+            else:
+                vnew = value
+            self.roi.setMin(vnew)
+            vmin, vmax = value, self.maxSpinBox.value()
+        elif ind == 1:
+            if hasattr(self, 'convert'):
+                _, vnew = self.convert(1, None, value)
+            else:
+                vnew = value
+            self.roi.setMax(vnew)
+            vmin, vmax = self.minSpinBox.value(), value
+
+        self.spinBoxProps = [vmin, vmax]
+        self.spinTimer.start(self.spinBoxDelay)
+
+    def spinDelayed(self):
+        if self.spinBoxProps is None:
+            return
+        self.rangeChanged.emit(self.spinBoxProps)
+        self.spinBoxProps = None
+
+    def toggleVisible(self, on):
+        if self.roi is None:
+            return
+        self.roi.setVisible(on)

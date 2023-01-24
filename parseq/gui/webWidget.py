@@ -14,6 +14,11 @@ from xml.sax.saxutils import escape
 from docutils.utils import SystemMessage
 from sphinx.application import Sphinx
 from sphinx.errors import SphinxError
+try:
+    import sphinxcontrib.jquery  # to check if it exists
+except ImportError as e:
+    print('do "pip install sphinxcontrib-jquery"')
+    raise(e)
 import codecs
 
 from ..core import singletons as csi
@@ -74,13 +79,15 @@ def sphinxify(task, context, wantMessages=False):
         outdir = osp.join(HELPDIR, '_build')
         doctreedir = osp.join(HELPDIR, 'doctrees')
         confoverrides['extensions'] = [
-            'sphinx.ext.autodoc', 'sphinx.ext.mathjax', 'animation']
+            'sphinx.ext.autodoc', 'sphinx.ext.mathjax', 'sphinxcontrib.jquery',
+            'animation']
     elif task == 'docs':
         srcdir = osp.join(DOCDIR, '_sources')
         confdir = DOCDIR
         outdir = DOCDIR
         doctreedir = osp.join(DOCDIR, 'doctrees')
-        confoverrides['extensions'] = ['sphinx.ext.mathjax']
+        confoverrides['extensions'] = [
+            'sphinx.ext.mathjax', 'sphinxcontrib.jquery']
     else:
         raise ValueError('unspecified task')
 

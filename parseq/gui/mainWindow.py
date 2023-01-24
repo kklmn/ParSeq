@@ -183,8 +183,6 @@ class MainWindowParSeq(qt.QMainWindow):
         self.timerCPU.start(self.intervalCPU)
         self.updateCPU()
 
-        self.restore_perspective()
-
         self.initToolbar()
 
         self.beforeTransformSignal.connect(partial(self.updateTabStatus, 1))
@@ -192,6 +190,7 @@ class MainWindowParSeq(qt.QMainWindow):
         self.beforeDataTransformSignal.connect(partial(self.updateItemView, 1))
         self.afterDataTransformSignal.connect(partial(self.updateItemView, 0))
 
+        self.restore_perspective()
         self.dataChanged()
 
     def initToolbar(self):
@@ -769,7 +768,8 @@ class MainWindowParSeq(qt.QMainWindow):
 
         geometry = config.get(configObject, 'Geometry', 'mainWindow', ())
         if geometry == 'maximized':
-            self.showMaximized()
+            # self.showMaximized()  # doesn't work
+            qt.QTimer.singleShot(1000, self.showMaximized)
         elif len(geometry) == 4:
             self.setGeometry(*geometry)
 

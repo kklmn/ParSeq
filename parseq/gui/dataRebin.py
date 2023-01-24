@@ -385,6 +385,8 @@ class SplittersTableView(qt.QTableView):
             border-left: 1px solid black; border-right: 1px solid black;}""")
 
         for c in range(model.columnCount()):
+            if c == model.columnCount()-1:
+                self.setColumnWidth(c, 20)
             kw = dict(limits=model.splitters[c][2:5],  # min, max, step
                       alignment=qt.Qt.AlignRight | qt.Qt.AlignVCenter)
             self.setItemDelegateForColumn(c, DoubleSpinBoxDelegate(self, **kw))
@@ -429,7 +431,8 @@ class DeltasTableView(qt.QTableView):
                 background: #eeeeee; border: 0px;}""")
 
         for c in range(model.columnCount()):
-            # self.setColumnWidth(c, 80)
+            if c == model.columnCount()-1:
+                self.setColumnWidth(c, 20)
             kw = dict(limits=model.deltas[c][2:5],  # min, max, step
                       alignment=qt.Qt.AlignCenter)
             self.setItemDelegateForColumn(c, DoubleSpinBoxDelegate(self, **kw))
@@ -462,7 +465,7 @@ class DataRebinWidget(qt.QWidget):
         self.setLayout(layout)
         self.splittersView.clearSelection()
         self.deltasView.clearSelection()
-        self.splittersView.setMinimumWidth(380)
+        self.splittersView.setMinimumWidth(300)
         self.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
 
         self.splittersModel.dataChanged.connect(self.updateClient)
