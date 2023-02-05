@@ -588,7 +588,7 @@ class PropWidget(qt.QWidget):
         u"""
         Registers a status widget (typically QLabel) that gets updated when the
         transformation has been completed. The widget must have `setData()` or
-        `setText()` method.
+        `setText()` or `setValue()` method.
 
         Optional key words:
 
@@ -599,11 +599,12 @@ class PropWidget(qt.QWidget):
         e.g. '.4f' .
         """
         prop = cco.expandTransformParam(prop)
-        if not (hasattr(widget, 'setData') or hasattr(widget, 'setText')):
+        if not any(hasattr(widget, attr)
+                   for attr in ['setData', 'setText', 'setValue']):
             className = widget.metaObject().className()
             raise ValueError(
-                "the widget {} must have `setData()` or `setText()` method"
-                .format(className))
+                f"the widget {className} must have "
+                "`setData()` or `setText()` or `setValue()` method")
         self.statusWidgets[widget] = dict(prop=prop, kw=kw)
 
     def keyPressEvent(self, event):
@@ -705,6 +706,10 @@ class PropWidget(qt.QWidget):
         return
 
     def replotAllDownstream(self, tName):
+        if hasattr(csi, 'nodesToReplot'):
+            for node in csi.nodesToReplot:
+                node.widget.replot()
+
         if tName:
             tr = csi.transforms[tName]
             csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
@@ -725,6 +730,8 @@ class PropWidget(qt.QWidget):
                 widget.setData(dd['prop'], **dd['kw'])
             elif hasattr(widget, 'setText'):
                 gpd.setEditFromData(widget, dd['prop'], **dd['kw'])
+            elif hasattr(widget, 'setValue'):
+                gpd.setSpinBoxFromData(widget, dd['prop'])
 
     def spinBoxEditingFinished(self, spinBox, dataItems, key):
         # spinBox = self.sender()  # doesn't work in PySide2
@@ -759,12 +766,18 @@ class PropWidget(qt.QWidget):
         self.updateProp(key, irb, dataItems)
 
     def updatePropFromComboBox(self, comboBox, dataItems, key, index,
-                               indexToValue=None):
+                               indexToValue=None, convertType=None, **kw):
         # comboBox = self.sender()  # doesn't work in PySide2
         if not comboBox.hasFocus():
             return
-        value = indexToValue[index] if indexToValue is not None else index
-        self.updateProp(key, value, dataItems)
+        if convertType is not None:
+            value = convertType()
+        else:
+            value = indexToValue[index] if indexToValue is not None else index
+        if isinstance(key, (list, tuple)):
+            self.updateProp(None, value, dataItems)
+        else:
+            self.updateProp(key, value, dataItems)
 
     def updatePropFromRangeWidget(self, widget, dataItems, key, value):
         # if not widget.hasFocus():
@@ -836,7 +849,7 @@ class PropWidget(qt.QWidget):
             elif dd['widgetTypeIndex'] == 2:  # 'spinbox'
                 gpd.updateDataFromSpinBox(widget, dd['prop'])
             elif dd['widgetTypeIndex'] == 7:  # 'combobox'
-                gpd.updateDataFromComboBox(widget, dd['prop'])
+                gpd.updateDataFromComboBox(widget, dd['prop'], **dd['kw'])
             # elif dd['widgetTypeIndex'] == 8:  # 'rangewidget'
             #     widget.acceptEdit()
         self.updateProp()

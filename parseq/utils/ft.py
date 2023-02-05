@@ -5,7 +5,8 @@ __date__ = "8 Jan 2023"
 
 import numpy as np
 
-ft_windows = 'none', 'box', 'linear-tapered',
+ft_windows = ('none', 'box', 'linear-tapered', 'cosine-tapered',
+              'Gaussian-tapered')
 
 
 def make_ft_window(kind, x, xmin, xmax, width, vmin):
@@ -34,9 +35,24 @@ def make_ft_window(kind, x, xmin, xmax, width, vmin):
     res[x > xmax] = 0
     if kind == 'box':
         return res
-    elif kind == 'linear-tapered':
-        left_lobe = (x-xmin >= 0) & (x-xmin <= width)
-        right_lobe = (xmax-x <= width) & (xmax-x >= 0)
-        res[left_lobe] = (1-vmin) / width * (x[left_lobe]-xmin) + vmin
-        res[right_lobe] = (1-vmin) / width * (xmax-x[right_lobe]) + vmin
+
+    left_lobe = (x-xmin >= 0) & (x-xmin <= width)
+    right_lobe = (xmax-x <= width) & (xmax-x >= 0)
+    if kind == 'linear-tapered':
+        if width > 1e-12:
+            res[left_lobe] = (1-vmin) / width * (x[left_lobe]-xmin) + vmin
+            res[right_lobe] = (1-vmin) / width * (xmax-x[right_lobe]) + vmin
+    elif kind == 'cosine-tapered':
+        v0 = vmin if 0 <= vmin <= 1 else 0
+        if width > 1e-12:
+            phi = np.pi * (x[left_lobe]-xmin) / width
+            res[left_lobe] = 0.5 * (1-np.cos(phi)) * (1-v0) + v0
+            phi = np.pi * (xmax-x[right_lobe]) / width
+            res[right_lobe] = 0.5 * (1-np.cos(phi)) * (1-v0) + v0
+    elif kind == 'Gaussian-tapered':
+        v0 = vmin if 0 <= vmin <= 1 else 0
+        if (width > 1e-12) and (v0 >= 1e-3):
+            sigma2 = width**2 / (2*abs(np.log(v0)))
+            res[left_lobe] = np.exp(-0.5*(x[left_lobe]-xmin-width)**2/sigma2)
+            res[right_lobe] = np.exp(-0.5*(xmax-width-x[right_lobe])**2/sigma2)
     return res

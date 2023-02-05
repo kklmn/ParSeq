@@ -114,7 +114,7 @@ class Transform(object):
 
         if self not in fromNode.transformsOut:
             fromNode.transformsOut.append(self)
-        if self not in fromNode.transformsIn:
+        if self not in toNode.transformsIn:
             toNode.transformsIn.append(self)
         self.sendSignals = False
         self.read_ini_params()

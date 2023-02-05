@@ -199,8 +199,7 @@ def updateDataFromEdit(edit, prop, convertType=None, textReplace=None, **kw):
         if convertType is not None:
             try:
                 txt = convertType(txt)
-            except ValueError as e:
-                # print(e)
+            except ValueError:
                 pass
 
     for it in csi.selectedItems:
@@ -223,11 +222,19 @@ def updateDataFromSpinBox(spinBox, prop):
             it.hasChanged = True
 
 
-def updateDataFromComboBox(combobox, prop):
+def updateDataFromComboBox(combobox, prop, convertType=None, textReplace=None,
+                           **kw):
     if not combobox.isEnabled():
         return
     ind = combobox.currentIndex()
     txt = combobox.currentText()
+    if textReplace is not None:
+        txt = txt.replace(*textReplace)
+    if convertType is not None:
+        try:
+            txt = convertType(txt)
+        except ValueError:
+            pass
     for it in csi.selectedItems:
         itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)
         val = ind if type(itValue) == int else txt

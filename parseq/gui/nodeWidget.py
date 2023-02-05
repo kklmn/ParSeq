@@ -656,8 +656,10 @@ class NodeWidget(qt.QWidget):
                             x, y, legend=curveLabel, color=item.color, z=z,
                             **plotProps)
                     except Exception as e:
-                        print('plotting in {0} failed: {1}'.format(
-                            self.node.name, e))
+                        print('plotting in {0} failed for ({1}, len={2}) vs '
+                              '({3}, len={4}): {5}'
+                              .format(self.node.name, yN, len(y),
+                                      node.plotXArray, len(x), e))
                         tb = traceback.format_exc()
                         print(tb)
                         continue

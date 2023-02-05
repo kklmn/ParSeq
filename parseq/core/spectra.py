@@ -710,6 +710,14 @@ class Spectrum(TreeItem):
 
         self.transformParams.update(transformParams)
 
+        # replot if toNode is not reached by any transform, otherwise it will
+        # be replotted by that transform:
+        for tr in toNode.transformsOut:
+            if tr.fromNode is tr.toNode:
+                break
+        else:
+            csi.nodesToReplot = [toNode]
+
         if runDownstream and toNode.transformsOut and \
                 self.state[toNode.name] == cco.DATA_STATE_GOOD:
             for tr in toNode.transformsOut:
@@ -951,33 +959,39 @@ class Spectrum(TreeItem):
                 if len(arrs) == 0:
                     raise ValueError('bad data file')
 
-            for aName, txt, sliceStr in zip(
-                    toNode.arrays, dataSource, sliceStrs):
-                if self.dataType == cco.DATA_COLUMN_FILE:
-                    if isinstance(txt, int):
-                        arr = arrs[txt]
-                    else:
-                        arr = self.interpret_array_formula(txt, arrs)
-                else:
-                    arr = self.interpret_array_formula(txt)
-                    if sliceStr:
-                        if 'axis' in sliceStr or 'sum' in sliceStr:  # sum axes
-                            sumlst = sliceStr[sliceStr.find('=')+1:].split(',')
-                            arr = arr.sum(axis=[int(ax) for ax in sumlst])
-                        else:
-                            sliceTuple = tuple(cco.parse_slice_str(slc)
-                                               for slc in sliceStr.split(','))
-                            arr = arr[sliceTuple]
-
+            roles = toNode.get_arrays_prop('role')
+            for aName, txt, sliceStr, role in zip(
+                    toNode.arrays, dataSource, sliceStrs, roles):
                 setName = toNode.get_prop(aName, 'raw')
+                if (role == 'optional') and (txt == ''):
+                    setattr(self, setName, None)
+                    continue
                 try:
+                    if self.dataType == cco.DATA_COLUMN_FILE:
+                        if isinstance(txt, int):
+                            arr = arrs[txt]
+                        else:
+                            arr = self.interpret_array_formula(txt, arrs)
+                    else:
+                        arr = self.interpret_array_formula(txt)
+                        if sliceStr:
+                            if 'axis' in sliceStr or 'sum' in sliceStr:
+                                # sum axes
+                                sumlst = \
+                                    sliceStr[sliceStr.find('=')+1:].split(',')
+                                arr = arr.sum(axis=[int(ax) for ax in sumlst])
+                            else:
+                                sliceTuple = tuple(
+                                    cco.parse_slice_str(slc)
+                                    for slc in sliceStr.split(','))
+                                arr = arr[sliceTuple]
                     setattr(self, setName, arr)
                 except Exception:
                     setattr(self, setName, None)
 
             self.state[toNode.name] = cco.DATA_STATE_GOOD
         except (ValueError, OSError, IndexError) as e:
-            print('Error in read_file() (d): {0}'.format(e))
+            print('Error in read_file(): {0}'.format(e))
             self.state = dict((n, cco.DATA_STATE_NOTFOUND) for n in csi.nodes)
             return
 
@@ -1019,7 +1033,7 @@ class Spectrum(TreeItem):
         try:
             # to expand string expressions
             colStr = str(eval(colStr))
-        except:  # noqa
+        except Exception:
             pass
 
         keys = re.findall(r'\[(.*?)\]', colStr)

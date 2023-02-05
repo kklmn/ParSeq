@@ -834,11 +834,6 @@ class RoiWidget(RoiWidgetBase):
 
 
 class RangeWidgetBase(qt.QWidget):
-    """
-    A derived class from `RangeWidgetBase` may define a method `convert` that
-    converts from spinbox values to roi limits and backward. The signature:
-    convert(direction, vmin, vmax), returns amin, amax.
-    """
     rangeChanged = qt.pyqtSignal(list)
 
     def createRoi(self, vmin=None, vmax=None):
@@ -863,8 +858,7 @@ class RangeWidgetBase(qt.QWidget):
                         vmin, vmax = self.initRange()
                     else:
                         vmin, vmax = self.initRange[0:2]
-                if hasattr(self, 'convert'):
-                    vmin, vmax = self.convert(1, vmin, vmax)
+                vmin, vmax = self.convert(1, vmin, vmax)
 
                 if isinstance(roi, (CrossROI, PointROI)):
                     roi.setPosition((vmin, vmax))
@@ -883,8 +877,7 @@ class RangeWidgetBase(qt.QWidget):
             ran = self.roi.getPosition()
         elif isinstance(self.roi, HorizontalRangeROI):
             ran = self.roi.getRange()
-        if hasattr(self, 'convert'):
-            ran = self.convert(-1, *ran)
+        ran = self.convert(-1, *ran)
         self.setRange(ran)
 
     def rangeFinished(self):
@@ -892,9 +885,15 @@ class RangeWidgetBase(qt.QWidget):
             vmin, vmax = self.roi.getPosition()
         elif isinstance(self.roi, HorizontalRangeROI):
             vmin, vmax = self.roi.getRange()
-        if hasattr(self, 'convert'):
-            vmin, vmax = self.convert(-1, vmin, vmax)
+        vmin, vmax = self.convert(-1, vmin, vmax)
         self.rangeChanged.emit([vmin, vmax])
+
+    def convert(self, direction, vmin, vmax):
+        """Converts from spinbox values to roi limits and backward.
+        direction: 1: from spinbox values to roi limits, -1: from roi limits to
+        spinbox values.
+        """
+        return vmin, vmax  # just pass through
 
 
 class RangeWidget(RangeWidgetBase):
@@ -952,8 +951,7 @@ class RangeWidget(RangeWidgetBase):
     def setCustomRange(self):
         self.createRoi()
         vmin, vmax = self.roi.getRange()
-        if hasattr(self, 'convert'):
-            vmin, vmax = self.convert(-1, vmin, vmax)
+        vmin, vmax = self.convert(-1, vmin, vmax)
         self.roi.setVisible(True)
         self.rangeChanged.emit([vmin, vmax])
 
@@ -965,8 +963,7 @@ class RangeWidget(RangeWidgetBase):
         try:
             vmin = float(t1.strip())
             vmax = float(t2.strip())
-            if hasattr(self, 'convert'):
-                vmin, vmax = self.convert(1, vmin, vmax)
+            vmin, vmax = self.convert(1, vmin, vmax)
             self.roi.setRange(vmin=vmin, vmax=vmax)
         except Exception:
             pass
@@ -1033,7 +1030,8 @@ class RangeWidgetSplit(RangeWidgetBase):
             self.maxSpinBox.setMaximum(optionsMax[1])
         self.maxSpinBox.setSingleStep(optionsMax[2])
         self.maxSpinBox.setDecimals(optionsMax[3])
-        self.maxSpinBox.setSpecialValueText("max data")
+        if self.roiClass == HorizontalRangeROI:
+            self.maxSpinBox.setSpecialValueText("max data")
         self.maxSpinBox.valueChanged.connect(partial(self.fromSpinBox, 1))
         if varSuffix:
             self.maxSpinBox.setSuffix(varSuffix)
@@ -1062,7 +1060,11 @@ class RangeWidgetSplit(RangeWidgetBase):
                 if callable(self.initRange):
                     vmin, vmax = self.initRange()
                 else:
-                    vmin, vmax = self.initRange[0], self.maxSpinBox.minimum()
+                    if self.roiClass == HorizontalRangeROI:
+                        vmin = self.initRange[0]
+                        vmax = self.maxSpinBox.minimum()  # special value
+                    elif self.roiClass == CrossROI:
+                        vmin, vmax = self.initRange
             self.minSpinBox.blockSignals(True)
             self.maxSpinBox.blockSignals(True)
             self.minSpinBox.setValue(vmin if ran[0] is None else ran[0])
@@ -1072,26 +1074,30 @@ class RangeWidgetSplit(RangeWidgetBase):
             self.createRoi(*ran)
             return
 
-    def fromSpinBox(self, ind, value):
+    def fromSpinBox(self, ind, value=None):
         if self.roi is None:
             return
-        if ind == 0:
-            if hasattr(self, 'convert'):
-                vnew, _ = self.convert(1, value, None)
-            else:
-                vnew = value
-            self.roi.setMin(vnew)
-            vmin, vmax = value, self.maxSpinBox.value()
-        elif ind == 1:
-            if hasattr(self, 'convert'):
-                _, vnew = self.convert(1, None, value)
-            else:
-                vnew = value
-            self.roi.setMax(vnew)
-            vmin, vmax = self.minSpinBox.value(), value
+        self.roi.blockSignals(True)
 
-        self.spinBoxProps = [vmin, vmax]
-        self.spinTimer.start(self.spinBoxDelay)
+        if ind == 0:
+            smin, smax = value, self.maxSpinBox.value()
+        elif ind == 1:
+            smin, smax = self.minSpinBox.value(), value
+        elif ind == 100:
+            smin, smax = self.minSpinBox.value(), self.maxSpinBox.value()
+        rmin, rmax = self.convert(1, smin, smax)
+        if self.roiClass == HorizontalRangeROI:
+            if ind == 0:
+                self.roi.setMin(rmin)
+            elif ind == 1:
+                self.roi.setMax(rmax)
+        elif self.roiClass == CrossROI:
+            self.roi.setPosition((rmin, rmax))
+
+        self.roi.blockSignals(False)
+        self.spinBoxProps = [smin, smax]
+        if value is not None:
+            self.spinTimer.start(self.spinBoxDelay)
 
     def spinDelayed(self):
         if self.spinBoxProps is None:

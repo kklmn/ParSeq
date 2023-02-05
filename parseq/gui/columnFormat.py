@@ -33,9 +33,10 @@ class ColumnFormatWidget(PropWidget):
         self.dataLocationTab = self.makeDataLocationTab()
         ind = self.tabWidget.addTab(self.dataLocationTab, 'arrays')
         self.tabWidget.setTabToolTip(
-            ind, "for HDF5/SPEC datasets: use context menu on data arrays\n"
-            "for column files: use expressions of variables `Col1`, `Col2`, …"
-            "\n(zero-based!) or give a zero-based int column index")
+            ind, "For HDF5/SPEC datasets: use context menu on data arrays.\n"
+            "For column files: use expressions of variables `Col1`, `Col2`, …"
+            "\n(zero-based!) or give a zero-based int column index.\n"
+            "Example: `np.log(d[Col6]/d[Col7])`")
 
         self.conversionTab = self.makeConversionTab()
         ind = self.tabWidget.addTab(self.conversionTab, 'conversion')
@@ -140,6 +141,8 @@ class ColumnFormatWidget(PropWidget):
             dataLabel = qt.QLabel(lbl)
             dataEdit = qt.QLineEdit()
             dataEdit.setMinimumWidth(62)
+            if role == 'optional':
+                dataEdit.setPlaceholderText('non-mandatory')
             dataEdit.setSizePolicy(
                 qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
             self.dataEdits.append(dataEdit)

@@ -10,7 +10,7 @@ data. Each data node defines and operates arrays that get their values in the
 upstream part of the pipeline.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "19 Apr 2022"
+__date__ = "5 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -38,8 +38,9 @@ class Node(object):
             The array's role. Can be 'x', 'y', 'yleft', 'yright', 'z' or '1D'
             for 1D arrays (one and only one x-axis array is required), '2D' for
             2D plots and '3D' for stacked 2D images. '0D' values are listed in
-            the data tree. Unless has a '0D' role, each array will appear in
-            `data location` dialog to be able to import it from a file.
+            the data tree. 'optional' array is not required in data files and
+            can be used as an auxiliary. Unless with a '0D' role, each array
+            will appear in `data location` dialog to define its location.
 
         *raw*: str, default = array name
             Can define an intermediate array at the pipeline head when the main
@@ -127,7 +128,7 @@ class Node(object):
             elif prl[0] == '2':
                 self.arrays[key]['ndim'] = 2
                 self.plot2DArray = key
-            elif prl[0] in ('x', 'y', 'z', '1'):
+            elif prl[0] in ('x', 'y', 'z', '1', 'o'):  # 'o' for 'optional'
                 self.arrays[key]['ndim'] = 1
                 if prl[0] == 'x':
                     if hasattr(self, 'plotXArray'):

@@ -497,6 +497,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             cco.get_header(fname, cdf)
             cdf['skip_header'] = cdf.pop('skiprows', 0)
             dataS = cdf.pop('dataSource', [])
+            roles = self.transformNode.get_arrays_prop('role')
             cdf.pop('conversionFactors', [])
             cdf.pop('metadata', [])
             with np.warnings.catch_warnings():
@@ -505,7 +506,10 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             if len(arrs) == 0:
                 return
 
-            for data in dataS:
+            for data, role in zip(dataS, roles):
+                if role == 'optional':
+                    lres.append('')
+                    continue
                 if len(data) == 0:
                     return
                 colEval = self.interpretArrayFormula(data, arrs, 'col')
@@ -535,9 +539,14 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         lres = []
         try:
             datas = df.get('dataSource', [])  # from dataEdits
+            roles = self.transformNode.get_arrays_prop('role')
             slcs = df.get('slices', ['' for ds in datas])  # from sliceEdits
-            for idata, (data, slc, nd) in enumerate(zip(
-                    datas, slcs, self.transformNode.get_arrays_prop('ndim'))):
+            for idata, (data, slc, nd, role) in enumerate(zip(
+                datas, slcs, self.transformNode.get_arrays_prop('ndim'),
+                    roles)):
+                if role == 'optional':
+                    lres.append('')
+                    continue
                 if len(data) == 0:
                     return
                 colEval = self.interpretArrayFormula(data, nodeH5, 'h5')
