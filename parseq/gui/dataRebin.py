@@ -386,7 +386,7 @@ class SplittersTableView(qt.QTableView):
 
         for c in range(model.columnCount()):
             if c == model.columnCount()-1:
-                self.setColumnWidth(c, 20)
+                self.setColumnWidth(c, 0)
             kw = dict(limits=model.splitters[c][2:5],  # min, max, step
                       alignment=qt.Qt.AlignRight | qt.Qt.AlignVCenter)
             self.setItemDelegateForColumn(c, DoubleSpinBoxDelegate(self, **kw))
@@ -432,7 +432,7 @@ class DeltasTableView(qt.QTableView):
 
         for c in range(model.columnCount()):
             if c == model.columnCount()-1:
-                self.setColumnWidth(c, 20)
+                self.setColumnWidth(c, 0)
             kw = dict(limits=model.deltas[c][2:5],  # min, max, step
                       alignment=qt.Qt.AlignCenter)
             self.setItemDelegateForColumn(c, DoubleSpinBoxDelegate(self, **kw))

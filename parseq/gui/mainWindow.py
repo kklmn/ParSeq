@@ -310,6 +310,8 @@ class MainWindowParSeq(qt.QMainWindow):
                     else 1
             except AttributeError:
                 last = 1
+            if node.widgetClass is None:
+                last = 0
             if nodeWidget:
                 nodeWidget.splitter.setSizes([first, 1, 1, last])
             self.docks[nodeWidget] = dock, node, tabName

@@ -334,12 +334,20 @@ class NodeWidget(qt.QWidget):
         self.splitterTransform.setStretchFactor(1, 1)
 
     def makeTransformWidget(self, parent):
-        hasWidgetClass = self.node.widgetClass is not None
-        if hasWidgetClass:
+        # insert QScrollArea for a possibly big transformWidget
+        scrollArea = qt.QScrollArea(parent)
+        scrollArea.setFrameShape(qt.QFrame.NoFrame)
+        scrollArea.setWidgetResizable(True)
+        scrollArea.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
+        scrollArea.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAsNeeded)
+
+        if self.node.widgetClass is not None:
             self.transformWidget = self.node.widgetClass(
-                parent=parent, node=self.node)
+                parent=scrollArea, node=self.node)
+            scrollArea.setMinimumWidth(self.transformWidget.sizeHint().width())
         else:
-            self.transformWidget = qt.QWidget(parent)
+            self.transformWidget = qt.QWidget(parent=scrollArea)
+        scrollArea.setWidget(self.transformWidget)
         for tr in self.node.transformsIn:
             tr.sendSignals = csi.mainWindow is not None
             tr.widget = self.transformWidget
