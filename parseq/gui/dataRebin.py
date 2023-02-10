@@ -378,6 +378,7 @@ class SplittersTableView(qt.QTableView):
             verHeader.setSectionsClickable(False)
             verHeader.setSectionResizeMode(qt.QHeaderView.Fixed)
             verHeader.setDefaultSectionSize(ROWHEIGHT)
+        width = horHeader.length() + 46
         horHeader.setStretchLastSection(True)
         horHeader.hide()
         self.setStyleSheet("""QTableView {
@@ -394,6 +395,7 @@ class SplittersTableView(qt.QTableView):
         self.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
         self.setShowGrid(False)
         self.setFixedHeight(ROWHEIGHT+1)
+        self.setMinimumWidth(width)
 
 
 class DeltasTableView(qt.QTableView):
@@ -465,7 +467,7 @@ class DataRebinWidget(qt.QWidget):
         self.setLayout(layout)
         self.splittersView.clearSelection()
         self.deltasView.clearSelection()
-        self.splittersView.setMinimumWidth(300)
+        # self.splittersView.setMinimumWidth(300)
         self.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
 
         self.splittersModel.dataChanged.connect(self.updateClient)

@@ -48,7 +48,9 @@ class AboutDialog(qt.QDialog):
 
         self.tabBar = qt.QTabBar(parent=self)
         self.tabBar.setIconSize(qt.QSize(32, 32))
-        self.tabBar.setStyleSheet("QTabBar {font: bold 10pt;}")
+        self.tabBar.setStyleSheet(
+            "QTabBar {font: bold 10pt;}"
+            "QTabBar::tab:selected {background: white;}")
         # "QTabBar::tab { height: 100px; width: 400px; }")
         self.tabNames = ['ParSeq', csi.pipelineName]
         self.iconPaths = [ICONPATHP, csi.appIconPath]
@@ -73,8 +75,8 @@ class AboutDialog(qt.QDialog):
     def makeWebView(self):
         self.webView = gww.QWebView(self)
         self.webView.page().setLinkDelegationPolicy(2)
-        self.webView.setMinimumWidth(500+50)
-        self.webView.setMinimumHeight(510+40+30*len(csi.nodes))
+        self.webView.setMinimumWidth(550)
+        self.webView.setMinimumHeight(550+30*len(csi.nodes))
         self.webView.history().clear()
         self.webView.page().history().clear()
         self.lastBrowserLink = ''

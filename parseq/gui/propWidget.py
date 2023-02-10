@@ -37,7 +37,7 @@ propWidgetTypes = (
     'edit', 'label', 'spinbox', 'groupbox', 'checkbox', 'pushbutton',
     'tableview', 'combobox', 'rangewidget', 'statebuttons')
 
-spinBoxDelay = 600  # ms
+spinBoxDelay = 500  # ms
 
 
 class FloatRepr(reprlib.Repr):
@@ -687,7 +687,7 @@ class PropWidget(qt.QWidget):
             tr.run(params=params, dataItems=dataItems)
 
     def _onTransformThreadReady(
-            self, starter, tName='', props={}, duration=0, err=None):
+            self, starter, tName='', tStr='', props={}, duration=0, err=None):
         if starter is not self:
             return
         if csi.DEBUG_LEVEL > 50:

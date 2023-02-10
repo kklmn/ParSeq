@@ -852,6 +852,8 @@ class RangeWidgetBase(qt.QWidget):
         if needNew:
             try:
                 roi = self.roiClass()
+                if hasattr(self, 'visibleCB'):
+                    roi.setVisible(self.visibleCB.isChecked())
                 roi.setName(self.rangeName)
                 if vmin is None or vmax is None:
                     if callable(self.initRange):
@@ -971,7 +973,7 @@ class RangeWidget(RangeWidgetBase):
 
 class RangeWidgetSplit(RangeWidgetBase):
     rangeChanged = qt.pyqtSignal(list)
-    spinBoxDelay = 600  # ms
+    spinBoxDelay = 500  # ms
 
     def __init__(self, parent, plot, var, optionsMin, optionsMax, rangeName,
                  color, initRange, addVisibleCB=False):
@@ -1044,7 +1046,6 @@ class RangeWidgetSplit(RangeWidgetBase):
             self.visibleCB = qt.QCheckBox('visible range widget')
             self.visibleCB.setStyleSheet(
                 "QCheckBox:checked{color: " + color + ";}")
-            self.visibleCB.setChecked(True)
             self.visibleCB.toggled.connect(self.toggleVisible)
             layout.addWidget(self.visibleCB, 0, 3, 1, 3)
 
@@ -1109,3 +1110,7 @@ class RangeWidgetSplit(RangeWidgetBase):
         if self.roi is None:
             return
         self.roi.setVisible(on)
+
+    def setRangeVisible(self, on):
+        self.visibleCB.setChecked(on)
+        self.toggleVisible(on)

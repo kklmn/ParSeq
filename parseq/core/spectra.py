@@ -352,16 +352,14 @@ class TreeItem(object):
             raise ValueError(
                 "data in {0} must be a sequence or a string, not {1}"
                 " of type {2}".format(alias, data, type(data)))
-#        csi.recentlyLoadedItems.clear()
-        csi.recentlyLoadedItems[:] = []
-        csi.recentlyLoadedItems.extend(items)
+        csi.recentlyLoadedItems = [item for item in items]
         csi.allLoadedItems[:] = []
         csi.allLoadedItems.extend(csi.dataRootItem.get_items())
         if len(csi.selectedItems) == 0:
             if len(csi.allLoadedItems) == 0:
                 raise ValueError("No valid data added")
-            csi.selectedItems = [csi.allLoadedItems[0]]
-            csi.selectedTopItems = [csi.allLoadedItems[0]]
+        csi.selectedItems = [item for item in items]
+        csi.selectedTopItems = [item for item in items]
 
         shouldMakeColor = len(self.childItems) > 0 and csi.withGUI
         if shouldMakeColor:

@@ -1160,7 +1160,7 @@ class DataTreeView(qt.QTreeView):
                         csi.model.setVisible(it, value, emit)
                     self.header().update()
 
-    def selChanged(self):
+    def selChanged(self, selected=None, deselected=None):
         if not self.hasFocus():
             return
         csi.currentNode = self.node
@@ -1168,6 +1168,9 @@ class DataTreeView(qt.QTreeView):
         selectedIndexes = csi.selectionModel.selectedRows()
         items = csi.model.getItems(selectedIndexes)
         if len(items) == 0:
+            mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
+            if deselected is not None:
+                csi.selectionModel.select(deselected, mode)
             return
 
         if csi.selectionModel.customSelectionMode:

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "31 Mar 2021"
+__date__ = "10 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import time
@@ -8,7 +8,7 @@ from silx.gui import qt
 
 
 class Transformer(qt.QObject):
-    ready = qt.pyqtSignal(qt.QWidget, str, dict, float, list)
+    ready = qt.pyqtSignal(qt.QWidget, str, str, dict, float, list)
 
     def prepare(self, transform, params={}, runDownstream=True, dataItems=None,
                 starter=None):
@@ -17,6 +17,14 @@ class Transformer(qt.QObject):
         self.runDownstream = runDownstream
         self.dataItems = dataItems
         self.starter = starter
+
+    def getTransformNames(self, transform):
+        res = [transform.name]
+        for tr in transform.toNode.transformsOut:
+            if tr is transform:
+                continue
+            res.extend(self.getTransformNames(tr))
+        return res
 
     def run(self):
         self.timeStart = time.time()
@@ -28,5 +36,11 @@ class Transformer(qt.QObject):
         self.timeEnd = time.time()
         self.timeDuration = self.timeEnd - self.timeStart
         self.dataItems = None  # remove the reference to data
-        self.ready.emit(self.starter, self.transform.name, self.params,
+        if self.runDownstream:
+            transformNames = self.getTransformNames(self.transform)
+            trStr = ' + '.join(transformNames)
+        else:
+            trStr = self.transform.name
+
+        self.ready.emit(self.starter, self.transform.name, trStr, self.params,
                         self.timeDuration, errorItems)

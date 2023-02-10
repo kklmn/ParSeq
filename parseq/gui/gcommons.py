@@ -281,6 +281,19 @@ class FlowLayout(qt.QLayout):
         return y + line_height - rect.y()
 
 
+class QVBoxLayoutAbove(qt.QVBoxLayout):
+    def addExtraWidget(self, widget):
+        """The widget must be given a parent (a group box)! """
+        self.extraWidget = widget
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        size = self.extraWidget.sizeHint()
+        w, h = size.width(), size.height()
+        x, y = rect.right()-w-2, rect.y()-h+1
+        self.extraWidget.setGeometry(qt.QRect(x, y, w, h))
+
+
 class StateButtons(qt.QFrame):
     statesActive = qt.pyqtSignal(list)
 

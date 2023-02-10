@@ -693,8 +693,8 @@ class MainWindowParSeq(qt.QMainWindow):
                 "}", " color: "+cc.name(qt.QColor.HexArgb)+";}")
             dock.setStyleSheet(ss)
 
-    def displayStatusMessage(self, txt, starter=None, what='', props={},
-                             duration=0, errorList=None):
+    def displayStatusMessage(self, txt, starter=None, trName='', what='',
+                             props={}, duration=0, errorList=None):
         if 'ready' in txt:
             factor, unit, ff = (1e3, 'ms', '{0:.0f}') if duration < 1 else (
                 1, 's', '{0:.1f}')
@@ -706,14 +706,15 @@ class MainWindowParSeq(qt.QMainWindow):
                 ss += '<b> with errors in ' + combinedNames
                 ss += ', see traceback in data tooltip</b>'
                 ss += '</span>'
-            self.statusBarLeft.setText(ss.format(duration*factor, unit))
+            txtOut = ss.format(duration*factor, unit)
         elif 'hdf5' in txt:
             factor, unit, ff = (1e3, 'ms', '{0:.0f}') if duration < 1 else (
                 1, 's', '{0:.1f}')
             ss = txt + ' in ' + ff + ' {1}'
-            self.statusBarLeft.setText(ss.format(duration*factor, unit))
+            txtOut = ss.format(duration*factor, unit)
         else:
-            self.statusBarLeft.setText(txt)
+            txtOut = txt
+        self.statusBarLeft.setText(txtOut)
 
     def updateCPU(self):
         res = psutil.virtual_memory().percent, psutil.cpu_percent()
