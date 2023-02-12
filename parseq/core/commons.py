@@ -171,10 +171,13 @@ def numbers_extract(strlist):
 
 def intervals_extract(iterable):
     iterable = sorted(set(iterable))
-    for key, gr in itertools.groupby(
-            enumerate(iterable), lambda t: int(t[1])-int(t[0])):
-        gr = list(gr)
-        yield [gr[0][1], gr[-1][1]]
+    try:
+        for key, gr in itertools.groupby(
+                enumerate(iterable), lambda t: int(t[1])-int(t[0])):
+            gr = list(gr)
+            yield [gr[0][1], gr[-1][1]]
+    except ValueError:
+        return iterable
 
 
 def make_int_ranges(iterable):
@@ -183,9 +186,12 @@ def make_int_ranges(iterable):
     except Exception:
         intit = iterable
     ranges = list(intervals_extract(intit))
-    nr = max([len(str(max(r[0], r[1]))) for r in ranges])
-    aslist = ["{0:0{1}d[0]}..{0:0{1}d[1]}".format(r, nr) if r[0] < r[1] else
-              "{0:0{1}d[0]}".format(r, nr) for r in ranges]
+    try:
+        nr = max([len(str(max(r[0], r[1]))) for r in ranges])
+        aslist = [r"{0[0]:0{1}d}..{0[1]:0{1}d}".format(r, nr) if r[0] < r[1]
+                  else r"{0[0]:0{1}d}".format(r, nr) for r in ranges]
+    except ValueError:
+        aslist = iterable
     return "[{}]".format(', '.join(aslist))
 
 # examples:

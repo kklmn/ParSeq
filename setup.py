@@ -98,7 +98,7 @@ Please use the project’s Issues tab to get help or report an issue.
 
 setup(
     name='parseq',
-    version='0.8.3',
+    version='0.9.0',
     description='ParSeq is a python software library for Parallel execution of'
                 ' Sequential data analysis.',
     long_description=long_description,

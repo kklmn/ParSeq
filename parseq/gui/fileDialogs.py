@@ -80,6 +80,8 @@ class SaveProjectDlg(qt.QFileDialog):
 
         self.finished.connect(self.onFinish)
 
+        self.setMinimumHeight(500)
+
     def onFinish(self, result):
         if not result:
             return
@@ -183,7 +185,7 @@ class LoadProjectDlg(qt.QFileDialog):
         self.previewPanel = QPreviewPanel(self)
         self.splitter.addWidget(self.previewPanel)
 
-        self.setMinimumWidth(1200)
+        self.setMinimumSize(1200, 500)
 
     def updatePreview(self, path):
         if path.endswith('.pspj'):

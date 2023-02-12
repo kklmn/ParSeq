@@ -655,7 +655,7 @@ class LineStyleDelegate(NodeDelegate):
                 # > or < symbol
                 font = painter.font()
                 # font.setFamily("Arial")
-                font.setPointSize(4*round(lineWidth))
+                font.setPointSize(3*round(lineWidth))
                 painter.setFont(font)
 
                 dh = int(lineWidth+1)

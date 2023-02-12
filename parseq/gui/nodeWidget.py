@@ -9,6 +9,7 @@ import webbrowser
 from collections import Counter
 from functools import partial
 import traceback
+import time
 
 from silx.gui import qt, colors, icons
 
@@ -610,9 +611,10 @@ class NodeWidget(qt.QWidget):
         else:
             return 0, 1
 
-    def replot(self, keepExtent=True):
+    def replot(self, keepExtent=True, needClear=False):
         if csi.DEBUG_LEVEL > 50:
             print('enter replot() of {0}'.format(self.node.name))
+            startT = time.time()
 
         if self.onTransform:
             return
@@ -627,7 +629,8 @@ class NodeWidget(qt.QWidget):
         # yLabels = node.get_arrays_prop('plotLabel', yNames)
 
         if node.plotDimension == 1:
-            self.plot.clearCurves()
+            if needClear:
+                self.plot.clearCurves()
             self.plot.clearImages()
             # self.plot.clearMarkers()
             nPlottedItems = 0
@@ -635,6 +638,9 @@ class NodeWidget(qt.QWidget):
             leftAxisUnits, rightAxisUnits = [], []
             for item in csi.allLoadedItems:
                 if not self.shouldPlotItem(item):
+                    for yN in node.plotYArrays:
+                        curveLabel = item.alias + '.' + yN
+                        self.plot.remove(curveLabel, kind='curve')
                     continue
                 try:
                     x = getattr(item, node.plotXArray)
@@ -653,6 +659,7 @@ class NodeWidget(qt.QWidget):
                     except AttributeError:
                         continue
                     curveLabel = item.alias + '.' + yN
+                    curve = self.plot.getCurve(curveLabel)
                     plotProps = dict(item.plotProps[node.name][yN])
                     symbolsize = plotProps.pop('symbolsize', 2)
                     z = 1 if item in csi.selectedItems else 0
@@ -660,9 +667,13 @@ class NodeWidget(qt.QWidget):
                         if hasattr(self.transformWidget, 'extraPlotTransform'):
                             x, y = self.transformWidget.extraPlotTransform(
                                 item, node.plotXArray, x, yN, y)
-                        self.plot.addCurve(
-                            x, y, legend=curveLabel, color=item.color, z=z,
-                            **plotProps)
+                        if curve is None:
+                            self.plot.addCurve(
+                                x, y, legend=curveLabel, color=item.color, z=z,
+                                **plotProps)
+                        else:
+                            curve.setData(x, y)
+                            curve.setZValue(z)
                     except Exception as e:
                         print('plotting in {0} failed for ({1}, len={2}) vs '
                               '({3}, len={4}): {5}'
@@ -779,7 +790,8 @@ class NodeWidget(qt.QWidget):
         #     self.plot.resetZoom()
         self.wasNeverPlotted = False
         if csi.DEBUG_LEVEL > 50:
-            print('exit replot() of {0}'.format(self.node.name))
+            print('exit replot() of {0} in {1:.3f}s'.format(
+                  self.node.name, time.time()-startT))
 
     def saveGraph(self, fname, i, name):
         if fname.endswith('.pspj'):
