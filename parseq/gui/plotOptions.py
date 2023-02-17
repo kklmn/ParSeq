@@ -624,7 +624,9 @@ class LineProps(qt.QDialog):
         self.setColorOptions()
         self.setLineOptions()
         try:  # self.node.widget may be None in tests
-            self.node.widget.replot(needClear=True)
+            # self.node.widget.replot(needClear=True)
+            for node in csi.nodes.values():
+                node.widget.replot(needClear=True)
         except Exception:
             pass
         super().accept()

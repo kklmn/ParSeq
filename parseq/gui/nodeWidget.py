@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "27 Jul 2022"
+__date__ = "17 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -611,7 +611,7 @@ class NodeWidget(qt.QWidget):
         else:
             return 0, 1
 
-    def replot(self, keepExtent=True, needClear=False):
+    def replot(self, needClear=False, keepExtent=True):
         if csi.DEBUG_LEVEL > 50:
             print('enter replot() of {0}'.format(self.node.name))
             startT = time.time()
@@ -718,6 +718,8 @@ class NodeWidget(qt.QWidget):
                                 if unit not in rightAxisUnits:
                                     rightAxisUnits.append(unit)
             if nPlottedItems == 0:
+                if hasattr(self.transformWidget, 'extraPlot'):
+                    self.transformWidget.extraPlot()
                 return
             self.plotLeftYLabel = self._makeYLabel(
                 leftAxisColumns, leftAxisUnits)
@@ -727,8 +729,9 @@ class NodeWidget(qt.QWidget):
             self.plot.setGraphYLabel(label=self.plotRightYLabel, axis='right')
         if node.plotDimension == 2:
             self.plot.clearCurves()
-            # self.plot.clearImages()  # clears roi lines
-            # self.plot.clearMarkers()
+            if needClear:
+                self.plot.clearImages()
+                self.plot.clearMarkers()
             if len(csi.selectedItems) > 0:
                 item = csi.selectedItems[0]  # it could be the last one but
                 # then when going with arrows up and down in the data tree and
@@ -757,8 +760,9 @@ class NodeWidget(qt.QWidget):
                                scale=(xScale, yScale), z=-100)
         if node.plotDimension == 3:
             self.plot._plot.clearCurves()  # clears roi lines
-            # self.plot._plot.clearImages()
-            # self.plot._plot.clearMarkers()
+            if needClear:
+                self.plot._plot.clearImages()
+                self.plot._plot.clearMarkers()
             item = None
             if len(csi.selectedItems) > 0:
                 item = csi.selectedItems[0]

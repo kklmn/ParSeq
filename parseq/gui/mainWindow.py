@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "12 Sep 2022"
+__date__ = "17 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
-import sys
+# import sys
 import os.path as osp
 import time
 from functools import partial
@@ -33,7 +33,7 @@ from .aboutDialog import AboutDialog
 from . import gcommons as gco
 from . import webWidget as gww
 
-fontSize = 12 if sys.platform == "darwin" else 8.5
+# fontSize = 12 if sys.platform == "darwin" else 8.5
 mainWindowWidth, mainWindowHeight = 1600, 768
 ICON_SIZE = 32
 
@@ -608,7 +608,7 @@ class MainWindowParSeq(qt.QMainWindow):
         if not fname.endswith('.pspj'):
             fname += '.pspj'
         try:
-            with open(fname, 'w') as f:
+            with open(fname, 'w', encoding=csr.encoding) as f:
                 f.write('try')
         except OSError:
             msg = qt.QMessageBox()
@@ -638,7 +638,7 @@ class MainWindowParSeq(qt.QMainWindow):
         dlg.open()
 
     def doLoadProject(self, res):
-        self.cursor().setPos(self.mapToGlobal(qt.QPoint(0, 0)))
+        # self.cursor().setPos(self.mapToGlobal(qt.QPoint(0, 0)))
         fname = res[0][0]
         self.load_project(fname)
         config.put(config.configLoad, 'Project', csi.pipelineName, fname)
@@ -779,7 +779,9 @@ class MainWindowParSeq(qt.QMainWindow):
     def load_project(self, fname):
         msg = qt.QMessageBox()
         msg.setIcon(qt.QMessageBox.Critical)
+        qt.QCoreApplication.instance().setOverrideCursor(qt.Qt.WaitCursor)
         csr.load_project(fname, msg, self.restore_perspective)
+        qt.QCoreApplication.instance().restoreOverrideCursor()
 
     def save_project(self, fname):
         csr.save_project(fname, self.save_perspective)

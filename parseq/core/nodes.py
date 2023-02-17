@@ -25,7 +25,7 @@ class Node(object):
 
     *name*: str
         The name of the node, also shown as a GUI tab and also is a section
-        name in ini file.
+        name in ini file. Must be unique in the pipeline.
 
     *arrays*: OrderedDict of dicts
         Describes the arrays operated in this node. Note, this object only
@@ -117,6 +117,8 @@ class Node(object):
         self.transformsOut = []  # list of transforms from this node
         # assigned automatically by transform:
         self.transformsIn = []
+        if self.name in csi.nodes:
+            raise ValueError("The node's name is not unique!")
         csi.nodes[self.name] = self
 
         roles = self.get_arrays_prop('role')

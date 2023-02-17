@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "18 Oct 2022"
+__date__ = "17 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
 # import time
@@ -854,7 +854,6 @@ class RangeWidgetBase(qt.QWidget):
                 roi = self.roiClass()
                 if hasattr(self, 'visibleCB'):
                     roi.setVisible(self.visibleCB.isChecked())
-                roi.setName(self.rangeName)
                 if vmin is None or vmax is None:
                     if callable(self.initRange):
                         vmin, vmax = self.initRange()
@@ -864,7 +863,12 @@ class RangeWidgetBase(qt.QWidget):
 
                 if isinstance(roi, (CrossROI, PointROI)):
                     roi.setPosition((vmin, vmax))
+                    roi.setName(' ')
+                    names = self.rangeName.split(',')
+                    roi._vmarker.setText(names[1])
+                    roi._hmarker.setText(names[0])
                 elif isinstance(roi, HorizontalRangeROI):
+                    roi.setName(self.rangeName)
                     roi.setRange(vmin=vmin, vmax=vmax)
                 self.roi = roi
             except ValueError:

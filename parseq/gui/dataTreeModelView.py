@@ -16,10 +16,10 @@ The selected items can be accessed by core.singletons.selectedItems and
 core.singletons.selectedTopItems lists.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "19 Jul 2022"
+__date__ = "17 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
-# import sys
+import sys
 from functools import partial
 import pickle
 
@@ -31,6 +31,8 @@ from ..core import transforms as ctr
 from . import gcommons as gco
 from . import undoredo as gur
 from .plotOptions import lineStyles, lineSymbols, noSymbols, LineProps
+
+# fontSize = 12 if sys.platform == "darwin" else 9
 
 COLUMN_NAME_WIDTH = 140
 COLUMN_EYE_WIDTH = 28
@@ -64,7 +66,7 @@ PROGRESS_ROLE = qt.Qt.UserRole + 1
 
 
 class DataTreeModel(qt.QAbstractItemModel):
-    needReplot = qt.pyqtSignal()
+    needReplot = qt.pyqtSignal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -133,10 +135,11 @@ class DataTreeModel(qt.QAbstractItemModel):
             else:
                 return qt.QColor(item.color)
         elif role == qt.Qt.FontRole:
+            myFont = qt.QFont()
+            # myFont.setPointSize(int(float(fontSize)))
             if item.childItems and (index.column() == 0):  # group in bold
-                myFont = qt.QFont()
                 myFont.setBold(True)
-                return myFont
+            return myFont
         elif role == qt.Qt.TextAlignmentRole:
             if index.column() == 1:
                 return qt.Qt.AlignCenter
@@ -147,7 +150,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             item.set_data(index.column(), str(value))
 #            item.aliasExtra = None
             self.dataChanged.emit(index, index)
-            self.needReplot.emit()
+            self.needReplot.emit(False)
             return True
         elif role == qt.Qt.CheckStateRole:
             item = index.internalPointer()
@@ -159,7 +162,7 @@ class DataTreeModel(qt.QAbstractItemModel):
         item.set_visible(value)
         if emit:
             self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-            self.needReplot.emit()
+            self.needReplot.emit(False)
         if item is csi.dataRootItem:  # by click on header
             for it in csi.selectedItems:
                 self.setVisible(it, True, True)
@@ -260,7 +263,7 @@ class DataTreeModel(qt.QAbstractItemModel):
                 self._removeFromGlobalLists(subItem)
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-        self.needReplot.emit()
+        self.needReplot.emit(True)
 
     def undoRemove(self, undoEntry):
         if undoEntry[-1] != 'remove':
@@ -276,7 +279,7 @@ class DataTreeModel(qt.QAbstractItemModel):
                 parentItem.childItems.insert(row, item)
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-        self.needReplot.emit()
+        self.needReplot.emit(False)
 
     def moveItem(self, item, to):  # to = +1(up) or -1(down)
         parentItem = item.parentItem
@@ -417,7 +420,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             for parent in parents:
                 parent.init_colors()
             self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-            self.needReplot.emit()
+            self.needReplot.emit(False)
             return True
         elif mimedata.hasFormat(cco.MIME_TYPE_TEXT) or \
                 mimedata.hasFormat(cco.MIME_TYPE_HDF5):
@@ -450,7 +453,7 @@ class DataTreeModel(qt.QAbstractItemModel):
 
     def invalidateData(self):
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-        self.needReplot.emit()
+        self.needReplot.emit(False)
 
 
 class HeaderModel(qt.QAbstractItemModel):
@@ -506,6 +509,11 @@ class NodeDelegate(qt.QItemDelegate):
 
 
 class DataNameDelegate(NodeDelegate):
+    # def sizeHint(self, option, index):
+    #     fontMetrics = option.fontMetrics
+    #     txt = index.data(qt.Qt.DisplayRole)
+    #     return qt.QSize(fontMetrics.width(txt), fontMetrics.height())
+
     def paint(self, painter, option, index):
         # if index.column() == 1:
         #     super().paint(painter, option, index)
@@ -653,10 +661,10 @@ class LineStyleDelegate(NodeDelegate):
                 painter.drawPath(linePath)
 
                 # > or < symbol
-                font = painter.font()
+                # font = painter.font()
                 # font.setFamily("Arial")
-                font.setPointSize(3*round(lineWidth))
-                painter.setFont(font)
+                # font.setPointSize(3*round(lineWidth))
+                # painter.setFont(font)
 
                 dh = int(lineWidth+1)
                 rect.setBottom(rect.bottom()-dh)
@@ -705,26 +713,26 @@ class LineStyleDelegate(NodeDelegate):
                     painter.setPen(qt.QPen(qt.Qt.lightGray))
             else:
                 painter.setPen(qt.QPen(qt.Qt.black))
-            font = painter.font()
+            # font = painter.font()
             # font.setFamily("Arial")
             # font.setPointSize(10)
-            painter.setFont(font)
+            # painter.setFont(font)
             painter.drawText(
                 option.rect, qt.Qt.AlignCenter, "{0}".format(data))
         elif bknd == UNDEFINED_BKGND:
             painter.setPen(qt.QPen(qt.Qt.red))
-            font = painter.font()
-            painter.setFont(font)
+            # font = painter.font()
+            # painter.setFont(font)
             painter.drawText(option.rect, qt.Qt.AlignCenter, "out")
         elif bknd == MATHERROR_BKGND:
             painter.setPen(qt.QPen(qt.Qt.red))
-            font = painter.font()
-            painter.setFont(font)
+            # font = painter.font()
+            # painter.setFont(font)
             painter.drawText(option.rect, qt.Qt.AlignCenter, "error")
         elif bknd == NOTFOUND_BKGND:
             painter.setPen(qt.QPen(qt.Qt.red))
-            font = painter.font()
-            painter.setFont(font)
+            # font = painter.font()
+            # painter.setFont(font)
             painter.drawText(option.rect, qt.Qt.AlignCenter, "not found")
         painter.restore()
 
@@ -845,12 +853,12 @@ class DataTreeView(qt.QTreeView):
             self.setItemDelegateForColumn(1, dataCheckDelegate)
             totalWidth = 0
             leadingColumns = len(csi.modelLeadingColumns)
+            fm = qt.QFontMetrics(self.font())
             for i, col in enumerate(csi.modelDataColumns):
                 isHidden = col[0] is not node
                 self.setColumnHidden(i+leadingColumns, isHidden)
                 if isHidden:
                     continue
-                fm = qt.QFontMetrics(self.font())
                 role = col[0].get_prop(col[1], 'role')
                 if role.startswith('0'):
                     width = fm.width(col[0].get_prop(col[1], 'qLabel')) + 20
@@ -1056,7 +1064,7 @@ class DataTreeView(qt.QTreeView):
         if shouldUpdateModel:
             parentItem.init_colors()
             csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-            csi.model.needReplot.emit()
+            csi.model.needReplot.emit(False)
 
     def moveItems(self, to):
         for topItem in csi.selectedTopItems[::to]:
@@ -1148,7 +1156,7 @@ class DataTreeView(qt.QTreeView):
                     csi.model.setVisible(it, value, emit)
             else:
                 if emit:
-                    csi.model.needReplot.emit()
+                    csi.model.needReplot.emit(False)
         else:
             if value:
                 it = csi.selectedItems[0]

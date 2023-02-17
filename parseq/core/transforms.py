@@ -10,7 +10,7 @@ these parameters are individual per data item. Each transformation in a
 pipeline requires subclassing from :class:`Transform`.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "24 Sep 2022"
+__date__ = "17 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -18,11 +18,16 @@ import sys
 import numpy as np
 
 import traceback
-import types
+# import types
 if sys.version_info < (3, 1):
     from inspect import getargspec
 else:
     from inspect import getfullargspec as getargspec
+if sys.version_info < (3, 2):
+    from inspect import getattr as getattr_static
+else:
+    from inspect import getattr_static
+
 
 import time
 import multiprocessing
@@ -69,8 +74,8 @@ class Transform(object):
     Transforms, if several are present, must be instantiated in the order of
     data flow.
 
-    The method :meth:`run_main` must be declared with @staticmethod
-    decorator. A returned not None value indicates success.
+    The method :meth:`run_main()` must be declared either with @staticmethod or
+    @classmethod decorator. A returned not None value indicates success.
 
     *nThreads* or *nProcesses* can be > 1 to use threading or multiprocessing.
     If both are > 1, threading is used. If *nThreads* or *nProcesses* > 1, the
@@ -99,10 +104,13 @@ class Transform(object):
             raise NotImplementedError(
                 "The class Transform must be properly subclassed")
 
-        if not isinstance(self.run_main, types.FunctionType):
+        # isstatic = isinstance(self.run_main, types.FunctionType)
+        isStatic = isinstance(getattr_static(self, "run_main"), staticmethod)
+        isClass = isinstance(getattr_static(self, "run_main"), classmethod)
+        if not (isStatic or isClass):
             raise NotImplementedError(
-                "The method run_main() of {0} must be declared with "
-                "@staticmethod".format(self.__class__))
+                "The method run_main() of {0} must be declared with either"
+                "@staticmethod or @classmethod".format(self.__class__))
 
         self.fromNode = fromNode
         self.toNode = toNode
@@ -323,7 +331,7 @@ class Transform(object):
             if (not self.isHeadNode and
                     data.state[self.fromNode.name] == cco.DATA_STATE_BAD):
                 data.state[self.toNode.name] = cco.DATA_STATE_BAD
-                if csi.DEBUG_LEVEL > 20:
+                if csi.DEBUG_LEVEL > 1:
                     print('bad data at', self.fromNode.name, data.alias)
                 continue
             elif data.state[self.fromNode.name] == cco.DATA_STATE_NOTFOUND:
@@ -338,7 +346,7 @@ class Transform(object):
                             data.originNodeName, data.terminalNodeName)):
                     if data.dataType != cco.DATA_COMBINATION:
                         data.state[self.toNode.name] = cco.DATA_STATE_UNDEFINED
-                    if csi.DEBUG_LEVEL > 20:
+                    if csi.DEBUG_LEVEL > 0:
                         print(data.alias, 'not between "{0}" and "{1}"'.format(
                             self.fromNode.name, self.toNode.name))
                     continue
@@ -391,15 +399,17 @@ class Transform(object):
         if self.sendSignals:
             csi.mainWindow.beforeTransformSignal.emit(self.toNode.widget)
 
-    @staticmethod
-    def run_main(data):
+    # @staticmethod
+    # def run_main(data):
+    @classmethod
+    def run_main(cls, data):
         u"""
         Provides the actual functionality of the class.
         Other possible signatures:
 
-        | run_main(data, allData, progress)
-        | run_main(data, allData)
-        | run_main(data, progress)
+        | run_main(cls, data, allData, progress)
+        | run_main(cls, data, allData)
+        | run_main(cls, data, progress)
 
         *data* is a data item, instance of :class:`.Spectrum`.
 
@@ -477,9 +487,11 @@ class GenericProcessOrThread(object):
             try:
                 res[key] = getattr(item, key)
             except AttributeError as e:
+                print('Error in put_in_data():')
                 print('{0} for spectrum {1}'.format(e, item.alias))
                 # raise e
                 return False
+                # res[key] = None
         if csi.DEBUG_LEVEL > 20:
             print('put_in_data keys', item.alias, res.keys())
         self.inDataQueue.put(res)
@@ -687,26 +699,33 @@ def run_transforms(items, parentItem):
     # dependentItems = [it for it in items if it not in parentItem.childItems
     #                   and isinstance(it.madeOf, (dict, list, tuple))]
 
-    # first bottomItems, then topItems...:
-    if len(csi.transforms.values()) > 0:
-        tr = list(csi.transforms.values())[0]
-        if csi.transformer is not None:  # with a threaded transform
-            csi.transformer.prepare(
-                tr, dataItems=bottomItems+topItems, starter=tr.widget)
-            csi.transformer.thread().start()
-        else:  # in the same thread
-            tr.run(dataItems=bottomItems+topItems)
-            if hasattr(tr, 'widget'):  # when with GUI
-                tr.widget.replotAllDownstream(tr.name)
+    itemsByOrigin = {}
+    for it in bottomItems+topItems:
+        if it.originNodeName not in itemsByOrigin:
+            itemsByOrigin[it.originNodeName] = [it]
+        else:
+            itemsByOrigin[it.originNodeName].append(it)
 
-    # no need for this, it is invoked in run_post:
-    # # ...then dependentItems:
-    # if len(csi.transforms.values()) > 0:
-    #     tr = list(csi.transforms.values())[0]
-    #     if csi.transformer is not None:  # with a threaded transform
-    #         csi.transformer.prepare(
-    #             tr, dataItems=dependentItems, starter=tr.widget)
-    #         csi.transformer.thread().start()
-    #     else:  # in the same thread
-    #         tr.run(dataItems=dependentItems)
-    #         tr.widget.replotAllDownstream(tr.name)
+    for originNodeName, its in itemsByOrigin.items():
+        for tr in csi.nodes[originNodeName].transformsOut:
+            # first bottomItems, then topItems...:
+            if csi.transformer is not None:  # with a threaded transform
+                csi.transformer.prepare(tr, dataItems=its, starter=tr.widget)
+                csi.transformer.thread().start()
+            else:  # in the same thread
+                tr.run(dataItems=its)
+                if hasattr(tr, 'widget'):  # when with GUI
+                    tr.widget.replotAllDownstream(tr.name)
+            if tr.fromNode is tr.toNode:
+                break
+
+            # # no need for dependentItems, it is invoked in run_post:
+            # # ...then dependentItems:
+            # if len(csi.transforms.values()) > 0:
+            #     if csi.transformer is not None:  # with a threaded transform
+            #         csi.transformer.prepare(
+            #             tr, dataItems=dependentItems, starter=tr.widget)
+            #         csi.transformer.thread().start()
+            #     else:  # in the same thread
+            #         tr.run(dataItems=dependentItems)
+            #         tr.widget.replotAllDownstream(tr.name)

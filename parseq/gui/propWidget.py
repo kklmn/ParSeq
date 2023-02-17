@@ -18,7 +18,7 @@ widgets that are internally integrated to plotting e.g. ROIs. A good first
 point of interaction with silx is its collection of examples.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "23 Jul 2021"
+__date__ = "17 Feb 2021"
 # !!! SEE CODERULES.TXT !!!
 
 from functools import partial
@@ -562,10 +562,12 @@ class PropWidget(qt.QWidget):
         self.propGroups[groupWidget] = dict(widgets=widgets, caption=caption)
 
     def registerExclusivePropGroup(
-            self, groupWidget, rbuttons, caption, prop, transformNames, **kw):
+            self, groupWidget, rbuttons, caption, prop, **kw):
         """A checkable group that contains QRadioButtons that reflect an int
         prop."""
         dataItems = kw.pop('dataItems', None)
+        transformNames = kw.pop(
+            'transformNames', [tr.name for tr in self.node.transformsIn])
         if isinstance(transformNames, str):
             transformNames = [transformNames]
         prop = cco.expandTransformParam(prop)
@@ -709,6 +711,8 @@ class PropWidget(qt.QWidget):
         if hasattr(csi, 'nodesToReplot'):
             for node in csi.nodesToReplot:
                 node.widget.replot()
+            if csi.mainWindow is not None:
+                csi.mainWindow.selChanged()
 
         if tName:
             tr = csi.transforms[tName]

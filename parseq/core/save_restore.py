@@ -20,20 +20,24 @@ from ..gui import gcommons as gco
 
 __fdir__ = os.path.abspath(os.path.dirname(__file__))
 chars2removeMap = {ord(c): '-' for c in '/*? '}
+encoding = 'utf-8'
+# encoding = 'ISO-8859-1'
 
 
 def load_project(fname, qMessageBox=None, restore_perspective=None):
     configProject = config.ConfigParser()
     configProject.optionxform = str  # makes it case sensitive
     try:
-        configProject.read(fname)
-    except Exception:
+        configProject.read(fname, encoding=encoding)
+    except Exception as e:
         if qMessageBox is None:
-            print("Invalid project file {0}".format(fname))
+            print("Invalid project file {0}\n{1}".format(fname, e))
         else:
-            qMessageBox.critical(None, "Cannot load project",
-                                 "Invalid project file {0}".format(fname))
+            qMessageBox.critical(
+                None, "Cannot load project",
+                "Invalid project file {0}\n{1}".format(fname, e))
         return
+
     if restore_perspective:
         restore_perspective(configProject)
     dataTree = config.get(configProject, 'Root', 'tree', [])
@@ -82,7 +86,7 @@ def save_project(fname, save_perspective=None):
         item.save_to_project(configProject, dirname)
     if save_perspective:
         save_perspective(configProject)
-    with open(fname, 'w+') as cf:
+    with open(fname, 'w+', encoding=encoding) as cf:
         configProject.write(cf)
 
 
@@ -325,5 +329,5 @@ def save_script(fname, plots, h5plots, lib='mpl'):
         output.extend(["    app.exec_()"])
 
     fnameOut = '{0}_{1}.py'.format(fname, lib)
-    with open(fnameOut, 'w') as f:
+    with open(fnameOut, 'w', encoding=encoding) as f:
         f.write('\n'.join(output))

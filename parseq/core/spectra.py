@@ -16,7 +16,7 @@ Qt, where the user does not have to know about the underlying objects and
 methods. See :ref:`Notes on usage of GUI <notesgui>`.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "30 Aug 2022"
+__date__ = "17 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -352,14 +352,15 @@ class TreeItem(object):
             raise ValueError(
                 "data in {0} must be a sequence or a string, not {1}"
                 " of type {2}".format(alias, data, type(data)))
-        csi.recentlyLoadedItems = [item for item in items]
+
+        csi.recentlyLoadedItems = list(items)
         csi.allLoadedItems[:] = []
         csi.allLoadedItems.extend(csi.dataRootItem.get_items())
         if len(csi.selectedItems) == 0:
             if len(csi.allLoadedItems) == 0:
                 raise ValueError("No valid data added")
-        csi.selectedItems = [item for item in items]
-        csi.selectedTopItems = [item for item in items]
+        csi.selectedItems = list(items)
+        csi.selectedTopItems = list(items)
 
         shouldMakeColor = len(self.childItems) > 0 and csi.withGUI
         if shouldMakeColor:
@@ -572,6 +573,7 @@ class Spectrum(TreeItem):
                            runDownstream=runDownstream,
                            copyTransformParams=copyTransformParams,
                            transformParams=transformParams)
+
         elif isinstance(self.madeOf, str) and not self.dataFormat:
             # i.e. is a group
             self.dataType = cco.DATA_GROUP
@@ -885,18 +887,25 @@ class Spectrum(TreeItem):
         groupName = osp.splitext(basename)[0]
         group = Spectrum(groupName, self, insertAt, colorPolicy='loop1')
 
-        multiDataSource = []
+        multiArr = []
         for ids, ds in enumerate(dataSourceSplit):
             if len(ds) < spectraInOneFile:
                 dataSourceSplit[ids] = [ds[0] for i in range(spectraInOneFile)]
             else:
-                multiDataSource.append(ids)
+                multiArr.append(ids)
 
         kwargs.pop('dataFormat', '')
         kwargs.pop('alias', '')
+        diffs = []
+        for ij, ids in enumerate(multiArr):
+            names = dataSourceSplit[ids]
+            nL = min(len(s) for s in names)
+            diffs.append([i for i in range(nL) if names[0][i] != names[1][i]])
         for ds in zip(*dataSourceSplit):
-            alias = '{0}_{1}'.format(
-                groupName, '_'.join(ds[i] for i in multiDataSource))
+            suffs = []
+            for i, diff in zip(multiArr, diffs):
+                suffs.append(''.join(ds[i][j] for j in diff))
+            alias = '{0}_{1}'.format(groupName, '_'.join(suffs))
             df['dataSource'] = list(ds)
             Spectrum(name, group, dataFormat=df, alias=alias, **kwargs)
 
@@ -1076,6 +1085,22 @@ class Spectrum(TreeItem):
                     if cFactor.startswith('transpose'):
                         axes = eval(cFactor[9:])
                         setattr(self, setName, arr.transpose(*axes))
+                    elif cFactor.startswith('f'):
+                        arr *= 1e15
+                    elif cFactor.startswith('p'):
+                        arr *= 1e12
+                    elif cFactor.startswith('n'):
+                        arr *= 1e9
+                    elif cFactor.startswith('µ'):
+                        arr *= 1e6
+                    elif cFactor.startswith('m'):
+                        arr *= 1e3
+                    elif cFactor.startswith('k'):
+                        arr *= 1e-3
+                    elif cFactor.startswith('M'):
+                        arr *= 1e-6
+                    elif cFactor.startswith('G'):
+                        arr *= 1e-9
                     continue
                 arr *= cFactor
                 self.hasChanged = True
