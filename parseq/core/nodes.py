@@ -162,6 +162,9 @@ class Node(object):
                     added += 1
         self.columnCount = added
 
+    def __repr__(self):
+        return "'" + self.name + "'"
+
     def is_between_nodes(
             self, nodeName1, nodeName2, node1in=True, node2in=True):
         u"""

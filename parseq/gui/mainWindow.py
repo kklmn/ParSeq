@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Feb 2023"
+__date__ = "26 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
 # import sys
@@ -129,7 +129,7 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
 
 
 class MainWindowParSeq(qt.QMainWindow):
-    intervalCPU = 1000
+    intervalCPU = 2000
     beforeTransformSignal = qt.pyqtSignal(qt.QWidget)
     afterTransformSignal = qt.pyqtSignal(qt.QWidget)
     beforeDataTransformSignal = qt.pyqtSignal(list)
@@ -178,10 +178,6 @@ class MainWindowParSeq(qt.QMainWindow):
         self.statusBar.addPermanentWidget(self.statusBarCenter)
         self.statusBar.addPermanentWidget(self.statusBarSpacer)
         self.statusBar.addPermanentWidget(self.statusBarRight)
-        self.timerCPU = qt.QTimer(self)
-        self.timerCPU.timeout.connect(self.updateCPU)
-        self.timerCPU.start(self.intervalCPU)
-        self.updateCPU()
 
         self.initToolbar()
 
@@ -192,6 +188,10 @@ class MainWindowParSeq(qt.QMainWindow):
 
         self.restore_perspective()
         self.dataChanged()
+
+        self.timerCPU = qt.QTimer(self)
+        self.timerCPU.timeout.connect(self.updateCPU)
+        self.timerCPU.start(self.intervalCPU)
 
     def initToolbar(self):
         self.loadAction = qt.QAction(
@@ -358,14 +358,13 @@ class MainWindowParSeq(qt.QMainWindow):
 
         if csi.DEBUG_LEVEL > -1:
             print('building help...')
-        self.sphinxThread = qt.QThread(self)
-        self.sphinxWorker = gww.SphinxWorker()
-        self.sphinxWorker.moveToThread(self.sphinxThread)
-        self.sphinxThread.started.connect(partial(
-            self.sphinxWorker.render, 'help'))
-        self.sphinxWorker.html_ready.connect(self._on_help_ready)
-        self.sphinxWorker.prepareHelp()
-        self.sphinxThread.start()
+        sphinxThreadH = qt.QThread(self)
+        sphinxWorkerH = gww.SphinxWorker()
+        sphinxWorkerH.moveToThread(sphinxThreadH)
+        sphinxThreadH.started.connect(partial(sphinxWorkerH.render, 'help'))
+        sphinxWorkerH.html_ready.connect(self._on_help_ready)
+        sphinxWorkerH.prepareHelp()
+        sphinxThreadH.start()
 
     def _on_help_ready(self):
         if csi.DEBUG_LEVEL > -1:
@@ -405,16 +404,15 @@ class MainWindowParSeq(qt.QMainWindow):
                 dst = osp.join(gww.DOCDIR, '_images')
                 shutil.copytree(impath, dst, dirs_exist_ok=True)
 
-            self.sphinxThread = qt.QThread(self)
-            self.sphinxWorker = gww.SphinxWorker()
-            self.sphinxWorker.moveToThread(self.sphinxThread)
-            self.sphinxThread.started.connect(partial(
-                self.sphinxWorker.render, 'docs'))
-            self.sphinxWorker.html_ready.connect(self._on_docs_ready)
+            sphinxThread = qt.QThread(self)
+            sphinxWorker = gww.SphinxWorker()
+            sphinxWorker.moveToThread(sphinxThread)
+            sphinxThread.started.connect(partial(sphinxWorker.render, 'docs'))
+            sphinxWorker.html_ready.connect(self._on_docs_ready)
             if csi.DEBUG_LEVEL > -1:
                 print('building docs...')
-            self.sphinxWorker.prepareDocs(rawTexts, rawTextNames)
-            self.sphinxThread.start()
+            sphinxWorker.prepareDocs(rawTexts, rawTextNames)
+            sphinxThread.start()
         else:
             self._on_docs_ready(shouldReport=False)
 
@@ -454,6 +452,8 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def selChanged(self):
         if len(csi.selectedItems) == 0:
+            self.statusBarLeft.setText(' ')
+            self.statusBarCenter.setText(' ')
             return
         selNames = [it.alias for it in csi.selectedItems]
         combinedNames = cco.combine_names(selNames)

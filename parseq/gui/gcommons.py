@@ -297,17 +297,24 @@ class QVBoxLayoutAbove(qt.QVBoxLayout):
 class StateButtons(qt.QFrame):
     statesActive = qt.pyqtSignal(list)
 
-    def __init__(self, parent, names, active=None, caption=None):
+    def __init__(self, parent, caption, names, active=None, default=None):
         """
         *names*: a list of any objects that will be displayed as str(object),
+
         *active*: a subset of names that will be displayed as checked,
+
         *caption* will be displayed as QLabel in front of all state buttons.
+
+        *default* if not None, is an object from *names* that will be checked
+                  when all buttons are unchecked, so that there is always at
+                  least one checked.
 
         The signal *statesActive* is emitted on pressing a button. It sends a
         list of selected names, as a subset of *names*.
         """
         super().__init__(parent)
         self.names = names
+        self.default = default
 
         self.buttons = []
         layout = FlowLayout()
@@ -353,8 +360,12 @@ class StateButtons(qt.QFrame):
         self.setActive(active)
 
     def getActive(self):
-        return [name for (button, name) in
-                zip(self.buttons, self.names) if button.isChecked()]
+        res = [name for (button, name) in
+               zip(self.buttons, self.names) if button.isChecked()]
+        if len(res) == 0 and self.default is not None:
+            res = [self.default]
+            self.setActive(res)
+        return res
 
     def setActive(self, active):
         if not isinstance(active, (list, tuple)):
@@ -364,3 +375,56 @@ class StateButtons(qt.QFrame):
 
     def buttonClicked(self, checked):
         self.statesActive.emit(self.getActive())
+
+
+class EDoubleSpinBox(qt.QDoubleSpinBox):
+    def __init__(self, *args, **kwargs):
+        self.strFormat = kwargs.pop('strFormat', '{0:.2g}')
+        super().__init__(*args, **kwargs)
+        self.setMinimum(-np.inf)
+        self.setMaximum(np.inf)
+
+    def validate(self, strn, pos):
+        try:
+            float(strn)
+        except Exception:
+            ret = qt.QValidator.State.Invalid
+        else:
+            ret = qt.QValidator.State.Acceptable
+        return (ret, strn, pos)
+
+    def textFromValue(self, value):
+        string = self.strFormat.format(value).replace("e+0", "e")\
+            .replace("e-0", "e-")
+        return string
+
+    def valueFromText(self, string):
+        if string == "":
+            return self.value()
+        try:
+            value = float(string)
+        except Exception:
+            return
+
+        if value > self.maximum():
+            value = self.maximum()
+        if value < self.minimum():
+            value = self.minimum()
+        return value
+
+    def stepBy(self, steps):
+        txt = self.cleanText()
+        pos = txt.find('e')
+        try:
+            digit = int(txt[pos-1])
+            digit += -1 if digit == 9 else 1
+            ltxt = list(txt)
+            ltxt[pos-1] = str(digit)
+            increment = abs(float(txt) - float("".join(ltxt)))
+        except Exception:
+            return
+
+        val = self.valueFromText(txt)
+        newStr = self.textFromValue(val + steps*increment)
+        self.lineEdit().setText(newStr)
+        self.setValue(val + steps*increment)

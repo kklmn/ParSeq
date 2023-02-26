@@ -11,7 +11,7 @@ from parseq.gui.gcommons import StateButtons
 
 def test():
     app = qt.QApplication(sys.argv)
-    sb = StateButtons(None, (-4, -3, 0, 1), (-3, 0), 'caption')
+    sb = StateButtons(None, 'caption', (-4, -3, 0, 1), (-3, 0), 0)
     sb.statesActive.connect(printStates)
     printStates(sb.getActive())
     sb.show()

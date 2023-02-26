@@ -74,6 +74,7 @@ class ColumnFormatWidget(PropWidget):
 
         self.headerSRB = qt.QRadioButton("has lines beginning with")
         self.headerSEdit = QLineEditSelectRB(rb=self.headerSRB)
+        self.headerSEdit.setText('#')
         self.headerSEdit.setFixedWidth(16)
 
         self.headerERB = qt.QRadioButton("ends with line containing")

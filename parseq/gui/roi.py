@@ -965,8 +965,8 @@ class RangeWidget(RangeWidgetBase):
         if self.roi is None:
             return
         txt = self.editCustom.text()
-        t1, t2 = txt.split(',')
         try:
+            t1, t2 = txt.split(',')
             vmin = float(t1.strip())
             vmax = float(t2.strip())
             vmin, vmax = self.convert(1, vmin, vmax)

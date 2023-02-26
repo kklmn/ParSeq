@@ -22,6 +22,7 @@ except ImportError as e:
 import codecs
 
 from ..core import singletons as csi
+from ..core.logger import logger
 
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu"
 
@@ -58,10 +59,8 @@ def make_context(task, name='', argspec='', note=''):
     return context
 
 
+@logger(minLevel=20)
 def sphinxify(task, context, wantMessages=False):
-    if csi.DEBUG_LEVEL > 20:
-        print('enter sphinxify')
-
     # Add a class to several characters on the argspec. This way we can
     # highlight them using css, in a similar way to what IPython does.
     # NOTE: Before doing this, we escape common html chars so that they
@@ -103,8 +102,6 @@ def sphinxify(task, context, wantMessages=False):
         raise(e)
 #        output = ("It was not possible to generate rich text help for this "
 #                  "object.</br>Please see it in plain text.")
-    if csi.DEBUG_LEVEL > 20:
-        print('exit sphinxify')
 
 
 if 'pyqt4' in qt.BINDING.lower():
@@ -113,7 +110,11 @@ elif 'pyqt5' in qt.BINDING.lower():
     try:
         import PyQt5.QtWebEngineWidgets as myQtWeb
     except ImportError:
-        import PyQt5.QtWebKitWidgets as myQtWeb
+        try:
+            import PyQt5.QtWebKitWidgets as myQtWeb
+        except ImportError:
+            print('do "conda install -c conda-forge pyqtwebengine"'
+                  'or "pip install pyqtwebengine"')
 elif 'pyside2' in qt.BINDING.lower():
     import PySide2.QtWebEngineWidgets as myQtWeb
 elif 'pyside6' in qt.BINDING.lower():

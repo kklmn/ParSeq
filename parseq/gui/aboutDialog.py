@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Mar 2019"
+__date__ = "26 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import os
@@ -141,16 +141,15 @@ class AboutDialog(qt.QDialog):
                 strParSeq += ', this is the latest version at PyPI_'
 
         txt = u"""
-+-------+--------------------+
-| |ico| |   |br| |synopsis|  |
-+-------+--------------------+
 
-.. |br| raw:: html
+.. list-table::
+   :widths: 25 75
 
-   <br/>
+   * - |ico|
+     - |synopsis|
 
 .. |ico| image:: _images/parseq.ico
-   :scale: 100 %
+   :scale: 100%
 
 .. |synopsis| replace::
    :bigger:`{0}`
@@ -297,13 +296,11 @@ class AboutDialog(qt.QDialog):
 
         flowChart = self.makeGraphPipeline()
         txt = u"""
-+-------+--------------------+
-| |ico| |   |br| |synopsis|  |
-+-------+--------------------+
+.. list-table::
+   :widths: 25 75
 
-.. |br| raw:: html
-
-   <br/>
+   * - |ico|
+     - |synopsis|
 
 .. |ico| image:: {0}
    :scale: {1:.0%}

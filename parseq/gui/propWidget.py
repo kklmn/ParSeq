@@ -30,6 +30,7 @@ from silx.gui import qt
 from ..core import singletons as csi
 from ..core import commons as cco
 from ..core import config
+from ..core.logger import logger
 from . import undoredo as gur
 from . import propsOfData as gpd
 
@@ -688,21 +689,14 @@ class PropWidget(qt.QWidget):
         else:
             tr.run(params=params, dataItems=dataItems)
 
+    # @logger(minLevel=50, attrs=[(0, 'node')])
     def _onTransformThreadReady(
             self, starter, tName='', tStr='', props={}, duration=0, err=None):
         if starter is not self:
             return
-        if csi.DEBUG_LEVEL > 50:
-            what = '_onTransformThreadReady()'
-            where = self.node.name if self.node is not None else ''
-            if tName:
-                where += ' ' + tName
-            print('enter {0} {1}'.format(what, where))
         self.updateStatusWidgets()
         self.replotAllDownstream(tName)
         self.extraPlotActionAfterTransform(props)
-        if csi.DEBUG_LEVEL > 50:
-            print('exit {0} {1}'.format(what, where))
 
     def extraPlotActionAfterTransform(self, props):
         return

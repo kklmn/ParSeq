@@ -15,8 +15,10 @@ from functools import partial
 import pickle
 import time
 import numpy as np
+import warnings
 
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
+os.environ["QT_FILESYSTEMMODEL_WATCH_FILES"] = '1'  # potentially heavy load!!
 import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 
 import silx
@@ -134,6 +136,8 @@ class MyHdf5TreeModel(Hdf5TreeModel):
             pathList = path[1:].split('/')
         else:
             pathList = path.split('/')
+        if pathList == ['']:
+            return parent
         return self._indexFromPathList(parent, pathList)
 
     def _indexFromPathList(self, parent, pathList):
@@ -151,7 +155,8 @@ class MyHdf5TreeModel(Hdf5TreeModel):
                     return ind
                 return self._indexFromPathList(ind, pathList[1:])
         else:
-            return qt.QModelIndex()
+            # return qt.QModelIndex()
+            return parent
 
     def getHDF5NodePath(self, node):
         if node.parent is None or not hasattr(node.parent, 'basename'):
@@ -349,7 +354,8 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         path = osp.abspath(path).replace('\\', '/')
         # on Windows, paths sometimes start with a capital C:, sometimes with
         # a small c:, which breaks the inclusion checking, that's why lower():
-        self.folders.append(path.lower())
+        if path.lower() not in self.folders:
+            self.folders.append(path.lower())
         parent = self.indexFileName(path)
         t0 = time.time()
         # print('loading', path, self.rowCount(parent))
@@ -362,7 +368,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 continue
 
             intId = indexFS.internalId()
-            if (intId not in self.nodesHead and intId not in self.nodesNoHead):
+            if intId not in self.nodesHead and intId not in self.nodesNoHead:
                 fileInfo = self.fileInfo(indexFS)
                 fname = fileInfo.filePath()
 
@@ -500,8 +506,8 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             roles = self.transformNode.get_arrays_prop('role')
             cdf.pop('conversionFactors', [])
             cdf.pop('metadata', [])
-            with np.warnings.catch_warnings():
-                np.warnings.simplefilter("ignore")
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
                 arrs = np.genfromtxt(fname, unpack=True, max_rows=2, **cdf)
             if len(arrs) == 0:
                 return
@@ -761,7 +767,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                     return qt.QModelIndex()
         return indexFS
 
-    def synchronizeHdf5Index(self, index):
+    def reloadHdf5(self, index):
         h5pyObject = self.data(index, role=H5PY_OBJECT_ROLE)
         if isinstance(h5pyObject, type('')):
             filename = h5pyObject
@@ -882,6 +888,7 @@ class SelectionDelegate(qt.QItemDelegate):
                 color = qt.QColor(gco.COLOR_LOAD_CAN)
             else:
                 color = qt.QColor(gco.COLOR_LOAD_CANNOT)
+            # node.widget.enableAutoLoad.emit(loadState is not None)
             color.setAlphaF(0.2)
             option.palette.setColor(qt.QPalette.Highlight, color)
         super().paint(painter, option, index)
@@ -1045,16 +1052,16 @@ class FileTreeView(qt.QTreeView):
     def getSourceModel(self, index=None):
         if useProxyFileModel:
             model = self.model().sourceModel()
-            if index:
+            if index is not None:
                 if isinstance(index, (list, tuple)):
                     ind = self.model().mapSelectionToSource(index)
                 else:
                     ind = self.model().mapToSource(index)
         else:
             model = self.model()
-            if index:
+            if index is not None:
                 ind = index
-        return (model, ind) if index else model
+        return (model, ind) if index is not None else model
 
     def getProxyIndex(self, index):
         if useProxyFileModel:
@@ -1229,9 +1236,49 @@ class FileTreeView(qt.QTreeView):
                 nodeType = model.nodeType(ind)
                 if nodeType == NODE_FS:
                     urls.append(model.filePath(ind))
-                else:  # FileTreeView.NODE_HDF5, FileTreeView.NODE_HDF5_HEAD
+                else:  # NODE_HDF5, NODE_HDF5_HEAD
                     urls.append(model.getHDF5FullPath(ind))
         return urls
+
+    def getActiveDir(self, path=None):  # used in autoLoad
+        if path is None:
+            sIndexes = self.selectionModel().selectedRows()
+            if len(sIndexes) == 0:
+                return
+            model, ind = self.getSourceModel(sIndexes[0])
+        else:
+            model = self.getSourceModel()
+            if path.startswith('silx:'):
+                if path.endswith('::/'):
+                    ind = model.indexFileName(path[5:-3])
+                else:
+                    ind = model.indexFromH5Path(path)
+            else:
+                ind = model.indexFileName(path)
+            if not ind.isValid():
+                raise ValueError('invalid path')
+
+        nodeType = model.nodeType(ind)
+        if nodeType == NODE_FS:
+            if not model.hasChildren(ind):
+                ind = model.parent(ind)
+            dirName = model.filePath(ind)
+        else:  # NODE_HDF5, NODE_HDF5_HEAD
+            if nodeType == NODE_HDF5:
+                ind = model.parent(ind)
+            dirName = model.getHDF5FullPath(ind)
+
+        childPaths = []
+        for row in range(model.rowCount(ind)):
+            subInd = model.index(row, 0, ind)
+            if not subInd.isValid():
+                continue
+            if nodeType == NODE_FS:
+                childPaths.append(model.filePath(subInd))
+            else:
+                childPaths.append(model.getHDF5FullPath(subInd))
+
+        return (dirName, childPaths) if path is None else childPaths
 
     def synchronizeHDF5(self):
         selectedIndexes = self.selectionModel().selectedRows()
@@ -1239,16 +1286,28 @@ class FileTreeView(qt.QTreeView):
             selectedIndexes = self.prevSelectedIndexes
         if len(selectedIndexes) == 0:
             return
-        index = selectedIndexes[0]
-        row = index.row()
+        self.synchronizeHDF5Index(selectedIndexes[0])
+
+    def synchronizeHDF5Index(self, index):
         model, ind = self.getSourceModel(index)
-        nodeType0 = model.nodeType(ind)
-        if nodeType0 not in (NODE_HDF5_HEAD, NODE_HDF5):
+        nodeType = model.nodeType(ind)
+        if nodeType not in (NODE_HDF5_HEAD, NODE_HDF5):
             return
-        indexHead = model.synchronizeHdf5Index(ind)
+        try:
+            indexHead = model.reloadHdf5(ind)
+        except PermissionError as e:
+            print(e)
+            return
         self.setCurrentIndex(indexHead)
         self.setExpanded(indexHead, True)
-        self.scrollTo(model.index(row, 0, indexHead))
+        if nodeType == NODE_HDF5:
+            row = index.row()
+            indTo = model.index(row, 0, indexHead)
+        elif nodeType == NODE_HDF5_HEAD:
+            indTo = indexHead
+        else:
+            return
+        self.scrollTo(indTo, qt.QAbstractItemView.PositionAtCenter)
 
     # def saveExpand(self, parent=qt.QModelIndex()):
     #     if not parent.isValid():
@@ -1400,14 +1459,13 @@ class FileTreeView(qt.QTreeView):
         1) Go to the containing dir. This sends reques to QFileSystemModel to
            populate it.
 
-        2) When the dir is redy, QFileSystemModel emits directoryLoaded signal.
-           We create hdf5 tree nodes if the dir contains hdf5 files.
+        2) When the dir is ready, QFileSystemModel emits directoryLoaded
+           signal. We create hdf5 tree nodes if the dir contains hdf5 files.
 
         3) When hdf5's are ready, pathReady signal is emitted, in whose slot we
            scroll to the requested path after a delay. The view doesn't scroll
            there with 0 delay.
         """
-
         model = self.getSourceModel()
         if not hasattr(model, 'folders'):
             return

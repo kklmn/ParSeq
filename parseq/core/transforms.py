@@ -36,6 +36,7 @@ import errno
 
 from . import singletons as csi
 from . import commons as cco
+from .logger import logger
 from .config import configTransforms
 
 
@@ -292,11 +293,10 @@ class Transform(object):
         if self.sendSignals:
             csi.mainWindow.afterDataTransformSignal.emit([data])
 
+    @logger(minLevel=20, attrs=[(0, 'name')])
     def run(self, params={}, updateUndo=True, runDownstream=True,
             dataItems=None):
         np.seterr(all='raise')
-        if csi.DEBUG_LEVEL > 20:
-            print('enter run() of "{0}"'.format(self.name))
         items = dataItems if dataItems is not None else csi.selectedItems
         self.run_pre(params, items, updateUndo)
 
@@ -382,8 +382,6 @@ class Transform(object):
         postItems = [it for it in items
                      if it.state[self.toNode.name] == cco.DATA_STATE_GOOD]
         self.run_post(postItems, runDownstream)
-        if csi.DEBUG_LEVEL > 20:
-            print('exit run() of "{0}"'.format(self.name))
         np.seterr(all='warn')
 
         return [it for it in items if it.error is not None]  # error items
@@ -478,9 +476,8 @@ class GenericProcessOrThread(object):
         # self.started_event.clear()
         # self.finished_event.clear()
 
+    @logger(minLevel=20, attrs=[(1, 'alias')])
     def put_in_data(self, item):
-        if csi.DEBUG_LEVEL > 20:
-            print('put_in_data', item.alias)
         res = {'transformParams': item.transformParams,
                'alias': item.alias}
         for key in self.inArrays:
@@ -492,52 +489,40 @@ class GenericProcessOrThread(object):
                 # raise e
                 return False
                 # res[key] = None
-        if csi.DEBUG_LEVEL > 20:
-            print('put_in_data keys', item.alias, res.keys())
         self.inDataQueue.put(res)
         return True
 
+    @logger(minLevel=20)
     def get_in_data(self, item):
         outDict = retry_on_eintr(self.inDataQueue.get)
         for field in outDict:
             setattr(item, field, outDict[field])
-        if csi.DEBUG_LEVEL > 20:
-            print('get_in_data exit', item.alias, outDict.keys())
 
+    @logger(minLevel=20, attrs=[(1, 'alias')])
     def put_out_data(self, item):
-        if csi.DEBUG_LEVEL > 20:
-            print('put_out_data enter', item.alias)
         res = {'transformParams': item.transformParams}
         for key in self.outArrays:
             try:
                 res[key] = getattr(item, key)
             except AttributeError:  # arrays can be conditionally missing
                 pass
-        if csi.DEBUG_LEVEL > 20:
-            print('put_out_data exit', item.alias, res.keys())
         self.outDataQueue.put(res)
 
+    @logger(minLevel=20, attrs=[(1, 'alias')])
     def get_out_data(self, item):
-        if csi.DEBUG_LEVEL > 20:
-            print('get_out_data enter', item.alias)
         outDict = retry_on_eintr(self.outDataQueue.get)
         for field in outDict:
             setattr(item, field, outDict[field])
-        if csi.DEBUG_LEVEL > 20:
-            print('get_out_data exit', item.alias, outDict.keys())
 
     def put_results(self, obj):
         self.resultQueue.put(obj)
 
+    @logger(minLevel=20, attrs=[(1, 'name')])
     def get_results(self, obj):
-        if csi.DEBUG_LEVEL > 20:
-            print('get_results enter', obj.name)
         res = retry_on_eintr(self.resultQueue.get)
         if isinstance(res, dict):
             for field in res:
                 setattr(obj, field, res[field])
-        if csi.DEBUG_LEVEL > 20:
-            print('get_results exit', obj.name, res)
         return res is not None
 
     def put_error(self, obj):
@@ -558,10 +543,9 @@ class GenericProcessOrThread(object):
             pass
         return values
 
+    @logger(minLevel=20, printClass=True)
     def run(self):
         # self.started_event.set()
-        if csi.DEBUG_LEVEL > 20:
-            print('enter run of GenericProcessOrThread')
         np.seterr(all='raise')
         data = DataProxy()
         self.get_in_data(data)
@@ -593,8 +577,6 @@ class GenericProcessOrThread(object):
                 print(errorMsg)
         finally:
             self.put_out_data(data)
-            if csi.DEBUG_LEVEL > 20:
-                print('exit run of GenericProcessOrThread', data.alias)
             np.seterr(all='warn')
         # self.started_event.clear()
         # self.finished_event.set()

@@ -10,6 +10,7 @@ from collections import Counter
 from functools import partial
 import traceback
 import time
+import glob
 
 from silx.gui import qt, colors, icons
 
@@ -17,6 +18,7 @@ from ..core import singletons as csi
 from ..core import commons as cco
 # from ..core import spectra as csp
 from ..core.config import configLoad
+from ..core.logger import logger
 from ..gui import fileTreeModelView as gft
 from ..gui.fileTreeModelView import FileTreeView
 from ..gui.dataTreeModelView import DataTreeView
@@ -29,6 +31,8 @@ from . import gcommons as gco
 SPLITTER_WIDTH, SPLITTER_BUTTON_MARGIN = 14, 6
 COLORMAP = 'viridis'
 
+autoLoadDelay = 3000  # msec
+
 
 class QSplitterButton(qt.QPushButton):
     def __init__(self, text, parent, isVertical=False,
@@ -38,10 +42,12 @@ class QSplitterButton(qt.QPushButton):
         self.isVertical = isVertical
         fontSize = "10" if sys.platform == "darwin" else "7.7"
         grad = "x1: 0, y1: 0, x2: 0, y2: 1"
+        bottomMargin = '-1' if isVertical else '-3'
         self.setStyleSheet("""
             QPushButton {
                 font-size: """ + fontSize + """pt; color: #151575;
                 text-align: bottom; border-radius: 6px;
+                margin: 0px 0px """ + bottomMargin + """px 0px;
                 background-color: qlineargradient(
                 """ + grad + """, stop: 0 #e6e7ea, stop: 1 #cacbce);}
             QPushButton:pressed {
@@ -101,6 +107,8 @@ class QSplitterButton(qt.QPushButton):
 
 
 class NodeWidget(qt.QWidget):
+    enableAutoLoad = qt.pyqtSignal(bool)
+
     def __init__(self, node, parent=None):
         super().__init__(parent)
         self.mainWindow = parent
@@ -140,6 +148,8 @@ class NodeWidget(qt.QWidget):
             self.replot()
         else:
             self.gotoLastData()
+        # # doesn't work in Linux:
+        # self.fileSystemWatcher = qt.QFileSystemWatcher(self)
 
     def gotoLastData(self):
         self.files.gotoLastData()
@@ -199,7 +209,32 @@ class NodeWidget(qt.QWidget):
 
         self.files = FileTreeView(self.node, splitterInner)
 #        self.files.doubleClicked.connect(self.loadFiles)
-        self.filesAutoAddCB = qt.QCheckBox("auto append fresh file TODO", self)
+
+        self.autoPanel = qt.QGroupBox(self)
+        self.autoPanel.setTitle('auto load new data from current location')
+        self.autoPanel.setCheckable(True)
+        self.autoPanel.setChecked(False)
+        # self.autoPanel.setEnabled(False)
+        self.autoPanel.toggled.connect(self.autoLoadToggled)
+        self.enableAutoLoad.connect(self.autoLoadChangeEnabled)
+        self.autoFileList = []
+        layoutA = qt.QHBoxLayout()
+        layoutA.setContentsMargins(6, 0, 0, 0)
+        labelA1 = qt.QLabel('auto load every')
+        layoutA.addWidget(labelA1)
+        self.filesAutoLoadEvery = qt.QSpinBox()
+        self.filesAutoLoadEvery.setMinimum(1)
+        self.filesAutoLoadEvery.setMaximum(1000)
+        self.filesAutoLoadEvery.setValue(1)
+        self.filesAutoLoadEvery.setSuffix('st')
+        self.filesAutoLoadEvery.valueChanged.connect(self.autoLoadEveryChanged)
+        self.autoLoadTimer = None
+
+        layoutA.addWidget(self.filesAutoLoadEvery)
+        labelA2 = qt.QLabel('file/dataset')
+        layoutA.addWidget(labelA2)
+        layoutA.addStretch()
+        self.autoPanel.setLayout(layoutA)
 
         gotoLastButton = qt.QToolButton()
         gotoLastButton.setFixedSize(24, 24)
@@ -224,10 +259,10 @@ class NodeWidget(qt.QWidget):
         fileFilterLayout.addWidget(gotoLastButton, 0, 2, 2, 1,
                                    qt.Qt.AlignHCenter | qt.Qt.AlignVCenter)
         layout = qt.QVBoxLayout()
-        layout.setContentsMargins(4, 0, 0, 0)
+        layout.setContentsMargins(4, 0, 0, 4)
         layout.addLayout(fileFilterLayout)
         layout.addWidget(self.files)
-        layout.addWidget(self.filesAutoAddCB)
+        layout.addWidget(self.autoPanel)
         splitterInner.setLayout(layout)
 
         self.columnFormat = ColumnFormatWidget(self.splitterFiles, self.node)
@@ -611,11 +646,8 @@ class NodeWidget(qt.QWidget):
         else:
             return 0, 1
 
+    @logger(minLevel=50, attrs=[(0, 'node')])
     def replot(self, needClear=False, keepExtent=True):
-        if csi.DEBUG_LEVEL > 50:
-            print('enter replot() of {0}'.format(self.node.name))
-            startT = time.time()
-
         if self.onTransform:
             return
         # if len(csi.allLoadedItems) == 0:
@@ -793,9 +825,6 @@ class NodeWidget(qt.QWidget):
         # if self.wasNeverPlotted and node.plotDimension == 1:
         #     self.plot.resetZoom()
         self.wasNeverPlotted = False
-        if csi.DEBUG_LEVEL > 50:
-            print('exit replot() of {0} in {1:.3f}s'.format(
-                  self.node.name, time.time()-startT))
 
     def saveGraph(self, fname, i, name):
         if fname.endswith('.pspj'):
@@ -947,11 +976,6 @@ class NodeWidget(qt.QWidget):
             else:
                 parentItem = csi.dataRootItem
 
-        # !!! TODO !!!
-        # here the column format is taken from the present state of
-        # ColumnFormatWidget. Should be automatically detected from
-        # file format
-
         # df['dataSource'] = [col[0][0] for col in colRecs]
         csi.model.importData(
             fileNamesFull, parentItem, insertAt, dataFormat=df,
@@ -1003,3 +1027,86 @@ class NodeWidget(qt.QWidget):
                 return
             webbrowser.open(strURL)
             self.lastBrowserLink = strURL
+
+    def autoLoadChangeEnabled(self, enabled):
+        if not enabled:
+            self.autoLoadToggled(False)
+            self.autoPanel.setChecked(False)
+        self.autoPanel.setEnabled(enabled)
+
+    def autoLoadToggled(self, on):
+        if on:
+            self.autoFileExt = None
+            if reversed(csi.recentlyLoadedItems):
+                for item in csi.recentlyLoadedItems:
+                    if isinstance(item.madeOf, type("")):
+                        self.autoFileExt = osp.splitext(item.madeOf)[1]
+                        break
+            if self.autoFileExt is None:
+                if hasattr(self.node, 'includeFilters'):
+                    self.autoFileExt = self.node.includeFilters[0]
+            if self.autoFileExt is None:
+                self.autoFileExt = ''
+            self.activateAutoLoad()
+        else:
+            if self.autoLoadTimer is not None:
+                self.autoLoadTimer.stop()
+            self.autoFileList = []
+            self.autoDirName = ''
+            self.autoChunk = 1
+            self.autoIndex = 0
+
+    def autoLoadEveryChanged(self, val):
+        if 11 <= (val % 100) <= 13:
+            suffix = 'th'
+        else:
+            suffix = ['th', 'st', 'nd', 'rd', 'th'][min(val % 10, 4)]
+        self.filesAutoLoadEvery.setSuffix(suffix)
+        if val < 20:
+            step = 1
+        if 20 <= val < 100:
+            step = 10
+        if 100 <= val:
+            step = 100
+        self.filesAutoLoadEvery.setSingleStep(step)
+        self.activateAutoLoad()
+
+    def activateAutoLoad(self):
+        self.autoChunk = self.filesAutoLoadEvery.value()
+        self.autoIndex = 0
+        self.autoDirName, self.autoFileList = self.files.getActiveDir()
+        # self.fileSystemWatcher.removePath(self.autoDirName)
+        # self.fileSystemWatcher.addPath(self.autoDirName)
+        # self.fileSystemWatcher.directoryChanged.connect(self.dirChanged)
+        self.autoLoadTimer = qt.QTimer(self)
+        self.autoLoadTimer.timeout.connect(self.doAutoLoad)
+        self.autoLoadTimer.start(autoLoadDelay)
+        # print('activateAutoLoad', self.autoDirName, self.autoFileList)
+
+    def doAutoLoad(self):
+        if self.autoDirName.startswith('silx:'):
+            model = self.files.getSourceModel()
+            if self.autoDirName.endswith('::/'):
+                ind = model.indexFileName(self.autoDirName[5:-3])
+            else:
+                ind = model.indexFromH5Path(self.autoDirName)
+            self.files.synchronizeHDF5Index(ind)
+
+        # this first solution doesn't work in NFS in Linux:
+        # newFileList = self.files.getActiveDir(self.autoDirName)
+
+        dirname = str(self.autoDirName)
+        if not dirname.endswith('/'):
+            dirname += '/'
+        newFileList = [p.replace('\\', '/') for p in
+                       glob.glob(dirname + '*' + self.autoFileExt)]
+
+        diffs = [x for x in newFileList if x not in list(self.autoFileList)]
+        print('autoLoad', self.autoDirName, diffs, self.autoIndex, self.autoChunk)
+        if len(diffs) > 0:
+            toLoad = [diff for i, diff in enumerate(diffs) if
+                      (i+self.autoIndex) % self.autoChunk == self.autoChunk-1]
+            self.autoIndex += len(diffs)
+            self.autoFileList = newFileList
+            if toLoad:
+                self.loadFiles(toLoad)

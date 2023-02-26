@@ -19,13 +19,14 @@ __author__ = "Konstantin Klementiev"
 __date__ = "17 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
-import sys
+# import sys
 import os.path as osp
 import re
 import time
 import copy
 import json
 import numpy as np
+import warnings
 from collections import Counter
 
 import silx.io as silx_io
@@ -33,6 +34,7 @@ import silx.io as silx_io
 from . import singletons as csi
 from . import commons as cco
 from . import config
+from .logger import logger
 from ..utils.format import format_memory_size
 
 DEFAULT_COLOR_AUTO_UPDATE = False
@@ -159,7 +161,7 @@ class TreeItem(object):
                                 if node.plotDimension == 1:
                                     arr = getattr(self, node.plotXArray)
                                     sh = arr.shape[0]
-                                    whatSize = 'size of 1D array'
+                                    whatSize = 'size of one 1D array'
                                 elif node.plotDimension == 2:
                                     arr = getattr(self, node.plot2DArray)
                                     sh = arr.shape
@@ -177,7 +179,7 @@ class TreeItem(object):
                                     what = 'shape' if node.plotDimension > 1\
                                         else 'length'
                                     res += nl + '{0}: {1}'.format(what, sh)
-                                    size = sys.getsizeof(arr)
+                                    size = arr.nbytes
                                     res += '\n{0}: {1}'.format(
                                         whatSize, format_memory_size(size))
                                 for tr in node.transformsIn:
@@ -960,8 +962,8 @@ class Spectrum(TreeItem):
             if dataSource is None:
                 raise ValueError('bad dataSource settings')
             if self.dataType == cco.DATA_COLUMN_FILE:
-                with np.warnings.catch_warnings():
-                    np.warnings.simplefilter("ignore")
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
                     arrs = np.genfromtxt(madeOf, unpack=True, **df)
                 if len(arrs) == 0:
                     raise ValueError('bad data file')
@@ -1187,11 +1189,10 @@ class Spectrum(TreeItem):
             if csi.DEBUG_LEVEL > 50:
                 print('calc_combined', self.alias, msg)
 
+    @logger(minLevel=50, attrs=[(0, 'alias')])
     def branch_data(self):
         """Case of *madeOf* as dict, when branching out."""
         toNode = csi.nodes[self.originNodeName]
-        if csi.DEBUG_LEVEL > 50:
-            print('enter branch_data() for {0}'.format(self.alias))
         try:
             for key, value in self.madeOf.items():
                 if isinstance(value, np.ndarray):
@@ -1213,14 +1214,11 @@ class Spectrum(TreeItem):
             print('Exception in "branch_data()" for "{0}":'.format(
                 self.alias), e)
             self.state[toNode.name] = cco.DATA_STATE_BAD
-        if csi.DEBUG_LEVEL > 50:
-            print('exit branch_data() for {0}'.format(self.alias))
 
+    @logger(minLevel=50, attrs=[(0, 'alias')])
     def create_data(self):
         """Case of *madeOf* as callable"""
         toNode = csi.nodes[self.originNodeName]
-        if csi.DEBUG_LEVEL > 50:
-            print('enter create_data() for {0}'.format(self.alias))
         try:
             res = self.madeOf(self, **self.dataFormat)
             if res is not None:
@@ -1231,8 +1229,6 @@ class Spectrum(TreeItem):
         except Exception as e:
             print('Exception in "create_data":', e)
             self.state[toNode.name] = cco.DATA_STATE_BAD
-        if csi.DEBUG_LEVEL > 50:
-            print('exit create_data() for {0}'.format(self.alias))
 
     def save_transform_params(self):
         dtparams = self.transformParams
@@ -1372,6 +1368,7 @@ class Spectrum(TreeItem):
                 configProject, item.alias, 'colorAutoUpdate',
                 str(item.colorAutoUpdate))
 
+    @logger(minLevel=50, attrs=[(0, 'alias')])
     def branch_out(self, nbrunch, toTransfer, nodeStop, nodeStart,
                    transformNames, label=''):
         """Brach this spectrum into a group of *nbrunch* new items. Example:
@@ -1382,8 +1379,6 @@ class Spectrum(TreeItem):
         values of the same fields from the branched out spectrum.
         """
 
-        if csi.DEBUG_LEVEL > 50:
-            print('enter branch_out() of {0}'.format(self.alias))
         if csi.model is not None:
             csi.model.beginResetModel()
         self.terminalNodeName = nodeStop
@@ -1417,5 +1412,3 @@ class Spectrum(TreeItem):
 
         if csi.model is not None:
             csi.model.endResetModel()
-        if csi.DEBUG_LEVEL > 50:
-            print('exit branch_out() of {0}'.format(self.alias))
