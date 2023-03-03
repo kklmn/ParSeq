@@ -8,6 +8,10 @@ def readFile(saveType, fname):
     h5file = None
     if saveType.endswith('txt'):
         import numpy as np
+        arrays = np.loadtxt(fname+'.txt')
+        return arrays
+    if saveType.endswith('txt.gz'):
+        import numpy as np
         arrays = np.loadtxt(fname+'.txt.gz')
         return arrays
     elif saveType.endswith('json'):
@@ -32,7 +36,7 @@ def readFile(saveType, fname):
 def read1D(saveType, fname, props):
     curves = []
     headers = props[2][1:]
-    if saveType.endswith('txt'):
+    if saveType.endswith(('txt', 'txt.gz')):
         arrays = readFile(saveType, fname)
         x = arrays[:, 0]
         ys = [arrays[:, iy+1] for iy in range(arrays.shape[1]-1)]
@@ -131,7 +135,8 @@ def plot1Dsilx(nodeData):
                     if curve is not None:
                         curve.setSymbolSize(symbolsize)
 
-    plot.show()  # end plot1Dsilx
+    plot.show()
+    return plot  # end plot1Dsilx
 
 
 def read2D(saveType, fname, props):
@@ -182,7 +187,8 @@ def plot2Dsilx(nodeData):
     plot.addImage(maps[0], colormap=colors.Colormap('viridis'),
                   origin=(xOrigin, yOrigin), scale=(xScale, yScale))
     # plot.saveGraph('test.png')
-    plot.show()  # end plot2Dsilx
+    plot.show()
+    return plot  # end plot2Dsilx
 
 
 def read3D(saveType, fname, props):
@@ -244,7 +250,8 @@ def plot3Dsilx(nodeData):
     v = maps[0]
     plot.setStack(v)
     # plot.saveGraph('test.png')
-    plot.show()  # end plot3Dsilx
+    plot.show()
+    return plot  # end plot3Dsilx
 
 
 def getPlotsFromHDF5(path):
@@ -262,10 +269,12 @@ def getPlotsFromHDF5(path):
 
 
 def plotSavedData(plots, lib='mpl'):
+    global widgets
+    widgets = []
     for nodeData in plots:
         ndim = nodeData[2]
         plotFunc = globals()['plot{0}D{1}'.format(ndim, lib)]
-        plotFunc(nodeData)
+        widgets.append(plotFunc(nodeData))  # to keep references to silx polots
     if lib == 'mpl':
         plt.show()  # end plotSavedData
 

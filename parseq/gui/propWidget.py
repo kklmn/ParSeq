@@ -848,8 +848,8 @@ class PropWidget(qt.QWidget):
                 gpd.updateDataFromSpinBox(widget, dd['prop'])
             elif dd['widgetTypeIndex'] == 7:  # 'combobox'
                 gpd.updateDataFromComboBox(widget, dd['prop'], **dd['kw'])
-            # elif dd['widgetTypeIndex'] == 8:  # 'rangewidget'
-            #     widget.acceptEdit()
+            elif dd['widgetTypeIndex'] == 8:  # 'rangewidget'
+                gpd.updateDataFromRangeWidget(widget, dd['prop'])
         self.updateProp()
 
     def save_properties(self):

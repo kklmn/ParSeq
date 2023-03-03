@@ -371,7 +371,7 @@ class LineProps(qt.QDialog):
         tab.widthSpinBox.setDecimals(1)
         tab.widthSpinBox.setMaximum(10)
         tab.widthSpinBox.setMinimum(0.1)
-        tab.widthSpinBox.setSingleStep(0.5)
+        tab.widthSpinBox.setSingleStep(0.1)
         tab.widthSpinBox.valueChanged.connect(
             partial(self.updateFromSpinBox, tab, "width"))
         layout3.addWidget(tab.widthSpinBox, 0)

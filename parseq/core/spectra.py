@@ -16,7 +16,7 @@ Qt, where the user does not have to know about the underlying objects and
 methods. See :ref:`Notes on usage of GUI <notesgui>`.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Feb 2023"
+__date__ = "3 Mar 2023"
 # !!! SEE CODERULES.TXT !!!
 
 # import sys
@@ -835,7 +835,6 @@ class Spectrum(TreeItem):
                         #             'no data "{1}" among the loaded ones!'
                         #             .format(tmp['alias'], spName))
                         #     name.append(item)
-                    nameFull = None
                 elif 'colorPolicy' in configData[name]:  # group entry
                     tmp = {entry: config.get(configData, name, entry)
                            for entry in self.configFieldsGroup}
@@ -878,8 +877,14 @@ class Spectrum(TreeItem):
             try:
                 return Spectrum(name, self, insertAt, **kwargs)
             except (FileNotFoundError, OSError) as e:
-                print('local file {0} not found'.format(name))
                 if nameFull is not None:
+                    # remove the Spectrum from the failed attempt in 'try:'
+                    if insertAt is None:
+                        self.childItems.pop()
+                    else:
+                        self.childItems.pop(insertAt)
+                    print('local file {0} not found, will load {1}'.format(
+                        name, nameFull))
                     kwargs['dataFormat'] = dataFormatFull
                     return Spectrum(nameFull, self, insertAt, **kwargs)
                 else:
@@ -1030,7 +1035,7 @@ class Spectrum(TreeItem):
         if end is not None:
             toSave += self.madeOf[end:]
         config.put(config.configLoad, 'Data', toNode.name, toSave)
-        config.write_configs((1, 0, 0))
+        config.write_configs('transform')
 
     def interpret_array_formula(self, colStr, treeObj=None):
         if "np." in colStr:
@@ -1047,8 +1052,15 @@ class Spectrum(TreeItem):
 
         keys = re.findall(r'\[(.*?)\]', colStr)
         if len(keys) == 0:
-            keys = [colStr]
-            colStr = 'd[r"{0}"]'.format(colStr)
+            if "Col" in colStr:
+                regex = re.compile('Col([0-9]*)')
+                subkeys = regex.findall(colStr)
+                keys = ['Col'+ch for ch in subkeys]
+                for ch in subkeys:
+                    colStr = colStr.replace('Col'+ch, 'd["Col{0}"]'.format(ch))
+            else:
+                keys = [colStr]
+                colStr = 'd[r"{0}"]'.format(colStr)
         else:
             # remove outer quotes:
             keys = [k[1:-1] if k.startswith(('"', "'")) else k for k in keys]
@@ -1065,7 +1077,7 @@ class Spectrum(TreeItem):
             for k in keys:
                 kl = k.lower()
                 if "col" in kl:
-                    kn = int(kl[kl.find('col')+3])
+                    kn = int(kl[kl.find('col')+3:])
                 else:
                     kn = int(k)
                 d[k] = treeObj[kn]

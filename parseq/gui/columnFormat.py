@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "19 Jul 2022"
+__date__ = "2 Mar 2023"
 # !!! SEE CODERULES.TXT !!!
 
 from functools import partial
@@ -9,6 +9,7 @@ from silx.gui import qt
 
 from ..core import singletons as csi
 from ..core import commons as cco
+from ..core import config
 from .propWidget import QLineEditSelectRB, PropWidget
 from . import gcommons as gco
 # from . import propsOfData as gpd
@@ -18,6 +19,7 @@ class ColumnFormatWidget(PropWidget):
     def __init__(self, parent=None, node=None):
         super().__init__(parent, node)
         self.shouldRemoveNonesFromProps = True
+        self.fileType = ''  # or 'txt' or 'h5', used in format saving
 
         self.tabWidget = qt.QTabWidget(self)
         self.tabWidget.setStyleSheet(
@@ -41,18 +43,25 @@ class ColumnFormatWidget(PropWidget):
         self.conversionTab = self.makeConversionTab()
         ind = self.tabWidget.addTab(self.conversionTab, 'conversion')
         self.tabWidget.setTabToolTip(
-            ind, "give one of:\n1) a float factor,\n"
+            ind, "Give one of:\n1) a float factor,\n"
             "2) a new str unit (not for abscissa),\n"
             "3) transpose(*axes), e.g. transpose(2, 1, 0)\n"
-            "4) leave empty (no conversion)")
+            "4) leave empty (no conversion).")
 
         self.metadataTab = self.makeMetadataTab()
         ind = self.tabWidget.addTab(self.metadataTab, 'metadata')
         self.tabWidget.setTabToolTip(
-            ind, "give a set of hdf5 paths by using the right-click menu;\n"
-            "these str fields will appear in the 'metadata' widget under the"
+            ind, "Give a set of hdf5 paths by using the right-click menu.\n"
+            "These str fields will appear in the 'metadata' widget under the"
             " plot")
         self.metadata = {}  # {str: StrLabelWithCloseButton}
+
+        self.saveTab = self.makeSaveTab()
+        ind = self.tabWidget.addTab(self.saveTab, 'save')
+        self.tabWidget.setTabToolTip(
+            ind, "Specify a few substrings from 'metadata' panel to recognize "
+            "this format.\nAll recognized formats for column files or hdf5 \n"
+            "entries will appear in the popup menu in the file tree.")
 
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -118,13 +127,11 @@ class ColumnFormatWidget(PropWidget):
         self.registerExclusivePropGroupWithEdits(
             tab, [self.radioButtons, self.edits], 'header',
             props=self.fullHeaderKW, convertTypes=[int, None, None])
-
         return tab
 
     def makeDataLocationTab(self):
         if self.node is None:
             return
-
         self.dataEdits = []
         self.sliceEdits = []
         dataLayout = qt.QVBoxLayout()
@@ -167,17 +174,16 @@ class ColumnFormatWidget(PropWidget):
                 hideEmpty=True)
 
         tab = qt.QWidget(self)
+        dataLayout.addStretch()
         tab.setLayout(dataLayout)
         tab.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
 
         self.registerPropGroup(tab, self.dataEdits, 'data location')
-
         return tab
 
     def makeConversionTab(self):
         if self.node is None:
             return
-
         self.conversionEdits = []
         dataLayout = qt.QVBoxLayout()
         dataLayout.setContentsMargins(2, 0, 0, 0)
@@ -206,21 +212,74 @@ class ColumnFormatWidget(PropWidget):
                 emptyMeans=None, convertType=float)
 
         tab = qt.QWidget(self)
+        dataLayout.addStretch()
         tab.setLayout(dataLayout)
         tab.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
 
         self.registerPropGroup(tab, self.conversionEdits, 'data units')
-
         return tab
 
     def makeMetadataTab(self):
         if self.node is None:
             return
-
         tab = qt.QWidget(self)
         self.metadataLayout = gco.FlowLayout()
         tab.setLayout(self.metadataLayout)
+        return tab
 
+    def makeSaveTab(self):
+        if self.node is None:
+            return
+
+        saveLayout = qt.QVBoxLayout()
+        saveLayout.setContentsMargins(2, 0, 0, 0)
+        labelDescr = qt.QLabel("key words to recognize the format")
+        saveLayout.addWidget(labelDescr)
+
+        inLayout = qt.QHBoxLayout()
+        inLayout.setContentsMargins(0, 0, 0, 0)
+        inLabel = qt.QLabel("present key words")
+        self.saveInEdit = qt.QLineEdit()
+        self.saveInEdit.setMinimumWidth(62)
+        self.saveInEdit.setSizePolicy(
+            qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+        self.saveInEdit.setToolTip("comma separated words, must be non-empty")
+        inLayout.addWidget(inLabel)
+        inLayout.addWidget(self.saveInEdit)
+        saveLayout.addLayout(inLayout)
+
+        outLayout = qt.QHBoxLayout()
+        outLayout.setContentsMargins(0, 0, 0, 0)
+        outLabel = qt.QLabel("absent key words")
+        self.saveOutEdit = qt.QLineEdit()
+        self.saveOutEdit.setMinimumWidth(62)
+        self.saveOutEdit.setSizePolicy(
+            qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+        self.saveOutEdit.setToolTip("comma separated words, optional")
+        outLayout.addWidget(outLabel)
+        outLayout.addWidget(self.saveOutEdit)
+        saveLayout.addLayout(outLayout)
+
+        nameLayout = qt.QHBoxLayout()
+        nameLayout.setContentsMargins(0, 0, 0, 0)
+        nameLabel = qt.QLabel("format name")
+        self.saveNameEdit = qt.QLineEdit()
+        self.saveNameEdit.setMinimumWidth(62)
+        self.saveNameEdit.setSizePolicy(
+            qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+        self.saveButton = qt.QPushButton('Save')
+        self.saveButton.setToolTip("to enable, highlight a loadable (green)"
+                                   " entry in the file tree")
+        self.saveButton.clicked.connect(self.doSaveFormat)
+
+        nameLayout.addWidget(nameLabel)
+        nameLayout.addWidget(self.saveNameEdit)
+        nameLayout.addWidget(self.saveButton)
+        saveLayout.addLayout(nameLayout)
+
+        tab = qt.QWidget(self)
+        saveLayout.addStretch()
+        tab.setLayout(saveLayout)
         return tab
 
     def _resizeToContent(self, edit, text):
@@ -284,30 +343,37 @@ class ColumnFormatWidget(PropWidget):
             return
         return dres
 
-    def setHeader(self, formats):
-        formatsLower = {k.lower(): v for k, v in formats.items()}
+    def setHeader(self, fmt):
+        fmtl = {k.lower(): v for k, v in fmt.items()}
         for rb, ed, kw in zip(
                 self.radioButtons, self.edits, self.headerKW):
-            if kw.lower() in formatsLower:
+            if kw.lower() in fmtl:
                 rb.setChecked(True)
-                ed.setText(formatsLower[kw.lower()])
+                ed.setText(fmtl[kw.lower()])
             else:
                 rb.setChecked(False)
 
-    def setTexts(self, formats, section, edits):
-        if section not in formats:
+    def setTexts(self, fmt, section, edits):
+        fmtl = {k.lower(): v for k, v in fmt.items()}
+        sectionl = section.lower()
+        if sectionl not in fmtl:
             return
         try:
-            params = eval(formats[section])
-        except (SyntaxError, NameError):
+            params = fmtl[sectionl]
+            if isinstance(params, str):
+                params = eval(params)
+        except Exception as e:
+            print(sectionl, params, e)
             return
         for edit, pStr in zip(edits, params):
             edit.setText(str(pStr))
 
-    def setMetadata(self, formats, section):
-        if section not in formats:
+    def setMetadata(self, fmt, section):
+        fmtl = {k.lower(): v for k, v in fmt.items()}
+        sectionl = section.lower()
+        if sectionl not in fmtl:
             return
-        toAdd = [s.strip() for s in formats[section].split(',')]
+        toAdd = [s.strip() for s in fmtl[sectionl].split(',')]
         for path in self.metadata:
             if path not in toAdd:
                 self._deleteMetadataLabel(path)
@@ -332,9 +398,41 @@ class ColumnFormatWidget(PropWidget):
         metadataLabel.close()
         del self.metadata[path]
 
-    def setDataFormat(self, formats):
-        self.setHeader(formats)
-        self.setTexts(formats, 'datasource', self.dataEdits)
-        self.setTexts(formats, 'slices', self.sliceEdits)
-        self.setTexts(formats, 'conversionfactors', self.conversionEdits)
-        self.setMetadata(formats, 'metadata')
+    def setDataFormat(self, fmt):
+        self.setHeader(fmt)
+        self.setTexts(fmt, 'datasource', self.dataEdits)
+        self.setTexts(fmt, 'slices', self.sliceEdits)
+        self.setTexts(fmt, 'conversionfactors', self.conversionEdits)
+        self.setMetadata(fmt, 'metadata')
+
+    def doSaveFormat(self):
+        if self.node is None:
+            return
+        txtName = self.saveNameEdit.text()
+        if len(txtName) == 0:
+            return
+        inKeysTxt = self.saveInEdit.text()
+        if len(inKeysTxt) == 0:
+            return
+        kind = self.fileType
+        if kind not in ['txt', 'h5']:
+            raise ValueError("unknown file type")
+        secName = ':'.join((self.node.name, kind))
+        if txtName in config.configFormats[secName]:
+            msg = qt.QMessageBox()
+            msg.setIcon(qt.QMessageBox.Question)
+            res = msg.question(
+                self, "The format name {0} already exists".format(txtName),
+                "Do you want to overwrite it in .parseq/formats.ini ?",
+                qt.QMessageBox.Yes | qt.QMessageBox.No, qt.QMessageBox.Yes)
+            if res == qt.QMessageBox.No:
+                return
+
+        outKeysTxt = self.saveOutEdit.text()
+        inKeys = [s.strip() for s in inKeysTxt.split(',')]
+        outKeys = [s.strip() for s in outKeysTxt.split(',')]
+
+        fmt = self.getDataFormat(kind == 'txt')
+        res = dict(dataFormat=fmt, inkeys=inKeys, outkeys=outKeys)
+        config.put(config.configFormats, secName, txtName, str(res))
+        config.write_configs('formats')

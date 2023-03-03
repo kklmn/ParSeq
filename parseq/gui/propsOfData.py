@@ -243,6 +243,16 @@ def updateDataFromComboBox(combobox, prop, convertType=None, textReplace=None,
             it.hasChanged = True
 
 
+def updateDataFromRangeWidget(rangeWidget, prop):
+    value = rangeWidget.acceptEdit()
+    for it in csi.selectedItems:
+        itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)
+        if itValue != value:
+            # cco.setDotAttr(it, prop, irb)
+            itContainer[itAttr] = value
+            it.hasChanged = True
+
+
 def copyProps(dataItems, props, newVals, removeNones=True):
     assert len(props) == len(newVals)
     countChanges = 0

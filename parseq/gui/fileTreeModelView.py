@@ -5,7 +5,7 @@ extended by the hdf5 model from silx (silx.gui.hdf5.Hdf5TreeModel), so that
 hdf5 containers can be viewed in the same tree.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "27 Jul 2022"
+__date__ = "2 Mar 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import os
@@ -31,7 +31,7 @@ from silx.gui.hdf5.NexusSortFilterProxyModel import NexusSortFilterProxyModel
 
 from ..core import commons as cco
 from ..core import singletons as csi
-from ..core.config import configLoad
+from ..core import config
 from . import gcommons as gco
 
 useProxyFileModel = False  # proxy model for FileSystemWithHdf5Model
@@ -438,8 +438,17 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         for colStr in dataStr:
             keys = re.findall(r'\[(.*?)\]', colStr)
             if len(keys) == 0:
-                keys = [colStr]
-                colStrD = 'd[r"{0}"]'.format(colStr)
+                if "Col" in colStr:
+                    regex = re.compile('Col([0-9]*)')
+                    subkeys = regex.findall(colStr)
+                    keys = ['Col'+ch for ch in subkeys]
+                    colStrD = str(colStr)
+                    for ch in subkeys:
+                        colStrD = colStrD.replace(
+                            'Col'+ch, 'd["Col{0}"]'.format(ch))
+                else:
+                    keys = [colStr]
+                    colStrD = 'd[r"{0}"]'.format(colStr)
             else:
                 colStrD = colStr
                 # remove outer quotes:
@@ -462,7 +471,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 for k in keys:
                     kl = k.lower()
                     if "col" in kl:
-                        kn = int(kl[kl.find('col')+3])
+                        kn = int(kl[kl.find('col')+3:])
                     else:
                         kn = int(k)
                     d[k] = treeObj[kn]
@@ -872,6 +881,8 @@ class SelectionDelegate(qt.QItemDelegate):
                   option.state & qt.QStyle.State_MouseOver)
         if active:
             loadState = index.data(LOAD_DATASET_ROLE)
+            cf = self.parent().transformNode.widget.columnFormat
+            cf = cf.saveButton.setEnabled(loadState is not None)
 
         if option.state & qt.QStyle.State_MouseOver:
             # color = self.parent().palette().highlight().color()
@@ -922,7 +933,7 @@ class FileTreeView(qt.QTreeView):
         # self.setMinimumSize(
         #     qt.QSize(int(COLUMN_NAME_WIDTH*csi.screenFactor), 250))
         # self.setColumnWidth(0, int(COLUMN_NAME_WIDTH*csi.screenFactor))
-        self.setMinimumSize(qt.QSize(COLUMN_NAME_WIDTH, 250))
+        self.setMinimumSize(qt.QSize(COLUMN_NAME_WIDTH, 50))
         self.setColumnWidth(0, COLUMN_NAME_WIDTH)
         self.setIndentation(NODE_INDENTATION)
         self.setSortingEnabled(True)
@@ -936,8 +947,6 @@ class FileTreeView(qt.QTreeView):
 
         self.setContextMenuPolicy(qt.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.onCustomContextMenu)
-        if self.selectionModel():
-            self.selectionModel().selectionChanged.connect(self.selChanged)
         self.expanded.connect(self.expandFurther)
         self.prevSelectedIndexes = []
 
@@ -1027,10 +1036,12 @@ class FileTreeView(qt.QTreeView):
 
         if preservedPath:
             self.gotoWhenReady(preservedPath)
+        if self.selectionModel():
+            self.selectionModel().selectionChanged.connect(self.selChanged)
 
     def gotoLastData(self):
-        if configLoad.has_option('Data', self.transformNode.name):
-            path = configLoad.get('Data', self.transformNode.name)
+        if config.configLoad.has_option('Data', self.transformNode.name):
+            path = config.configLoad.get('Data', self.transformNode.name)
         else:
             path = ''
         if path:
@@ -1166,6 +1177,16 @@ class FileTreeView(qt.QTreeView):
                     lenSelectedIndexes))
             actionN.setEnabled(isEnabled)
 
+        if self.transformNode is not None:
+            formats = self.getSavedFormats()
+            if formats is not None:
+                cf = self.transformNode.widget.columnFormat
+                for fmtName, fmt in formats.items():
+                    strFmt = "Define data format as '{0}'".format(fmtName)
+                    action = qt.QAction(strFmt, menu)
+                    action.triggered.connect(partial(cf.setDataFormat, fmt))
+                    menu.addAction(action)
+
         menu.addSeparator()
         model, ind = self.getSourceModel(selectedIndexes[0])
         if hasattr(model, 'nodeType'):  # when not with a test model
@@ -1195,6 +1216,58 @@ class FileTreeView(qt.QTreeView):
 
         menu.exec_(self.viewport().mapToGlobal(point))
 
+    def getSavedFormats(self):
+        cf = self.transformNode.widget.columnFormat
+        section = ':'.join((self.transformNode.name, cf.fileType))
+        if not config.configFormats.has_section(section):
+            return
+        formats = dict(config.configFormats[section])
+        fullNames = self.getFullFileNames()  # all selected
+        if fullNames is None:
+            return
+        url = fullNames[0]  # the 1st selected
+
+        res = {}
+        for formatName, val in formats.items():
+            entry = eval(val)
+            fmt = entry['dataFormat']  # dict
+            inkeys = entry['inkeys']  # list
+            outkeys = entry['outkeys']  # list
+            header = ''
+            if url.startswith('silx:'):
+                if cf.fileType != 'h5':
+                    continue
+                with silx_io.open(url) as sf:
+                    if silx_io.is_dataset(sf):
+                        return
+                    try:
+                        headerList = list(sf['measurement'].keys())
+                    except Exception:
+                        headerList = []
+
+                    mdt = fmt.get('metadata', '')
+                    mds = [m.strip() for m in mdt.split(',')] if mdt else []
+                    for md in mds:
+                        try:
+                            mdres = sf[md][()]
+                            if isinstance(mdres, bytes):
+                                mdres = mdres.decode("utf-8")
+                            headerList.append(str(mdres))
+                        except (ValueError, KeyError, OSError):
+                            pass
+                            # print('No metadata: {0}'.format(e))
+            else:  # column file
+                if cf.fileType != 'txt':
+                    continue
+                headerList = cco.get_header(url, fmt)
+            header = ' '.join(headerList)
+            if all(i in header for i in inkeys) and \
+                    all(o not in header for o in outkeys if len(o) > 0):
+                res[formatName] = fmt
+        if len(res) == 0:
+            return
+        return res
+
     def viewTextFile(self):
         if self.transformNode is None:
             return
@@ -1221,7 +1294,7 @@ class FileTreeView(qt.QTreeView):
         if hasattr(self, 'ModelTest'):
             self.ModelTest(self.model(), self)
 
-    def getFullFileNames(self, urls):
+    def getFullFileNames(self, urls=None):
         if isinstance(urls, qt.QModelIndex):
             model, ind = self.getSourceModel(urls)
             fname = model.filePath(ind)
@@ -1360,6 +1433,8 @@ class FileTreeView(qt.QTreeView):
         if self.transformNode is None:
             return
         cf = self.transformNode.widget.columnFormat
+        cf.setHeaderEnabled(True)
+        cf.setMetadataEnabled(True)
         for index in indexes:
             model, ind = self.getSourceModel(index)
             if not hasattr(model, 'nodeType'):
@@ -1367,16 +1442,15 @@ class FileTreeView(qt.QTreeView):
             nodeType = model.nodeType(ind)
             if nodeType == NODE_FS:
                 fileInfo = model.fileInfo(ind)
-                if is_text_file(fileInfo.filePath()):
-                    cf.setHeaderEnabled(True)
-                    cf.setMetadataEnabled(False)
-                else:
-                    cf.setHeaderEnabled(False)
-                    cf.setMetadataEnabled(True)
-                    return
+                isTxtFile = is_text_file(fileInfo.filePath())
+                cf.setHeaderEnabled(isTxtFile)
+                cf.setMetadataEnabled(not isTxtFile)
+                cf.fileType = 'txt' if isTxtFile else ''
+                return
             else:
                 cf.setHeaderEnabled(False)
                 cf.setMetadataEnabled(True)
+                cf.fileType = 'h5'
                 return
 
     def _enrtySubpaths(self, paths):
@@ -1507,8 +1581,9 @@ class FileTreeView(qt.QTreeView):
         scrollTimer.start(delay)
 
     def comparePathWithLastLoaded(self, path, suffix=''):
-        if configLoad.has_option('Data', self.transformNode.name+suffix):
-            lastPath = configLoad.get('Data', self.transformNode.name+suffix)
+        opt = self.transformNode.name+suffix
+        if config.configLoad.has_option('Data', opt):
+            lastPath = config.configLoad.get('Data', opt)
         else:
             lastPath = ''
         return osp.normpath(path).lower() == osp.normpath(lastPath).lower() \

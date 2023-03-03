@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "22 Apr 2021"
+__date__ = "3 Mar 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import os
 from silx.gui import qt
 from ..core import singletons as csi
 from ..core import commons as cco
+from ..core import config
 
-ftypes = 'HDF5', 'pickle', 'json (for 1D)', 'column text (for 1D)'
-fexts = 'h5', 'pickle', 'json', 'txt'
+ftypes = 'HDF5', 'pickle', 'json (for 1D)', 'txt (for 1D)', 'txt.gz (for 1D)'
+fexts = 'h5', 'pickle', 'json', 'txt', 'txt.gz'
 
 
 class SaveProjectDlg(qt.QFileDialog):
@@ -59,6 +60,7 @@ class SaveProjectDlg(qt.QFileDialog):
             asCB = qt.QCheckBox(dtype, self)
             self.saveAsCBs.append(asCB)
             layoutA.addWidget(asCB)
+        layoutA.addStretch()
         self.saveAsCBs[0].setChecked(True)
         saveDataAs.setLayout(layoutA)
         layoutC.addWidget(saveDataAs)
@@ -115,6 +117,15 @@ class QPreviewPanel(qt.QWidget):
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
 
+        layoutC = qt.QHBoxLayout()
+        layoutC.setContentsMargins(0, 0, 0, 0)
+        contentLabel = qt.QLabel('In this project file:', self)
+        layoutC.addWidget(contentLabel)
+        self.content = qt.QLabel('', self)
+        layoutC.addWidget(self.content)
+        layoutC.addStretch()
+        layout.addLayout(layoutC)
+
         self.previewLabel = qt.QLabel('Preview', self)
         self.previewLabel.setScaledContents(True)
         layout.addWidget(self.previewLabel)
@@ -125,6 +136,8 @@ class QPreviewPanel(qt.QWidget):
         self.previewSlider.valueChanged.connect(self.sliderValueChanged)
         layout.addWidget(self.previewSlider)
 
+        self.groups = None
+        self.items = None
         self.pms = []
         self.pmIndex = 1e6
         self.previewContent = qt.QLabel(self)
@@ -138,6 +151,12 @@ class QPreviewPanel(qt.QWidget):
         self.updatePreview()
 
     def updatePreview(self):
+        txt = '{0} group{1}, '.format(
+            self.groups, 's' if self.groups > 1 else '') if self.groups else ''
+        txt += '{0} item{1}'.format(
+            self.items, 's' if self.items > 1 else '') if self.items else ''
+        self.content.setText(txt)
+
         self.previewSlider.setVisible(len(self.pms) > 1)
         if not self.pms:
             self.previewContent.setPixmap(qt.QPixmap())
@@ -192,6 +211,15 @@ class LoadProjectDlg(qt.QFileDialog):
             fname = path.replace('.pspj', '')
         else:
             return
+
+        configProject = config.ConfigParser()
+        try:
+            configProject.read(path, encoding=config.encoding)
+            self.previewPanel.groups = int(configProject.get('Root', 'groups'))
+            self.previewPanel.items = int(configProject.get('Root', 'items'))
+        except Exception:
+            pass
+
         self.previewPanel.pms = []
         self.previewPanel.pmNames = []
         for i, (name, node) in enumerate(csi.nodes.items()):

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Feb 2023"
+__date__ = "2 Mar 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -9,7 +9,7 @@ import webbrowser
 from collections import Counter
 from functools import partial
 import traceback
-import time
+# import time
 import glob
 
 from silx.gui import qt, colors, icons
@@ -313,28 +313,35 @@ class NodeWidget(qt.QWidget):
         self.backend = dict(backend='matplotlib')
 
         if node.plotDimension == 3:
-            self.plot = Plot3D(
-                self.splitterPlot, position=Plot3D.posInfo, **self.backend
-                )
+            self.plot = Plot3D(self.splitterPlot, position=Plot3D.posInfo,
+                               **self.backend)
             self.plot.setCustomPosInfo()
             self.plot.setTitleCallback(self.titleCallback3D)
         elif node.plotDimension == 2:
-            self.plot = Plot2D(
-                self.splitterPlot, **self.backend
-                )
+            self.plot = Plot2D(self.splitterPlot, **self.backend)
         elif node.plotDimension == 1:
             xLbl = node.get_arrays_prop('qLabel', role='x')[0]
             yLbl = node.get_arrays_prop('qLabel', role='y')[0]
-            self.plot = Plot1D(
-                self.splitterPlot,
-                position=[(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)],
-                **self.backend
-                )
+            hasCustomCursorLabels = False
+            if self.node.widgetClass is not None:
+                if (hasattr(self.node.widgetClass, 'cursorPositionCallback')
+                        and hasattr(self.node.widgetClass, 'cursorLabels')):
+                    hasCustomCursorLabels = True
+            if hasCustomCursorLabels:
+                position = [
+                    (label, partial(
+                        self.node.widgetClass.cursorPositionCallback, label))
+                    for label in self.node.widgetClass.cursorLabels]
+            else:
+                position = [(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)]
+            self.plot = Plot1D(self.splitterPlot, position=position,
+                               **self.backend)
             self.plot.getXAxis().setLabel(xLbl)
             self.plot.getYAxis().setLabel(yLbl)
         else:
             raise ValueError("wrong plot dimension")
         self.plotSetup()
+        self.plot.setMinimumWidth(20)
         self.savedPlotProps = {}
 
         self.metadata = qt.QTextEdit(self.splitterPlot)
@@ -689,6 +696,8 @@ class NodeWidget(qt.QWidget):
                     try:
                         y = getattr(item, yN)
                     except AttributeError:
+                        continue
+                    if y is None:
                         continue
                     curveLabel = item.alias + '.' + yN
                     curve = self.plot.getCurve(curveLabel)
@@ -1102,7 +1111,7 @@ class NodeWidget(qt.QWidget):
                        glob.glob(dirname + '*' + self.autoFileExt)]
 
         diffs = [x for x in newFileList if x not in list(self.autoFileList)]
-        print('autoLoad', self.autoDirName, diffs, self.autoIndex, self.autoChunk)
+        print('auto', self.autoDirName, diffs, self.autoIndex, self.autoChunk)
         if len(diffs) > 0:
             toLoad = [diff for i, diff in enumerate(diffs) if
                       (i+self.autoIndex) % self.autoChunk == self.autoChunk-1]

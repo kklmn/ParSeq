@@ -16,10 +16,10 @@ The selected items can be accessed by core.singletons.selectedItems and
 core.singletons.selectedTopItems lists.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Feb 2023"
+__date__ = "2 Mar 2023"
 # !!! SEE CODERULES.TXT !!!
 
-import sys
+# import sys
 from functools import partial
 import pickle
 
@@ -479,7 +479,9 @@ class HeaderModel(qt.QAbstractItemModel):
                 return self.rootItem.tooltip()
             elif section == 1:
                 if self.plotDimension == 1:
-                    return u"toggle visible: dynamic\u2194static"
+                    return u"toggle visible: dynamic\u2194static"\
+                        "\ndynamic: visible = selected"\
+                        "\nstatic: visible = checked"
                 else:
                     return u"plot visibility status\n"\
                         "only one image can be displayed at a time"

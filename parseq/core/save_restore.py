@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "19 Jul 2022"
+__date__ = "3 Mar 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import os
@@ -20,8 +20,7 @@ from ..gui import gcommons as gco
 
 __fdir__ = os.path.abspath(os.path.dirname(__file__))
 chars2removeMap = {ord(c): '-' for c in '/*? '}
-encoding = 'utf-8'
-# encoding = 'ISO-8859-1'
+encoding = config.encoding
 
 
 def load_project(fname, qMessageBox=None, restore_perspective=None):
@@ -71,6 +70,9 @@ def save_project(fname, save_perspective=None):
 
     root = csi.dataRootItem
     config.put(configProject, 'Root', 'tree', repr(root))
+    config.put(configProject, 'Root', 'groups', str(len(root.get_groups())))
+    config.put(configProject, 'Root', 'items', str(len(root.get_items())))
+
     config.put(configProject, 'Root', 'colorPolicy',
                gco.COLOR_POLICY_NAMES[root.colorPolicy])
     if root.colorPolicy == gco.COLOR_POLICY_GRADIENT:
@@ -95,7 +97,7 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
         fname = fname.replace('.pspj', '')
 
     plots = []
-    if 'txt' in saveTypes:
+    if ('txt' in saveTypes) or ('txt.gz' in saveTypes):
         for iNode, ((nodeName, node), saveNode) in enumerate(
                 zip(csi.nodes.items(), saveNodes)):
             if not saveNode:
@@ -111,9 +113,12 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                 nname = nodeName.translate(chars2removeMap)
                 dname = it.alias.translate(chars2removeMap)
                 sname = u'{0}-{1}-{2}'.format(iNode+1, nname, dname)
-                # np.savetxt(sname+'.txt.gz', np.column_stack(dataToSave),
-                np.savetxt(sname+'.txt', np.column_stack(dataToSave),
-                           fmt='%.12g', header=' '.join(header))
+                if 'txt' in saveTypes:
+                    np.savetxt(sname+'.txt', np.column_stack(dataToSave),
+                               fmt='%.12g', header=' '.join(header))
+                if 'txt.gz' in saveTypes:
+                    np.savetxt(sname+'.txt.gz', np.column_stack(dataToSave),
+                               fmt='%.12g', header=' '.join(header))
                 curves[sname] = [it.alias, it.color, header,
                                  it.plotProps[node.name]]
 
@@ -129,12 +134,19 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                         continue
                     sname = u'{0}-{1}-{2}-aux{3}'.format(
                             iNode+1, nname, dname, iG)
-                    # np.savetxt(sname+'.txt.gz', np.column_stack(dataAux),
-                    np.savetxt(sname+'.txt', np.column_stack(dataAux),
-                               fmt='%.12g', header=' '.join(headerAux))
+                    if 'txt' in saveTypes:
+                        np.savetxt(sname+'.txt', np.column_stack(dataAux),
+                                   fmt='%.12g', header=' '.join(headerAux))
+                    if 'txt.gz' in saveTypes:
+                        np.savetxt(sname+'.txt.gz', np.column_stack(dataAux),
+                                   fmt='%.12g', header=' '.join(headerAux))
                     curves[sname] = [it.alias, it.color, headerAux]
-            plots.append(['txt', node.name, node.plotDimension,
-                          node.widget.getAxisLabels(), curves])
+            if 'txt' in saveTypes:
+                plots.append(['txt', node.name, node.plotDimension,
+                              node.widget.getAxisLabels(), curves])
+            if 'txt.gz' in saveTypes:
+                plots.append(['txt.gz', node.name, node.plotDimension,
+                              node.widget.getAxisLabels(), curves])
 
     if 'json' in saveTypes or 'pickle' in saveTypes:
         dataToSave = {}

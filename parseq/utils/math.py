@@ -5,6 +5,7 @@ __date__ = "6 Apr 2021"
 
 import numpy as np
 from scipy.interpolate import UnivariateSpline
+from scipy.signal import savgol_filter
 
 
 def line(xs, ys):
@@ -25,6 +26,27 @@ def fwhm(x, y):
         return max(roots) - min(roots)
     except ValueError:
         return
+
+
+def smooth_convolve(y, npoints):
+    """Array smoothing, slow."""
+    w = np.ones(npoints, 'd')
+    return np.convolve(w/w.sum(), y, mode='same')
+
+
+def smooth_cumsum(y, npoints):
+    """In-place smoothing, a replacement for np.convolve that is pretty slow.
+    Based on https://stackoverflow.com/a/34387987/2696065"""
+    cs = np.cumsum(np.insert(y, 0, 0))
+    ns = 2*npoints + 1
+    res = np.array(y)
+    res[npoints: -npoints] = (cs[ns:] - cs[:-ns]) / ns
+    return res  # same shape as y
+
+
+def smooth_savgol(y, npoints):
+    """*npoints* must be > 3 (polyniomial order)"""
+    return savgol_filter(y, max(npoints, 4), 3)  # polynomial order 3
 
 
 def get_roi_mask(geom, xs, ys):
