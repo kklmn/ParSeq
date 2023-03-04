@@ -974,6 +974,14 @@ class Spectrum(TreeItem):
                     raise ValueError('bad data file')
 
             roles = toNode.get_arrays_prop('role')
+
+            # Create optional arrays and assign None.
+            # This loop is needed when dataSource list is shorter than arrays.
+            for aName, role in zip(toNode.arrays, roles):
+                setName = toNode.get_prop(aName, 'raw')
+                if role == 'optional':
+                    setattr(self, setName, None)
+
             for aName, txt, sliceStr, role in zip(
                     toNode.arrays, dataSource, sliceStrs, roles):
                 setName = toNode.get_prop(aName, 'raw')
@@ -1000,7 +1008,8 @@ class Spectrum(TreeItem):
                                     for slc in sliceStr.split(','))
                                 arr = arr[sliceTuple]
                     setattr(self, setName, arr)
-                except Exception:
+                except Exception as e:
+                    print(e)
                     setattr(self, setName, None)
 
             self.state[toNode.name] = cco.DATA_STATE_GOOD

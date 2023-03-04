@@ -61,6 +61,7 @@ def load_project(fname, qMessageBox=None, restore_perspective=None):
         csi.model.importData(dataTree, configData=configProject)
     else:
         items = root.insert_data(dataTree, configData=configProject)
+        ctr.connect_combined(items, root)
         ctr.run_transforms(items, root)
 
 

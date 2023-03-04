@@ -233,14 +233,18 @@ class DataTreeModel(qt.QAbstractItemModel):
         ctr.run_transforms(items, parentItem)
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.selectItems(items)
+        return items
 
+    def selectItems(self, items=None):
         mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
+        if items is None:
+            items = self.rootItem.get_items()
         for item in items:
             row = item.row()
             index = self.createIndex(row, 0, item)
             csi.selectionModel.select(index, mode)
             csi.selectionModel.setCurrentIndex(index, mode)
-        return items
 
     def _removeFromGlobalLists(self, item):
         for ll in (csi.selectedItems, csi.selectedTopItems,

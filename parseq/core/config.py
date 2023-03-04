@@ -18,19 +18,19 @@ encoding = 'utf-8'
 
 iniFileLoad = (os.path.join(iniDir, 'load.ini'))
 configLoad = ConfigParser()
-configLoad.read(iniFileLoad)
+configLoad.read(iniFileLoad, encoding=encoding)
 
 iniFileGUI = (os.path.join(iniDir, 'gui.ini'))
 configGUI = ConfigParser()
-configGUI.read(iniFileGUI)
+configGUI.read(iniFileGUI, encoding=encoding)
 
 iniFileTransforms = (os.path.join(iniDir, 'transforms.ini'))
 configTransforms = ConfigParser()
-configTransforms.read(iniFileTransforms)
+configTransforms.read(iniFileTransforms, encoding=encoding)
 
 iniFileFormats = (os.path.join(iniDir, 'formats.ini'))
 configFormats = ConfigParser()
-configFormats.read(iniFileFormats)
+configFormats.read(iniFileFormats, encoding=encoding)
 configFormats.optionxform = str  # makes it case sensitive
 
 

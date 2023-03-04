@@ -482,6 +482,8 @@ class GenericProcessOrThread(object):
                'alias': item.alias}
         for key in self.inArrays:
             try:
+                # if not hasattr(item, key):
+                #     setattr(item, key, None)
                 res[key] = getattr(item, key)
             except AttributeError as e:
                 print('Error in put_in_data():')
