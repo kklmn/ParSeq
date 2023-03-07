@@ -276,6 +276,7 @@ class MainWindowParSeq(qt.QMainWindow):
                         qt.QDockWidget.DockWidgetFloatable)  # |
 #                        qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.docks = {}  # nodeWidget: (dock, node, tabName)
+        self.setDockNestingEnabled(True)
         for i, (name, node) in enumerate(csi.nodes.items()):
             tabName = u'{0} \u2013 {1}'.format(i+1, name)
             dock = QDockWidgetNoClose(tabName, self)
@@ -283,7 +284,7 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.setFeatures(dockFeatures)
             dock.defStyleSheet = "QDockWidget {font: bold; padding-left: 5px;}"
             # dock.setStyleSheet(dock.defStyleSheet)
-            self.addDockWidget(qt.Qt.TopDockWidgetArea, dock)
+            self.addDockWidget(qt.Qt.LeftDockWidgetArea, dock)
             nodeWidget = NodeWidget(node, dock)
             # nodeWidget = None  # for testing fo app closure
             dock.setWidget(nodeWidget)
@@ -439,7 +440,8 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def setTabIcon(self, itab, dock, state=0):
         icon = dock.dimIconBusy if state == 1 else dock.dimIcon
-        self.tabWidget.setTabIcon(itab, icon)
+        if self.tabWidget is not None:
+            self.tabWidget.setTabIcon(itab, icon)
 
     def dataChanged(self):
         for node in csi.nodes.values():

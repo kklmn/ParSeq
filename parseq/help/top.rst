@@ -49,8 +49,8 @@ Main features
    (parts of analysis pipeline).
 
 -  Two ways of acting from GUI onto multiple data: (a) simultaneous work with
-   multiply selected data and (b) applying a specific parameter or a group of
-   parameters to a later selected subset of data.
+   multiply selected data and (b) copying a specific parameter or a group of
+   parameters from active data items to later selected data items.
 
 -  Undo and redo for most of treatment steps.
 
@@ -69,8 +69,8 @@ Main features
    type and location of the occurred error.
 
 -  Export of the workflow into a project file. Export of data into various data
-   formats (so far unstructured) with accompanied Python scripts that visualize
-   the exported data for the user to tune their publication plots.
+   formats with accompanied Python scripts that visualize the exported data for
+   the user to tune their publication plots.
 
 -  ParSeq understands container files (presently only hdf5) and adds them to
    the system file tree as subfolders. The file tree, including hdf5

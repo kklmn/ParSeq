@@ -751,7 +751,7 @@ class Spectrum(TreeItem):
                 sl = '0'
             checkName = toNode.get_prop(stem, 'raw')
             arr = getattr(self, checkName)
-            shape = arr.shape[eval(sl)]
+            shape = arr.shape[eval(sl)] if arr is not None else []
             if iarr == 0:
                 shape0 = shape
                 continue
@@ -929,6 +929,7 @@ class Spectrum(TreeItem):
         formatSection = 'Format_' + toNode.name
         config.configLoad[formatSection] = dict(df)
 
+        arr = []
         if self.dataType == cco.DATA_COLUMN_FILE:
             header = cco.get_header(madeOf, df)
         elif self.dataType == cco.DATA_DATASET:

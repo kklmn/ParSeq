@@ -31,9 +31,9 @@ def make_ft_window(kind, x, xmin, xmax, width, vmin):
     res = np.ones_like(x)
     if not kind or kind == 'none':
         return res
-    res[x < xmin] = 0
-    res[x > xmax] = 0
     if kind == 'box':
+        res[x < xmin] = 0
+        res[x > xmax] = 0
         return res
 
     left_lobe = (x-xmin >= 0) & (x-xmin <= width)
@@ -55,4 +55,6 @@ def make_ft_window(kind, x, xmin, xmax, width, vmin):
             sigma2 = width**2 / (2*abs(np.log(v0)))
             res[left_lobe] = np.exp(-0.5*(x[left_lobe]-xmin-width)**2/sigma2)
             res[right_lobe] = np.exp(-0.5*(xmax-width-x[right_lobe])**2/sigma2)
+    res[x < xmin] = res[left_lobe][0]
+    res[x > xmax] = res[right_lobe][-1]
     return res

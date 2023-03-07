@@ -40,7 +40,8 @@ class QSplitterButton(qt.QPushButton):
         super().__init__(text, parent)
         self.rawText = str(text)
         self.isVertical = isVertical
-        fontSize = "10" if sys.platform == "darwin" else "7.7"
+        fontSize = "10" if sys.platform == "darwin" else "8.5" \
+            if sys.platform == "linux" else "8"
         grad = "x1: 0, y1: 0, x2: 0, y2: 1"
         bottomMargin = '-1' if isVertical else '-3'
         self.setStyleSheet("""

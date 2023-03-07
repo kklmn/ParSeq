@@ -414,6 +414,8 @@ class RoiWidgetBase(qt.QWidget):
         if self.dataToCount is None:
             return
         data = self.dataToCount
+        if data is None:  # when data file is missing
+            return
         rois = self.roiManager.getRois()
         if len(rois) == 0:
             return
@@ -871,7 +873,11 @@ class RangeWidgetBase(qt.QWidget):
             if hasattr(self, 'visibleCB'):
                 self.roi.setVisible(self.visibleCB.isChecked())
             if vmin is None or vmax is None:
-                vmin, vmax = self.defaultRange
+                if callable(self.defaultRange):
+                    defRange = self.defaultRange()
+                else:
+                    defRange = self.defaultRange
+                vmin, vmax = defRange
             ran = self.convert(1, vmin, vmax)
             if ran is None:
                 return
@@ -908,14 +914,20 @@ class RangeWidgetBase(qt.QWidget):
 
 
 class RangeWidget(RangeWidgetBase):
-    def __init__(self, parent, plot, caption, suffix, rangeName, color,
+    def __init__(self, parent, plot, caption, tooltip, rangeName, color,
                  formatStr, defaultRange):
+        """
+        *defaultRange*: callable or 2-sequence
+        """
         super().__init__(parent)
         self.plot = plot
         self.is3dStack = hasattr(plot, '_plot')
         self.formatStr = formatStr
-        self.defaultRange = list(defaultRange)
-        self.suffix = suffix
+        if callable(defaultRange):
+            self.defaultRange = defaultRange
+        else:
+            self.defaultRange = list(defaultRange)
+        self.tooltip = tooltip
         self.rangeName = rangeName
         self.roiManager = None
         self.roi = None
@@ -931,9 +943,10 @@ class RangeWidget(RangeWidgetBase):
         layoutP.setContentsMargins(10, 0, 0, 0)
         self.rbAuto = qt.QRadioButton('auto', panel)
         self.rbAuto.clicked.connect(self.setAutoRange)
-        if self.defaultRange:
-            fs = "[" + self.formatStr + "] as {1}"
-            self.rbAuto.setToolTip(fs.format(self.defaultRange, suffix))
+        if not callable(self.defaultRange):
+            fs = "[" + self.formatStr + "]{1}{2}"
+            self.rbAuto.setToolTip(fs.format(
+                self.defaultRange, ' as ' if tooltip else '', tooltip))
         layoutP.addWidget(self.rbAuto)
         self.rbCustom = qt.QRadioButton('custom', panel)
         self.rbCustom.setStyleSheet("QRadioButton{color: " + color + ";}")
@@ -941,10 +954,11 @@ class RangeWidget(RangeWidgetBase):
         layoutP.addWidget(self.rbCustom)
         self.editCustom = qt.QLineEdit()
         self.editCustom.setStyleSheet("QLineEdit{color: " + color + ";}")
-        self.editSetText(self.defaultRange)
+        if not callable(self.defaultRange):
+            self.editSetText(self.defaultRange)
         layoutP.addWidget(self.editCustom)
-        if suffix:
-            self.editCustom.setToolTip(suffix)
+        if tooltip:
+            self.editCustom.setToolTip(tooltip)
         panel.setLayout(layoutP)
         layout.addWidget(panel)
         self.setLayout(layout)
@@ -964,16 +978,24 @@ class RangeWidget(RangeWidgetBase):
         if len(ran) == 2:
             self.editSetText(ran)
             self.createRoi(*ran)
-            isDefault = np.allclose(ran, self.defaultRange)
+            if callable(self.defaultRange):
+                defRange = self.defaultRange()
+            else:
+                defRange = self.defaultRange
+            isDefault = np.allclose(ran, defRange)
             self.rbAuto.setChecked(isDefault)
             self.rbCustom.setChecked(not isDefault)
             self.roi.setVisible(not isDefault)
 
     def setAutoRange(self):
+        if callable(self.defaultRange):
+            defRange = self.defaultRange()
+        else:
+            defRange = self.defaultRange
         if self.roi is not None:
-            self.setRange(self.defaultRange)
-        self.rangeChanged.emit(self.defaultRange)
-        self.editSetText(self.defaultRange)
+            self.setRange(defRange)
+        self.rangeChanged.emit(defRange)
+        self.editSetText(defRange)
         self.rbAuto.setChecked(True)
         self.rbCustom.setChecked(False)
 
@@ -1017,7 +1039,10 @@ class RangeWidgetSplit(RangeWidgetBase):
         self.roiManager = None
         self.roi = None
         self.color = color
-        self.defaultRange = defaultRange
+        if callable(defaultRange):
+            self.defaultRange = defaultRange
+        else:
+            self.defaultRange = list(defaultRange)
         minLabelTxt, maxLabelTxt = var[0:2]
         if 'min' in minLabelTxt:
             self.roiClass = HorizontalRangeROI
@@ -1088,11 +1113,15 @@ class RangeWidgetSplit(RangeWidgetBase):
             return
         if len(ran) == 2:
             if ran[0] is None or ran[1] is None:
+                if callable(self.defaultRange):
+                    defRange = self.defaultRange()
+                else:
+                    defRange = self.defaultRange
                 if self.roiClass == HorizontalRangeROI:
-                    vmin = self.defaultRange[0]
+                    vmin = defRange[0]
                     vmax = self.maxSpinBox.minimum()  # special value
                 elif self.roiClass == CrossROI:
-                    vmin, vmax = self.defaultRange
+                    vmin, vmax = defRange
             self.minSpinBox.blockSignals(True)
             self.maxSpinBox.blockSignals(True)
             self.minSpinBox.setValue(vmin if ran[0] is None else ran[0])
