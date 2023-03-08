@@ -6,27 +6,23 @@ long_description = r"""
 ParSeq
 ======
 
-Package ParSeq is a python software library for **Par**\ allel execution
-of **Seq**\ uential data analysis. It implements a general analysis
-framework with an adjustable data model (supports grouping, renaming, moving
-and drag-and-drop), plotters for 1D, 2D and 3D data, cross-data analysis
-routines and flexible widget work space suitable for single- and multi-screen
-computers. It also gives a structure to implement particular analysis pipelines
-as relatively lightweight Python packages.
+Package ParSeq is a python software library for **Par**\ allel execution of
+**Seq**\ uential data analysis. It implements a general analysis framework that
+consists of transformation nodes -- intermediate stops along the data pipeline
+to visualize data, display status and provide user input -- and transformations
+that connect the nodes. It provides an adjustable data model (supports
+grouping, renaming, moving and drag-and-drop), tunable data format definitions,
+plotters for 1D, 2D and 3D data, cross-data analysis routines and flexible
+widget work space suitable for single- and multi-screen computers. It also
+defines a structure to implement particular analysis pipelines as relatively
+lightweight Python packages.
 
 ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
-
-A screenshot of a scanning XES analysis pipeline as an application example:
-
-.. image:: _images/node1.png
-   :scale: 50 %
 
 Main features
 -------------
 
--  ParSeq allows creating analysis pipelines as lightweight modules. The above
-   example (scanning XES) is ~1000 lines with ~50% of them defining the four
-   analysis widgets.
+-  ParSeq allows creating analysis pipelines as lightweight modules.
 
 -  Flexible use of screen area by detachable/dockable transformation nodes
    (parts of analysis pipeline).
@@ -46,7 +42,7 @@ Main features
    node.
 
 -  Parallel execution of data analysis with multiprocessing or multithreading
-   (can be opted by the piplene application).
+   (can be opted by the pipeline application).
 
 -  Informative error handling that provides alerts and stack traceback -- the
    type and location of the occurred error.
@@ -59,35 +55,35 @@ Main features
    the system file tree as subfolders. The file tree, including hdf5
    containers, is lazy loaded thus enabling big data collections.
 
--  A web viewer widget near each analysis widget for displaying help pages
-   built from doc strings. The help pages are built by Sphinx at the startup
-   time.
+-  A web viewer widget near each analysis widget displays help pages generated
+   from the analysis widget doc strings. The help pages are built by Sphinx at
+   the startup time.
 
-ParSeq creates a data analysis pipeline consisting of nodes and transformations
-that connect the nodes. The pipeline is fed with data (spectra or images),
-possibly entering the pipeline at various nodes. The pipeline can be operated
-via scripts or GUI. The mechanisms for creating nodes and transformations,
-connecting them together and creating Qt widgets for the transformations are
-exemplified by separately installed analysis packages:
+-  The pipeline can be operated via scripts or GUI.
+
+The mechanisms for creating nodes and transformations, connecting them together
+and creating Qt widgets for the transformations are exemplified by separately
+installed analysis packages:
 
 - `ParSeq-XES-scan <https://github.com/kklmn/ParSeq-XES-scan>`_
 - `ParSeq-XES-dispersive <https://github.com/kklmn/ParSeq-XES-dispersive>`_
+- `ParSeq-XAS <https://github.com/kklmn/ParSeq-XAS>`_
 
 Dependencies
 ------------
 
-- `silx <https://github.com/silx-kit/silx>`_ -- used for plotting and Qt imports.
-- `sphinx <https://github.com/sphinx-doc/sphinx>`_ -- for building html documentation.
+- `silx <https://github.com/silx-kit/silx>`_ -- for plotting and Qt imports
+- `sphinx <https://github.com/sphinx-doc/sphinx>`_ -- for building html documentation
 
 Launch an example
 -----------------
 
 Either install ParSeq and a ParSeq pipeline application by their installers to
-the standard location or put them to any folder, rename them to their package
-names (``parseq`` and e.g. ``parseq_XES_scan``) and start the ``*_start.py``
-file of the pipeline. You can try it with ``--test`` to load test data and/or
-``--noGUI`` to run the pipeline fully in the terminal and plot only the end
-results but an assumed pattern is to load a project ``.pspj`` file from GUI.
+the standard location or put them to any folder in their respective folders
+(``parseq`` and e.g. ``parseq_XES_scan``) and run the ``*_start.py`` module of
+the pipeline. You can try it with ``--help`` to explore the available options.
+An assumed usage pattern is to load a project ``.pspj`` file from GUI or from
+the starting command line.
 
 Hosting and contact
 -------------------
