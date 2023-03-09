@@ -28,14 +28,16 @@ def read(pathnames):
 
 
 def get_version():
-    inLines = read(('..', 'version.py')).splitlines()
-    for line in inLines:
-        if line.startswith('__versioninfo__'):
-            versioninfo = eval(line[line.find('=')+1:])
-            version = '.'.join(map(str, versioninfo))
-            return version
-    else:
-        raise RuntimeError("Unable to find version string.")
+    import parseq
+    return parseq.__version__
+    # inLines = read(('..', 'version.py')).splitlines()
+    # for line in inLines:
+    #     if line.startswith('__versioninfo__'):
+    #         versioninfo = eval(line[line.find('=')+1:])
+    #         version = '.'.join(map(str, versioninfo))
+    #         return version
+    # else:
+    #     raise RuntimeError("Unable to find version string.")
 
 # import Cloud
 # import cloud_sptheme as csp
