@@ -88,6 +88,6 @@ Hosting and contact
 -------------------
 
 The ParSeq project is hosted on `GitHub <https://github.com/kklmn/ParSeq>`_.
-Please use the project’s Issues tab to get help or report an issue.
+Please use the project's Issues tab to get help or report an issue.
 
 """
