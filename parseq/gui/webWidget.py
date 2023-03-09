@@ -200,6 +200,8 @@ class SphinxWorker(qt.QObject):
         except FileNotFoundError:
             pass
         shutil.copytree(CONFDIR, HELPDIR)
+        shutil.copy2(osp.join(PARSEQDIR, 'version.py'),
+                     osp.join(osp.dirname(DOCDIR), 'version.py'))
         # insert abs path to parseq into conf.py:
         with open(osp.join(CONFDIR, 'conf.py'), 'r') as f:
             data = f.read()
