@@ -28,8 +28,7 @@ def read(pathnames):
 
 
 def get_version():
-    import parseq
-    return parseq.__version__
+    return '0.9.91'
     # inLines = read(('..', 'version.py')).splitlines()
     # for line in inLines:
     #     if line.startswith('__versioninfo__'):
