@@ -68,8 +68,8 @@ setup(
         'parseq.gui': ['_images/*.*'],
         'parseq.help': [
             '*.rst', '*.bat',
-            '_images/*.*', '_static/*.*', '_templates/*.*', 'exts/*.*',
-            '_themes/*/*.*', 'help/_themes/*/*/*.*'],
+            '_images/*.*', '_static/*.*', '_templates/*.*',
+            '_themes/*/*.*', '_themes/*/*/*.*', 'exts/*.*'],
         'parseq.tests': ['*.png'],
         },
     install_requires=['numpy>=1.8.0', 'scipy>=0.17.0', 'matplotlib>=2.0.0',
