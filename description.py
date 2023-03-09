@@ -1,27 +1,4 @@
-Metadata-Version: 2.1
-Name: parseq
-Version: 0.9.91
-Summary: ParSeq is a python software library for Parallel execution of Sequential data analysis.
-Home-page: http://parseq.readthedocs.io
-Author: Konstantin Klementiev
-Author-email: konstantin.klementiev@gmail.com
-License: MIT License
-Project-URL: Source, https://github.com/kklmn/ParSeq
-Keywords: data-analysis pipeline framework gui synchrotron spectroscopy
-Platform: OS Independent
-Classifier: Development Status :: 5 - Production/Stable
-Classifier: Intended Audience :: Science/Research
-Classifier: Natural Language :: English
-Classifier: Operating System :: OS Independent
-Classifier: Programming Language :: Python
-Classifier: License :: OSI Approved :: MIT License
-Classifier: Intended Audience :: Science/Research
-Classifier: Topic :: Scientific/Engineering
-Classifier: Topic :: Software Development
-Classifier: Topic :: Software Development :: User Interfaces
-Description-Content-Type: text/x-rst
-License-File: LICENSE
-
+# -*- coding: utf-8 -*-
 r"""
 Package ParSeq is a python software library for **Par**\ allel execution
 of **Seq**\ uential data analysis. It implements a general analysis
@@ -32,6 +9,11 @@ computers. It also gives a structure to implement particular analysis pipelines
 as relatively lightweight Python packages.
 
 ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
+
+A screenshot of a scanning XES analysis pipeline as an application example:
+
+.. imagezoom:: _images/node1.png
+   :scale: 50 %
 
 Main features
 -------------
