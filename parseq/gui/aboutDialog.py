@@ -134,11 +134,13 @@ class AboutDialog(qt.QDialog):
         strParSeq = '{0}'.format(PARSEQPATH).replace('\\', '/')
         if type(self.parseq_pypi_version) is tuple:
             pypiver, curver = self.parseq_pypi_version
+            pstr = "`PyPI <https://pypi.python.org/pypi/parseq>`_"
             if curver < pypiver:
                 strParSeq += \
-                    ', **version {0} is available from** PyPI_'.format(pypiver)
+                    ', **version {0} is available from** {1}'.format(
+                        pypiver, pstr)
             else:
-                strParSeq += ', this is the latest version at PyPI_'
+                strParSeq += ', this is the latest version in {0}'.format(pstr)
 
         txt = u"""
 
