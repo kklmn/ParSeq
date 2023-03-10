@@ -61,6 +61,8 @@ Main features
 
 -  The pipeline can be operated via scripts or GUI.
 
+-  Optional automatic loading of new data during a measurement time.
+
 The mechanisms for creating nodes and transformations, connecting them together
 and creating Qt widgets for the transformations are exemplified by separately
 installed analysis packages:
