@@ -1159,8 +1159,10 @@ class Spectrum(TreeItem):
             # check equal shape of data to combine:
             shapes = [None]*4
             for dName, dim in zip(dNames, dims):
-                if 0 < dim < 4:
+                if 1 <= dim <= 3:
                     for data in madeOf:
+                        if getattr(data, dName) is None:  # optional
+                            continue
                         sh = getattr(data, dName).shape
                         if shapes[dim] is None:
                             shapes[dim] = sh
@@ -1185,14 +1187,19 @@ class Spectrum(TreeItem):
                 if arrayName in xNames:
                     continue
                 if what in (cco.COMBINE_AVE, cco.COMBINE_SUM, cco.COMBINE_RMS):
-                    s = sum(getattr(data, arrayName) for data in madeOf)
+                    arrays = [getattr(data, arrayName) for data in madeOf]
+                    ns = sum(1 for arr in arrays if arr is not None)
+                    if ns == 0:  # arrayName is optional, all arrays are None
+                        setattr(self, arrayName, None)
+                        continue
+                    s = sum(arr for arr in arrays if arr is not None)
+
                     if what == cco.COMBINE_AVE:
                         v = s / ns
                     elif what == cco.COMBINE_SUM:
                         v = s
                     elif what == cco.COMBINE_RMS:
-                        s2 = sum((getattr(d, arrayName) - s/ns)**2
-                                 for d in madeOf)
+                        s2 = sum((a-s/ns)**2 for a in arrays if a is not None)
                         v = (s2 / ns)**0.5
                 elif what == cco.COMBINE_PCA:
                     raise NotImplementedError  # TODO
