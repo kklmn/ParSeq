@@ -693,10 +693,13 @@ def run_transforms(items, parentItem):
     for originNodeName, its in itemsByOrigin.items():
         for tr in csi.nodes[originNodeName].transformsOut:
             # first bottomItems, then topItems...:
-            if csi.transformer is not None:  # with a threaded transform
+            if (csi.transformer is not None) and len(itemsByOrigin) == 1:
+                # with a threaded transform
                 csi.transformer.prepare(tr, dataItems=its, starter=tr.widget)
                 csi.transformer.thread().start()
-            else:  # in the same thread
+            else:
+                # if len(itemsByOrigin) > 1, the transforms cannot be
+                # parallelized, so do it in the same thread:
                 tr.run(dataItems=its)
                 if hasattr(tr, 'widget'):  # when with GUI
                     tr.widget.replotAllDownstream(tr.name)

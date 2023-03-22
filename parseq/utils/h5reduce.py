@@ -1,4 +1,14 @@
 # -*- coding: utf-8 -*-
+"""
+How to remove unwanted entries from an hdf5 file
+------------------------------------------------
+
+1. Copy the file to another one.
+2. Run `del_all_except()`. This will remove all unwanted enties but will keep
+   the file size. You may check that the legal entries by `print_entries()`.
+3. Repack the file into another hdf5 file by `repack()`.
+"""
+
 __author__ = "Konstantin Klementiev"
 __date__ = "13 Jun 2021"
 # !!! SEE CODERULES.TXT !!!
@@ -32,10 +42,18 @@ def repack(fname, newfname):
 
 
 if __name__ == '__main__':
-    # del_all_except(r'c:\ParSeq\parseq_XES_scan\data\20201112.h5',
-    #                ['entry10170', 'entry10190', 'entry10191'])
+    # delete unwanted entries
+    del_all_except(r'c:\ParSeq\parseq_XAS\data\HERFD\20230318s.h5',
+                   ['entry24212', 'entry24213'])
 
-    # print_entries(r'c:\ParSeq\parseq_XES_scan\data\20201112.h5')
+    # and print the keys
+    print_entries(r'c:\ParSeq\parseq_XAS\data\HERFD\20230318s.h5')
 
-    repack(r'c:\ParSeq\parseq_XES_scan\data\20201112.h5',
-           r'c:\ParSeq\parseq_XES_scan\data\20201112_small_n.h5')
+    # copy to another h5 file
+    repack(r'c:\ParSeq\parseq_XAS\data\HERFD\20230318s.h5 ',
+           r'c:\ParSeq\parseq_XAS\data\HERFD\20230318ss.h5')
+
+    # and print the keys of the repacked file
+    print_entries(r'c:\ParSeq\parseq_XAS\data\HERFD\20230318ss.h5')
+
+    print("Done")

@@ -75,10 +75,11 @@ class RoiManager(RegionOfInterestManager):
 
 
 class RoiModel(qt.QAbstractTableModel):
-    def __init__(self, roiManager=None, dim=2):
+    def __init__(self, roiManager=None, fmt='auto'):
         super().__init__()
         self.roiCounts = []
         self.setRoiManager(roiManager)
+        self.fmt = fmt
         roiManager.sigRoiAdded.connect(self.reset)
 
     def setRoiManager(self, roiManager=None):
@@ -202,31 +203,51 @@ class RoiModel(qt.QAbstractTableModel):
         else:
             return dict()
 
+    def getFmt(self, startStr):
+        if isinstance(self.fmt, str):
+            fmt = self.fmt
+            if fmt.startswith(startStr):
+                return fmt
+        elif isinstance(self.fmt, (list, tuple)):
+            for fmt in self.fmt:
+                if fmt.startswith(startStr):
+                    return fmt
+        return 'auto'
+
     def getReadableRoiDescription(self, roi):
         if isinstance(roi, RectangleROI):
             x, y = roi.getOrigin()
             w, h = roi.getSize()
-            text = 'origin: {0:.1f}, {1:.1f}\nwidth: {2:.1f}\nheight: {3:.1f}'\
-                .format(x, y, w, h)
+            fmt = self.getFmt('origin')
+            s = 'origin: {0:.1f}, {1:.1f}\nwidth: {2:.1f}\nheight: {3:.1f}' \
+                if fmt == 'auto' else fmt
+            text = s.format(x, y, w, h)
         elif isinstance(roi, ArcROI):
             geom = roi._geometry
             x, y = geom.center
             innerR, outerR = roi.getInnerRadius(), roi.getOuterRadius()
             startAngle, endAngle = geom.startAngle, geom.endAngle
-            text = 'center: {0:.1f}, {1:.1f}\nradii: {2:.1f}, {3:.1f}\n'\
-                'angles: {4:.4f}, {5:.4f}'.format(
-                    x, y, innerR, outerR, startAngle, endAngle)
+            fmt = self.getFmt('center')
+            s = 'center: {0:.1f}, {1:.1f}\nradii: {2:.1f}, {3:.1f}\n'\
+                'angles: {4:.4f}, {5:.4f}' if fmt == 'auto' else fmt
+            text = s.format(x, y, innerR, outerR, startAngle, endAngle)
         elif isinstance(roi, BandROI):
             geom = roi.getGeometry()
-            text = 'begin: {0[0]:.3f}, {0[1]:.3f}\n'\
+            fmt = self.getFmt('begin')
+            s = 'begin: {0[0]:.3f}, {0[1]:.3f}\n'\
                 'end: {1[0]:.3f}, {1[1]:.3f}\n'\
-                'width: {2:.3f}'.format(geom.begin, geom.end, geom.width)
+                'width: {2:.3f}' if fmt == 'auto' else fmt
+            text = s.format(geom.begin, geom.end, geom.width)
         elif isinstance(roi, (CrossROI, PointROI)):
             x, y = roi.getPosition()
-            text = 'pos: {0:.3f}, {1:.3f}'.format(x, y)
+            fmt = self.getFmt('pos')
+            s = 'pos: {0:.3f}, {1:.3f}' if fmt == 'auto' else fmt
+            text = s.format(x, y)
         elif isinstance(roi, HorizontalRangeROI):
             range_ = roi.getRange()
-            text = 'range: {0[0]:.3f}, {0[1]:.3f}'.format(range_)
+            fmt = self.getFmt('range')
+            s = 'range: {0[0]:.3f}, {0[1]:.3f}' if fmt == 'auto' else fmt
+            text = s.format(range_)
         else:
             text = ''
         return text
@@ -328,9 +349,9 @@ class RoiToolBar(qt.QToolBar):
 class RoiTableView(qt.QTableView):
     maxVisibleTableRows = 4  # in the scroll area
 
-    def __init__(self, parent, roiManager, dim):
+    def __init__(self, parent, roiManager, fmt='auto'):
         super().__init__(parent)
-        self.roiModel = RoiModel(roiManager, dim)
+        self.roiModel = RoiModel(roiManager, fmt)
         self.setModel(self.roiModel)
 
         self.setSelectionMode(qt.QAbstractItemView.SingleSelection)
@@ -495,7 +516,7 @@ class RoiWidgetWithKeyFrames(RoiWidgetBase):
         self.roiToolbar = RoiToolBar(self, self.roiManager, roiClassNames)
         layout.addWidget(self.roiToolbar)
 
-        self.table = RoiTableView(self, self.roiManager, plot)
+        self.table = RoiTableView(self, self.roiManager)
         layout.addWidget(self.table)
         if self.is3dStack:
             layoutF = qt.QHBoxLayout()
@@ -702,7 +723,7 @@ class RoiWidgetWithKeyFrames(RoiWidgetBase):
 
 
 class RoiWidget(RoiWidgetBase):
-    def __init__(self, parent, plot, roiClassNames, roiMaxN=1):
+    def __init__(self, parent, plot, roiClassNames, roiMaxN=1, fmt='auto'):
         """
         *roiClassNames*: sequence of class names to appear in the toolbar
         *roiMaxN*: max number of rois in the tabe
@@ -723,7 +744,7 @@ class RoiWidget(RoiWidgetBase):
         self.roiToolbar = RoiToolBar(self, self.roiManager, roiClassNames)
         layout.addWidget(self.roiToolbar)
 
-        self.table = RoiTableView(self, self.roiManager, plot)
+        self.table = RoiTableView(self, self.roiManager, fmt=fmt)
         layout.addWidget(self.table)
 
         self.acceptButton = qt.QPushButton('Accept ROI')
@@ -764,7 +785,6 @@ class RoiWidget(RoiWidgetBase):
         if not isinstance(roiDicts, (tuple, list)):
             roiDicts = roiDicts,
         roiDicts = [dict(roid) for roid in roiDicts]  # deep copy
-
         rois = self.roiManager.getRois()
         if len(rois) != len(roiDicts):
             needReset = True
@@ -811,6 +831,7 @@ class RoiWidget(RoiWidgetBase):
                 roi.setVisible(True)
                 model.setRoi(roi, roid)
                 self.roiManager.addRoi(roi)
+            self.roiManager.setCurrentRoi(roi)
         else:
             for roi, roid in zip(rois, roiDicts):
                 kind = roid.pop('kind')

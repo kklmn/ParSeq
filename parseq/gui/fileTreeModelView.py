@@ -146,10 +146,11 @@ class MyHdf5TreeModel(Hdf5TreeModel):
         for row in range(parentNode.childCount()):
             ind = self.index(row, 0, parent)
             node = self.nodeFromIndex(ind)
-            if node.dataLink(qt.Qt.DisplayRole) == 'External':
-                path = self.getHDF5NodePath(node)
-            else:
-                path = node.obj.name
+            path = self.getHDF5NodePath(node)
+            # if node.dataLink(qt.Qt.DisplayRole) == 'External':
+            #     path = self.getHDF5NodePath(node)
+            # else:
+            #     path = node.obj.name
             if path.split('/')[-1] == pathList[0]:
                 if len(pathList) == 1:
                     return ind
@@ -486,10 +487,11 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         return out
 
     def hasH5ChildPath(self, node, path):
-        if node.dataLink(qt.Qt.DisplayRole) == 'External':
-            nodePath = self.h5Model.getHDF5NodePath(node)
-        else:
-            nodePath = node.obj.name
+        nodePath = self.h5Model.getHDF5NodePath(node)
+        # if node.dataLink(qt.Qt.DisplayRole) == 'External':
+        #     nodePath = self.h5Model.getHDF5NodePath(node)
+        # else:
+        #     nodePath = node.obj.name
         pathInH5 = '/'.join((nodePath, path))
         try:
             test = node.obj[pathInH5]  # test for existence
@@ -615,10 +617,11 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         node = self.h5Model.nodeFromIndex(indexH5)
         class_ = node.h5Class
         if class_ == silx_io.utils.H5Type.DATASET:
-            if node.dataLink(qt.Qt.DisplayRole) == 'External':
-                nodePath = self.h5Model.getHDF5NodePath(node)
-            else:
-                nodePath = node.obj.name
+            nodePath = self.h5Model.getHDF5NodePath(node)
+            # if node.dataLink(qt.Qt.DisplayRole) == 'External':
+            #     nodePath = self.h5Model.getHDF5NodePath(node)
+            # else:
+            #     nodePath = node.obj.name
             try:
                 shape = node.obj.shape
                 if len(shape) >= 1:
@@ -639,10 +642,11 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             indexH5 = self.mapToH5(index)
 
         node = self.h5Model.nodeFromIndex(indexH5)
-        if node.dataLink(qt.Qt.DisplayRole) == 'External':
-            nodePath = self.h5Model.getHDF5NodePath(node)
-        else:
-            nodePath = node.obj.name
+        nodePath = self.h5Model.getHDF5NodePath(node)
+        # if node.dataLink(qt.Qt.DisplayRole) == 'External':
+        #     nodePath = self.h5Model.getHDF5NodePath(node)
+        # else:
+        #     nodePath = node.obj.name
         return 'silx:' + '::'.join((node.obj.file.filename, nodePath))
 
     def data(self, index, role=qt.Qt.DisplayRole):
@@ -845,10 +849,11 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                         return
                 try:
                     node = self.h5Model.nodeFromIndex(indexH5)
-                    if node.dataLink(qt.Qt.DisplayRole) == 'External':
-                        npath = self.h5Model.getHDF5NodePath(node)
-                    else:
-                        npath = node.obj.name
+                    npath = self.h5Model.getHDF5NodePath(node)
+                    # if node.dataLink(qt.Qt.DisplayRole) == 'External':
+                    #     npath = self.h5Model.getHDF5NodePath(node)
+                    # else:
+                    #     npath = node.obj.name
                     path = 'silx:' + '::'.join((node.obj.file.filename, npath))
                     paths.append(path)
                 except Exception:

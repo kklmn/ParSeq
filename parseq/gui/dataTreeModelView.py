@@ -150,7 +150,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             item.set_data(index.column(), str(value))
 #            item.aliasExtra = None
             self.dataChanged.emit(index, index)
-            self.needReplot.emit(False)
+            self.needReplot.emit(True)
             return True
         elif role == qt.Qt.CheckStateRole:
             item = index.internalPointer()
@@ -801,17 +801,18 @@ class EyeHeader(qt.QHeaderView):
         super().paintSection(painter, rect, logicalIndex)
         painter.restore()
         painter.setRenderHint(qt.QPainter.Antialiasing, True)
+        dy = int(rect.height()*csi.screenFactor/2.5)
         if logicalIndex == 1:
             if csi.dataRootItem.isVisible and self.plotDimension == 1:
                 # self.paintCheckBox(painter, rect)
                 # rect.moveTo(rect.x(), rect.y()-6)
                 # self.paintEye(painter, rect)
 
-                rect.moveTo(rect.x(), rect.y()-12)
+                rect.moveTo(rect.x(), rect.y()-dy)
                 self.paintEye(painter, rect)
-                rect.moveTo(rect.x(), rect.y()+12)
+                rect.moveTo(rect.x(), rect.y()+dy)
                 self.paintEye(painter, rect)
-                rect.moveTo(rect.x(), rect.y()+12)
+                rect.moveTo(rect.x(), rect.y()+dy)
                 self.paintEye(painter, rect)
 
             else:
@@ -1103,6 +1104,8 @@ class DataTreeView(qt.QTreeView):
         msg = qt.QMessageBox()
         msg.setIcon(qt.QMessageBox.Question)
         nd = len(csi.selectedTopItems)
+        if nd == 0:
+            return
         sd = 's' if nd > 1 else ''
         res = msg.question(
             self, "Remove selected item{0} from the data tree".format(sd),

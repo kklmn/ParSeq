@@ -274,7 +274,7 @@ class MainWindowParSeq(qt.QMainWindow):
 
         dockFeatures = (qt.QDockWidget.DockWidgetMovable |
                         qt.QDockWidget.DockWidgetFloatable)  # |
-#                        qt.QDockWidget.DockWidgetVerticalTitleBar)
+        #                qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.docks = {}  # nodeWidget: (dock, node, tabName)
         self.setDockNestingEnabled(True)
         for i, (name, node) in enumerate(csi.nodes.items()):
@@ -334,8 +334,7 @@ class MainWindowParSeq(qt.QMainWindow):
                 self.tabWidget = tab
                 break
         # self.tabWidget.setStyleSheet("QTabBar::tab { font:bold };")
-        # self.tabWidget.setStyleSheet(
-        #     "QTabBar::tab {width:32; padding-bottom: 8; padding-top: 8};")
+        # self.tabWidget.setStyleSheet("QTabBar::tab {padding: 4;};")
 
         self.setTabIcons()
 

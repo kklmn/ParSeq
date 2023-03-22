@@ -536,6 +536,8 @@ class LineProps(qt.QDialog):
             except AttributeError:
                 pass
 
+        if len(csi.selectedTopItems) == 0:
+            return
         if self.colorIndividual.isChecked():
             policy = gco.COLOR_POLICY_INDIVIDUAL
         elif self.colorLoop1.isChecked():
@@ -595,6 +597,7 @@ class LineProps(qt.QDialog):
             parentItem.init_colors(parentItem.childItems)
 
     def setLineOptions(self):
+        lineProps = None
         for yName, tab in zip(self.node.plotYArrays, self.tabs):
             props = {}
             txt = tab.symbolComboBox.currentText()

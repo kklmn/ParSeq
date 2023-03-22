@@ -217,6 +217,8 @@ class LoadProjectDlg(qt.QFileDialog):
             configProject.read(path, encoding=config.encoding)
             self.previewPanel.groups = int(configProject.get('Root', 'groups'))
             self.previewPanel.items = int(configProject.get('Root', 'items'))
+            active = config.get(configProject, 'Docks', 'active', '')
+            self.previewPanel.pmIndex = list(csi.nodes.keys()).index(active)
         except Exception:
             pass
 

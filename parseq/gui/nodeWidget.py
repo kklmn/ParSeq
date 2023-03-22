@@ -771,7 +771,8 @@ class NodeWidget(qt.QWidget):
             self.plot.setGraphYLabel(label=self.plotRightYLabel, axis='right')
         if node.plotDimension == 2:
             self.plot.clearCurves()
-            if needClear:
+            # if needClear:
+            if True:
                 self.plot.clearImages()
                 self.plot.clearMarkers()
             if len(csi.selectedItems) > 0:
@@ -802,7 +803,8 @@ class NodeWidget(qt.QWidget):
                                scale=(xScale, yScale), z=-100)
         if node.plotDimension == 3:
             self.plot._plot.clearCurves()  # clears roi lines
-            if needClear:
+            # if needClear:
+            if True:
                 self.plot._plot.clearImages()
                 self.plot._plot.clearMarkers()
             item = None

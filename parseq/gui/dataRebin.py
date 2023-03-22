@@ -105,6 +105,8 @@ class DeltasModel(qt.QAbstractTableModel):
         self.captions, self.deltas = list(captions), list(deltas)
         self.binNumbersOld = None
         self.binNumbersNew = None
+        self.binDistrNew = None
+
         self.calcDots()
 
     def rowCount(self, parent=qt.QModelIndex()):
@@ -143,6 +145,9 @@ class DeltasModel(qt.QAbstractTableModel):
                     if res.startswith('dk') else ''
             elif index.row() in (0, 2):
                 res = 'bins in ' + self.captions[index.column()]
+            if index.row() == 2 and self.binDistrNew is not None:
+                res += '\nmin bin count = {0[0]}\nmax bin count = {0[1]}'\
+                    .format(self.binDistrNew[index.column()])
             return res
 
     def setData(self, index, value, role=qt.Qt.EditRole):
@@ -498,6 +503,9 @@ class DataRebinWidget(qt.QWidget):
             row = 0
         elif kind == 1:
             self.deltasModel.binNumbersNew = values
+            row = 2
+        elif kind == 2:
+            self.deltasModel.binDistrNew = values
             row = 2
         else:
             return
