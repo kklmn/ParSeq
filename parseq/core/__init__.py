@@ -81,16 +81,16 @@ Start making a transformation class with defining a dictionary `defaultParams`
 of default parameter values. Decide on using multiprocessing/multithreading by
 specifying `nThreads` or `nProcesses`. If any of these numbers is > 1 (the
 default values are both 1), specify two lists of array names: `inArrays` and
-`outArrays`. Define a static method :meth:`.Transform.run_main`. Note, it can
-have a few signatures. Within the method, get the actual transformation
-parameters from the dictionary `data.transformParams` and the defined data
-arrays as attributes of `data`, e.g. ``data.x``.
+`outArrays`. Define a static or a class method :meth:`.Transform.run_main`.
+Note, it can have a few signatures. Within the method, get the actual
+transformation parameters from the dictionary `data.transformParams` and the
+defined data arrays as attributes of `data`, e.g. ``data.x``.
 
 For expensive transformations, you should update the *progress* status.
 
 For accessing arrays of other data objects, use a different signature of
-:meth:`.Transform.run_main`, note that in this case multiprocessing is not
-possible.
+:meth:`.Transform.run_main` that contains the *allData* argument. Note that in
+this case multiprocessing is not possible.
 
 Make GUI widgets
 ----------------

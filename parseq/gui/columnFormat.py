@@ -38,7 +38,7 @@ class ColumnFormatWidget(PropWidget):
             ind, "For HDF5/SPEC datasets: use context menu on data arrays.\n"
             "For column files: use expressions of variables `Col1`, `Col2`, …"
             "\n(zero-based!) or give a zero-based int column index.\n"
-            "Example: `np.log(d[Col6]/d[Col7])`")
+            "Example: `np.log(Col6/Col7)`")
 
         self.conversionTab = self.makeConversionTab()
         ind = self.tabWidget.addTab(self.conversionTab, 'conversion')
@@ -418,15 +418,16 @@ class ColumnFormatWidget(PropWidget):
         if kind not in ['txt', 'h5']:
             raise ValueError("unknown file type")
         secName = ':'.join((self.node.name, kind))
-        if txtName in config.configFormats[secName]:
-            msg = qt.QMessageBox()
-            msg.setIcon(qt.QMessageBox.Question)
-            res = msg.question(
-                self, "The format name {0} already exists".format(txtName),
-                "Do you want to overwrite it in .parseq/formats.ini ?",
-                qt.QMessageBox.Yes | qt.QMessageBox.No, qt.QMessageBox.Yes)
-            if res == qt.QMessageBox.No:
-                return
+        if secName in config.configFormats:
+            if txtName in config.configFormats[secName]:
+                msg = qt.QMessageBox()
+                msg.setIcon(qt.QMessageBox.Question)
+                res = msg.question(
+                    self, "The format name {0} already exists".format(txtName),
+                    "Do you want to overwrite it in .parseq/formats.ini ?",
+                    qt.QMessageBox.Yes | qt.QMessageBox.No, qt.QMessageBox.Yes)
+                if res == qt.QMessageBox.No:
+                    return
 
         outKeysTxt = self.saveOutEdit.text()
         inKeys = [s.strip() for s in inKeysTxt.split(',')]
@@ -436,3 +437,8 @@ class ColumnFormatWidget(PropWidget):
         res = dict(dataFormat=fmt, inkeys=inKeys, outkeys=outKeys)
         config.put(config.configFormats, secName, txtName, str(res))
         config.write_configs('formats')
+        self.saveButton.setText('Done')
+        qt.QTimer.singleShot(3000, self.restoreSaveButton)
+
+    def restoreSaveButton(self):
+        self.saveButton.setText('Save')
