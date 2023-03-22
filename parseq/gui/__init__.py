@@ -8,7 +8,8 @@ Load project
 
 To start testing a GUI, load a test project, typically located in `saved`
 directory. The "Load project" dialog has a preview panel that displays all node
-plots in the project, just browse over them.
+plots in the project, just browse over them. The default plot displays the
+transformation node that was active when the project was saved.
 
 Docked node widgets
 -------------------
@@ -21,22 +22,28 @@ use the dock button at the right end of the caption bar.
 File tree and data formats, metadata
 ------------------------------------
 
-The file tree is by default visible only in the first node widget. If needed,
-make it visible/hidden by the vertical button "files & containers".
+The file tree is by default visible only in the pipeline head node(s). If
+needed, make it visible/hidden by the vertical button of the leftmost splitter
+widget "files & containers".
 
 When you click on an entry in the data tree, the corresponding file or hdf5
-entry will get highlighted in the entrance transformation node widget. When you
+entry will get highlighted in the starting transformation node widget. When you
 browse the file tree, the highlight color is green if this entry can be loaded,
 i.e. the data format fields in the data format widget are defined. To define
 the fields (array names), one can highlight one or several hdf5 datasets and
 use popup menu commands. Note that you can use hdf5 data sets from various hdf5
 data groups or even hdf5 data files, not necessarily from one data group when
 you load one data item. For column files, one should provide expressions of
-variables `Col1`, `Col2` etc. for data fields and definitions of file header.
+variables `Col0`, `Col1` etc. for data fields and definitions of the file
+header.
 
 Metadata can be composed of string hdf5 fields or for column files they are
 copied from the header. Metadata are displayed in a panel below the plot in
 each node.
+
+The format fields in the "data format" dialog can be saved into an ini file
+(.parseq/formats.ini) and later restored from it using the popup menu when
+right-clicked on a data file.
 
 Data tree
 ---------
@@ -55,11 +62,14 @@ In 1D transformation nodes, one can change the data visibility mode by clicking
 on the "eye" header section. Try these modes while selecting different data
 entries or groups.
 
+Line properties of the selected data items can be set from the popup menu or by
+clicking on the data column header.
+
 Combine dialog
 --------------
 
 A limited number of combination functions acting on several selected data items
-can be performed via the `combine` dialog that can be found under the data tree
+can be performed via the "combine" dialog that can be found under the data tree
 widget.
 
 Plots
@@ -87,7 +97,7 @@ Help panel
 ----------
 
 The help panel under transformation widgets is hidden by default and can be
-made visible by clicking on the small button `help` at the very bottom of the
+made visible by clicking on the small button "help" at the very bottom of the
 main window. Alternatively, it can be opened in the system browser.
 
 Undo and redo lists
@@ -108,7 +118,10 @@ Save project, data and plot scripts
 The present data tree and all transformation parameters of all data items can
 be saved into a project file that has an ini text file structure.
 Simultaneously, data arrays defined in each node can optionally be exported as
-a few chosen data types. Two types data plotting scripts can also be saved.
-These scripts will plot the exported data and are provided with the idea to
-help the user adjust their publication quality graphs.
+a few chosen data types. Note that data arrays will be exported only for the
+currently selected data items, not for all data. Two types of data plotting
+scripts can also be saved. These scripts will plot the exported data and are
+provided with the idea to help the user adjust their publication quality
+graphs.
+
 """
