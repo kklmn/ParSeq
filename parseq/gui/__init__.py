@@ -19,6 +19,9 @@ detachable and dockable into the main ParSeq window. To do this, drag a node
 widget by its caption bar. To dock it back, hover it over the main window or
 use the dock button at the right end of the caption bar.
 
+The state of each node widget (docked or floating) and its floating geometry is
+saved in ini file and project files.
+
 File tree and data formats, metadata
 ------------------------------------
 
@@ -51,6 +54,12 @@ Data tree
 The data tree can be populated from the file tree by using the popup menu or by
 a drag-and-drop action.
 
+The newly loaded data get their set of transformation parameters from the first
+previously selected data item. If no items have been previously loaded, the
+parameters are read from the ini file. If the ini file does not exist yet, the
+parameters get their values from `defaultParams` defined in each transformation
+class.
+
 Use the popup menu or corresponding keyboard shortcuts to rearrange the data
 tree.
 
@@ -63,7 +72,9 @@ on the "eye" header section. Try these modes while selecting different data
 entries or groups.
 
 Line properties of the selected data items can be set from the popup menu or by
-clicking on the data column header.
+clicking on the data column header. New data get their line properties from the
+previously active data. The first data get their plot settings from the
+optional `plotParams` of node’s arrays.
 
 Combine dialog
 --------------
@@ -123,5 +134,12 @@ currently selected data items, not for all data. Two types of data plotting
 scripts can also be saved. These scripts will plot the exported data and are
 provided with the idea to help the user adjust their publication quality
 graphs.
+
+In the saved project, file path to each data item is saved in two versions: as
+an absolute path and as a relative path in respect to the project location.
+When the project is copied together with the files to a new location, the
+project should be directly loadable. When copied from a GPFS location at a
+beamline, this may not work, and the relative paths have to be manually edited
+by a Search/Replace operation in a text file editor.
 
 """

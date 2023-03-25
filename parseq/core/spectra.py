@@ -613,19 +613,23 @@ class Spectrum(TreeItem):
         for node in csi.nodes.values():
             self.plotProps[node.name] = {}
             if node.plotDimension == 1:
-                for ind, yName in enumerate(node.plotYArrays):
-                    plotParams = {}
-                    plotParams['yaxis'] = \
-                        'right' if node.get_prop(yName, 'role').endswith(
-                            'right') else 'left'
-                    nodePlotParams = node.get_prop(yName, 'plotParams')
-                    for k, v in nodePlotParams.items():
-                        if isinstance(v, (list, tuple)):
-                            pv = v[ind]
-                        else:
-                            pv = v
-                        plotParams[k] = pv
-                    self.plotProps[node.name][yName] = plotParams
+                if len(csi.selectedItems) > 0:
+                    self.plotProps[node.name] = dict(
+                        csi.selectedItems[0].plotProps[node.name])
+                else:
+                    for ind, yName in enumerate(node.plotYArrays):
+                        plotParams = {}
+                        plotParams['yaxis'] = \
+                            'right' if node.get_prop(yName, 'role').endswith(
+                                'right') else 'left'
+                        nodePlotParams = node.get_prop(yName, 'plotParams')
+                        for k, v in nodePlotParams.items():
+                            if isinstance(v, (list, tuple)):
+                                pv = v[ind]
+                            else:
+                                pv = v
+                            plotParams[k] = pv
+                        self.plotProps[node.name][yName] = plotParams
 
     def get_state(self, nodeName):
         return self.state[nodeName]

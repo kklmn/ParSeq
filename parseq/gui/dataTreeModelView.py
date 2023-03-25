@@ -642,10 +642,12 @@ class LineStyleDelegate(NodeDelegate):
             lineProps = data[1]
             lineWidth = lineProps.get('linewidth', 1.0) + 0.7
             lineStyle = lineStyles[lineProps.get('linestyle', '-')]
+            symbol = lineProps.get('symbol', None)
 
             if lineStyle == qt.Qt.NoPen:
                 painter.setPen(qt.QPen(qt.Qt.lightGray))
-                painter.drawText(option.rect, qt.Qt.AlignCenter, "hidden")
+                if symbol in noSymbols:
+                    painter.drawText(option.rect, qt.Qt.AlignCenter, "hidden")
             else:
                 axisY = lineProps.get('yaxis', -1)
                 if isinstance(axisY, type("")):
@@ -684,7 +686,6 @@ class LineStyleDelegate(NodeDelegate):
                         RIGHT_SYMBOL)
                 rect.setBottom(rect.bottom()+dh)
 
-            symbol = lineProps.get('symbol', None)
             if symbol in noSymbols:
                 symbol = None
             if symbol:

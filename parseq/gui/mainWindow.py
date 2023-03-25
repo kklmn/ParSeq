@@ -751,6 +751,8 @@ class MainWindowParSeq(qt.QMainWindow):
             configObject, 'Docks', 'floating', [False for node in csi.nodes])
         active = config.get(configObject, 'Docks', 'active', '')
 
+        maxRect = qt.QApplication.desktop().screenGeometry()
+
         for nodeStr, floatingState in zip(csi.nodes, floatingStates):
             for nodeWidget, (dock, node, tabName) in self.docks.items():
                 if nodeWidget is None:
@@ -764,6 +766,11 @@ class MainWindowParSeq(qt.QMainWindow):
             if geometry == 'maximized':
                 dock.showMaximized()
             elif len(geometry) == 4:
+                geometry = list(geometry)
+                if geometry[0] > maxRect.width():
+                    geometry[0] = 0
+                if geometry[1] > maxRect.height():
+                    geometry[1] = 0
                 dock.setGeometry(*geometry)
             if nodeStr == active:
                 dock.raise_()
@@ -775,6 +782,11 @@ class MainWindowParSeq(qt.QMainWindow):
             # self.showMaximized()  # doesn't work
             qt.QTimer.singleShot(1000, self.showMaximized)
         elif len(geometry) == 4:
+            geometry = list(geometry)
+            if geometry[0] > maxRect.width():
+                geometry[0] = 0
+            if geometry[1] > maxRect.height():
+                geometry[1] = 0
             self.setGeometry(*geometry)
 
     def load_project(self, fname):
