@@ -36,9 +36,12 @@ i.e. the data format fields in the data format widget are defined. To define
 the fields (array names), one can highlight one or several hdf5 datasets and
 use popup menu commands. Note that you can use hdf5 data sets from various hdf5
 data groups or even hdf5 data files, not necessarily from one data group when
-you load one data item. For column files, one should provide expressions of
-variables `Col0`, `Col1` etc. for data fields and definitions of the file
-header.
+you load one data item.
+
+For column files, one should define the file header and expressions of
+variables `Col0`, `Col1` etc. for data fields (arrays). If an array definition
+is just a column, one can reduce it to the ordinal number of that column, so
+type `0` instead of `Col0`.
 
 Metadata can be composed of string hdf5 fields or for column files they are
 copied from the header. Metadata are displayed in a panel below the plot in
@@ -47,6 +50,8 @@ each node.
 The format fields in the "data format" dialog can be saved into an ini file
 (.parseq/formats.ini) and later restored from it using the popup menu when
 right-clicked on a data file.
+
+The tabs of "data format" dialog have some help text in their tooltips.
 
 Data tree
 ---------
