@@ -70,7 +70,7 @@ def getDotAttr(obj, attr, withContainer=False):
         except (AttributeError, TypeError):
             try:
                 obj = obj[subattr]
-            except (KeyError, TypeError):
+            except (KeyError, TypeError, IndexError):
                 # print('no {0} attribute in {1}'.format(subattr, obj))
                 return (container, subattr, None) if withContainer else None
     return (container, subattr, obj) if withContainer else obj

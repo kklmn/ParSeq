@@ -413,9 +413,14 @@ class NodeWidget(qt.QWidget):
         if handle is None:
             return
         isVerical = splitter.orientation() == qt.Qt.Horizontal
-        trNames = [tr.name for tr in self.node.transformsIn]
+        trNames = ''
+        if self.node.widgetClass is not None:
+            if hasattr(self.node.widgetClass, 'name'):
+                trNames = self.node.widgetClass.name
+        if not trNames:
+            trNames = ', '.join([tr.name for tr in self.node.transformsIn])
         if trNames:
-            nameBut = name + ': ' + ', '.join(trNames)
+            nameBut = name + ': ' + trNames
         else:
             nameBut = name
         button = QSplitterButton(nameBut, handle, isVerical)
@@ -655,7 +660,7 @@ class NodeWidget(qt.QWidget):
             return 0, 1
 
     @logger(minLevel=50, attrs=[(0, 'node')])
-    def replot(self, needClear=False, keepExtent=True):
+    def replot(self, needClear=False, keepExtent=True, senderName=''):
         if self.onTransform:
             return
         # if len(csi.allLoadedItems) == 0:
@@ -760,8 +765,7 @@ class NodeWidget(qt.QWidget):
                                 if unit not in rightAxisUnits:
                                     rightAxisUnits.append(unit)
             if nPlottedItems == 0:
-                if hasattr(self.transformWidget, 'extraPlot'):
-                    self.transformWidget.extraPlot()
+                self.plot.clearCurves()
                 return
             self.plotLeftYLabel = self._makeYLabel(
                 leftAxisColumns, leftAxisUnits)
@@ -832,8 +836,14 @@ class NodeWidget(qt.QWidget):
         if keepExtent:
             self._restorePlotState()
 
-        if hasattr(self.transformWidget, 'extraPlot'):
-            self.transformWidget.extraPlot()
+        try:
+            if hasattr(self.transformWidget, 'extraPlot'):
+                self.transformWidget.extraPlot()
+        except AttributeError:  # as e:
+            # if not self.wasNeverPlotted:
+            #     print(e)
+            pass
+
         # if self.wasNeverPlotted and node.plotDimension == 1:
         #     self.plot.resetZoom()
         self.wasNeverPlotted = False

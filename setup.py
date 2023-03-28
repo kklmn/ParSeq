@@ -27,7 +27,7 @@ def get_long_description():
                 excludeStates[ie] = False
             if not excludeStates[ie]:
                 outLines.append(line)
-    return "\n".join(outLines)
+    return "\n".join(outLines[1:-1])  # exclude the tripple quotes
 
 
 def get_version():

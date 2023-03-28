@@ -10,6 +10,7 @@ __date__ = "2 Mar 2023"
 
 import os
 import os.path as osp
+import glob
 import re
 from functools import partial
 import pickle
@@ -954,15 +955,16 @@ class FileTreeView(qt.QTreeView):
         self.customContextMenuRequested.connect(self.onCustomContextMenu)
         self.expanded.connect(self.expandFurther)
         self.prevSelectedIndexes = []
+        self.reloadDirFiles = {}
 
         if transformNode is not None:
             strLoad = "Load data (you can also drag it to the data tree)"
             self.actionLoad = self._addAction(
                 strLoad, self.transformNode.widget.loadFiles, "Ctrl+L")
         self.actionSynchronize = self._addAction(
-            "Synchronize container", self.synchronizeHDF5, "Ctrl+R")
+            "Reload location", self.reload, ["Ctrl+R", "F5"])
         self.actionViewTextFile = self._addAction(
-            "View text file (will be diplayed in 'metadata' panel)",
+            "View text file (will be displayed in 'metadata' panel)",
             self.viewTextFile, "F3")
 
         self.setStyleSheet("QTreeView"
@@ -1088,7 +1090,10 @@ class FileTreeView(qt.QTreeView):
         action = qt.QAction(text, self)
         action.triggered.connect(slot)
         if shortcut:
-            action.setShortcut(qt.QKeySequence(shortcut))
+            if isinstance(shortcut, (list, tuple)):
+                action.setShortcuts(shortcut)
+            else:
+                action.setShortcut(qt.QKeySequence(shortcut))
         action.setShortcutContext(qt.Qt.WidgetWithChildrenShortcut)
         self.addAction(action)
         return action
@@ -1197,8 +1202,6 @@ class FileTreeView(qt.QTreeView):
         if hasattr(model, 'nodeType'):  # when not with a test model
             nodeType0 = model.nodeType(ind)
             menu.addAction(self.actionSynchronize)
-            self.actionSynchronize.setEnabled(
-                nodeType0 in (NODE_HDF5_HEAD, NODE_HDF5))
 
             if len(paths) > 0:
                 menu.addSeparator()
@@ -1358,34 +1361,47 @@ class FileTreeView(qt.QTreeView):
 
         return (dirName, childPaths) if path is None else childPaths
 
-    def synchronizeHDF5(self):
+    def reload(self):
         selectedIndexes = self.selectionModel().selectedRows()
         if len(selectedIndexes) == 0:
             selectedIndexes = self.prevSelectedIndexes
         if len(selectedIndexes) == 0:
             return
-        self.synchronizeHDF5Index(selectedIndexes[0])
 
-    def synchronizeHDF5Index(self, index):
+        index = selectedIndexes[0]
         model, ind = self.getSourceModel(index)
         nodeType = model.nodeType(ind)
-        if nodeType not in (NODE_HDF5_HEAD, NODE_HDF5):
-            return
-        try:
-            indexHead = model.reloadHdf5(ind)
-        except PermissionError as e:
-            print(e)
-            return
-        self.setCurrentIndex(indexHead)
-        self.setExpanded(indexHead, True)
-        if nodeType == NODE_HDF5:
-            row = index.row()
-            indTo = model.index(row, 0, indexHead)
-        elif nodeType == NODE_HDF5_HEAD:
-            indTo = indexHead
-        else:
-            return
-        self.scrollTo(indTo, qt.QAbstractItemView.PositionAtCenter)
+        if nodeType in (NODE_HDF5_HEAD, NODE_HDF5):
+            try:
+                indexHead = model.reloadHdf5(ind)
+            except PermissionError as e:
+                print(e)
+                return
+            self.setCurrentIndex(indexHead)
+            self.setExpanded(indexHead, True)
+            if nodeType == NODE_HDF5:
+                row = index.row()
+                indTo = model.index(row, 0, indexHead)
+            elif nodeType == NODE_HDF5_HEAD:
+                indTo = indexHead
+            else:
+                return
+            self.scrollTo(indTo, qt.QAbstractItemView.PositionAtCenter)
+        elif nodeType == NODE_FS:
+            dirname = self.getActiveDir()[0]
+            if not dirname.endswith('/'):
+                dirname += '/'
+
+            if dirname not in self.reloadDirFiles:
+                self.reloadDirFiles[dirname] = []
+
+            fileList = [p.replace('\\', '/') for p in
+                        sorted(glob.glob(dirname + '*.*'), key=osp.getmtime)]
+            updateList = [fn for fn in fileList
+                          if fn not in self.reloadDirFiles[dirname]]
+            for fn in updateList:
+                self.gotoWhenReady(fn)
+            self.reloadDirFiles[dirname].extend(updateList)
 
     # def saveExpand(self, parent=qt.QModelIndex()):
     #     if not parent.isValid():
