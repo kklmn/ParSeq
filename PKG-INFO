@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: parseq
-Version: 0.9.94
+Version: 0.9.96
 Summary: ParSeq is a python software library for Parallel execution of Sequential data analysis.
 Home-page: http://parseq.readthedocs.io
 Author: Konstantin Klementiev
@@ -22,7 +22,6 @@ Classifier: Topic :: Software Development :: User Interfaces
 Description-Content-Type: text/x-rst
 License-File: LICENSE
 
-r"""
 Package ParSeq is a python software library for **Par**\ allel execution of
 **Seq**\ uential data analysis. It implements a general analysis framework that
 consists of transformation nodes -- intermediate stops along the data pipeline
@@ -78,6 +77,8 @@ Main features
 
 -  The pipeline can be operated via scripts or GUI.
 
+-  Optional automatic loading of new data during a measurement time.
+
 The mechanisms for creating nodes and transformations, connecting them together
 and creating Qt widgets for the transformations are exemplified by separately
 installed analysis packages:
@@ -107,5 +108,3 @@ Hosting and contact
 
 The ParSeq project is hosted on `GitHub <https://github.com/kklmn/ParSeq>`_.
 Please use the project's Issues tab to get help or report an issue.
-
-"""
