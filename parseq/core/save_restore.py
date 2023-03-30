@@ -27,7 +27,7 @@ def load_project(fname, qMessageBox=None, restore_perspective=None):
     configProject = config.ConfigParser()
     configProject.optionxform = str  # makes it case sensitive
     try:
-        with open(fname) as f:
+        with open(fname, encoding=encoding) as f:
             configProject.read_file(f)
     except Exception as e:
         if qMessageBox is None:

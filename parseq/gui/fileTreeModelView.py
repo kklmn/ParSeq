@@ -1292,7 +1292,7 @@ class FileTreeView(qt.QTreeView):
         fname = model.filePath(ind)
         if qt.QFileInfo(fname).isDir():
             return
-        with open(fname, 'r') as f:
+        with open(fname, 'r', encoding="utf-8") as f:
             lines = f.readlines()
         self.transformNode.widget.metadata.setText(''.join(lines))
         # except Exception:

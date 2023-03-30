@@ -210,7 +210,7 @@ def get_header(fname, readkwargs):
     headerLen = -1
     if 'skiprows' not in readkwargs:
         if skipUntil:
-            with open(fname, 'r') as f:
+            with open(fname, 'r', encoding="utf-8") as f:
                 for il, line in enumerate(f):
                     if skipUntil in line:
                         headerLen = il
@@ -221,7 +221,7 @@ def get_header(fname, readkwargs):
     else:
         headerLen = readkwargs['skiprows']
     header = []
-    with open(fname, 'r') as f:
+    with open(fname, 'r', encoding="utf-8") as f:
         for il, line in enumerate(f):
             if il == MAX_HEADER_LINES:
                 break
