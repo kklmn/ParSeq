@@ -112,9 +112,10 @@ elif 'pyqt5' in qt.BINDING.lower():
     except ImportError:
         try:
             import PyQt5.QtWebKitWidgets as myQtWeb
-        except ImportError:
+        except ImportError as e:
             print('do "conda install -c conda-forge pyqtwebengine"'
-                  'or "pip install pyqtwebengine"')
+                  ' or "pip install pyqtwebengine"')
+            raise(e)
 elif 'pyside2' in qt.BINDING.lower():
     import PySide2.QtWebEngineWidgets as myQtWeb
 elif 'pyside6' in qt.BINDING.lower():
