@@ -71,6 +71,7 @@ setup(
             '_images/*.*', '_static/*.*', '_templates/*.*',
             '_themes/*/*.*', '_themes/*/*/*.*', 'exts/*.*'],
         'parseq.tests': ['*.png'],
+        'parseq.third_party': ['data/*.*'],
         },
     install_requires=['numpy>=1.8.0', 'scipy>=0.17.0', 'matplotlib>=2.0.0',
                       'sphinx>=1.6.2', 'sphinxcontrib-jquery', 'autopep8',
