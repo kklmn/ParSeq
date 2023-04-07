@@ -442,7 +442,8 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             if len(keys) == 0:
                 if "Col" in colStr:
                     regex = re.compile('Col([0-9]*)')
-                    subkeys = regex.findall(colStr)
+                    # remove possible duplicates by list(dict.fromkeys())
+                    subkeys = list(dict.fromkeys(regex.findall(colStr)))
                     keys = ['Col'+ch for ch in subkeys]
                     colStrD = str(colStr)
                     for ch in subkeys:

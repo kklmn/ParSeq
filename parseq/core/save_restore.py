@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "3 Mar 2023"
+__date__ = "6 Apr 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import os
@@ -90,11 +90,13 @@ def save_project(fname, save_perspective=None):
         item.save_to_project(configProject, dirname)
     if save_perspective:
         save_perspective(configProject)
+    os.chdir(os.path.dirname(fname))
     with open(fname, 'w+', encoding=encoding) as cf:
         configProject.write(cf)
 
 
 def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
+    os.chdir(os.path.dirname(fname))
     if fname.endswith('.pspj'):
         fname = fname.replace('.pspj', '')
 
@@ -112,6 +114,7 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
             curves = {}
             for it in csi.selectedItems:
                 dataToSave = [getattr(it, arr) for arr in header]
+                dataToSave = [d for d in dataToSave if d is not None]
                 nname = nodeName.translate(chars2removeMap)
                 dname = it.alias.translate(chars2removeMap)
                 sname = u'{0}-{1}-{2}'.format(iNode+1, nname, dname)
@@ -170,12 +173,14 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
             curves = {}
             for it, sname in zip(csi.selectedItems, snames):
                 for aN in node.arrays:
-                    dataToSave[it][aN] = getattr(it, aN).tolist()
+                    d = getattr(it, aN)
+                    dataToSave[it][aN] = d.tolist() if d is not None else None
                 for aN in [j for i in node.auxArrays for j in i]:
                     try:
-                        dataToSave[it][aN] = getattr(it, aN).tolist()
+                        d = getattr(it, aN)
                     except AttributeError:
                         continue
+                    dataToSave[it][aN] = d.tolist() if d is not None else None
                 curves[sname] = [it.alias, it.color, header,
                                  it.plotProps[node.name]]
                 if node.auxArrays:
@@ -258,6 +263,8 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                     grp = dataGrp.create_group(dname)
                     for aN in dataToSave[it]:
                         if aN in grp:
+                            continue
+                        if dataToSave[it][aN] is None:  # when optional
                             continue
                         com = None if np.isscalar(dataToSave[it][aN]) else\
                             'gzip'
@@ -343,5 +350,6 @@ def save_script(fname, plots, h5plots, lib='mpl'):
         output.extend(["    app.exec_()"])
 
     fnameOut = '{0}_{1}.py'.format(fname, lib)
+    os.chdir(os.path.dirname(fname))
     with open(fnameOut, 'w', encoding=encoding) as f:
         f.write('\n'.join(output))

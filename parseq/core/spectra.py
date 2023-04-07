@@ -16,7 +16,7 @@ Qt, where the user does not have to know about the underlying objects and
 methods. See :ref:`Notes on usage of GUI <notesgui>`.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "3 Mar 2023"
+__date__ = "6 Apr 2023"
 # !!! SEE CODERULES.TXT !!!
 
 # import sys
@@ -636,7 +636,7 @@ class Spectrum(TreeItem):
 
     def read_data(self, shouldLoadNow=True, runDownstream=False,
                   copyTransformParams=True, transformParams={}):
-        toNode = csi.nodes[self.originNodeName]
+        fromNode = csi.nodes[self.originNodeName]
         if isinstance(self.madeOf, dict):
             self.dataType = cco.DATA_BRANCH
             if self.alias == 'auto':
@@ -673,7 +673,7 @@ class Spectrum(TreeItem):
             if shouldLoadNow:
                 self.read_file()
 
-            if self.state[toNode.name] == cco.DATA_STATE_GOOD:
+            if self.state[fromNode.name] == cco.DATA_STATE_GOOD:
                 if not self.check_shape():
                     print('Incompatible data shapes!')
                     self.state[self.originNodeName] = cco.DATA_STATE_BAD
@@ -716,17 +716,17 @@ class Spectrum(TreeItem):
 
         self.transformParams.update(transformParams)
 
-        # replot if toNode is not reached by any transform, otherwise it will
+        # replot if fromNode is not reached by any transform, otherwise it will
         # be replotted by that transform:
-        for tr in toNode.transformsOut:
+        for tr in fromNode.transformsOut:
             if tr.fromNode is tr.toNode:
                 break
         else:
-            csi.nodesToReplot = [toNode]
+            csi.nodesToReplot = [fromNode]
 
-        if runDownstream and toNode.transformsOut and \
-                self.state[toNode.name] == cco.DATA_STATE_GOOD:
-            for tr in toNode.transformsOut:
+        if runDownstream and fromNode.transformsOut and \
+                self.state[fromNode.name] == cco.DATA_STATE_GOOD:
+            for tr in fromNode.transformsOut:
                 tr.run(dataItems=[self])  # no need for multiprocessing here
                 if csi.model is not None:
                     csi.model.invalidateData()
@@ -744,8 +744,8 @@ class Spectrum(TreeItem):
             self.colorTag = 2
 
     def check_shape(self):
-        toNode = csi.nodes[self.originNodeName]
-        for iarr, arrName in enumerate(toNode.checkShapes):
+        fromNode = csi.nodes[self.originNodeName]
+        for iarr, arrName in enumerate(fromNode.checkShapes):
             pos = arrName.find('[')
             if pos > 0:
                 stem = arrName[:pos]
@@ -753,7 +753,7 @@ class Spectrum(TreeItem):
             else:
                 stem = arrName
                 sl = '0'
-            checkName = toNode.get_prop(stem, 'raw')
+            checkName = fromNode.get_prop(stem, 'raw')
             arr = getattr(self, checkName)
             shape = arr.shape[eval(sl)] if arr is not None else []
             if iarr == 0:
@@ -927,10 +927,10 @@ class Spectrum(TreeItem):
 
     def read_file(self):
         madeOf = self.madeOf
-        toNode = csi.nodes[self.originNodeName]
+        fromNode = csi.nodes[self.originNodeName]
         df = dict(self.dataFormat)
         df.update(csi.extraDataFormat)
-        formatSection = 'Format_' + toNode.name
+        formatSection = 'Format_' + fromNode.name
         config.configLoad[formatSection] = dict(df)
 
         arr = []
@@ -967,7 +967,7 @@ class Spectrum(TreeItem):
             dataSource = df.pop('dataSource', None)
             sliceStrs = df.pop('slices', ['' for ds in dataSource])
             conversionFactors = df.pop('conversionFactors',
-                                       [None for arr in toNode.arrays])
+                                       [None for arr in fromNode.arrays])
             df.pop('metadata', None)
             if dataSource is None:
                 raise ValueError('bad dataSource settings')
@@ -978,18 +978,18 @@ class Spectrum(TreeItem):
                 if len(arrs) == 0:
                     raise ValueError('bad data file')
 
-            roles = toNode.get_arrays_prop('role')
+            roles = fromNode.get_arrays_prop('role')
 
             # Create optional arrays and assign None.
             # This loop is needed when dataSource list is shorter than arrays.
-            for aName, role in zip(toNode.arrays, roles):
-                setName = toNode.get_prop(aName, 'raw')
+            for aName, role in zip(fromNode.arrays, roles):
+                setName = fromNode.get_prop(aName, 'raw')
                 if role == 'optional':
                     setattr(self, setName, None)
 
             for aName, txt, sliceStr, role in zip(
-                    toNode.arrays, dataSource, sliceStrs, roles):
-                setName = toNode.get_prop(aName, 'raw')
+                    fromNode.arrays, dataSource, sliceStrs, roles):
+                setName = fromNode.get_prop(aName, 'raw')
                 if (role == 'optional') and (txt == ''):
                     setattr(self, setName, None)
                     continue
@@ -1017,7 +1017,7 @@ class Spectrum(TreeItem):
                     print(e)
                     setattr(self, setName, None)
 
-            self.state[toNode.name] = cco.DATA_STATE_GOOD
+            self.state[fromNode.name] = cco.DATA_STATE_GOOD
         except (ValueError, OSError, IndexError) as e:
             print('Error in read_file(): {0}'.format(e))
             self.state = dict((n, cco.DATA_STATE_NOTFOUND) for n in csi.nodes)
@@ -1048,7 +1048,7 @@ class Spectrum(TreeItem):
         toSave = self.madeOf[:start] + abspath
         if end is not None:
             toSave += self.madeOf[end:]
-        config.put(config.configLoad, 'Data', toNode.name, toSave)
+        config.put(config.configLoad, 'Data', fromNode.name, toSave)
         config.write_configs('transform')
 
     def interpret_array_formula(self, colStr, treeObj=None):
@@ -1068,7 +1068,8 @@ class Spectrum(TreeItem):
         if len(keys) == 0:
             if "Col" in colStr:
                 regex = re.compile('Col([0-9]*)')
-                subkeys = regex.findall(colStr)
+                # remove possible duplicates by list(dict.fromkeys())
+                subkeys = list(dict.fromkeys(regex.findall(colStr)))
                 keys = ['Col'+ch for ch in subkeys]
                 for ch in subkeys:
                     colStr = colStr.replace('Col'+ch, 'd["Col{0}"]'.format(ch))
@@ -1102,11 +1103,11 @@ class Spectrum(TreeItem):
     def convert_units(self, conversionFactors):
         if not conversionFactors:
             return
-        toNode = csi.nodes[self.originNodeName]
-        for aName, cFactor in zip(toNode.arrays, conversionFactors):
+        fromNode = csi.nodes[self.originNodeName]
+        for aName, cFactor in zip(fromNode.arrays, conversionFactors):
             if not cFactor:
                 continue
-            setName = toNode.get_prop(aName, 'raw')
+            setName = fromNode.get_prop(aName, 'raw')
             arr = getattr(self, setName)
             try:
                 if isinstance(cFactor, str):
@@ -1152,13 +1153,13 @@ class Spectrum(TreeItem):
 
         try:
             assert isinstance(madeOf, (list, tuple))
-            toNode = csi.nodes[self.originNodeName]
+            fromNode = csi.nodes[self.originNodeName]
 
             # if no 'raw' present, returns arrayName itself:
-            dNames = toNode.get_arrays_prop('raw')
-            xNames = toNode.get_arrays_prop('raw', role='x') +\
-                toNode.get_arrays_prop('raw', role='0D')
-            dims = toNode.get_arrays_prop('ndim')
+            dNames = fromNode.get_arrays_prop('raw')
+            xNames = fromNode.get_arrays_prop('raw', role='x') +\
+                fromNode.get_arrays_prop('raw', role='0D')
+            dims = fromNode.get_arrays_prop('ndim')
 
             # check equal shape of data to combine:
             shapes = [None]*4
@@ -1181,10 +1182,9 @@ class Spectrum(TreeItem):
             # x and 0D as average over all contributing spectra:
             for arrayName in xNames:
                 sumx = 0
-                setName = toNode.get_prop(arrayName, 'raw')
                 for data in madeOf:
-                    sumx += np.array(getattr(data, setName))
-                setattr(self, setName, sumx/ns)
+                    sumx += np.array(getattr(data, arrayName))
+                setattr(self, arrayName, sumx/ns)
 
             dimArray = None
             for arrayName, dim in zip(dNames, dims):
@@ -1210,13 +1210,13 @@ class Spectrum(TreeItem):
                 else:
                     raise ValueError("unknown data combination")
                 setattr(self, arrayName, v)
-                if dim == toNode.plotDimension:
+                if dim == fromNode.plotDimension:
                     dimArray = v
 
             self.meta['length'] = len(dimArray) if dimArray is not None else 0
-            self.state[toNode.name] = cco.DATA_STATE_GOOD
+            self.state[fromNode.name] = cco.DATA_STATE_GOOD
         except AssertionError:
-            self.state[toNode.name] = cco.DATA_STATE_MATHERROR
+            self.state[fromNode.name] = cco.DATA_STATE_MATHERROR
             msg = '\nThe conbined arrays have different lengths'
             self.meta['text'] += msg
             if csi.DEBUG_LEVEL > 50:
@@ -1225,7 +1225,7 @@ class Spectrum(TreeItem):
     @logger(minLevel=50, attrs=[(0, 'alias')])
     def branch_data(self):
         """Case of *madeOf* as dict, when branching out."""
-        toNode = csi.nodes[self.originNodeName]
+        fromNode = csi.nodes[self.originNodeName]
         try:
             for key, value in self.madeOf.items():
                 if isinstance(value, np.ndarray):
@@ -1241,27 +1241,27 @@ class Spectrum(TreeItem):
                         base.branch = self.parentItem
                 else:
                     raise ValueError('unknown data type')
-            self.state[toNode.name] = cco.DATA_STATE_GOOD
+            self.state[fromNode.name] = cco.DATA_STATE_GOOD
 
         except Exception as e:
             print('Exception in "branch_data()" for "{0}":'.format(
                 self.alias), e)
-            self.state[toNode.name] = cco.DATA_STATE_BAD
+            self.state[fromNode.name] = cco.DATA_STATE_BAD
 
     @logger(minLevel=50, attrs=[(0, 'alias')])
     def create_data(self):
         """Case of *madeOf* as callable"""
-        toNode = csi.nodes[self.originNodeName]
+        fromNode = csi.nodes[self.originNodeName]
         try:
             res = self.madeOf(self, **self.dataFormat)
             if res is not None:
-                for arrayName, arr in zip(toNode.arrays, res):
-                    setName = toNode.get_prop(arrayName, 'raw')
+                for arrayName, arr in zip(fromNode.arrays, res):
+                    setName = fromNode.get_prop(arrayName, 'raw')
                     setattr(self, setName, arr)
-            self.state[toNode.name] = cco.DATA_STATE_GOOD
+            self.state[fromNode.name] = cco.DATA_STATE_GOOD
         except Exception as e:
             print('Exception in "create_data":', e)
-            self.state[toNode.name] = cco.DATA_STATE_BAD
+            self.state[fromNode.name] = cco.DATA_STATE_BAD
 
     def save_transform_params(self):
         dtparams = self.transformParams

@@ -662,7 +662,7 @@ class PropWidget(qt.QWidget):
         tr = None
         data = dataItems[0]
         # in the case when several transforms come to one node, we need to
-        # check which one to rune, there can be only one!
+        # check which one to run, there can be only one!
         for tName in tNames:
             if isinstance(tName, str):
                 tr = csi.transforms[tName]
@@ -679,6 +679,8 @@ class PropWidget(qt.QWidget):
                         tr.toNode.is_between_nodes(
                             data.originNodeName, data.terminalNodeName)):
                         break
+        else:
+            tr = csi.nodes[data.originNodeName].transformsOut[0]
         if tr is None:
             return
 
