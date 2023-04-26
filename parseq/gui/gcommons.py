@@ -32,6 +32,48 @@ NOTFOUND_COLOR = qt.QColor('#ff88ff')
 MATHERROR_COLOR = qt.QColor('#ffa500')
 
 
+def getFormatStr(step):
+    if 0.1 <= step < 1:
+        return '{0:.1f}'
+    elif 0.01 <= step < 0.1:
+        return '{0:.2f}'
+    elif 0.001 <= step < 0.01:
+        return '{0:.3f}'
+    elif 0.0001 <= step < 0.001:
+        return '{0:.4f}'
+    elif 0.00001 <= step < 0.0001:
+        return '{0:.5f}'
+    elif 0.000001 <= step < 0.00001:
+        return '{0:.6f}'
+    elif 0.0000001 <= step < 0.000001:
+        return '{0:.7f}'
+    elif 0.00000001 <= step < 0.0000001:
+        return '{0:.8f}'
+    else:
+        return '{0}'
+
+
+def getDecimals(step):
+    if 0.1 <= step < 1:
+        return 1
+    elif 0.01 <= step < 0.1:
+        return 2
+    elif 0.001 <= step < 0.01:
+        return 3
+    elif 0.0001 <= step < 0.001:
+        return 4
+    elif 0.00001 <= step < 0.0001:
+        return 5
+    elif 0.000001 <= step < 0.00001:
+        return 6
+    elif 0.0000001 <= step < 0.000001:
+        return 7
+    elif 0.00000001 <= step < 0.0000001:
+        return 8
+    else:
+        return 0
+
+
 def makeGradientCollection(color1, color2, ncolor=8):
     c1 = np.array(qt.QColor(color1).getHsvF())
     c2 = np.array(qt.QColor(color2).getHsvF())

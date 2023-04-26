@@ -1014,8 +1014,8 @@ class Spectrum(TreeItem):
                                 arr = arr[sliceTuple]
                     setattr(self, setName, arr)
                 except Exception as e:
-                    print(e)
                     setattr(self, setName, None)
+                    raise ValueError(e)
 
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
         except (ValueError, OSError, IndexError) as e:

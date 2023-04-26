@@ -5,6 +5,7 @@ __date__ = "26 Feb 2023"
 
 import os
 import os.path as osp
+import numpy as np
 import re
 import sphinx
 from silx.gui import qt
@@ -75,8 +76,8 @@ class AboutDialog(qt.QDialog):
     def makeWebView(self):
         self.webView = gww.QWebView(self)
         self.webView.page().setLinkDelegationPolicy(2)
-        self.webView.setMinimumWidth(550)
-        self.webView.setMinimumHeight(550+30*len(csi.nodes))
+        self.webView.setMinimumWidth(560)
+        self.webView.setMinimumHeight(450+30*len(csi.nodes))
         self.webView.history().clear()
         self.webView.page().history().clear()
         self.lastBrowserLink = ''
@@ -128,6 +129,7 @@ class AboutDialog(qt.QDialog):
                 vercl = '.'.join(map(str, vercl))
         else:
             vercl = isOpenStatus
+        strNumpy = r'numpy {0}'.format(np.__version__)
         strOpenCL = r'pyopencl {0}'.format(vercl)
         strSphinx = 'Sphinx {0}'.format(sphinx.__version__)
         strSilx = r'silx {0}'.format(versilx)
@@ -171,11 +173,12 @@ class AboutDialog(qt.QDialog):
     Qt {6}, {7} {8}\n
     {9}\n
     {10}\n
-    {11}""".format(
+    {11}\n
+    {12}""".format(
             parseq.__synopsis__, parseq.__doc__, strParSeq, parseqversion,
             locos, pythonplatform.python_version(),
             Qt_version, qt.BINDING, PyQt_version,
-            strOpenCL, strSphinx, strSilx)
+            strNumpy, strOpenCL, strSphinx, strSilx)
 #        txt = txt.replace('imagezoom::', 'image::')
         return txt
 

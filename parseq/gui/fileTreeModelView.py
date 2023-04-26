@@ -517,6 +517,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             cdf['skip_header'] = cdf.pop('skiprows', 0)
             dataS = cdf.pop('dataSource', [])
             roles = self.transformNode.get_arrays_prop('role')
+            nds = self.transformNode.get_arrays_prop('ndim')
             cdf.pop('conversionFactors', [])
             cdf.pop('metadata', [])
             with warnings.catch_warnings():
@@ -525,7 +526,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             if len(arrs) == 0:
                 return
 
-            for data, role in zip(dataS, roles):
+            for data, nd, role in zip(dataS, nds, roles):
                 if role == 'optional':
                     lres.append('')
                     continue
@@ -534,6 +535,9 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 colEval = self.interpretArrayFormula(data, arrs, 'col')
                 if colEval is None:
                     return
+                if nd:
+                    if len(colEval[0][3]) < nd:
+                        return
                 lres.append(colEval)
         except Exception:  # as e:
             # print('tryLoadColDataset:', e)
@@ -559,10 +563,10 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         try:
             datas = df.get('dataSource', [])  # from dataEdits
             roles = self.transformNode.get_arrays_prop('role')
+            nds = self.transformNode.get_arrays_prop('ndim')
             slcs = df.get('slices', ['' for ds in datas])  # from sliceEdits
             for idata, (data, slc, nd, role) in enumerate(zip(
-                datas, slcs, self.transformNode.get_arrays_prop('ndim'),
-                    roles)):
+                    datas, slcs, nds, roles)):
                 if role == 'optional':
                     lres.append('')
                     continue

@@ -4,41 +4,12 @@ __date__ = "28 Oct 2022"
 # !!! SEE CODERULES.TXT !!!
 
 from silx.gui import qt
+from .gcommons import getFormatStr, getDecimals
 
 ROWHEIGHT = 24
 HEADERHEIGHT = 28
 DOTSIZE = 2, 4
 DOTDELTA = 1
-
-
-def getFormatStr(step):
-    if 0.1 <= step < 1:
-        return '{0:.1f}'
-    elif 0.01 <= step < 0.1:
-        return '{0:.2f}'
-    elif 0.001 <= step < 0.01:
-        return '{0:.3f}'
-    elif 0.0001 <= step < 0.001:
-        return '{0:.4f}'
-    elif 0.00001 <= step < 0.0001:
-        return '{0:.5f}'
-    else:
-        return '{0:.0f}'
-
-
-def getDecimals(step):
-    if 0.1 <= step < 1:
-        return 1
-    elif 0.01 <= step < 0.1:
-        return 2
-    elif 0.001 <= step < 0.01:
-        return 3
-    elif 0.0001 <= step < 0.001:
-        return 4
-    elif 0.00001 <= step < 0.0001:
-        return 5
-    else:
-        return 0
 
 
 def formatted(region):  # region: label, value, min, max, step
