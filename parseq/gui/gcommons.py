@@ -91,6 +91,27 @@ def getColorName(color):
     return qt.QColor(color).name()
 
 
+class CheckBoxDelegate(qt.QItemDelegate):
+    def __init__(self, parent=None):
+        self.defSize = qt.QSize(
+            qt.QApplication.style().pixelMetric(qt.QStyle.PM_IndicatorWidth),
+            qt.QApplication.style().pixelMetric(qt.QStyle.PM_IndicatorHeight))
+        super().__init__(parent)
+
+    def paint(self, painter, option, index):
+        left = option.rect.center().x() - self.defSize.width()//2
+        top = option.rect.center().y() - self.defSize.height()//2
+        rect = qt.QRect(left, top, self.defSize.width(), self.defSize.height())
+        self.drawCheck(painter, option, rect, index.data(qt.Qt.CheckStateRole))
+
+    def editorEvent(self, event, model, option, index):
+        if event.type() == qt.QEvent.MouseButtonRelease:
+            value = index.data(qt.Qt.CheckStateRole)
+            model.setData(index, not value, qt.Qt.CheckStateRole)
+            return True
+        return super().editorEvent(event, model, option, index)
+
+
 class MultiLineEditDelegate(qt.QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         edit = qt.QTextEdit(parent)

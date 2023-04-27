@@ -64,7 +64,7 @@ def get_roi_mask(geom, xs, ys):
         x2, y2 = geom['end']
         k, b = line((x1, x2), (y1, y2))
         w = geom['width']
-        return (ys >= k*(xs-w/2) + b) & (ys <= k*(xs+w/2) + b)
+        return (ys >= k*xs + b - w/2) & (ys <= k*xs + b + w/2)
     elif geom['kind'] == 'HorizontalRangeROI':
         vmin, vmax = geom['vmin'], geom['vmax']
         return (xs >= vmin) & (xs <= vmax) & (ys > 0)

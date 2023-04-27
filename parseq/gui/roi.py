@@ -114,7 +114,7 @@ class RoiModel(qt.QAbstractTableModel):
     def flags(self, index):
         if not index.isValid():
             return qt.Qt.NoItemFlags
-        res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsSelectable
+        res = qt.Qt.ItemIsEnabled  # | qt.Qt.ItemIsSelectable
         column = index.column()
         if column == 1:  # use
             res |= qt.Qt.ItemIsUserCheckable
@@ -141,8 +141,7 @@ class RoiModel(qt.QAbstractTableModel):
                 return '{0:.0f}'.format(self.roiCounts[row])
         elif role == qt.Qt.CheckStateRole:
             if column == 1:  # use
-                return int(
-                    qt.Qt.Checked if roi.isVisible() else qt.Qt.Unchecked)
+                return qt.Qt.Checked if roi.isVisible() else qt.Qt.Unchecked
         elif role == qt.Qt.ToolTipRole:
             return "{0}\ncan be removed via the plot's popup menu".format(
                 roi.__class__.__name__)
@@ -381,6 +380,7 @@ class RoiTableView(qt.QTableView):
         horHeaders.setMinimumSectionSize(20)
         # verHeaders.setMinimumSectionSize(70)
 
+        self.setItemDelegateForColumn(1, gco.CheckBoxDelegate(self))
         self.setItemDelegateForColumn(2, gco.MultiLineEditDelegate(self))
 
         for i in range(len(HEADERS)):
@@ -782,6 +782,8 @@ class RoiWidget(RoiWidgetBase):
         model.dataChanged.emit(ind1, ind2)
 
     def setRois(self, roiDicts):
+        if not roiDicts:
+            return
         if not isinstance(roiDicts, (tuple, list)):
             roiDicts = roiDicts,
         roiDicts = [dict(roid) for roid in roiDicts]  # deep copy
@@ -824,8 +826,8 @@ class RoiWidget(RoiWidgetBase):
                 elif kind == 'HorizontalRangeROI':
                     roi = HorizontalRangeROI()
                 else:
-                    continue
-                    # raise ValueError('unsupported ROI "{0}"'.format(kind))
+                    # continue
+                    raise ValueError('unsupported ROI "{0}"'.format(kind))
                 if name:
                     roi.setName(name)
                 roi.setVisible(True)

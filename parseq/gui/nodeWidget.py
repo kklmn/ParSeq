@@ -349,7 +349,7 @@ class NodeWidget(qt.QWidget):
         self.metadata.setStyleSheet("QTextEdit {border: none;}")
         self.metadata.setReadOnly(True)
 #        self.metadata.setContentsMargins(0, 0, 0, 0)
-        self.metadata.setMinimumHeight(80)
+        self.metadata.setMinimumHeight(84)
         self.metadata.setAlignment(qt.Qt.AlignLeft | qt.Qt.AlignTop)
         self.metadata.setText("text metadata here")
         self.metadata.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
@@ -778,7 +778,7 @@ class NodeWidget(qt.QWidget):
             # if needClear:
             if True:
                 self.plot.clearImages()
-                self.plot.clearMarkers()
+                # self.plot.clearMarkers()  # clears roi lines, don't add
             if len(csi.selectedItems) > 0:
                 item = csi.selectedItems[0]  # it could be the last one but
                 # then when going with arrows up and down in the data tree and
@@ -806,11 +806,11 @@ class NodeWidget(qt.QWidget):
                                origin=(xOrigin, yOrigin),
                                scale=(xScale, yScale), z=-100)
         if node.plotDimension == 3:
-            self.plot._plot.clearCurves()  # clears roi lines
+            self.plot._plot.clearCurves()
             # if needClear:
             if True:
                 self.plot._plot.clearImages()
-                self.plot._plot.clearMarkers()
+                # self.plot._plot.clearMarkers()  # clears roi lines, don't add
             item = None
             if len(csi.selectedItems) > 0:
                 item = csi.selectedItems[0]
