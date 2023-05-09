@@ -27,7 +27,7 @@ from ..core import commons as cco
 from ..core import save_restore as csr
 from ..gui import undoredo as gur
 from .nodeWidget import NodeWidget
-from .transformer import Transformer
+from .tasker import Tasker
 from .fileDialogs import SaveProjectDlg, LoadProjectDlg
 from .aboutDialog import AboutDialog
 from . import gcommons as gco
@@ -148,13 +148,12 @@ class MainWindowParSeq(qt.QMainWindow):
         # self.emptyIcon = qt.QIcon()
 
         transformThread = qt.QThread(self)
-        csi.transformer = Transformer()
-        csi.transformer.moveToThread(transformThread)
+        csi.tasker = Tasker()
+        csi.tasker.moveToThread(transformThread)
         transformThread.started.connect(
             partial(self.displayStatusMessage, u'calculating…'))
-        transformThread.started.connect(csi.transformer.run)
-        csi.transformer.ready.connect(
-            partial(self.displayStatusMessage, u'ready'))
+        transformThread.started.connect(csi.tasker.run)
+        csi.tasker.ready.connect(partial(self.displayStatusMessage, u'ready'))
         csi.mainWindow = self
         self.setWindowTitle(u"ParSeq  \u2014  " + csi.pipelineName)
         self.helpFile = gww.HELPFILE
@@ -657,8 +656,8 @@ class MainWindowParSeq(qt.QMainWindow):
         time.sleep(0.1)
         for dock, _, _ in self.docks.values():
             dock.deleteLater()
-        csi.transformer.thread().quit()
-        csi.transformer.deleteLater()
+        csi.tasker.thread().quit()
+        csi.tasker.deleteLater()
         super().closeEvent(event)
 
     def updateItemView(self, state, items):

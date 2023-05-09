@@ -938,7 +938,7 @@ class RangeWidgetBase(qt.QWidget):
 
 class RangeWidget(RangeWidgetBase):
     def __init__(self, parent, plot, caption, tooltip, rangeName, color,
-                 formatStr, defaultRange):
+                 formatStr, defaultRange=[0, 1]):
         """
         *defaultRange*: callable or 2-sequence
         """
@@ -966,10 +966,6 @@ class RangeWidget(RangeWidgetBase):
         layoutP.setContentsMargins(10, 0, 0, 0)
         self.rbAuto = qt.QRadioButton('auto', panel)
         self.rbAuto.clicked.connect(self.setAutoRange)
-        if not callable(self.defaultRange):
-            fs = "[" + self.formatStr + "]{1}{2}"
-            self.rbAuto.setToolTip(fs.format(
-                self.defaultRange, ' as ' if tooltip else '', tooltip))
         layoutP.addWidget(self.rbAuto)
         self.rbCustom = qt.QRadioButton('custom', panel)
         self.rbCustom.setStyleSheet("QRadioButton{color: " + color + ";}")
@@ -1015,6 +1011,9 @@ class RangeWidget(RangeWidgetBase):
             defRange = self.defaultRange()
         else:
             defRange = self.defaultRange
+            fs = "[" + self.formatStr + "]{1}{2}"
+            self.rbAuto.setToolTip(fs.format(
+                defRange, ' as ' if self.tooltip else '', self.tooltip))
         if self.roi is not None:
             self.setRange(defRange)
         self.rangeChanged.emit(defRange)

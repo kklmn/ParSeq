@@ -693,10 +693,11 @@ def run_transforms(items, parentItem):
     for originNodeName, its in itemsByOrigin.items():
         for tr in csi.nodes[originNodeName].transformsOut:
             # first bottomItems, then topItems...:
-            if (csi.transformer is not None) and len(itemsByOrigin) == 1:
+            if (csi.tasker is not None) and len(itemsByOrigin) == 1:
                 # with a threaded transform
-                csi.transformer.prepare(tr, dataItems=its, starter=tr.widget)
-                csi.transformer.thread().start()
+                csi.tasker.prepare(
+                    tr, runDownstream=True, dataItems=its, starter=tr.widget)
+                csi.tasker.thread().start()
             else:
                 # if len(itemsByOrigin) > 1, the transforms cannot be
                 # parallelized, so do it in the same thread:
@@ -709,10 +710,11 @@ def run_transforms(items, parentItem):
             # # no need for dependentItems, it is invoked in run_post:
             # # ...then dependentItems:
             # if len(csi.transforms.values()) > 0:
-            #     if csi.transformer is not None:  # with a threaded transform
-            #         csi.transformer.prepare(
-            #             tr, dataItems=dependentItems, starter=tr.widget)
-            #         csi.transformer.thread().start()
+            #     if csi.tasker is not None:  # with a threaded transform
+            #         csi.tasker.prepare(
+            #             tr, runDownstream=True, dataItems=dependentItems,
+            #             starter=tr.widget)
+            #         csi.tasker.thread().start()
             #     else:  # in the same thread
             #         tr.run(dataItems=dependentItems)
             #         tr.widget.replotAllDownstream(tr.name)

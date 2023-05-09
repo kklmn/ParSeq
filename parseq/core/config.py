@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "2 Apr 2021"
+__date__ = "5 May 2021"
 # !!! SEE CODERULES.TXT !!!
 
 import os
@@ -27,6 +27,10 @@ configGUI.read(iniFileGUI, encoding=encoding)
 iniFileTransforms = (os.path.join(iniDir, 'transforms.ini'))
 configTransforms = ConfigParser()
 configTransforms.read(iniFileTransforms, encoding=encoding)
+
+iniFileFits = (os.path.join(iniDir, 'fits.ini'))
+configFits = ConfigParser()
+configFits.read(iniFileFits, encoding=encoding)
 
 iniFileFormats = (os.path.join(iniDir, 'formats.ini'))
 configFormats = ConfigParser()
@@ -65,6 +69,9 @@ def write_configs(what='all'):  # in mainWindow's closeEvent
     if (what == 'all') or ('transform' in whatl):
         with open(iniFileTransforms, 'w+', encoding=encoding) as cf:
             configTransforms.write(cf)
+    if (what == 'all') or ('fit' in whatl):
+        with open(iniFileFits, 'w+', encoding=encoding) as cf:
+            configFits.write(cf)
     if (what == 'all') or ('format' in whatl):
         with open(iniFileFormats, 'w+', encoding=encoding) as cf:
             configFormats.write(cf)

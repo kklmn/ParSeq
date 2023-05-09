@@ -961,11 +961,14 @@ class NodeWidget(qt.QWidget):
         fileNames = [osp.normcase(nf) for nf in fileNamesFull]
         allLoadedItemNames = []
         for d in csi.allLoadedItems:
-            lfn = d.madeOf[5:] if d.madeOf.startswith('silx:') else d.madeOf
-            lfns = osp.normcase(osp.abspath(lfn))
-            if d.madeOf.startswith('silx:'):
-                lfns = 'silx:' + lfns
-            allLoadedItemNames.append(lfns)
+            if isinstance(d.madeOf, str):
+                ln = d.madeOf[5:] if d.madeOf.startswith('silx:') else d.madeOf
+                nln = osp.normcase(osp.abspath(ln))
+                if d.madeOf.startswith('silx:'):
+                    nln = 'silx:' + nln
+                allLoadedItemNames.append(nln)
+            else:
+                allLoadedItemNames.append(str(d))
         allLoadedItemsCount = Counter(allLoadedItemNames)
         duplicates, duplicatesN = [], []
         fileNamesFullN = []
@@ -1112,7 +1115,8 @@ class NodeWidget(qt.QWidget):
                 ind = model.indexFileName(self.autoDirName[5:-3])
             else:
                 ind = model.indexFromH5Path(self.autoDirName)
-            self.files.synchronizeHDF5Index(ind)
+            model.reloadHdf5(ind)
+            # self.files.synchronizeHDF5Index(ind)
 
         # this first solution doesn't work in NFS in Linux:
         # newFileList = self.files.getActiveDir(self.autoDirName)

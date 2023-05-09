@@ -27,6 +27,7 @@ appVersion = None
 
 nodes = OrderedDict()
 transforms = OrderedDict()
+fits = OrderedDict()
 # transformWidgets = OrderedDict()
 mainWindow = None
 currentNode = None
@@ -46,5 +47,5 @@ selectedItems, selectedTopItems = [], []  # common for all data trees
 recentlyLoadedItems = []
 allLoadedItems = []
 
-# transformer will be created in MainWindow ParSeq init
-transformer = None
+# tasker will be created in MainWindow ParSeq init
+tasker = None

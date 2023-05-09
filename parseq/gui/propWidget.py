@@ -106,8 +106,8 @@ class PropWidget(qt.QWidget):
 
         self.read_ini_properties()
 
-        if csi.transformer is not None:
-            csi.transformer.ready.connect(self._onTransformThreadReady)
+        if csi.tasker is not None:
+            csi.tasker.ready.connect(self._onTransformThreadReady)
 
     def read_ini_properties(self):
         sec = self.__class__.__name__
@@ -182,7 +182,11 @@ class PropWidget(qt.QWidget):
             self._addAction(menu, "go to hdf5 location",
                             partial(self.gotoHDF5, hdf5Path))
 
+        for w in widgetsOver:  # editingFinished is emitted before menu.exec_
+            w.blockSignals(True)
         menu.exec_(event.globalPos())
+        for w in widgetsOver:
+            w.blockSignals(False)
 
     def fillMenuApply(self, widgetsOver, menu):
         if len(csi.selectedItems) == 0:
@@ -684,10 +688,11 @@ class PropWidget(qt.QWidget):
         if tr is None:
             return
 
-        if csi.transformer is not None:
-            csi.transformer.prepare(
-                tr, params=params, dataItems=dataItems, starter=self)
-            csi.transformer.thread().start()
+        if csi.tasker is not None:
+            csi.tasker.prepare(
+                tr, params=params, runDownstream=True, dataItems=dataItems,
+                starter=self)
+            csi.tasker.thread().start()
         else:
             tr.run(params=params, dataItems=dataItems)
 

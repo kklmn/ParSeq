@@ -788,6 +788,8 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
 
     def reloadHdf5(self, index):
         h5pyObject = self.data(index, role=H5PY_OBJECT_ROLE)
+        if h5pyObject is None:
+            return
         if isinstance(h5pyObject, type('')):
             filename = h5pyObject
         else:
@@ -1330,7 +1332,7 @@ class FileTreeView(qt.QTreeView):
         if path is None:
             sIndexes = self.selectionModel().selectedRows()
             if len(sIndexes) == 0:
-                return
+                return '', []
             model, ind = self.getSourceModel(sIndexes[0])
         else:
             model = self.getSourceModel()
