@@ -44,6 +44,8 @@ def read1D(saveType, fname, props):
     elif saveType.endswith(('json', 'pickle', 'h5')):
         data, h5file = readFile(saveType, fname)
         # slicing is needed to create an ndarray from HDF5 object
+        if props[2][0] not in data:
+            return curves
         x = data[props[2][0]][:]
         ys = [data[prop][:] for prop in headers]
         curves.append([x, ys, headers])

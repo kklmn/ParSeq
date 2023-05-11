@@ -231,7 +231,10 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
             curves = {}
             for it, sname in zip(csi.selectedItems, snames):
                 for aN in node.arrays:
-                    dataToSave[it][aN] = getattr(it, aN)
+                    try:
+                        dataToSave[it][aN] = getattr(it, aN)
+                    except AttributeError:
+                        continue
                 for aN in [j for i in node.auxArrays for j in i]:
                     try:
                         dataToSave[it][aN] = getattr(it, aN)
