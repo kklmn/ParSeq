@@ -59,7 +59,8 @@ setup(
     zip_safe=False,  # True: build zipped egg, False: unzipped
     packages=['parseq',
               'parseq.core',
-              'parseq.gui',
+              'parseq.fits',
+              'parseq.gui', 'parseq.gui.fits',
               'parseq.help',
               'parseq.tests', 'parseq.third_party', 'parseq.utils'],
     # package_dir={'parseq': '.'},
@@ -70,7 +71,7 @@ setup(
             '*.rst', '*.bat',
             '_images/*.*', '_static/*.*', '_templates/*.*',
             '_themes/*/*.*', '_themes/*/*/*.*', 'exts/*.*'],
-        'parseq.tests': ['*.png'],
+        'parseq.tests': ['*.png', 'data/*.*'],
         'parseq.third_party': ['data/*.*'],
         },
     install_requires=['numpy>=1.8.0', 'scipy>=0.17.0', 'matplotlib>=2.0.0',
