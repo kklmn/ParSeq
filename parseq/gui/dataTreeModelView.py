@@ -240,11 +240,19 @@ class DataTreeModel(qt.QAbstractItemModel):
         mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
         if items is None:
             items = self.rootItem.get_items()
-        for item in items:
+        elif not isinstance(items, (list, tuple)):
+            items = [items]
+        for i, item in enumerate(items):
             row = item.row()
             index = self.createIndex(row, 0, item)
-            csi.selectionModel.select(index, mode)
-            csi.selectionModel.setCurrentIndex(index, mode)
+            if i == 0:
+                selection = qt.QItemSelection(index, index)
+            else:
+                selection.select(index, index)
+        csi.selectionModel.select(selection, mode)
+        csi.selectionModel.setCurrentIndex(index, mode)
+        csi.selectedItems[:] = []
+        csi.selectedItems.extend(items)
 
     def _removeFromGlobalLists(self, item):
         for ll in (csi.selectedItems, csi.selectedTopItems,

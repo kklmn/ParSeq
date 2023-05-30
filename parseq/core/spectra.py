@@ -544,7 +544,12 @@ class Spectrum(TreeItem):
         self.transformParams = {}  # each transform will add to this dict
         # init self.transformParams:
         for tr in csi.transforms.values():
-            self.transformParams.update(tr.defaultParams)
+            self.transformParams.update(copy.deepcopy(tr.defaultParams))
+
+        self.fitParams = {}  # each fit will add to this dict
+        # init self.fitParams:
+        for fit in csi.fits.values():
+            self.fitParams.update(copy.deepcopy(fit.defaultParams))
 
         if insertAt is None:
             parentItem.childItems.append(self)
@@ -559,6 +564,7 @@ class Spectrum(TreeItem):
             transformParams = kwargs.pop(
                 'transformParams',
                 csi.dataRootItem.kwargs.get('transformParams', {}))
+            fitParams = kwargs.pop('fitParams', {})
             shouldLoadNow = kwargs.pop(
                 'shouldLoadNow',
                 csi.dataRootItem.kwargs.get('shouldLoadNow', True))
@@ -569,12 +575,13 @@ class Spectrum(TreeItem):
                 self.init_plot_props()
                 plotProps = kwargs.pop('plotProps', {})
                 if plotProps:
-                    self.plotProps.update(plotProps)
+                    self.plotProps.update(copy.deepcopy(plotProps))
 
             self.read_data(shouldLoadNow=shouldLoadNow,
                            runDownstream=runDownstream,
                            copyTransformParams=copyTransformParams,
-                           transformParams=transformParams)
+                           transformParams=transformParams,
+                           fitParams=fitParams)
 
         elif isinstance(self.madeOf, str) and not self.dataFormat:
             # i.e. is a group
@@ -632,10 +639,12 @@ class Spectrum(TreeItem):
                         self.plotProps[node.name][yName] = plotParams
 
     def get_state(self, nodeName):
+        if self.error is not None:
+            return cco.DATA_STATE_BAD
         return self.state[nodeName]
 
     def read_data(self, shouldLoadNow=True, runDownstream=False,
-                  copyTransformParams=True, transformParams={}):
+                  copyTransformParams=True, transformParams={}, fitParams={}):
         fromNode = csi.nodes[self.originNodeName]
         if isinstance(self.madeOf, dict):
             self.dataType = cco.DATA_BRANCH
@@ -709,12 +718,19 @@ class Spectrum(TreeItem):
         if copyTransformParams:
             if len(csi.selectedItems) > 0:
                 self.transformParams.update(
-                    csi.selectedItems[0].transformParams)
+                    copy.deepcopy(csi.selectedItems[0].transformParams))
+                self.fitParams.update(
+                    copy.deepcopy(csi.selectedItems[0].fitParams))
             else:
                 for tr in csi.transforms.values():
-                    self.transformParams.update(tr.iniParams)
+                    self.transformParams.update(
+                        copy.deepcopy(tr.iniParams))
+                for fit in csi.fits.values():
+                    self.fitParams.update(
+                        copy.deepcopy(fit.iniParams))
 
-        self.transformParams.update(transformParams)
+        self.transformParams.update(copy.deepcopy(transformParams))
+        self.fitParams.update(copy.deepcopy(fitParams))
 
         # replot if fromNode is not reached by any transform, otherwise it will
         # be replotted by that transform:
@@ -787,6 +803,22 @@ class Spectrum(TreeItem):
         element will be used for the expansion of this sequence to the length
         of the longest sequence(s)."""
 
+        def getTransformParams(configData):
+            res = {}
+            for tr in csi.transforms.values():
+                for key, val in tr.defaultParams.items():
+                    res[key] = config.get(configData, name, key, default=val)
+            return res
+
+        def getFitParams(configData):
+            res = {}
+            for fit in csi.fits.values():
+                for key, val in fit.defaultParams.items():
+                    if key == fit.ioAttrs['result']:
+                        continue
+                    res[key] = config.get(configData, name, key, default=val)
+            return res
+
         nameFull = None
         if 'configData' in kwargs:  # ini file
             configData = kwargs['configData']
@@ -807,24 +839,16 @@ class Spectrum(TreeItem):
                     if 'plotProps' in configData[name]:
                         tmp['plotProps'] = config.get(
                             configData, name, 'plotProps')
-                    trParams = {}
-                    for tr in csi.transforms.values():
-                        for key, val in tr.defaultParams.items():
-                            trParams[key] = config.get(configData, name, key,
-                                                       default=val)
-                    tmp['transformParams'] = trParams
+                    tmp['transformParams'] = getTransformParams(configData)
+                    tmp['fitParams'] = getFitParams(configData)
                     name = tmp.pop('madeOf_relative')
                     nameFull = tmp.pop('madeOf')
                 elif isinstance(madeOf, (dict, list, tuple)):
                     tmp = {entry: config.get(configData, name, entry)
                            for entry in self.configFieldsCombined}
                     tmp['alias'] = name
-                    trParams = {}
-                    for tr in csi.transforms.values():
-                        for key, val in tr.defaultParams.items():
-                            trParams[key] = config.get(configData, name, key,
-                                                       default=val)
-                    tmp['transformParams'] = trParams
+                    tmp['transformParams'] = getTransformParams(configData)
+                    tmp['fitParams'] = getFitParams(configData)
                     if isinstance(madeOf, dict):
                         tmp['dataFormat'] = {}
                         name = tmp.pop('madeOf')
@@ -1273,6 +1297,16 @@ class Spectrum(TreeItem):
                     toSave = dtparams[key]
                 config.put(config.configTransforms, tr.name, key, str(toSave))
 
+    def save_fit_params(self):
+        dtparams = self.fitParams
+        for fit in csi.fits.values():
+            for key in fit.defaultParams:
+                if isinstance(dtparams[key], np.ndarray):
+                    toSave = dtparams[key].tolist()
+                else:
+                    toSave = dtparams[key]
+                config.put(config.configFits, fit.name, key, str(toSave))
+
     def save_to_project(self, configProject, dirname):
         from ..gui import gcommons as gco  # only needed with gui
         item = self
@@ -1301,7 +1335,7 @@ class Spectrum(TreeItem):
                             [None for ds in dataSource]:  # all None's
                         dataFormatCopy.pop('conversionFactors', None)
                 for ids, ds in enumerate(dataSource):
-                    if 'silx:' in ds:
+                    if isinstance(ds, str) and 'silx:' in ds:
                         start = 5
                         end = ds.find('::') if '::' in ds else None
                         path = ds[start:end]
@@ -1327,7 +1361,7 @@ class Spectrum(TreeItem):
 
             dataSource = list(item.dataFormat.get('dataSource', []))
             for ds in dataSource:
-                if 'silx:' in ds:
+                if isinstance(ds, str) and 'silx:' in ds:
                     needRelative = True
                     break
             else:
@@ -1340,7 +1374,7 @@ class Spectrum(TreeItem):
                             [None for ds in dataSourceRel]:  # all None's
                         dataFormatRel.pop('conversionFactors', None)
                 for ids, ds in enumerate(dataSourceRel):
-                    if 'silx:' in ds:
+                    if isinstance(ds, str) and 'silx:' in ds:
                         start = 5
                         end = ds.find('::') if '::' in ds else None
                         path = ds[start:end]
@@ -1382,6 +1416,22 @@ class Spectrum(TreeItem):
                 else:
                     toSave = dtparams[key]
                 config.put(configProject, item.alias, key, str(toSave))
+
+            noFitsSoFar = True
+            dtparams = item.fitParams
+            for fit in csi.fits.values():
+                if dtparams[fit.ioAttrs['result']] == fit.defaultResult:
+                    continue
+                if noFitsSoFar:
+                    configProject.set(
+                        item.alias, ';fit params:')  # ';'=comment out
+                    noFitsSoFar = False
+                for key in fit.defaultParams:
+                    if isinstance(dtparams[key], np.ndarray):
+                        toSave = dtparams[key].tolist()
+                    else:
+                        toSave = dtparams[key]
+                    config.put(configProject, item.alias, key, str(toSave))
 
         elif isinstance(item.madeOf, str) and not item.dataFormat:
             # i.e. is a group
@@ -1435,6 +1485,7 @@ class Spectrum(TreeItem):
             newItem = self.branch.insert_item(
                 dictToTransfer, self.branch.child_count(), **kw)
             newItem.transformParams = self.transformParams
+            newItem.fitParams = self.fitParams
             newItem.meta = self.meta
             newItem.colorTag = 4
         self.init_colors(self.branch.childItems)

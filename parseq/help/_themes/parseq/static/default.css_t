@@ -371,16 +371,33 @@ div.viewcode-block:target {
 }
 
 .pipeline-node {
-    padding: 5px;
+    padding: 7px;
     margin: 0px;
     margin-left: 10px;
     width: auto;
-    //height: 22px;
+    height: 24px;
     border-radius: 11px;
-    background: #dde;
-    box-shadow: 1px 2px 3px #aac, inset 0px 0px 7px rgba(0,0,0,1);
+    background: #eef;
+    box-shadow: 1px 2px 3px #aac, inset 0px 0px 7px rgba(0,0,50,1);
+    text-align: center;
+
+    /* center a div insie another div*/
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pipeline-fit {
+    padding: 7px;
+    margin: 0 auto;
+    width: auto;
+    height: 16px;
+    border-radius: 7px;
+    background: #ded;
+    box-shadow: 1px 2px 3px #caa, inset 0px 0px 3px rgba(0,0,0,1);
     vertical-align: middle;
     text-align: center;
+    position: relative;
 }
 
 .pipeline-tr {

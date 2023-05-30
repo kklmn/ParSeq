@@ -14,6 +14,7 @@ User's Guide
    data.rst
    transforms.rst
    widgets.rst
+   fits.rst
    notesgui.rst
 
    license.rst

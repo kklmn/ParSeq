@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "26 Feb 2023"
+__date__ = "28 May 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import os
@@ -188,20 +188,31 @@ class AboutDialog(qt.QDialog):
             nodes = []
             transforms = []
             icons = []
+            fits = {}
+            fitIcon = 'icon-fit-32'
             for name, node in csi.nodes.items():
                 if len(node.upstreamNodes) == i:
                     nodes.append(name)
                     if node.plotDimension is None:
                         iName = None
                     elif node.plotDimension < 4:
-                        iName = 'icon-item-{0}dim-32'.format(node.plotDimension)
+                        iName = 'icon-item-{0}dim-32'.format(
+                            node.plotDimension)
                     else:
                         iName = 'icon-item-ndim-32'
                     icons.append(iName)
                     for tr in node.transformsOut:
                         transforms.append(
                             [tr.name, tr.fromNode.name, tr.toNode.name])
-            ranks[i] = dict(nodes=nodes, icons=icons, transforms=transforms)
+                    for fit in csi.fits.values():
+                        if fit.node is node:
+                            if name in fits:
+                                fits[name].append(fit.name)
+                            else:
+                                fits[name] = [fit.name]
+
+            ranks[i] = dict(nodes=nodes, icons=icons, transforms=transforms,
+                            fits=fits)
 
         # ranks = {  # a fake test pipeline
         #     0: {'nodes': ['aaaaa', 'bbbbbbbbb'],
@@ -229,7 +240,8 @@ class AboutDialog(qt.QDialog):
         for i in range(len(gco.colorCycle1)):
             flowChart += """\n
     <filter id="flt{0}" filterUnits="userSpaceOnUse" id="shadow" x="-2" y="1">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" result="blur"></feGaussianBlur>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" result="blur">
+      </feGaussianBlur>
       <feOffset in="blur" dx="1.5" dy="0" result="shadow"></feOffset>
       <feFlood flood-color="{1}99" result="color" />
       <feComposite in="color" in2="shadow" operator="in" />
@@ -246,6 +258,7 @@ class AboutDialog(qt.QDialog):
         for irank, (rank, rankDict) in enumerate(ranks.items()):
             names = rankDict['nodes']
             icons = rankDict['icons']
+            fits = rankDict['fits']
             if not names:
                 continue
             flowChart += """\n      <div class="pipeline-rank">"""
@@ -254,8 +267,16 @@ class AboutDialog(qt.QDialog):
                 iconTxt = '' if iName is None else \
                     '<img src="_images/{0}.png" height="20" />'.format(iName)
                 flowChart += u"""\n
-        <div id="pn_{0}" class="pipeline-node">{1} {2}</div>""".format(
+                    <div id="pn_{0}" class="pipeline-node">{1} {2}""".format(
                     name_, iconTxt, name)
+                if name in fits:
+                    ficonTxt = '<img src="_images/{0}.png" height="20" />'\
+                        .format(fitIcon)
+                    for fitName in fits[name]:
+                        flowChart += u"""&nbsp <span id=
+                            "fn_{0}" class="pipeline-fit">{1} {2}</span>"""\
+                                .format(name_, ficonTxt, fitName)
+                flowChart += "</div>"
             flowChart += """\n      </div>"""  # class="pipeline-rank"
 
             transforms = rankDict['transforms']
@@ -267,7 +288,8 @@ class AboutDialog(qt.QDialog):
             for transform in transforms:
                 iline_ = iline % len(gco.colorCycle1)
                 color = gco.colorCycle1[iline_]
-                colorStr = 'style="color: {0}; text-shadow: 1px 1.5px 3px {0}99;"'\
+                colorStr = \
+                    'style="color: {0}; text-shadow: 1px 1.5px 3px {0}99;"'\
                     .format(color)
                 flowChart += u"""\n        <div class="pipeline-tr" {1}>
                 {0}</div>""".format(transform[0], colorStr)

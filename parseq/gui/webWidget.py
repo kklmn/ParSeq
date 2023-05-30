@@ -236,6 +236,11 @@ class SphinxWorker(qt.QObject):
             fname = 'icon-item-{0}dim-32.png'.format(ico)
             shutil.copy2(osp.join(GUIDIR, '_images', fname),
                          osp.join(DOCDIR, '_images', fname))
+
+        fname = 'icon-fit-32.png'
+        shutil.copy2(osp.join(GUIDIR, '_images', fname),
+                     osp.join(DOCDIR, '_images', fname))
+
         shutil.copytree(osp.join(CONFDIR, '_themes'),
                         osp.join(DOCDIR, '_themes'))
         shutil.copy2(osp.join(CONFDIR, 'conf_doc.py'),

@@ -8,8 +8,8 @@ Load project
 
 To start testing a GUI, load a test project, typically located in `saved`
 directory. The "Load project" dialog has a preview panel that displays all node
-plots in the project, just browse over them. The default plot displays the
-transformation node that was active when the project was saved.
+plots in the project, just browse over them. The initial visible plot displays
+the transformation node that was active when the project was saved.
 
 Docked node widgets
 -------------------
@@ -109,12 +109,26 @@ alias followed by a dot followed by a sub-name. If this convention is followed,
 the curves become clickable, which will select the corresponding data item in
 the data tree. Selected data items are plotted on top of unselected items.
 
+Fit widgets
+-----------
+
+If one or more fit widgets were specified for a given node, they appear in
+separate QSplitter under the node's plot. In the initial view, the splitters
+are collapsed.
+
 Help panel
 ----------
 
 The help panel under transformation widgets is hidden by default and can be
 made visible by clicking on the small button "help" at the very bottom of the
 main window. Alternatively, it can be opened in the system browser.
+
+About dialog
+------------
+
+The about dialog displays the connectivity between the pipeline nodes in a
+dynamically created svg graph. If a fit is defined in a node, it is also
+displayed here.
 
 Undo and redo lists
 -------------------

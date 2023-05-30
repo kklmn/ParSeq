@@ -40,8 +40,11 @@ Main features
    possibility of termination of the parental data at any selected downstream
    node.
 
--  Parallel execution of data analysis with multiprocessing or multithreading
-   (can be opted by the pipeline application).
+-  Parallel execution of data transformations with multiprocessing or
+   multithreading (can be opted by the pipeline application).
+
+-  Optional curve fitting solvers, also executed in parallel for multiple data
+   items.
 
 -  Informative error handling that provides alerts and stack traceback -- the
    type and location of the occurred error.
@@ -62,9 +65,9 @@ Main features
 
 -  Optional automatic loading of new data during a measurement time.
 
-The mechanisms for creating nodes and transformations, connecting them together
-and creating Qt widgets for the transformations are exemplified by separately
-installed analysis packages:
+The mechanisms for creating nodes, transformations and curve fitting solvers,
+connecting them together and creating Qt widgets for the transformations and
+and curve fits are exemplified by separately installed analysis packages:
 
 - `ParSeq-XES-scan <https://github.com/kklmn/ParSeq-XES-scan>`_
 - `ParSeq-XES-dispersive <https://github.com/kklmn/ParSeq-XES-dispersive>`_

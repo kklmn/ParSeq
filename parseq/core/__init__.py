@@ -27,9 +27,10 @@ any parameter can be copied to one or several later selected data.
 Each transformation can optionally define the number of threads or processes
 that will start in parallel and run the transformation of several data items.
 The multiprocessing python API requires the main transformation method as a
-*static* method (not an instance method). Additionally, for the sake of
-multiprocessing, all input and output arrays have to be added to ``inArrays``
-and ``outArrays`` lists (attributes of the transformation class).
+*static* or *class* method (not an instance method). Additionally, for the sake
+of data transfer in multiprocessing, all input and output arrays have to be
+added to ``inArrays`` and ``outArrays`` lists (attributes of the transformation
+class).
 
 In the user-supplied GUI widgets, one for each data node, all interactive GUI
 elements should get registered using a few dedicated methods. The registration
@@ -39,6 +40,10 @@ transformations given the updated parameters, so no
 are typically required. The registration will also enable copying
 transformation parameters to other data by means of popup menus on each GUI
 element.
+
+One or more curve fitting routines can optionally be defined per data node.
+Similarly to transformations, fitting solvers can run in parallel for several
+data items. Fitting parameters can be constrained or tied to other parameters.
 
 The data model is a single object throughout the pipeline. Data can be
 rearranged by the user: ordered, renamed, grouped and removed. The data model
@@ -112,11 +117,18 @@ compromising the data pipeline functionality.
 Provide docstrings in reStructuredText markup, they will be built by Sphinx and
 displayed near the corresponding widgets.
 
+Make fitting worker classes
+---------------------------
+
+Similarly to a transformation class, a fitting class defines a dictionary
+`defaultParams`, defines multiprocessing/multithreading and a static or a class
+method :meth:`.Fit.run_main`.
+
 Make data pipeline
 ------------------
 
-This is a small module that instantiates the above nodes, transformations and
-widgets and connects them together.
+This is a small module that instantiates the above nodes, transformations, fits
+and widgets and connects them together.
 
 Create test data tree
 ---------------------

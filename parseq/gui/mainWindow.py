@@ -648,6 +648,7 @@ class MainWindowParSeq(qt.QMainWindow):
         self.save_perspective()
         if len(csi.selectedItems) > 0:
             csi.selectedItems[0].save_transform_params()
+            csi.selectedItems[0].save_fit_params()
         nodes = csi.nodes.values()
         for node in nodes:
             if hasattr(node.widget.transformWidget, 'properties'):

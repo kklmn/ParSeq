@@ -82,7 +82,7 @@ class SaveProjectDlg(qt.QFileDialog):
 
         self.finished.connect(self.onFinish)
 
-        self.setMinimumHeight(500)
+        self.setMinimumSize(1000, 700)
 
     def onFinish(self, result):
         if not result:
@@ -218,18 +218,22 @@ class LoadProjectDlg(qt.QFileDialog):
             self.previewPanel.groups = int(configProject.get('Root', 'groups'))
             self.previewPanel.items = int(configProject.get('Root', 'items'))
             active = config.get(configProject, 'Docks', 'active', '')
-            self.previewPanel.pmIndex = list(csi.nodes.keys()).index(active)
         except Exception:
             pass
 
+        self.previewPanel.pmIndex = 0
         self.previewPanel.pms = []
         self.previewPanel.pmNames = []
+        curInd = 0
         for i, (name, node) in enumerate(csi.nodes.items()):
             pngName = fname + '-{0}-{1}.png'.format(i+1, name)
             pmName = u'{0} \u2013 {1}'.format(i+1, name)
             if os.path.exists(pngName):
                 self.previewPanel.pms.append(qt.QPixmap(pngName))
                 self.previewPanel.pmNames.append(pmName)
+                if name == active:
+                    self.previewPanel.pmIndex = curInd
+                curInd += 1
         self.previewPanel.updatePreview()
 
     def onFinish(self, result):

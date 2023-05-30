@@ -44,6 +44,9 @@ Main features
 -  Parallel execution of data analysis with multiprocessing or multithreading
    (can be opted by the pipeline application).
 
+-  Optional curve fitting solvers, also executed in parallel for multiple data
+   items.
+
 -  Informative error handling that provides alerts and stack traceback -- the
    type and location of the occurred error.
 

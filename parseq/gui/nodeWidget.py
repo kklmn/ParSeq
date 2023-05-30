@@ -42,7 +42,7 @@ class QSplitterButton(qt.QPushButton):
         self.isVertical = isVertical
         fontSize = "10" if sys.platform == "darwin" else "8.5" \
             if sys.platform == "linux" else "8"
-        grad = "x1: 0, y1: 0, x2: 0, y2: 1"
+        grad = "x1: 0, y1: 1, x2: 0, y2: 0"
         bottomMargin = '-1' if isVertical else '-3'
         self.setStyleSheet("""
             QPushButton {
@@ -123,6 +123,7 @@ class NodeWidget(qt.QWidget):
         self.pendingPropDialog = None
         self.wasNeverPlotted = True
         self.onTransform = False
+        self.fitLines = []
 
         self.makeSplitters()
 
@@ -165,18 +166,21 @@ class NodeWidget(qt.QWidget):
         self.splitter.setOrientation(qt.Qt.Horizontal)
         layout.addWidget(self.splitter)
         self.setLayout(layout)
-        grad = "x1: 0, y1: 0, x2: 0, y2: 1"
+        # grad = "x1: 0, y1: 0, x2: 0, y2: 1"
+        # self.splitter.setStyleSheet(
+        #     "QSplitterHandle:hover {} "
+        #     "QSplitter::handle:horizontal:hover{background-color: "
+        #     "qlineargradient(" + grad + ", stop: 0 #6087cefa, "
+        #     "stop: 1 #7097eeff);}")
+        # self.splitter.setStyleSheet(
+        #     "QSplitterHandle:hover {} "
+        #     "QSplitter::handle:horizontal:hover{background-color: #6087cefa;"
+        #     "margin: 5px;}"
+        #     "QSplitter::handle:vertical:hover{background-color: #6087cefa;"
+        #     "margin: 5px;}")
         self.splitter.setStyleSheet(
             "QSplitterHandle:hover {} "
-            "QSplitter::handle:horizontal:hover{background-color: "
-            "qlineargradient(" + grad + ", stop: 0 #6087cefa, "
-            "stop: 1 #7097eeff);}")
-
-        self.splitter.setStyleSheet(
-            "QSplitterHandle:hover {} "
-            "QSplitter::handle:horizontal:hover{background-color: #6087cefa;"
-            "margin: 5px;}"
-            "QSplitter::handle:vertical:hover{background-color: #6087cefa;"
+            "QSplitter::handle:hover{background-color: #6087cefa;"
             "margin: 5px;}")
 
         self.splitterFiles = qt.QSplitter(self.splitter)
@@ -309,58 +313,17 @@ class NodeWidget(qt.QWidget):
         self.splitterData.setSizes([1, 0])
 
     def fillSplitterPlot(self):
-        node = self.node
-        # self.backend = dict(backend='opengl')
-        self.backend = dict(backend='matplotlib')
-
-        if node.plotDimension == 3:
-            self.plot = Plot3D(self.splitterPlot, position=Plot3D.posInfo,
-                               **self.backend)
-            self.plot.setCustomPosInfo()
-            self.plot.setTitleCallback(self.titleCallback3D)
-        elif node.plotDimension == 2:
-            self.plot = Plot2D(self.splitterPlot, **self.backend)
-        elif node.plotDimension == 1:
-            xLbl = node.get_arrays_prop('qLabel', role='x')[0]
-            yLbl = node.get_arrays_prop('qLabel', role='y')[0]
-            hasCustomCursorLabels = False
-            if self.node.widgetClass is not None:
-                if (hasattr(self.node.widgetClass, 'cursorPositionCallback')
-                        and hasattr(self.node.widgetClass, 'cursorLabels')):
-                    hasCustomCursorLabels = True
-            if hasCustomCursorLabels:
-                position = [
-                    (label, partial(
-                        self.node.widgetClass.cursorPositionCallback, label))
-                    for label in self.node.widgetClass.cursorLabels]
-            else:
-                position = [(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)]
-            self.plot = Plot1D(self.splitterPlot, position=position,
-                               **self.backend)
-            self.plot.getXAxis().setLabel(xLbl)
-            self.plot.getYAxis().setLabel(yLbl)
-        else:
-            raise ValueError("wrong plot dimension")
-        self.plotSetup()
-        self.plot.setMinimumWidth(20)
-        self.savedPlotProps = {}
-
-        self.metadata = qt.QTextEdit(self.splitterPlot)
-        self.metadata.setStyleSheet("QTextEdit {border: none;}")
-        self.metadata.setReadOnly(True)
-#        self.metadata.setContentsMargins(0, 0, 0, 0)
-        self.metadata.setMinimumHeight(84)
-        self.metadata.setAlignment(qt.Qt.AlignLeft | qt.Qt.AlignTop)
-        self.metadata.setText("text metadata here")
-        self.metadata.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
-        self.metadata.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOn)
-        self.metadata.setSizePolicy(
-            qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
+        self.makePlotWidget()
+        self.makeFitWidgets()
+        self.makeMetadataWidget()
 
         self.splitterPlot.setCollapsible(0, False)
         self.splitterPlot.setStretchFactor(0, 1)  # don't remove
-        self.splitterPlot.setStretchFactor(1, 0)
-        self.splitterPlot.setSizes([1, 1])
+        for i in range(1, self.splitterPlot.count()):
+            self.splitterPlot.setStretchFactor(i, 0)
+        sizes = [0] * self.splitterPlot.count()
+        sizes[0] = 1
+        self.splitterPlot.setSizes(sizes)
 
     def fillSplitterTransform(self):
         self.help = QWebView(self.splitterTransform)
@@ -404,7 +367,16 @@ class NodeWidget(qt.QWidget):
         self.makeSplitterButton('transform', self.splitter, 3, 3)
         self.makeSplitterButton('data format', self.splitterFiles, 1, 1)
         self.makeSplitterButton('combine', self.splitterData, 1, 1)
-        self.makeSplitterButton('metadata', self.splitterPlot, 1, 1)
+
+        ind = 1
+        for fit in csi.fits.values():
+            if fit.node is self.node and fit.widgetClass is not None:
+                but = self.makeSplitterButton(
+                    fit.name, self.splitterPlot, ind, ind)
+                but.setToolTip(fit.tooltip)
+                ind += 1
+        self.makeSplitterButton('metadata', self.splitterPlot, ind, ind)
+
         self.makeSplitterButton('help', self.splitterTransform, 1, 1)
         self.makeSplitterHelpButton(self.splitterTransform, 1)
 
@@ -414,11 +386,12 @@ class NodeWidget(qt.QWidget):
             return
         isVerical = splitter.orientation() == qt.Qt.Horizontal
         trNames = ''
-        if self.node.widgetClass is not None:
-            if hasattr(self.node.widgetClass, 'name'):
-                trNames = self.node.widgetClass.name
-        if not trNames:
-            trNames = ', '.join([tr.name for tr in self.node.transformsIn])
+        if name == 'transform':
+            if self.node.widgetClass is not None:
+                if hasattr(self.node.widgetClass, 'name'):
+                    trNames = self.node.widgetClass.name
+            if not trNames:
+                trNames = ', '.join([tr.name for tr in self.node.transformsIn])
         if trNames:
             nameBut = name + ': ' + trNames
         else:
@@ -443,6 +416,7 @@ class NodeWidget(qt.QWidget):
         sLayout.addStretch(1)
         handle.setLayout(sLayout)
         self.splitterButtons[name] = button
+        return button
 
     def makeSplitterHelpButton(self, splitter, indHandle):
         handle = splitter.handle(indHandle)
@@ -462,6 +436,8 @@ class NodeWidget(qt.QWidget):
         else:
             sizes[indSizes] = 1
         splitter.setSizes(sizes)
+        if splitter is self.splitterPlot:
+            self.updateFits(shouldClear=True)
 
     def handleSplitterHelpButton(self):
         webbrowser.open_new_tab(self.helpFile)
@@ -548,6 +524,43 @@ class NodeWidget(qt.QWidget):
         except Exception:
             return ""
 
+    def makePlotWidget(self):
+        node = self.node
+        # self.backend = dict(backend='opengl')
+        self.backend = dict(backend='matplotlib')
+
+        if node.plotDimension == 3:
+            self.plot = Plot3D(self.splitterPlot, position=Plot3D.posInfo,
+                               **self.backend)
+            self.plot.setCustomPosInfo()
+            self.plot.setTitleCallback(self.titleCallback3D)
+        elif node.plotDimension == 2:
+            self.plot = Plot2D(self.splitterPlot, **self.backend)
+        elif node.plotDimension == 1:
+            xLbl = node.get_arrays_prop('qLabel', role='x')[0]
+            yLbl = node.get_arrays_prop('qLabel', role='y')[0]
+            hasCustomCursorLabels = False
+            if self.node.widgetClass is not None:
+                if (hasattr(self.node.widgetClass, 'cursorPositionCallback')
+                        and hasattr(self.node.widgetClass, 'cursorLabels')):
+                    hasCustomCursorLabels = True
+            if hasCustomCursorLabels:
+                position = [
+                    (label, partial(
+                        self.node.widgetClass.cursorPositionCallback, label))
+                    for label in self.node.widgetClass.cursorLabels]
+            else:
+                position = [(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)]
+            self.plot = Plot1D(self.splitterPlot, position=position,
+                               **self.backend)
+            self.plot.getXAxis().setLabel(xLbl)
+            self.plot.getYAxis().setLabel(yLbl)
+        else:
+            raise ValueError("wrong plot dimension")
+        self.plotSetup()
+        self.plot.setMinimumWidth(20)
+        self.savedPlotProps = {}
+
     def plotSetup(self):
         node = self.node
         if node.plotDimension == 1:
@@ -569,6 +582,32 @@ class NodeWidget(qt.QWidget):
             labels = node.get_prop(node.plot3DArray, 'plotLabel')
             axisLabels = self._makeAxisLabels(labels)
             self.plot.setLabels(axisLabels)
+
+    def makeFitWidgets(self):
+        self.fitWidgets = []
+        for ifit, fit in enumerate(csi.fits.values()):
+            if fit.node is self.node and fit.widgetClass is not None:
+                fitWidget = fit.widgetClass(self.splitterPlot, fit, self.plot)
+                fitWidget.fitReady.connect(
+                    partial(self.replotFit, fit, ifit))
+                self.fitWidgets.append(fitWidget)
+                curveLabel = fit.dataAttrs['fit']
+                if curveLabel not in self.fitLines:
+                    self.fitLines.append(curveLabel)
+                    self.fitLines.append(curveLabel+'.residue')
+
+    def makeMetadataWidget(self):
+        self.metadata = qt.QTextEdit(self.splitterPlot)
+        self.metadata.setStyleSheet("QTextEdit {border: none;}")
+        self.metadata.setReadOnly(True)
+        # self.metadata.setContentsMargins(0, 0, 0, 0)
+        self.metadata.setMinimumHeight(84)
+        self.metadata.setAlignment(qt.Qt.AlignLeft | qt.Qt.AlignTop)
+        self.metadata.setText("text metadata here")
+        self.metadata.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
+        self.metadata.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOn)
+        self.metadata.setSizePolicy(
+            qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
 
     def getAxisLabels(self):
         plot = self.plot
@@ -683,9 +722,9 @@ class NodeWidget(qt.QWidget):
             leftAxisUnits, rightAxisUnits = [], []
             for item in csi.allLoadedItems:
                 if not self.shouldPlotItem(item):
-                    for yN in node.plotYArrays:
-                        curveLabel = item.alias + '.' + yN
-                        self.plot.remove(curveLabel, kind='curve')
+                    for yN in node.plotYArrays + self.fitLines:
+                        legend = '{0}.{1}'.format(item.alias, yN)
+                        self.plot.remove(legend, kind='curve')
                     continue
                 try:
                     x = getattr(item, node.plotXArray)
@@ -848,9 +887,71 @@ class NodeWidget(qt.QWidget):
         #     self.plot.resetZoom()
         self.wasNeverPlotted = False
 
+    @logger(minLevel=50, attrs=[(0, 'node')])
+    def replotFit(self, fitWorker, ifit):
+        def plotOne(item, x, y, curveLabel, plotProps):
+            symbolsize = plotProps.pop('symbolsize', 2)
+            curve = self.plot.getCurve(curveLabel)
+            z = 1 if item in csi.selectedItems else 0
+            try:
+                if curve is None:
+                    self.plot.addCurve(
+                        x, y, legend=curveLabel, color=item.color, z=z,
+                        **plotProps)
+                else:
+                    curve.setData(x, y)
+                    curve.setZValue(z)
+            except Exception as e:
+                print('plotting in {0} failed for ({1}, len={2}) vs '
+                      '({3}, len={4}): {5}'
+                      .format(node.name, fitAttrName, len(y), xAttrName,
+                              len(x), e))
+                tb = traceback.format_exc()
+                print(tb)
+                return
+            symbol = plotProps.get('symbol', None)
+            if symbol is not None:
+                curve = self.plot.getCurve(curveLabel)
+                if curve is not None:
+                    if self.backend['backend'] == 'opengl':
+                        # don't know why it is small with opengl
+                        symbolsize *= 2
+                    curve.setSymbolSize(symbolsize)
+
+        node = self.node
+        xAttrName, yAttrName, fitAttrName = [
+            fitWorker.dataAttrs[a] for a in ('x', 'y', 'fit')]
+        fitSizes = self.splitterPlot.sizes()[1:-1]
+        assert len(fitSizes) == len(self.fitWidgets)
+
+        if node.plotDimension == 1:
+            plotProps = fitWorker.plotParams['fit']
+            residueProps = fitWorker.plotParams['residue']
+            for item in csi.allLoadedItems:
+                curveLabel = item.alias + '.' + fitAttrName
+                residueLabel = curveLabel + '.residue'
+                if not self.shouldPlotItem(item) or fitSizes[ifit] == 0:
+                    self.plot.remove(curveLabel, kind='curve')
+                    self.plot.remove(residueLabel, kind='curve')
+                    continue
+                try:
+                    x = getattr(item, xAttrName)
+                    y = getattr(item, yAttrName)
+                    fity = getattr(item, fitAttrName)
+                except AttributeError:
+                    continue
+                plotOne(item, x, fity, curveLabel, dict(plotProps))
+                if fity.any():  # any non-zero
+                    plotOne(item, x, y-fity, residueLabel, dict(residueProps))
+        else:
+            raise NotImplementedError('fit plot not implemented for dim={0}'
+                                      .format(node.plotDimension))
+
     def saveGraph(self, fname, i, name):
         if fname.endswith('.pspj'):
             fname = fname.replace('.pspj', '')
+        if len(self.plot.getItems()) == 0:
+            return
         fname += '-{0}-{1}.png'.format(i+1, name)
         if self.node.plotDimension in [1, 2]:
             self.plot.saveGraph(fname)
@@ -917,6 +1018,7 @@ class NodeWidget(qt.QWidget):
         self.updateMeta()
         self.combiner.setUIFromData()
         self.updateTransforms()
+        self.updateFits()
 
     def shouldUpdateFileModel(self):
         for it in csi.selectedItems:
@@ -1044,6 +1146,21 @@ class NodeWidget(qt.QWidget):
             # in tests, transformWidget is a QWidget instance:
             if hasattr(self.transformWidget, 'setUIFromData'):
                 self.transformWidget.setUIFromData()
+
+    def updateFits(self, shouldClear=False):
+        if len(csi.selectedItems) < 1:
+            return
+        fitSizes = self.splitterPlot.sizes()[1:-1]
+        assert len(fitSizes) == len(self.fitWidgets)
+        for fitWidget, fitSize in zip(self.fitWidgets, fitSizes):
+            if fitSize > 0 or shouldClear:
+                fitWidget.setSpectrum(csi.selectedItems[0])
+            if shouldClear:
+                roi = fitWidget.rangeWidget.roi
+                if roi is not None:
+                    roi.blockSignals(True)
+                    roi.setVisible(fitSize > 0)
+                    roi.blockSignals(False)
 
     def linkClicked(self, url):
         strURL = str(url.toString())
