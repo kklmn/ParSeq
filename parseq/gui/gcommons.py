@@ -31,6 +31,8 @@ UNDEFINED_COLOR = qt.QColor('#cccccc')
 NOTFOUND_COLOR = qt.QColor('#ff88ff')
 MATHERROR_COLOR = qt.QColor('#ffa500')
 
+LIMITS_ROLE = qt.Qt.UserRole + 1
+
 
 def getFormatStr(step):
     if 0.1 <= step < 1:
@@ -92,6 +94,12 @@ def getColorName(color):
 
 
 class CheckBoxDelegate(qt.QItemDelegate):
+    """
+    The standard checkbox (of items with Qt.ItemIsUserCheckable) without text
+    draws an empty focus rectangle on the right of the checkbox. This delegate
+    draws only a centered check box.
+    """
+
     def __init__(self, parent=None):
         self.defSize = qt.QSize(
             qt.QApplication.style().pixelMetric(qt.QStyle.PM_IndicatorWidth),
@@ -142,6 +150,39 @@ class MultiLineEditDelegate(qt.QStyledItemDelegate):
     # def updateEditorGeometry(self, editor, option, index):
     #     editor.setGeometry(option.rect.x(), option.rect.y(),
     #                        option.rect.width(), option.rect.height()-10)
+
+
+class DoubleSpinBoxDelegate(qt.QStyledItemDelegate):
+    """
+    This delegate ctreates a QDoubleSpinBox and sets its limits and step as got
+    from the model's data with a role LIMITS_ROLE.
+    """
+
+    def __init__(self, parent, alignment):
+        super().__init__(parent)
+        self.alignment = alignment
+
+    def createEditor(self, parent, option, index):
+        dsb = qt.QDoubleSpinBox(parent)
+        dsb.setAccelerated(True)
+        limits = index.data(role=LIMITS_ROLE)
+        if limits:
+            dsb.setMinimum(float(limits[0]))
+            dsb.setMaximum(float(limits[1]))
+            step = limits[2]
+            dsb.setSingleStep(step)
+            decimals = getDecimals(step)
+            dsb.setDecimals(decimals)
+        dsb.setAlignment(self.alignment)
+        dsb.valueChanged.connect(self.valueChanged)
+        return dsb
+
+    def valueChanged(self):
+        self.commitData.emit(self.sender())
+
+    def updateEditorGeometry(self, editor, option, index):
+        editor.setGeometry(option.rect.x(), option.rect.y(),
+                           option.rect.width(), option.rect.height()-1)
 
 
 class RichTextPushButton(qt.QPushButton):
