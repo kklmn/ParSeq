@@ -213,6 +213,7 @@ class LoadProjectDlg(qt.QFileDialog):
             return
 
         configProject = config.ConfigParser()
+        active = ''
         try:
             configProject.read(path, encoding=config.encoding)
             self.previewPanel.groups = int(configProject.get('Root', 'groups'))

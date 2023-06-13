@@ -77,7 +77,7 @@ class AboutDialog(qt.QDialog):
         self.webView = gww.QWebView(self)
         self.webView.page().setLinkDelegationPolicy(2)
         self.webView.setMinimumWidth(560)
-        self.webView.setMinimumHeight(450+30*len(csi.nodes))
+        self.webView.setMinimumHeight(360+30*len(csi.nodes))
         self.webView.history().clear()
         self.webView.page().history().clear()
         self.lastBrowserLink = ''
