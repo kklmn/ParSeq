@@ -6,6 +6,8 @@ __date__ = "16 Feb 2019"
 import os
 from silx.gui import qt
 from silx.gui import plot as splot
+from silx.gui.plot.actions.control import ZoomBackAction, CrosshairAction
+from silx.gui.plot.tools.menus import ZoomEnabledAxesMenu
 
 from ..core import singletons as csi
 
@@ -20,6 +22,17 @@ class Plot1D(splot.PlotWindow):
             mask=False, fit=False)
         if parent is None:
             self.setWindowTitle('Plot1D')
+
+        self._zoomBackAction = ZoomBackAction(plot=self, parent=self)
+        self._crosshairAction = CrosshairAction(plot=self, parent=self)
+        self._zoomEnabledAxesMenu = ZoomEnabledAxesMenu(plot=self, parent=self)
+        self.isRightAxisVisible = False
+        # Retrieve PlotWidget's plot area widget
+        plotArea = self.getWidgetHandle()
+        # Set plot area custom context menu
+        plotArea.setContextMenuPolicy(qt.Qt.CustomContextMenu)
+        plotArea.customContextMenuRequested.connect(self._contextMenu)
+
         action = self.getFitAction()
         action.setXRangeUpdatedOnZoom(True)
         action.setFittedItemUpdatedFromActiveCurve(True)
@@ -55,6 +68,23 @@ class Plot1D(splot.PlotWindow):
         nodeWidget.tree.setCurrentIndex(index)
         nodeWidget.tree.selChanged()
         nodeWidget.updateNodeForSelectedItems()
+
+    def _contextMenu(self, pos):
+        """Handle plot area customContextMenuRequested signal.
+
+        :param QPoint pos: Mouse position relative to plot area
+        """
+        # Create the context menu
+        menu = qt.QMenu(self)
+        menu.addAction(self._zoomBackAction)
+        if self.isRightAxisVisible:
+            menu.addMenu(self._zoomEnabledAxesMenu)
+        menu.addSeparator()
+        menu.addAction(self._crosshairAction)
+
+        plotArea = self.getWidgetHandle()
+        globalPosition = plotArea.mapToGlobal(pos)
+        menu.exec(globalPosition)
 
 
 class Plot2D(splot.Plot2D):

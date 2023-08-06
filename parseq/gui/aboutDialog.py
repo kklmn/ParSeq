@@ -101,6 +101,10 @@ class AboutDialog(qt.QDialog):
         self.changePage(currentIndex)
 
     def makeTextMain(self):
+        # https://stackoverflow.com/a/69325836/2696065
+        def isWin11():
+            return True if sys.getwindowsversion().build > 22000 else False
+
         if qt.BINDING.lower().startswith('pyside2'):
             import PySide2.QtCore
             Qt_version = PySide2.QtCore.qVersion()
@@ -123,6 +127,10 @@ class AboutDialog(qt.QDialog):
                 except ImportError:
                     print("do 'pip install distro' for a better view of Linux"
                           " distro string")
+        elif 'Windows' in locos:
+            if isWin11():
+                locos = 'Windows 11'
+
         if isOpenCL:
             vercl = cl.VERSION
             if isinstance(vercl, (list, tuple)):

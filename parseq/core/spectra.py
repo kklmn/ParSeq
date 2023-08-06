@@ -1128,14 +1128,22 @@ class Spectrum(TreeItem):
         if not conversionFactors:
             return
         fromNode = csi.nodes[self.originNodeName]
+        secondPassNeeded = False
         for aName, cFactor in zip(fromNode.arrays, conversionFactors):
             if not cFactor:
                 continue
             setName = fromNode.get_prop(aName, 'raw')
             arr = getattr(self, setName)
+            if arr is None:
+                continue
             try:
                 if isinstance(cFactor, str):
-                    if cFactor.startswith('transpose'):
+                    if cFactor.startswith('lim'):
+                        secondPassNeeded = True
+                        mn, mx = eval(cFactor[3:])
+                        where = ((mn < arr) if mn is not None else True) & \
+                            ((arr < mx) if mx is not None else True)
+                    elif cFactor.startswith('transpose'):
                         axes = eval(cFactor[9:])
                         setattr(self, setName, arr.transpose(*axes))
                     elif cFactor.startswith('f'):
@@ -1154,12 +1162,24 @@ class Spectrum(TreeItem):
                         arr *= 1e-6
                     elif cFactor.startswith('G'):
                         arr *= 1e-9
+                    self.hasChanged = True
                     continue
                 arr *= cFactor
-                self.hasChanged = True
             except Exception as e:
-                print(e)
+                print(e, aName)
                 setattr(self, setName, None)
+
+        if secondPassNeeded:
+            for aName in fromNode.arrays:
+                setName = fromNode.get_prop(aName, 'raw')
+                arr = getattr(self, setName)
+                if arr is None:
+                    continue
+                try:
+                    setattr(self, setName, arr[where])
+                except Exception as e:
+                    print(aName, e)
+                    setattr(self, setName, None)
 
     def calc_combined(self):
         """Case of *madeOf* as list of Spectrum instances. self.dataFormat is

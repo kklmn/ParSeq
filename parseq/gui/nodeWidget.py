@@ -803,6 +803,9 @@ class NodeWidget(qt.QWidget):
                             if unit:
                                 if unit not in rightAxisUnits:
                                     rightAxisUnits.append(unit)
+            self.plot.isRightAxisVisible = len(rightAxisColumns) > 0
+            self.plot.getInteractiveModeToolBar().getZoomModeAction().\
+                setAxesMenuEnabled(self.plot.isRightAxisVisible)
             if nPlottedItems == 0:
                 self.plot.clearCurves()
                 return
@@ -878,10 +881,8 @@ class NodeWidget(qt.QWidget):
         try:
             if hasattr(self.transformWidget, 'extraPlot'):
                 self.transformWidget.extraPlot()
-        except AttributeError:  # as e:
-            # if not self.wasNeverPlotted:
-            #     print(e)
-            pass
+        except Exception as e:
+            print('extraPlot in {0} failed: {1}'.format(self.node.name, e))
 
         # if self.wasNeverPlotted and node.plotDimension == 1:
         #     self.plot.resetZoom()

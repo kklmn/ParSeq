@@ -43,10 +43,12 @@ class ColumnFormatWidget(PropWidget):
         self.conversionTab = self.makeConversionTab()
         ind = self.tabWidget.addTab(self.conversionTab, 'conversion')
         self.tabWidget.setTabToolTip(
-            ind, "Give one of:\n1) a float factor,\n"
+            ind, "Give one of:\n"
+            "1) a float factor,\n"
             "2) a new str unit (not for abscissa),\n"
-            "3) transpose(*axes), e.g. transpose(2, 1, 0)\n"
-            "4) leave empty (no conversion).")
+            "3) lim(min, max) (typ. for abscissa), e.g. lim(None, 9900)\n"
+            "4) transpose(*axes), e.g. transpose(2, 1, 0)\n"
+            "5) leave empty (no conversion).")
 
         self.metadataTab = self.makeMetadataTab()
         ind = self.tabWidget.addTab(self.metadataTab, 'metadata')
@@ -305,7 +307,7 @@ class ColumnFormatWidget(PropWidget):
         for it in csi.selectedItems:
             if it.hasChanged:
                 needReplot = True
-                it.read_data()
+                it.read_data(runDownstream=True)
                 it.hasChanged = False
         if needReplot:
             self.node.widget.replot(keepExtent=False)
