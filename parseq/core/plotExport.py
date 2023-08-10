@@ -276,7 +276,7 @@ def getPlotsFromHDF5(path):
         axes = eval(plotGrp[key]['axes'][()])
         curves = eval(plotGrp[key]['plots'][()])
         plots.append([path, key, ndim, axes, curves])
-    return(plots)  # end getPlotsFromHDF5
+    return plots  # end getPlotsFromHDF5
 
 
 def plotSavedData(plots, lib='mpl'):
