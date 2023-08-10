@@ -98,7 +98,10 @@ def plot1Dmpl(nodeData):
                 if 'symbol' in kw:
                     m = kw.pop('symbol')
                     kw['marker'] = m
-                lbl = props[0]  # + '.' + header
+                lbl = props[0]
+                if len(headers) > 1:
+                    lbl += '.' + header
+                ax = axl if yaxis.startswith('l') else axr
                 ax = axl if yaxis.startswith('l') else axr
                 ax.plot(x, y, color=clr, label=lbl, **kw)
     ax.legend()
@@ -134,7 +137,9 @@ def plot1Dsilx(nodeData):
                     clr = 'gray'
                 symbolsize = kw.pop('symbolsize', 2)
                 symbol = kw.get('symbol', None)
-                lbl = props[0]  # + '.' + header
+                lbl = props[0]
+                if len(headers) > 1:
+                    lbl += '.' + header
                 plot.addCurve(x, y, color=clr, legend=lbl, **kw)
                 if symbol is not None:
                     curve = plot.getCurve(lbl)

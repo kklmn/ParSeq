@@ -113,19 +113,46 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
 
             curves = {}
             for it in csi.selectedItems:
-                dataToSave = [getattr(it, arr) for arr in header]
+                dataToSave = []
+                try:
+                    x = getattr(it, node.plotXArray)
+                except AttributeError:
+                    continue
+                for aN in node.arrays:
+                    d = getattr(it, aN)
+                    if ((aN in node.plotYArrays) and
+                        hasattr(node.widget.transformWidget,
+                                'extraPlotTransform')):
+                        x, d = \
+                            node.widget.transformWidget.extraPlotTransform(
+                                it, node.plotXArray, x, aN, d)
+                    dataToSave.append(d)
                 dataToSave = [d for d in dataToSave if d is not None]
+
+                headerAll = list(header)
+                plotPropsAll = it.plotProps[node.name]
+                for fit in csi.fits.values():
+                    if fit.node is node:
+                        fitAttrName = fit.dataAttrs['fit']
+                        try:
+                            fity = getattr(it, fitAttrName)
+                            dataToSave.append(fity)
+                            headerAll.append(fitAttrName)
+                            plotPropsAll[fitAttrName] = fit.plotParams['fit']
+                        except AttributeError:
+                            continue
+
                 nname = nodeName.translate(chars2removeMap)
                 dname = it.alias.translate(chars2removeMap)
                 sname = u'{0}-{1}-{2}'.format(iNode+1, nname, dname)
                 if 'txt' in saveTypes:
                     np.savetxt(sname+'.txt', np.column_stack(dataToSave),
-                               fmt='%.12g', header=' '.join(header))
+                               fmt='%.12g', header=' '.join(headerAll))
                 if 'txt.gz' in saveTypes:
                     np.savetxt(sname+'.txt.gz', np.column_stack(dataToSave),
-                               fmt='%.12g', header=' '.join(header))
-                curves[sname] = [it.alias, it.color, header,
-                                 it.plotProps[node.name]]
+                               fmt='%.12g', header=' '.join(headerAll))
+
+                curves[sname] = [it.alias, it.color, headerAll, plotPropsAll]
 
                 for iG, aG in enumerate(node.auxArrays):
                     dataAux, headerAux = [], []
@@ -146,6 +173,7 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                         np.savetxt(sname+'.txt.gz', np.column_stack(dataAux),
                                    fmt='%.12g', header=' '.join(headerAux))
                     curves[sname] = [it.alias, it.color, headerAux]
+
             if 'txt' in saveTypes:
                 plots.append(['txt', node.name, node.plotDimension,
                               node.widget.getAxisLabels(), curves])
@@ -172,8 +200,20 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
 
             curves = {}
             for it, sname in zip(csi.selectedItems, snames):
+                if node.plotDimension == 1:
+                    try:
+                        x = getattr(it, node.plotXArray)
+                    except AttributeError:
+                        continue
                 for aN in node.arrays:
                     d = getattr(it, aN)
+                    if (node.plotDimension == 1 and
+                        (aN in node.plotYArrays) and
+                        hasattr(node.widget.transformWidget,
+                                'extraPlotTransform')):
+                        x, d = \
+                            node.widget.transformWidget.extraPlotTransform(
+                                it, node.plotXArray, x, aN, d)
                     dataToSave[it][aN] = d.tolist() if d is not None else None
                 for aN in [j for i in node.auxArrays for j in i]:
                     try:
@@ -181,8 +221,21 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                     except AttributeError:
                         continue
                     dataToSave[it][aN] = d.tolist() if d is not None else None
-                curves[sname] = [it.alias, it.color, header,
-                                 it.plotProps[node.name]]
+
+                headerAll = list(header)
+                plotPropsAll = it.plotProps[node.name]
+                for fit in csi.fits.values():
+                    if fit.node is node:
+                        fitAttrName = fit.dataAttrs['fit']
+                        try:
+                            fity = getattr(it, fitAttrName)
+                            dataToSave[it][fitAttrName] = fity.tolist()
+                            headerAll.append(fitAttrName)
+                            plotPropsAll[fitAttrName] = fit.plotParams['fit']
+                        except AttributeError:
+                            continue
+
+                curves[sname] = [it.alias, it.color, headerAll, plotPropsAll]
                 if node.auxArrays:
                     headerAux = []
                     for aG in node.auxArrays:
@@ -230,18 +283,45 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
 
             curves = {}
             for it, sname in zip(csi.selectedItems, snames):
-                for aN in node.arrays:
+                if node.plotDimension == 1:
                     try:
-                        dataToSave[it][aN] = getattr(it, aN)
+                        x = getattr(it, node.plotXArray)
                     except AttributeError:
                         continue
+                for aN in node.arrays:
+                    try:
+                        y = getattr(it, aN)
+                        if (node.plotDimension == 1 and
+                            (aN in node.plotYArrays) and
+                            hasattr(node.widget.transformWidget,
+                                    'extraPlotTransform')):
+                            x, y = \
+                                node.widget.transformWidget.extraPlotTransform(
+                                    it, node.plotXArray, x, aN, y)
+                        dataToSave[it][aN] = y
+                    except AttributeError:
+                        continue
+
                 for aN in [j for i in node.auxArrays for j in i]:
                     try:
                         dataToSave[it][aN] = getattr(it, aN)
                     except AttributeError:
                         continue
-                curves[sname] = [it.alias, it.color, header,
-                                 it.plotProps[node.name]]
+
+                headerAll = list(header)
+                plotPropsAll = it.plotProps[node.name]
+                for fit in csi.fits.values():
+                    if fit.node is node:
+                        fitAttrName = fit.dataAttrs['fit']
+                        try:
+                            fity = getattr(it, fitAttrName)
+                            dataToSave[it][fitAttrName] = fity
+                            headerAll.append(fitAttrName)
+                            plotPropsAll[fitAttrName] = fit.plotParams['fit']
+                        except AttributeError:
+                            continue
+
+                curves[sname] = [it.alias, it.color, headerAll, plotPropsAll]
                 if node.auxArrays:
                     headerAux = []
                     for aG in node.auxArrays:
