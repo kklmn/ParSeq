@@ -804,8 +804,10 @@ class NodeWidget(qt.QWidget):
                                 if unit not in rightAxisUnits:
                                     rightAxisUnits.append(unit)
             self.plot.isRightAxisVisible = len(rightAxisColumns) > 0
-            self.plot.getInteractiveModeToolBar().getZoomModeAction().\
-                setAxesMenuEnabled(self.plot.isRightAxisVisible)
+            zoomModeAction = self.plot.getInteractiveModeToolBar().\
+                getZoomModeAction()
+            if hasattr(zoomModeAction, 'setAxesMenuEnabled'):
+                zoomModeAction.setAxesMenuEnabled(self.plot.isRightAxisVisible)
             if nPlottedItems == 0:
                 self.plot.clearCurves()
                 return

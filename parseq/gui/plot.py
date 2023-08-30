@@ -7,7 +7,10 @@ import os
 from silx.gui import qt
 from silx.gui import plot as splot
 from silx.gui.plot.actions.control import ZoomBackAction, CrosshairAction
-from silx.gui.plot.tools.menus import ZoomEnabledAxesMenu
+try:
+    from silx.gui.plot.tools.menus import ZoomEnabledAxesMenu
+except ModuleNotFoundError:
+    ZoomEnabledAxesMenu = None
 
 from ..core import singletons as csi
 
@@ -25,7 +28,9 @@ class Plot1D(splot.PlotWindow):
 
         self._zoomBackAction = ZoomBackAction(plot=self, parent=self)
         self._crosshairAction = CrosshairAction(plot=self, parent=self)
-        self._zoomEnabledAxesMenu = ZoomEnabledAxesMenu(plot=self, parent=self)
+        if ZoomEnabledAxesMenu is not None:
+            self._zoomEnabledAxesMenu = ZoomEnabledAxesMenu(
+                plot=self, parent=self)
         self.isRightAxisVisible = False
         # Retrieve PlotWidget's plot area widget
         plotArea = self.getWidgetHandle()
