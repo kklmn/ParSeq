@@ -951,12 +951,14 @@ class NodeWidget(qt.QWidget):
     def saveGraph(self, fname, i, name):
         if fname.endswith('.pspj'):
             fname = fname.replace('.pspj', '')
-        if len(self.plot.getItems()) == 0:
-            return
         fname += '-{0}-{1}.png'.format(i+1, name)
         if self.node.plotDimension in [1, 2]:
+            if len(self.plot.getItems()) == 0:
+                return
             self.plot.saveGraph(fname)
         elif self.node.plotDimension in [3]:
+            if len(self.plot.getPlotWidget().getItems()) == 0:
+                return
             self.plot._plot.saveGraph(fname)
 
     def _makeYLabel(self, yNames, yUnits):
@@ -1027,7 +1029,8 @@ class NodeWidget(qt.QWidget):
                     csi.nodes[it.originNodeName] is self.node:
                 return it.madeOf
 
-    def loadFiles(self, fileNamesFull=None, parentItem=None, insertAt=None):
+    def loadFiles(self, fileNamesFull=None, parentItem=None, insertAt=None,
+                  concatenate=False):
         def times(n):
             return " ({0} times)".format(n) if n > 1 else ""
 
@@ -1107,7 +1110,7 @@ class NodeWidget(qt.QWidget):
         # df['dataSource'] = [col[0][0] for col in colRecs]
         csi.model.importData(
             fileNamesFull, parentItem, insertAt, dataFormat=df,
-            originNodeName=self.node.name)
+            originNodeName=self.node.name, concatenate=concatenate)
 
     def shouldShowColumnDialog(self):
         for it in csi.selectedItems:

@@ -114,7 +114,7 @@ def setEditFromData(edit, prop, textFormat='', skipDefault=None, **kw):
         else:
             sf = '{0:' + textFormat + '}'
         ss = sf.format(common)
-        if 'strip' in textFormat:
+        if ('strip' in textFormat) or ('g' in textFormat):
             ss = ss.lower()
             for r in (("e-0", "e-"), ("e+0", "e+")):
                 ss = ss.replace(*r)

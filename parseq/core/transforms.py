@@ -223,8 +223,11 @@ class Transform(object):
                 continue
             worker.get_out_data(item)
             res = worker.get_results(self)
-            item.state[self.toNode.name] = cco.DATA_STATE_GOOD\
-                if res else cco.DATA_STATE_BAD
+            if isinstance(res, int):
+                item.state[self.toNode.name] = res
+            else:
+                item.state[self.toNode.name] = cco.DATA_STATE_GOOD\
+                    if res else cco.DATA_STATE_BAD
             item.error = worker.get_error()
             item.transfortmTimes[self.name] = time.time() - item.transfortm_t0
 
@@ -285,8 +288,11 @@ class Transform(object):
         if isinstance(res, dict):
             for field in res:
                 setattr(self, field, res[field])
-        data.state[self.toNode.name] = cco.DATA_STATE_GOOD \
-            if res is not None else cco.DATA_STATE_BAD
+        if isinstance(res, int):
+            data.state[self.toNode.name] = res
+        else:
+            data.state[self.toNode.name] = cco.DATA_STATE_GOOD \
+                if res is not None else cco.DATA_STATE_BAD
         data.beingTransformed = False
         data.transfortmTimes[self.name] = \
             time.time() - data.transfortm_t0
@@ -429,7 +435,9 @@ class Transform(object):
         be notified in the ParSeq status bar and the traceback will be shown in
         the data item's tooltip in the data tree view.
 
-        Returns True when successful.
+        Returns True when successful. If returns an int, this int will be set
+        as the data state at the destination node (the state is a dict of node
+        names).
         """
         raise NotImplementedError  # must be overridden
 
@@ -463,10 +471,10 @@ class Transform(object):
                     continue
                 newItems = dataItems.copy()
                 newItems += [it for it in toBeUpdated if it not in newItems]
-                for data in dataItems:
-                    if data.branch is not None:
-                        newItems += [it for it in data.branch.get_items()
-                                     if it not in newItems]
+                # for data in dataItems:
+                #     if data.branch is not None:
+                #         newItems += [it for it in data.branch.get_items()
+                #                      if it not in newItems]
                 tr.run(dataItems=newItems)
 
 

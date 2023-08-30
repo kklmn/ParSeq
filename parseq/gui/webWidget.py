@@ -18,7 +18,7 @@ try:
     import sphinxcontrib.jquery  # to check if it exists
 except ImportError as e:
     print('do "pip install sphinxcontrib-jquery"')
-    raise(e)
+    raise e
 import codecs
 
 from ..core import singletons as csi
@@ -99,7 +99,7 @@ def sphinxify(task, context, wantMessages=False):
         sphinx_app.build()
     except (SystemMessage, SphinxError) as e:
         print(e)
-        raise(e)
+        raise e
 #        output = ("It was not possible to generate rich text help for this "
 #                  "object.</br>Please see it in plain text.")
 
@@ -115,7 +115,7 @@ elif 'pyqt5' in qt.BINDING.lower():
         except ImportError as e:
             print('do "conda install -c conda-forge pyqtwebengine"'
                   ' or "pip install pyqtwebengine"')
-            raise(e)
+            raise e
 elif 'pyside2' in qt.BINDING.lower():
     import PySide2.QtWebEngineWidgets as myQtWeb
 elif 'pyside6' in qt.BINDING.lower():

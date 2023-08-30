@@ -331,7 +331,12 @@ class TreeItem(object):
         elif hasattr(self, 'name'):
             alias = self.name
 
-        if isinstance(data, str):
+        if isinstance(data, (list, tuple)) and \
+                'concatenate' in kwargs and kwargs['concatenate']:
+            item = self.insert_item(data, insertAt, **kwargs)
+            if item not in items:  # inclusion check that keeps the order
+                items.append(item)
+        elif isinstance(data, str):
             item = self.insert_item(data, insertAt, **kwargs)
             if item not in items:  # inclusion check that keeps the order
                 items.append(item)
@@ -358,9 +363,9 @@ class TreeItem(object):
         csi.recentlyLoadedItems = list(items)
         csi.allLoadedItems[:] = []
         csi.allLoadedItems.extend(csi.dataRootItem.get_items())
-        if len(csi.selectedItems) == 0:
-            if len(csi.allLoadedItems) == 0:
-                raise ValueError("No valid data added")
+        # if len(csi.selectedItems) == 0:
+        #     if len(csi.allLoadedItems) == 0:
+        #         raise ValueError("No valid data added")
         csi.selectedItems = list(items)
         csi.selectedTopItems = list(items)
 
@@ -475,7 +480,7 @@ class Spectrum(TreeItem):
                 from the ini file.
         """
 
-        assert len(csi.nodes) > 0, "A data pipeline must be first created."
+        assert len(csi.nodes) > 0, "A data pipeline must first be created."
         self.madeOf = madeOf
         self.parentItem = parentItem
         self.childItems = []
@@ -577,11 +582,13 @@ class Spectrum(TreeItem):
                 if plotProps:
                     self.plotProps.update(copy.deepcopy(plotProps))
 
+            concatenate = 'concatenate' in kwargs and kwargs['concatenate']
             self.read_data(shouldLoadNow=shouldLoadNow,
                            runDownstream=runDownstream,
                            copyTransformParams=copyTransformParams,
                            transformParams=transformParams,
-                           fitParams=fitParams)
+                           fitParams=fitParams,
+                           concatenate=concatenate)
 
         elif isinstance(self.madeOf, str) and not self.dataFormat:
             # i.e. is a group
@@ -644,7 +651,8 @@ class Spectrum(TreeItem):
         return self.state[nodeName]
 
     def read_data(self, shouldLoadNow=True, runDownstream=False,
-                  copyTransformParams=True, transformParams={}, fitParams={}):
+                  copyTransformParams=True, transformParams={}, fitParams={},
+                  concatenate=False):
         fromNode = csi.nodes[self.originNodeName]
         if isinstance(self.madeOf, dict):
             self.dataType = cco.DATA_BRANCH
@@ -660,18 +668,62 @@ class Spectrum(TreeItem):
             if shouldLoadNow:
                 self.create_data()
         elif isinstance(self.madeOf, (list, tuple)):
-            self.dataType = cco.DATA_COMBINATION
-            self.colorTag = 5
-            if shouldLoadNow:
-                self.calc_combined()
-            if self.alias == 'auto':
-                cs = self.madeOf[0].alias
-                for data in self.madeOf[1:]:
-                    cs = cco.common_substring((cs, data.alias))
-                what = self.dataFormat['combine']
-                lenC = len(self.madeOf)
-                tmpalias = "{0}_{1}{2}".format(
-                    cs, cco.combineNames[what], lenC)
+            if concatenate:
+                axis, reduce = concatenate[:2] \
+                    if isinstance(concatenate, (list, tuple)) else (0, False)
+                madeOfTmp = list(self.madeOf)
+                for iconcat, madeOf in enumerate(madeOfTmp):
+                    self.madeOf = madeOf.replace('\\', '/')
+                    if iconcat == 0:
+                        if self.madeOf.startswith('silx:'):
+                            self.dataType = cco.DATA_DATASET
+                        else:
+                            self.dataType = cco.DATA_COLUMN_FILE
+                        self.set_auto_color_tag()
+                    if shouldLoadNow:
+                        self.read_file()
+                    for aName in fromNode.arrays:
+                        setName = fromNode.get_prop(aName, 'raw')
+                        if iconcat == 0:
+                            if reduce:
+                                concatTmp = getattr(self, setName).sum(
+                                    axis=axis, keepdims=True)
+                            else:
+                                concatTmp = copy.copy(getattr(self, setName))
+                            setattr(self, setName+'Concat', concatTmp)
+                        else:
+                            if reduce:
+                                tmp = getattr(self, setName).sum(
+                                    axis=axis, keepdims=True)
+                            else:
+                                tmp = copy.copy(getattr(self, setName))
+                            if getattr(self, setName+'Concat') is not None:
+                                concatTmp = np.concatenate(
+                                    (getattr(self, setName+'Concat'), tmp))
+                                setattr(self, setName+'Concat', concatTmp)
+                                setattr(self, setName, concatTmp)
+                            else:
+                                setattr(self, setName, None)
+                if self.state[fromNode.name] == cco.DATA_STATE_GOOD:
+                    if not self.check_shape():
+                        print('Incompatible data shapes!')
+                        self.state[self.originNodeName] = cco.DATA_STATE_BAD
+                        self.colorTag = 3
+                if self.alias == 'auto':
+                    tmpalias = 'concatenation'
+            else:
+                self.dataType = cco.DATA_COMBINATION
+                self.colorTag = 5
+                if shouldLoadNow:
+                    self.calc_combined()
+                if self.alias == 'auto':
+                    cs = self.madeOf[0].alias
+                    for data in self.madeOf[1:]:
+                        cs = cco.common_substring((cs, data.alias))
+                    what = self.dataFormat['combine']
+                    lenC = len(self.madeOf)
+                    tmpalias = "{0}_{1}{2}".format(
+                        cs, cco.combineNames[what], lenC)
         elif isinstance(self.madeOf, str):
             self.madeOf = self.madeOf.replace('\\', '/')
             if self.madeOf.startswith('silx:'):
@@ -881,6 +933,9 @@ class Spectrum(TreeItem):
             # is a group
             return Spectrum(name, self, insertAt, **kwargs)
 
+        if 'concatenate' in kwargs and kwargs['concatenate']:
+            return Spectrum(name, self, insertAt, **kwargs)
+
         spectraInOneFile = 1
         dataSource = list(df.get('dataSource', []))
         dataSourceSplit = []
@@ -916,7 +971,7 @@ class Spectrum(TreeItem):
                     kwargs['dataFormat'] = dataFormatFull
                     return Spectrum(nameFull, self, insertAt, **kwargs)
                 else:
-                    raise(e)
+                    raise e
 
         basename = osp.basename(name)
         groupName = osp.splitext(basename)[0]
@@ -1473,7 +1528,7 @@ class Spectrum(TreeItem):
 
     @logger(minLevel=50, attrs=[(0, 'alias')])
     def branch_out(self, nbrunch, toTransfer, nodeStop, nodeStart,
-                   transformNames, label=''):
+                   transformNames=[], groupLabel='_rois', label=''):
         """Brach this spectrum into a group of *nbrunch* new items. Example:
         a 3D item has n ROIs that result in n 1D spectra; these spectra are put
         to a new group and start at *nodeStart* (str) whereas the original data
@@ -1487,9 +1542,10 @@ class Spectrum(TreeItem):
         self.terminalNodeName = nodeStop
         self.colorTag = 3
         if self.branch is None:
-            kw = dict(colorPolicy='loop2', colorTag=4)
+            kw = dict(colorPolicy='grad', color1='#ff0000', color2='#0000ff',
+                      colorTag=4)
             self.branch = self.parentItem.insert_item(
-                self.alias+'_rois', self.row()+1, **kw)
+                self.alias+groupLabel, self.row()+1, **kw)
             if hasattr(self.branch.parentItem, 'colorAutoUpdate'):
                 self.branch.colorAutoUpdate = \
                     self.branch.parentItem.colorAutoUpdate
@@ -1508,11 +1564,12 @@ class Spectrum(TreeItem):
             newItem.fitParams = self.fitParams
             newItem.meta = self.meta
             newItem.colorTag = 4
-        self.init_colors(self.branch.childItems)
+        self.branch.init_colors(self.branch.childItems)
         for newItem in self.branch.childItems:
             newItem.state[nodeStart] = cco.DATA_STATE_GOOD
             for key in toTransfer:
                 setattr(newItem, key, getattr(self, key))
+        self.state[nodeStart] == cco.DATA_STATE_UNDEFINED
 
         if csi.model is not None:
             csi.model.endResetModel()

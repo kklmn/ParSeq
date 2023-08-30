@@ -684,7 +684,8 @@ class PropWidget(qt.QWidget):
                             data.originNodeName, data.terminalNodeName)):
                         break
         else:
-            tr = csi.nodes[data.originNodeName].transformsOut[0]
+            trs = csi.nodes[data.originNodeName].transformsOut
+            tr = trs[0] if trs else None
         if tr is None:
             return
 
