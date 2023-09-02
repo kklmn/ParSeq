@@ -673,9 +673,10 @@ def connect_combined(items, parentItem):
             for itemName in item.madeOf:
                 if isinstance(itemName, str):
                     dataItem = parentItem.find_data_item(itemName)
-                    newMadeOf.append(dataItem)
-                    if item not in dataItem.combinesTo:
-                        dataItem.combinesTo.append(item)
+                    if dataItem is not None:
+                        newMadeOf.append(dataItem)
+                        if item not in dataItem.combinesTo:
+                            dataItem.combinesTo.append(item)
             if newMadeOf:
                 item.madeOf = newMadeOf
                 toBeUpdated.append(item)

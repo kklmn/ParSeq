@@ -121,7 +121,8 @@ class TreeItem(object):
                 elif isinstance(self.madeOf, (type(""), dict, tuple, list)):
                     if isinstance(self.madeOf, type("")):
                         res = str(self.madeOf)
-                    elif isinstance(self.madeOf, (tuple, list)):
+                    elif isinstance(self.madeOf, (tuple, list)) and\
+                            'combine' in self.dataFormat:
                         what = self.dataFormat['combine']
                         if type(self.madeOf[0]) is str:
                             names = self.madeOf
@@ -382,6 +383,8 @@ class TreeItem(object):
         if citems is None:
             return
 
+        if not hasattr(self, 'colorPolicy'):
+            self.colorPolicy = gco.COLOR_POLICY_GRADIENT
         if self.colorPolicy == gco.COLOR_POLICY_GRADIENT:
             colors = gco.makeGradientCollection(
                 self.color1, self.color2, len(citems))
@@ -496,7 +499,7 @@ class Spectrum(TreeItem):
             if csi.withGUI:
                 from ..gui import gcommons as gco
                 self.colorPolicy = gco.COLOR_POLICY_LOOP1
-                self.colorAutoUpdate = DEFAULT_COLOR_AUTO_UPDATE
+            self.colorAutoUpdate = DEFAULT_COLOR_AUTO_UPDATE
             self.kwargs = dict(
                 alias='auto', dataFormat={}, originNodeName=None,
                 terminalNodeName=None, transformNames='each',
@@ -582,7 +585,12 @@ class Spectrum(TreeItem):
                 if plotProps:
                     self.plotProps.update(copy.deepcopy(plotProps))
 
-            concatenate = 'concatenate' in kwargs and kwargs['concatenate']
+            if 'concatenate' in kwargs:
+                concatenate = kwargs['concatenate']
+                self.concatenateOf = self.madeOf
+                self.concatenate = concatenate
+            else:
+                concatenate = False
             self.read_data(shouldLoadNow=shouldLoadNow,
                            runDownstream=runDownstream,
                            copyTransformParams=copyTransformParams,
@@ -627,9 +635,11 @@ class Spectrum(TreeItem):
         for node in csi.nodes.values():
             self.plotProps[node.name] = {}
             if node.plotDimension == 1:
-                if len(csi.selectedItems) > 0:
+                # items = csi.selectedItems
+                items = csi.allLoadedItems
+                if len(items) > 0:
                     self.plotProps[node.name] = dict(
-                        csi.selectedItems[0].plotProps[node.name])
+                        items[0].plotProps[node.name])
                 else:
                     for ind, yName in enumerate(node.plotYArrays):
                         plotParams = {}
@@ -905,8 +915,13 @@ class Spectrum(TreeItem):
                         tmp['dataFormat'] = {}
                         name = tmp.pop('madeOf')
                     elif isinstance(madeOf, (list, tuple)):
+                        if 'concatenate' in configData[name]:
+                            tmp['concatenate'] = config.get(
+                                configData, name, 'concatenate')
+                            tmp['shouldLoadNow'] = True
+                        else:
+                            tmp['shouldLoadNow'] = False
                         name = tmp.pop('madeOf')
-                        tmp['shouldLoadNow'] = False
                         # for spName in madeOf:
                         #     item = self.get_top().find_data_item(spName)
                         #     if item is None:
@@ -918,6 +933,9 @@ class Spectrum(TreeItem):
                 elif 'colorPolicy' in configData[name]:  # group entry
                     tmp = {entry: config.get(configData, name, entry)
                            for entry in self.configFieldsGroup}
+                    if tmp['colorPolicy'] == 'gradient':
+                        tmp['color1'] = config.get(configData, name, 'color1')
+                        tmp['color2'] = config.get(configData, name, 'color2')
                 else:
                     tmp = {}
                 kwargs = dict(tmp)
@@ -1388,20 +1406,27 @@ class Spectrum(TreeItem):
         if ((isinstance(item.madeOf, str) and item.dataFormat) or
                 isinstance(item.madeOf, (list, tuple, dict))):
             if isinstance(item.madeOf, str):
-                start = 5 if item.madeOf.startswith('silx:') else 0
-                end = item.madeOf.find('::') if '::' in item.madeOf else None
-                path = item.madeOf[start:end]
-                abspath = osp.abspath(path).replace('\\', '/')
-                madeOf = item.madeOf[:start] + abspath
-                if end is not None:
-                    madeOf += item.madeOf[end:]
-                config.put(configProject, item.alias, 'madeOf', madeOf)
-                relpath = osp.relpath(path, dirname).replace('\\', '/')
-                madeOfRel = item.madeOf[:start] + relpath
-                if end is not None:
-                    madeOfRel += item.madeOf[end:]
-                config.put(configProject, item.alias, 'madeOf_relative',
-                           madeOfRel)
+                if hasattr(item, 'concatenateOf'):
+                    config.put(configProject, item.alias, 'madeOf',
+                               str(item.concatenateOf))
+                    config.put(configProject, item.alias, 'concatenate',
+                               str(item.concatenate))
+                else:
+                    start = 5 if item.madeOf.startswith('silx:') else 0
+                    end = item.madeOf.find('::') if '::' in item.madeOf else \
+                        None
+                    path = item.madeOf[start:end]
+                    abspath = osp.abspath(path).replace('\\', '/')
+                    madeOf = item.madeOf[:start] + abspath
+                    if end is not None:
+                        madeOf += item.madeOf[end:]
+                    config.put(configProject, item.alias, 'madeOf', madeOf)
+                    relpath = osp.relpath(path, dirname).replace('\\', '/')
+                    madeOfRel = item.madeOf[:start] + relpath
+                    if end is not None:
+                        madeOfRel += item.madeOf[end:]
+                    config.put(configProject, item.alias, 'madeOf_relative',
+                               madeOfRel)
 
                 dataFormatCopy = copy.deepcopy(item.dataFormat)
                 dataSource = list(dataFormatCopy.get('dataSource', []))
@@ -1542,13 +1567,13 @@ class Spectrum(TreeItem):
         self.terminalNodeName = nodeStop
         self.colorTag = 3
         if self.branch is None:
-            kw = dict(colorPolicy='grad', color1='#ff0000', color2='#0000ff',
-                      colorTag=4)
+            c1, c2 = '#ff0000', '#0000ff'
+            kw = dict(colorPolicy='grad', color1=c1, color2=c2, colorTag=4)
             self.branch = self.parentItem.insert_item(
                 self.alias+groupLabel, self.row()+1, **kw)
-            if hasattr(self.branch.parentItem, 'colorAutoUpdate'):
-                self.branch.colorAutoUpdate = \
-                    self.branch.parentItem.colorAutoUpdate
+            self.branch.color1 = c1
+            self.branch.color2 = c2
+            self.branch.colorAutoUpdate = csi.dataRootItem.colorAutoUpdate
         while self.branch.child_count() > nbrunch:
             self.branch.childItems[-1].remove_from_parent()
         while self.branch.child_count() < nbrunch:
