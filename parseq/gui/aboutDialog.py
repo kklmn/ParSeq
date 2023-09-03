@@ -74,10 +74,19 @@ class AboutDialog(qt.QDialog):
         self.resize(0, 0)
 
     def makeWebView(self):
+        path = csi.appPath
+        self.prFiles = []
+        for root, dirs, files in os.walk(path):
+            for file in files:
+                if file.endswith(".pspj"):
+                    pr = os.path.join(root, file)
+                    self.prFiles.append(
+                        osp.relpath(pr, path).replace('\\', '/'))
+
         self.webView = gww.QWebView(self)
         self.webView.page().setLinkDelegationPolicy(2)
         self.webView.setMinimumWidth(560)
-        self.webView.setMinimumHeight(360+30*len(csi.nodes))
+        self.webView.setMinimumHeight(520+30*len(csi.nodes))
         self.webView.history().clear()
         self.webView.page().history().clear()
         self.lastBrowserLink = ''
@@ -313,6 +322,7 @@ class AboutDialog(qt.QDialog):
                 else:
                     flowChart += u"""\n
             <svg><line id="line_{0}" node1=pn_{1} node2=pn_{2} class="shadow"
+            transform="translate(0, 0)"
             {3} /></svg>""".format(iline, name1_, name2_, colorStr)
                 iline += 1
             flowChart += """\n      </div>"""  # class="pipeline-rank"
@@ -325,9 +335,24 @@ class AboutDialog(qt.QDialog):
         path = csi.appPath
         if os.name == 'nt':
             iconPath = iconPath.replace('\\', '/')
-            path = path.replace('\\', '/')
         elif os.name.startswith('posix'):
             iconPath = '/' + iconPath
+
+        if self.prFiles:
+            testStr = """
+Test it as::
+
+    python {0} -p {1}
+""".format(sys.argv[0], self.prFiles[0])
+        else:
+            testStr = ""
+        if len(self.prFiles) > 1:
+            for prFile in self.prFiles:
+                testStr += """
+or::
+
+    python {0} -p {1}
+""".format(sys.argv[0], prFile)
 
         flowChart = self.makeGraphPipeline()
         txt = u"""
@@ -343,25 +368,25 @@ class AboutDialog(qt.QDialog):
 .. |synopsis| replace::
    :bigger:`{2}`
 
-.. inheritance-diagram:: sphinx.ext.inheritance_diagram.InheritanceDiagram
-
 .. raw:: html
 
    {3}
 
 {4}
 
+{5}
+
 :Created by:
-    {5}
-:License:
     {6}
-:Located at:
+:License:
     {7}
-:Version:
+:Located at:
     {8}
+:Version:
+    {9}
     """.format(iconPath, csi.appIconScale, csi.appSynopsis, flowChart,
-               csi.appDescription, csi.appAuthor, csi.appLicense, path,
-               csi.appVersion)
+               csi.appDescription, testStr, csi.appAuthor, csi.appLicense,
+               path.replace('\\', '/'), csi.appVersion)
         return txt
 
     def changePage(self, itab):

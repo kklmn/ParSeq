@@ -34,17 +34,18 @@ function redrawConnectors() {
       div2 = document.getElementById(this.getAttribute("node2"));
       var rect1 = div1.getBoundingClientRect();
       var rect2 = div2.getBoundingClientRect();
-      this.setAttribute("x1", (rect1.left+rect1.right)*0.5);
-      this.setAttribute("y1", rect1.bottom+1);
-      this.setAttribute("x2", (rect2.left+rect2.right)*0.5);
-      this.setAttribute("y2", rect2.top-1);
+      this.setAttribute("x1", (rect1.left+rect1.right)*0.5+window.scrollX);
+      this.setAttribute("y1", rect1.bottom+1+window.scrollY);
+      this.setAttribute("x2", (rect2.left+rect2.right)*0.5+window.scrollX);
+      this.setAttribute("y2", rect2.top-1+window.scrollY);
     });
     $('[id^=arc_]').each(function() {
       div1 = document.getElementById(this.getAttribute("node"));
 //      var pad = parseFloat(window.getComputedStyle(div1, null).getPropertyValue('padding'))
       var rr = div1.getBoundingClientRect();
       this.setAttribute("d",
-                        "M " + rr.left + " " + rr.bottom +
+                        "M " + (rr.left+window.scrollX).toString() +
+                        " " + (rr.bottom+window.scrollY).toString() +
                         "m 10 0 c 5 15 15 15 20 0");
     });
 }
