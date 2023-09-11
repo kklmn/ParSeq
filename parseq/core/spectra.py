@@ -585,7 +585,7 @@ class Spectrum(TreeItem):
                 if plotProps:
                     self.plotProps.update(copy.deepcopy(plotProps))
 
-            if 'concatenate' in kwargs:
+            if 'concatenate' in kwargs and kwargs['concatenate']:
                 concatenate = kwargs['concatenate']
                 self.concatenateOf = self.madeOf
                 self.concatenate = concatenate
@@ -624,7 +624,8 @@ class Spectrum(TreeItem):
             if self.alias == 'auto':
                 self.alias = str(madeOf)
         else:
-            raise ValueError('unknown data type of {0}'.format(self.alias))
+            raise ValueError('unknown data type {0} of {1}'.format(
+                type(self.madeOf), self.alias))
 
     def init_plot_props(self):
         row = self.row()
@@ -903,7 +904,11 @@ class Spectrum(TreeItem):
                             configData, name, 'plotProps')
                     tmp['transformParams'] = getTransformParams(configData)
                     tmp['fitParams'] = getFitParams(configData)
-                    name = tmp.pop('madeOf_relative')
+                    nameRel = tmp.pop('madeOf_relative')
+                    if nameRel is not None:
+                        name = nameRel
+                    else:
+                        name = tmp.get('madeOf')
                     nameFull = tmp.pop('madeOf')
                 elif isinstance(madeOf, (dict, list, tuple)):
                     tmp = {entry: config.get(configData, name, entry)
