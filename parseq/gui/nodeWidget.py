@@ -559,7 +559,7 @@ class NodeWidget(qt.QWidget):
             raise ValueError("wrong plot dimension")
         self.plotSetup()
         self.plot.setMinimumWidth(20)
-        self.savedPlotProps = {}
+        self.savedPlotProps = {'cm.vmin': None, 'cm.vmax': None}
 
     def plotSetup(self):
         node = self.node
@@ -648,8 +648,6 @@ class NodeWidget(qt.QWidget):
         self.savedPlotProps['yaxis.range'] = plot.getYAxis().getLimits()
 
         if self.node.plotDimension in [3, 2]:
-            self.savedPlotProps['cm.vmin'] = None
-            self.savedPlotProps['cm.vmax'] = None
             activeImage = self.plot.getActiveImage()
             if activeImage is not None:
                 cm = activeImage.getColormap()
