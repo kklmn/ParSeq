@@ -82,7 +82,7 @@ class Plot1D(splot.PlotWindow):
         # Create the context menu
         menu = qt.QMenu(self)
         menu.addAction(self._zoomBackAction)
-        if self.isRightAxisVisible:
+        if self.isRightAxisVisible and ZoomEnabledAxesMenu is not None:
             menu.addMenu(self._zoomEnabledAxesMenu)
         menu.addSeparator()
         menu.addAction(self._crosshairAction)

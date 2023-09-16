@@ -284,7 +284,7 @@ def plotSavedData(plots, lib='mpl'):
     widgets = []
     for nodeData in plots:
         ndim = nodeData[2]
-        plotFunc = globals()['plot{0}D{1}'.format(ndim, lib)]
+        plotFunc = globals()['plot{0}D{1}'.format(ndim, lib)]  # e.g.plot1Dmpl
         widgets.append(plotFunc(nodeData))  # to keep references to silx polots
     if lib == 'mpl':
         plt.show()  # end plotSavedData
