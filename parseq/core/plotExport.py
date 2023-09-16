@@ -63,7 +63,7 @@ def read1D(saveType, fname, props):
 
 def plot1Dmpl(nodeData):
     saveType = nodeData[0]
-    fig = plt.figure()
+    fig = plt.figure(figsize=(7, 5))
     fig.suptitle(nodeData[1] + ' ' + saveType)
     axl = fig.add_subplot(111)
     axl.set_xmargin(0.)
@@ -77,11 +77,13 @@ def plot1Dmpl(nodeData):
         axr.set_ymargin(0.)
 
     savedColumns = nodeData[4]
-    for fname, props in savedColumns.items():
+    # colors = [f'C{i%9}' for i in range(len(savedColumns))]  # custom colors
+    for icurve, (fname, props) in enumerate(savedColumns.items()):
         curves = read1D(saveType, fname, props)
         if len(props) > 3:
             yprops = props[3]
-            clr = props[1]
+            clr = props[1]  # same color as in ParSeq wanted
+            # clr = colors[icurve]  # custom color wanted
 
         for curve in curves:
             x, ys, headers = curve
@@ -102,10 +104,9 @@ def plot1Dmpl(nodeData):
                 if len(headers) > 1:
                     lbl += '.' + header
                 ax = axl if yaxis.startswith('l') else axr
-                ax = axl if yaxis.startswith('l') else axr
                 ax.plot(x, y, color=clr, label=lbl, **kw)
     ax.legend()
-    # fig.savefig('test.png')
+    fig.savefig('{0}_{1}.png'.format(nodeData[1], saveType))
     # end plot1Dmpl
 
 
