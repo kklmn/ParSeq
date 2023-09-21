@@ -815,7 +815,7 @@ class NodeWidget(qt.QWidget):
             self.plotRightYLabel = self._makeYLabel(
                 rightAxisColumns, rightAxisUnits)
             self.plot.setGraphYLabel(label=self.plotRightYLabel, axis='right')
-        if node.plotDimension == 2:
+        elif node.plotDimension == 2:
             self.plot.clearCurves()
             # if needClear:
             if True:
@@ -847,7 +847,7 @@ class NodeWidget(qt.QWidget):
             self.plot.addImage(image, colormap=colors.Colormap(COLORMAP),
                                origin=(xOrigin, yOrigin),
                                scale=(xScale, yScale), z=-100)
-        if node.plotDimension == 3:
+        elif node.plotDimension == 3:
             self.plot._plot.clearCurves()
             # if needClear:
             if True:

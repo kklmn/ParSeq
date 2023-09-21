@@ -1194,13 +1194,13 @@ class FileTreeView(qt.QTreeView):
                     lenSelectedIndexes),
                 partial(self.transformNode.widget.loadFiles,
                         concatenate=(0, False)))
-            actionN0.setEnabled(isEnabled)
+            actionN0.setEnabled(True)
             actionN1 = menu.addAction(
                 "Sum {0} datasets individually".format(lenSelectedIndexes) +
                 " along 0 axis, concatenate and load as one",
                 partial(self.transformNode.widget.loadFiles,
                         concatenate=(0, True)))
-            actionN1.setEnabled(isEnabled)
+            actionN1.setEnabled(True)
 
         if self.transformNode is not None:
             formats = self.getSavedFormats()

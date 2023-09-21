@@ -118,7 +118,7 @@ class Transform(object):
         if self.name in csi.transforms:
             raise ValueError("A transform '{0}' already exists. One instance "
                              "is allowed".format(self.name))
-        self.isHeadNode = len(csi.transforms) == 0
+        self.isHeadTransform = len(csi.transforms) == 0
         csi.transforms[self.name] = self
 
         if self not in fromNode.transformsOut:
@@ -223,11 +223,11 @@ class Transform(object):
                 continue
             worker.get_out_data(item)
             res = worker.get_results(self)
-            if isinstance(res, int):
-                item.state[self.toNode.name] = res
-            else:
+            if isinstance(res, bool):
                 item.state[self.toNode.name] = cco.DATA_STATE_GOOD\
                     if res else cco.DATA_STATE_BAD
+            elif isinstance(res, int):
+                item.state[self.toNode.name] = res
             item.error = worker.get_error()
             item.transfortmTimes[self.name] = time.time() - item.transfortm_t0
 
@@ -288,11 +288,11 @@ class Transform(object):
         if isinstance(res, dict):
             for field in res:
                 setattr(self, field, res[field])
-        if isinstance(res, int):
-            data.state[self.toNode.name] = res
-        else:
+        if isinstance(res, bool):
             data.state[self.toNode.name] = cco.DATA_STATE_GOOD \
                 if res is not None else cco.DATA_STATE_BAD
+        elif isinstance(res, int):
+            data.state[self.toNode.name] = res
         data.beingTransformed = False
         data.transfortmTimes[self.name] = \
             time.time() - data.transfortm_t0
@@ -334,8 +334,9 @@ class Transform(object):
                 ' this is a static method, not an instance method!')
 
         for data in items:
-            if (not self.isHeadNode and
-                    data.state[self.fromNode.name] == cco.DATA_STATE_BAD):
+            # if (not self.isHeadTransform and
+            #         data.state[self.fromNode.name] == cco.DATA_STATE_BAD):
+            if data.state[self.fromNode.name] == cco.DATA_STATE_BAD:
                 data.state[self.toNode.name] = cco.DATA_STATE_BAD
                 if csi.DEBUG_LEVEL > 1:
                     print('bad data at', self.fromNode.name, data.alias)

@@ -146,9 +146,11 @@ class ColumnFormatWidget(PropWidget):
             arrayLayout.setContentsMargins(0, 0, 0, 0)
             lbl = self.node.get_prop(arrayName, 'qLabel')
             unit = self.node.get_prop(arrayName, 'qUnit')
+            ndim = self.node.get_prop(arrayName, 'ndim')
             if unit:
                 lbl += '({0})'.format(unit)
             dataLabel = qt.QLabel(lbl)
+            dataLabel.setToolTip('{0}D'.format(ndim))
             dataEdit = qt.QLineEdit()
             dataEdit.setMinimumWidth(62)
             if role == 'optional':

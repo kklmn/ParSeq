@@ -4,6 +4,7 @@ __date__ = "29 Sep 2022"
 # !!! SEE CODERULES.TXT !!!
 
 from collections import deque, OrderedDict
+import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 
 DEBUG_LEVEL = 0
 

@@ -1009,6 +1009,8 @@ class RangeWidget(RangeWidgetBase):
     def setAutoRange(self):
         if callable(self.defaultRange):
             defRange = self.defaultRange()
+            if defRange is None:
+                return
         else:
             defRange = self.defaultRange
             fs = "[" + self.formatStr + "]{1}{2}"
@@ -1016,7 +1018,7 @@ class RangeWidget(RangeWidgetBase):
                 defRange, ' as ' if self.tooltip else '', self.tooltip))
         if self.roi is not None:
             self.setRange(defRange)
-        self.rangeChanged.emit(defRange)
+        self.rangeChanged.emit(list(defRange))
         self.editSetText(defRange)
         self.rbAuto.setChecked(True)
         self.rbCustom.setChecked(False)
@@ -1187,7 +1189,7 @@ class RangeWidgetSplit(RangeWidgetBase):
     def spinDelayed(self):
         if self.spinBoxProps is None:
             return
-        self.rangeChanged.emit(self.spinBoxProps)
+        self.rangeChanged.emit(list(self.spinBoxProps))
         self.spinBoxProps = None
 
     def toggleVisible(self, on):

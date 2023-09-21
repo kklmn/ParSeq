@@ -152,7 +152,8 @@ class TreeItem(object):
                         elif self.state[node.name] == cco.DATA_STATE_BAD:
                             if res:
                                 res += '\n'
-                            res += 'incompatible data shapes!'
+                            res += 'incompatible data shapes in {0}!'.format(
+                                node.name)
                         elif self.state[node.name] == cco.DATA_STATE_GOOD:
                             try:
                                 if self.terminalNodeName is not None:
@@ -717,7 +718,8 @@ class Spectrum(TreeItem):
                                 setattr(self, setName, None)
                 if self.state[fromNode.name] == cco.DATA_STATE_GOOD:
                     if not self.check_shape():
-                        print('Incompatible data shapes!')
+                        print('Incompatible data shapes in {0}!'.format(
+                            fromNode.name))
                         self.state[self.originNodeName] = cco.DATA_STATE_BAD
                         self.colorTag = 3
                 if self.alias == 'auto':
@@ -747,7 +749,8 @@ class Spectrum(TreeItem):
 
             if self.state[fromNode.name] == cco.DATA_STATE_GOOD:
                 if not self.check_shape():
-                    print('Incompatible data shapes!')
+                    print('Incompatible data shapes in {0}!'.format(
+                        fromNode.name))
                     self.state[self.originNodeName] = cco.DATA_STATE_BAD
                     self.colorTag = 3
 
@@ -834,7 +837,10 @@ class Spectrum(TreeItem):
                 sl = '0'
             checkName = fromNode.get_prop(stem, 'raw')
             arr = getattr(self, checkName)
-            shape = arr.shape[eval(sl)] if arr is not None else []
+            try:
+                shape = arr.shape[eval(sl)] if arr is not None else []
+            except IndexError:
+                return False
             if iarr == 0:
                 shape0 = shape
                 continue
