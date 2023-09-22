@@ -70,6 +70,14 @@ def save_project(fname, save_perspective=None):
     configProject = config.ConfigParser(allow_no_value=True)
     configProject.optionxform = str  # makes it case sensitive
 
+    config.put(
+        configProject, 'ParSeq Application', 'pipelineName', csi.pipelineName)
+    config.put(configProject, 'ParSeq Application', 'appPath', csi.appPath)
+    config.put(
+        configProject, 'ParSeq Application', 'appVersion', csi.appVersion)
+    config.put(
+        configProject, 'ParSeq Application', 'appSynopsis', csi.appSynopsis)
+
     root = csi.dataRootItem
     config.put(configProject, 'Root', 'tree', repr(root))
     config.put(configProject, 'Root', 'groups', str(len(root.get_groups())))

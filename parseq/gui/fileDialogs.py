@@ -138,6 +138,7 @@ class QPreviewPanel(qt.QWidget):
 
         self.groups = None
         self.items = None
+        self.pipelineName = ''
         self.pms = []
         self.pmIndex = 1e6
         self.previewContent = qt.QLabel(self)
@@ -151,7 +152,11 @@ class QPreviewPanel(qt.QWidget):
         self.updatePreview()
 
     def updatePreview(self):
-        txt = '{0} group{1}, '.format(
+        if self.pipelineName:
+            txt = '{0}, '.format(self.pipelineName)
+        else:
+            txt = ''
+        txt += '{0} group{1}, '.format(
             self.groups, 's' if self.groups > 1 else '') if self.groups else ''
         txt += '{0} item{1}'.format(
             self.items, 's' if self.items > 1 else '') if self.items else ''
@@ -218,6 +223,11 @@ class LoadProjectDlg(qt.QFileDialog):
             configProject.read(path, encoding=config.encoding)
             self.previewPanel.groups = int(configProject.get('Root', 'groups'))
             self.previewPanel.items = int(configProject.get('Root', 'items'))
+            if configProject.has_section('ParSeq Application'):
+                self.previewPanel.pipelineName = configProject.get(
+                    'ParSeq Application', 'pipelineName')
+            else:
+                self.previewPanel.pipelineName = ''
             active = config.get(configProject, 'Docks', 'active', '')
         except Exception:
             pass
