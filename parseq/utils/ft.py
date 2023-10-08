@@ -9,7 +9,7 @@ ft_windows = ('none', 'box', 'linear-tapered', 'cosine-tapered',
               'Gaussian-tapered')
 
 
-def make_ft_window(kind, x, xmin, xmax, width, vmin):
+def make_ft_window(kind, x, xmin, xmax, width, vmin=0):
     """
     Create a tapered FT window function.
 
@@ -55,6 +55,8 @@ def make_ft_window(kind, x, xmin, xmax, width, vmin):
             sigma2 = width**2 / (2*abs(np.log(v0)))
             res[left_lobe] = np.exp(-0.5*(x[left_lobe]-xmin-width)**2/sigma2)
             res[right_lobe] = np.exp(-0.5*(xmax-width-x[right_lobe])**2/sigma2)
-    res[x < xmin] = res[left_lobe][0]
-    res[x > xmax] = res[right_lobe][-1]
+    if len(res[left_lobe]) > 0:
+        res[x < xmin] = vmin
+    if len(res[right_lobe]) > 0:
+        res[x > xmax] = vmin
     return res

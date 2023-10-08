@@ -110,13 +110,15 @@ class CombineSpectraWidget(PropWidget):
                                buttons=qt.QMessageBox.Close)
             return
             nPCA = self.combineN.value()  # !!! TODO !!!
-#        isStopHere = self.stopHereCB.checkState() == qt.Qt.Checked
+        # isStopHere = self.stopHereCB.checkState() == qt.Qt.Checked
         isStoppedAt = self.combineStopCB.checkState() == qt.Qt.Checked
         kw = dict(dataFormat={'combine': ind}, colorTag=ind,
                   originNodeName=self.node.name, runDownstream=False)
         if isStoppedAt:
             for it in csi.selectedItems:
                 it.terminalNodeName = self.combineStop.currentText()
+                it.colorTag = 0
+                it.set_auto_color_tag()
         isMoveToGroup = self.combineMoveToGroupCB.checkState() == qt.Qt.Checked
         model = self.node.widget.tree.model()
 

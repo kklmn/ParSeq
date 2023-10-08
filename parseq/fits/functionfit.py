@@ -132,7 +132,7 @@ class FunctionFit(Fit):
 
     @classmethod
     def can_interpret_tie_str(cls, tieStr, fitVars):
-        if tieStr.startswith('f'):
+        if tieStr.startswith('f'):  # fixed
             return True
         if tieStr[0] not in '=<>':
             return False

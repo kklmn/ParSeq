@@ -152,6 +152,7 @@ class NodeWidget(qt.QWidget):
             self.gotoLastData()
         # # doesn't work in Linux:
         # self.fileSystemWatcher = qt.QFileSystemWatcher(self)
+        self.setMinimumWidth(600)
 
     def gotoLastData(self):
         self.files.gotoLastData()
@@ -328,7 +329,7 @@ class NodeWidget(qt.QWidget):
     def fillSplitterTransform(self):
         self.help = QWebView(self.splitterTransform)
         # self.help.setHtml('no documentation available')
-        self.help.setMinimumSize(qt.QSize(100, 5))
+        self.help.setMinimumSize(qt.QSize(50, 5))
         self.help.page().setLinkDelegationPolicy(2)
         self.help.history().clear()
         self.help.page().history().clear()
@@ -602,6 +603,7 @@ class NodeWidget(qt.QWidget):
         self.metadata.setReadOnly(True)
         # self.metadata.setContentsMargins(0, 0, 0, 0)
         self.metadata.setMinimumHeight(84)
+        self.metadata.setMinimumWidth(20)
         self.metadata.setAlignment(qt.Qt.AlignLeft | qt.Qt.AlignTop)
         self.metadata.setText("text metadata here")
         self.metadata.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)

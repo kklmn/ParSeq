@@ -243,7 +243,7 @@ class FunctionFitTableView(qt.QTableView):
                 horHeaders.setSectionResizeMode(i, qt.QHeaderView.Interactive)
             horHeaders.setSectionsClickable(True)
         horHeaders.setStretchLastSection(False)
-        horHeaders.setMinimumSectionSize(20)
+        # horHeaders.setMinimumSectionSize(20)
         verHeaders.setDefaultSectionSize(20)
 
         for i, cw in enumerate(self.columnWidths[:nC]):
@@ -253,8 +253,8 @@ class FunctionFitTableView(qt.QTableView):
         self.setItemDelegateForColumn(1, gco.DoubleSpinBoxDelegate(self, **kw))
 
         self.setMinimumHeight(horHeaders.height() * max(2, model.rowCount()+1))
-        self.setMinimumWidth(
-            int(sum(self.columnWidths[:nC])*csi.screenFactor) + 30)
+        # self.setMinimumWidth(
+        #     int(sum(self.columnWidths[:nC])*csi.screenFactor) + 30)
 
         # self.setSelectionMode(qt.QAbstractItemView.NoSelection)
         self.setSelectionMode(qt.QAbstractItemView.SingleSelection)
@@ -306,10 +306,8 @@ class FunctionFitTableView(qt.QTableView):
             for item in csi.selectedItems:
                 dfparams = item.fitParams
                 dfparams['ffit_formula'] = str(srcParams['ffit_formula'])
-                dfparams['ffit_params'] = copy.deepcopy(
-                    srcParams['ffit_params'])
-                dfparams['ffit_result'] = copy.deepcopy(
-                    srcParams['ffit_params'])
+                for prop in ('ffit_params', 'ffit_result'):
+                    dfparams[prop] = copy.deepcopy(srcParams[prop])
 
         csi.selectionModel.clear()
         csi.model.selectItems(self.parent().spectrum)

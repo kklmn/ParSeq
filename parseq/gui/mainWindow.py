@@ -135,8 +135,9 @@ class MainWindowParSeq(qt.QMainWindow):
     beforeDataTransformSignal = qt.pyqtSignal(list)
     afterDataTransformSignal = qt.pyqtSignal(list)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, tabPos=qt.QTabWidget.West):
         super().__init__(parent)
+        self.tabPos = tabPos
         csi.screenFactor = qt.qApp.desktop().logicalDpiX() / 120.
 
         selfDir = osp.dirname(__file__)
@@ -269,7 +270,7 @@ class MainWindowParSeq(qt.QMainWindow):
         self.toolbar.addAction(helpAction)
 
     def initTabs(self):
-        self.setTabPosition(qt.Qt.AllDockWidgetAreas, qt.QTabWidget.West)
+        self.setTabPosition(qt.Qt.AllDockWidgetAreas, self.tabPos)
 
         dockFeatures = (qt.QDockWidget.DockWidgetMovable |
                         qt.QDockWidget.DockWidgetFloatable)  # |

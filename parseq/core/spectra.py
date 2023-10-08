@@ -1077,6 +1077,16 @@ class Spectrum(TreeItem):
             conversionFactors = df.pop('conversionFactors',
                                        [None for arr in fromNode.arrays])
             df.pop('metadata', None)
+            cols = 0
+            for ds in dataSource:
+                if "Col" in ds:
+                    regex = re.compile('Col([0-9]*)')
+                    # remove possible duplicates by list(dict.fromkeys())
+                    subkeys = list(dict.fromkeys(regex.findall(ds)))
+                    for ch in subkeys:
+                        cols = max(cols, int(ch))
+
+            df['usecols'] = list(range(cols+1))
             if dataSource is None:
                 raise ValueError('bad dataSource settings')
             if self.dataType == cco.DATA_COLUMN_FILE:

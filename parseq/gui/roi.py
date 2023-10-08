@@ -1198,5 +1198,6 @@ class RangeWidgetSplit(RangeWidgetBase):
         self.roi.setVisible(on)
 
     def setRangeVisible(self, on):
-        self.visibleCB.setChecked(on)
+        if hasattr(self, 'visibleCB'):
+            self.visibleCB.setChecked(on)
         self.toggleVisible(on)

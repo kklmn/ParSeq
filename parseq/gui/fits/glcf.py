@@ -296,7 +296,7 @@ class LCFTableView(qt.QTableView):
                 horHeaders.setSectionResizeMode(i, qt.QHeaderView.Interactive)
             horHeaders.setSectionsClickable(True)
         horHeaders.setStretchLastSection(False)
-        horHeaders.setMinimumSectionSize(20)
+        # horHeaders.setMinimumSectionSize(20)
         verHeaders.setDefaultSectionSize(20)
         horHeaders.sectionClicked.connect(self.headerClicked)
 
@@ -308,8 +308,8 @@ class LCFTableView(qt.QTableView):
                 i, gco.DoubleSpinBoxDelegate(self, **kw))
 
         self.setMinimumHeight(horHeaders.height() * max(2, model.rowCount()+1))
-        self.setMinimumWidth(
-            int(sum(self.columnWidths[:nC])*csi.screenFactor) + 30)
+        # self.setMinimumWidth(
+        #     int(sum(self.columnWidths[:nC])*csi.screenFactor) + 30)
 
         # self.setSelectionMode(qt.QAbstractItemView.NoSelection)
         self.setSelectionMode(qt.QAbstractItemView.SingleSelection)
@@ -415,9 +415,8 @@ class LCFTableView(qt.QTableView):
             srcParams = self.parent().spectrum.fitParams
             for item in csi.selectedItems:
                 dfparams = item.fitParams
-                dfparams['lcf_xRange'] = copy.deepcopy(srcParams['lcf_xRange'])
-                dfparams['lcf_params'] = copy.deepcopy(srcParams['lcf_params'])
-                dfparams['lcf_result'] = copy.deepcopy(srcParams['lcf_result'])
+                for prop in ('lcf_xRange', 'lcf_params', 'lcf_result'):
+                    dfparams[prop] = copy.deepcopy(srcParams[prop])
         elif self.pickReason == 2:  # add ref spectra
             names = [item.alias for item in csi.selectedItems]
             newRow = self.model().appendRefs(names)
