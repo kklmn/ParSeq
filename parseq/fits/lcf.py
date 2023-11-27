@@ -109,7 +109,8 @@ class LCF(Fit):
                     tieStr = v['wtie']
                     if not cls.can_interpret_LCF_tie_str(tieStr, lcf):
                         raise ValueError('wrong tie expr for w[{0}]'.format(k))
-                    refs[k]['w'] = v['w'] if tieStr.startswith('f') else tieStr
+                    refs[k]['w'] = v['w'] if tieStr.startswith('fix') else \
+                        tieStr
                     refs[k]['wtie'] = tieStr
                     # if tieStr[0] in '<>' then w is both tied and varied
                     if tieStr[0] not in '<>':
@@ -138,7 +139,7 @@ class LCF(Fit):
                         if not cls.can_interpret_LCF_tie_str(tieStr, lcf):
                             raise ValueError(
                                 'wrong tie expr for {0}[{1}]'.format(kd, k))
-                        refs[k][kd] = v[kd] if tieStr.startswith('f') else \
+                        refs[k][kd] = v[kd] if tieStr.startswith('fix') else \
                             tieStr
                         refs[k][kdt] = tieStr
                         # if tieStr[0] in '<>' then dE is both tied and varied
@@ -160,10 +161,12 @@ class LCF(Fit):
                 if isinstance(xRange, (list, tuple)) else None
             locx = x[where]
             locy = y[where]
+            fcounter = {'nfev': 0}
             wopt, pcov, info, mesg, ier = curve_fit(partial(
-                cls.linear_combination, refs=refs),
+                cls.linear_combination, refs=refs, fcounter=fcounter),
                 locx, locy, p0=args, bounds=(mins, maxs), full_output=True)
-            info2 = {'nfev': info['nfev']}
+            # info2 = {'nfev': info['nfev']}
+            info2 = fcounter
             lcfProps = dict(mesg=mesg, ier=ier, info=info2, nparam=len(wopt))
             fit = cls.linear_combination(x, *wopt, refs=refs)
             lcfProps['R'] = ((locy - fit[where])**2).sum() / (locy**2).sum()
@@ -210,7 +213,26 @@ class LCF(Fit):
         dfparams['lcf_result'] = lcfProps
 
     @classmethod
-    def linear_combination(cls, x, *params, refs):
+    def can_interpret_LCF_tie_str(cls, tieStr, lcf):
+        if tieStr.startswith('fix'):  # fixed
+            return True
+        if tieStr[0] not in '=<>':
+            return False
+        w = [0]  # w list indexing is 1-based
+        if cls.xVary:
+            dx = [0]  # dE list indexing is 1-based
+        for ref in lcf:
+            w.append(ref['w'])
+            if cls.xVary:
+                dx.append(ref['dx'])
+        try:
+            eval(tieStr[1:])
+            return True
+        except Exception:
+            return False
+
+    @classmethod
+    def linear_combination(cls, x, *params, refs, fcounter={}):
         """
         *x* : array of energy of the fitted spectrum,
 
@@ -220,6 +242,8 @@ class LCF(Fit):
         The values of 'w' and 'dx' are indices of *params* list.
         """
 
+        if fcounter:
+            fcounter['nfev'] += 1
         w = [0]  # w list indexing is 1-based for tie formulae
         for ref in refs.values():
             wr = ref['w']
@@ -263,22 +287,3 @@ class LCF(Fit):
                 fill_value='extrapolate', assume_sorted=True)
             res += wi * f(x)
         return res
-
-    @classmethod
-    def can_interpret_LCF_tie_str(cls, tieStr, lcf):
-        if tieStr.startswith('f'):  # fixed
-            return True
-        if tieStr[0] not in '=<>':
-            return False
-        w = [0]  # w list indexing is 1-based
-        if cls.xVary:
-            dx = [0]  # dE list indexing is 1-based
-        for ref in lcf:
-            w.append(ref['w'])
-            if cls.xVary:
-                dx.append(ref['dx'])
-        try:
-            eval(tieStr[1:])
-            return True
-        except Exception:
-            return False

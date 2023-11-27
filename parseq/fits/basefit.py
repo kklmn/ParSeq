@@ -72,7 +72,7 @@ class Fit:
     # allDataAttrs = dict(x='e', y='mu')
     plotParams = dict(fit=dict(linewidth=1.5, linestyle=':'),
                       residue=dict(linewidth=1.5, linestyle='--'))
-    tooltip = ""
+    tooltip = ''
 
     def __init__(self, node=None, widgetClass=None):  # node is None in test
         """
@@ -94,7 +94,12 @@ class Fit:
                 "The method run_main() of {0} must be declared with either"
                 "@staticmethod or @classmethod".format(self.__class__))
 
-        self.node = node
+        if isinstance(node, (list, tuple)):
+            self.node = node[0]
+            if len(node) > 1:
+                self.extraNodes = node[1:]
+        else:
+            self.node = node
         self.widgetClass = widgetClass
         if self.name in csi.fits:
             raise ValueError("A fit '{0}' already exists. Only one instance "
@@ -274,10 +279,11 @@ class Fit:
             for data in csi.allLoadedItems:
                 proxy = DataProxy()
                 proxy.alias = str(data.alias)
-                xname = self.allDataAttrs['x']
-                setattr(proxy, xname, getattr(data, xname))
-                yname = self.allDataAttrs['y']
-                setattr(proxy, yname, getattr(data, yname))
+                if hasattr(self, 'allDataAttrs'):
+                    xname = self.allDataAttrs['x']
+                    setattr(proxy, xname, getattr(data, xname))
+                    yname = self.allDataAttrs['y']
+                    setattr(proxy, yname, getattr(data, yname))
                 allData.append(proxy)
 
         inArrays = [self.dataAttrs['x'], self.dataAttrs['y']]
@@ -388,7 +394,8 @@ class GenericProcessOrThread(object):
 
     @logger(minLevel=20, attrs=[(1, 'alias')])
     def put_in_data(self, item):
-        res = {'fitParams': item.fitParams, 'alias': item.alias}
+        res = {'fitParams': item.fitParams, 'alias': item.alias,
+               'transformParams': item.transformParams}
         for key in self.inArrays:
             try:
                 # if not hasattr(item, key):

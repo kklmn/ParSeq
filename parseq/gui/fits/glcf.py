@@ -278,7 +278,10 @@ class LCFTableView(qt.QTableView):
         super().__init__(parent)
         self.setModel(model)
 
-        horHeaders = self.horizontalHeader()  # QHeaderView instance
+        # horHeaders = self.horizontalHeader()  # QHeaderView instance
+        horHeaders = gbf.UnderlinedHeaderView(qt.Qt.Horizontal, self)
+        self.setHorizontalHeader(horHeaders)
+
         verHeaders = self.verticalHeader()  # QHeaderView instance
         verHeaders.setVisible(True)
 

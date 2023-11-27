@@ -152,8 +152,13 @@ class TreeItem(object):
                         elif self.state[node.name] == cco.DATA_STATE_BAD:
                             if res:
                                 res += '\n'
-                            res += 'incompatible data shapes in {0}!'.format(
+                            res += 'incompatible data shapes in {0}'.format(
                                 node.name)
+                            if hasattr(self, 'badShapes'):
+                                res += ':\n'
+                                res += ', '.join(
+                                    ['{0}={1}'.format(k, v) for
+                                     k, v in self.badShapes.items()])
                         elif self.state[node.name] == cco.DATA_STATE_GOOD:
                             try:
                                 if self.terminalNodeName is not None:
@@ -340,14 +345,23 @@ class TreeItem(object):
                 items.append(item)
         elif isinstance(data, str):
             item = self.insert_item(data, insertAt, **kwargs)
-            if item not in items:  # inclusion check that keeps the order
-                items.append(item)
+            if item.state[item.originNodeName] == \
+                    cco.DATA_STATE_MARKED_FOR_DELETION:
+                item.remove_from_parent()
+            else:
+                if item not in items:  # inclusion check that keeps the order
+                    items.append(item)
         elif isinstance(data, (list, tuple)):
             si = self
             for subdata in data:
                 if isinstance(subdata, str):
                     si = self.insert_item(subdata, insertAt, **kwargs)
-                    subItems = [si]
+                    if si.state[si.originNodeName] == \
+                            cco.DATA_STATE_MARKED_FOR_DELETION:
+                        si.remove_from_parent()
+                        subItems = []
+                    else:
+                        subItems = [si]
                 elif isinstance(subdata, (list, tuple)):
                     if si in items:
                         items.remove(si)
@@ -592,12 +606,14 @@ class Spectrum(TreeItem):
                 self.concatenate = concatenate
             else:
                 concatenate = False
+            lengthCheck = kwargs.pop('lengthCheck', None)
             self.read_data(shouldLoadNow=shouldLoadNow,
                            runDownstream=runDownstream,
                            copyTransformParams=copyTransformParams,
                            transformParams=transformParams,
                            fitParams=fitParams,
-                           concatenate=concatenate)
+                           concatenate=concatenate,
+                           lengthCheck=lengthCheck)
 
         elif isinstance(self.madeOf, str) and not self.dataFormat:
             # i.e. is a group
@@ -640,22 +656,28 @@ class Spectrum(TreeItem):
                 # items = csi.selectedItems
                 items = csi.allLoadedItems
                 if len(items) > 0:
-                    self.plotProps[node.name] = dict(
-                        items[0].plotProps[node.name])
+                    if hasattr(items[0], 'plotProps'):
+                        self.plotProps[node.name] = dict(
+                            items[0].plotProps[node.name])
+                    else:
+                        self.init_default_plot_props(node)
                 else:
-                    for ind, yName in enumerate(node.plotYArrays):
-                        plotParams = {}
-                        plotParams['yaxis'] = \
-                            'right' if node.get_prop(yName, 'role').endswith(
-                                'right') else 'left'
-                        nodePlotParams = node.get_prop(yName, 'plotParams')
-                        for k, v in nodePlotParams.items():
-                            if isinstance(v, (list, tuple)):
-                                pv = v[ind]
-                            else:
-                                pv = v
-                            plotParams[k] = pv
-                        self.plotProps[node.name][yName] = plotParams
+                    self.init_default_plot_props(node)
+
+    def init_default_plot_props(self, node):
+        for ind, yName in enumerate(node.plotYArrays):
+            plotParams = {}
+            plotParams['yaxis'] = \
+                'right' if node.get_prop(yName, 'role').endswith(
+                    'right') else 'left'
+            nodePlotParams = node.get_prop(yName, 'plotParams')
+            for k, v in nodePlotParams.items():
+                if isinstance(v, (list, tuple)):
+                    pv = v[ind]
+                else:
+                    pv = v
+                plotParams[k] = pv
+            self.plotProps[node.name][yName] = plotParams
 
     def get_state(self, nodeName):
         if self.error is not None:
@@ -664,7 +686,7 @@ class Spectrum(TreeItem):
 
     def read_data(self, shouldLoadNow=True, runDownstream=False,
                   copyTransformParams=True, transformParams={}, fitParams={},
-                  concatenate=False):
+                  concatenate=False, lengthCheck=None):
         fromNode = csi.nodes[self.originNodeName]
         if isinstance(self.madeOf, dict):
             self.dataType = cco.DATA_BRANCH
@@ -717,10 +739,12 @@ class Spectrum(TreeItem):
                             else:
                                 setattr(self, setName, None)
                 if self.state[fromNode.name] == cco.DATA_STATE_GOOD:
-                    if not self.check_shape():
-                        print('Incompatible data shapes in {0}!'.format(
-                            fromNode.name))
+                    shapes = self.check_shape()
+                    if isinstance(shapes, dict):
+                        print('Incompatible data shapes in {0}:\n{1}'.format(
+                            fromNode.name, shapes))
                         self.state[self.originNodeName] = cco.DATA_STATE_BAD
+                        self.badShapes = shapes
                         self.colorTag = 3
                 if self.alias == 'auto':
                     tmpalias = 'concatenation'
@@ -745,13 +769,17 @@ class Spectrum(TreeItem):
                 self.dataType = cco.DATA_COLUMN_FILE
             self.set_auto_color_tag()
             if shouldLoadNow:
-                self.read_file()
+                self.read_file(lengthCheck=lengthCheck)
 
-            if self.state[fromNode.name] == cco.DATA_STATE_GOOD:
-                if not self.check_shape():
-                    print('Incompatible data shapes in {0}!'.format(
-                        fromNode.name))
+            if self.state[fromNode.name] == cco.DATA_STATE_MARKED_FOR_DELETION:
+                return
+            elif self.state[fromNode.name] == cco.DATA_STATE_GOOD:
+                shapes = self.check_shape()
+                if isinstance(shapes, dict):
+                    print('Incompatible data shapes in {0}:\n{1}'.format(
+                        fromNode.name, shapes))
                     self.state[self.originNodeName] = cco.DATA_STATE_BAD
+                    self.badShapes = shapes
                     self.colorTag = 3
 
             basename = osp.basename(self.madeOf)
@@ -827,6 +855,8 @@ class Spectrum(TreeItem):
 
     def check_shape(self):
         fromNode = csi.nodes[self.originNodeName]
+        shapes = {}
+        hasFailed = False
         for iarr, arrName in enumerate(fromNode.checkShapes):
             pos = arrName.find('[')
             if pos > 0:
@@ -839,13 +869,16 @@ class Spectrum(TreeItem):
             arr = getattr(self, checkName)
             try:
                 shape = arr.shape[eval(sl)] if arr is not None else []
+                shapes[checkName] = shape
             except IndexError:
                 return False
             if iarr == 0:
                 shape0 = shape
                 continue
             if shape != shape0:
-                return False
+                hasFailed = True
+        if hasFailed:
+            return shapes
         return True
 
     def insert_data(self, data, insertAt=None, **kwargs):
@@ -1033,7 +1066,7 @@ class Spectrum(TreeItem):
 
         return group
 
-    def read_file(self):
+    def read_file(self, lengthCheck=None):
         madeOf = self.madeOf
         fromNode = csi.nodes[self.originNodeName]
         df = dict(self.dataFormat)
@@ -1079,13 +1112,20 @@ class Spectrum(TreeItem):
             df.pop('metadata', None)
             cols = 0
             for ds in dataSource:
-                if "Col" in ds:
+                try:
+                    ds = int(ds)
+                except Exception:
+                    pass
+                if isinstance(ds, str) and "Col" in ds:
                     regex = re.compile('Col([0-9]*)')
                     # remove possible duplicates by list(dict.fromkeys())
                     subkeys = list(dict.fromkeys(regex.findall(ds)))
                     for ch in subkeys:
                         cols = max(cols, int(ch))
+                elif isinstance(ds, int):
+                    cols = max(cols, ds)
 
+            # important for column files that have incomplete columns:
             df['usecols'] = list(range(cols+1))
             if dataSource is None:
                 raise ValueError('bad dataSource settings')
@@ -1105,6 +1145,8 @@ class Spectrum(TreeItem):
                 if role == 'optional':
                     setattr(self, setName, None)
 
+            sortIndices = None
+            sortArrayName = 'x'
             for aName, txt, sliceStr, role in zip(
                     fromNode.arrays, dataSource, sliceStrs, roles):
                 setName = fromNode.get_prop(aName, 'raw')
@@ -1113,6 +1155,10 @@ class Spectrum(TreeItem):
                     continue
                 try:
                     if self.dataType == cco.DATA_COLUMN_FILE:
+                        try:
+                            txt = int(txt)
+                        except Exception:
+                            pass
                         if isinstance(txt, int):
                             arr = arrs[txt]
                         else:
@@ -1135,6 +1181,31 @@ class Spectrum(TreeItem):
                     setattr(self, setName, None)
                     raise ValueError(e)
 
+                if lengthCheck and role == 'x':
+                    if isinstance(lengthCheck, (int, float)):
+                        if arr.max() - arr.min() < lengthCheck:
+                            # print('too short')
+                            self.state[fromNode.name] = \
+                                cco.DATA_STATE_MARKED_FOR_DELETION
+                            return
+                if role == 'x':
+                    sortArrayName = aName
+                    _, sortIndices, sortCounts = np.unique(
+                        arr, return_index=True, return_counts=True)
+
+            if sortIndices is not None:
+                count = sortCounts[sortCounts > 1].sum()
+                if count > 0:
+                    print("{0} duplicate {1} value{2} ha{3} been removed"
+                          .format(count,
+                                  fromNode.get_prop(sortArrayName, 'qLabel'),
+                                  '' if count == 1 else 's',
+                                  's' if count == 1 else 've'))
+                for aName in fromNode.arrays:
+                    setName = fromNode.get_prop(aName, 'raw')
+                    arrt = getattr(self, setName)
+                    if isinstance(arrt, np.ndarray):
+                        setattr(self, setName, arrt[sortIndices])
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
         except (ValueError, OSError, IndexError) as e:
             print('Error in read_file(): {0}'.format(e))

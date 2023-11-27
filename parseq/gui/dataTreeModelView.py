@@ -242,6 +242,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             items = self.rootItem.get_items()
         elif not isinstance(items, (list, tuple)):
             items = [items]
+        selection = None
         for i, item in enumerate(items):
             row = item.row()
             index = self.createIndex(row, 0, item)
@@ -249,6 +250,8 @@ class DataTreeModel(qt.QAbstractItemModel):
                 selection = qt.QItemSelection(index, index)
             else:
                 selection.select(index, index)
+        if selection is None:
+            return
         csi.selectionModel.select(selection, mode)
         csi.selectionModel.setCurrentIndex(index, mode)
         csi.selectedItems[:] = []
@@ -513,7 +516,8 @@ class HeaderModel(qt.QAbstractItemModel):
 
 
 class SelectionModel(qt.QItemSelectionModel):
-    pass
+    def select(self, index, command):
+        super().select(index, command)
 
 
 class NodeDelegate(qt.QItemDelegate):
@@ -835,6 +839,7 @@ class DataTreeView(qt.QTreeView):
     def __init__(self, node=None, parent=None):
         super().__init__(parent)
         self.node = node
+        self.isDockVisible = False
         self.plotDimension = 1 if node is None else self.node.plotDimension
 
         if csi.model is None:
@@ -1187,9 +1192,10 @@ class DataTreeView(qt.QTreeView):
                     self.header().update()
 
     def selChanged(self, selected=None, deselected=None):
-        if not self.hasFocus():
+        if self.hasFocus():
+            csi.currentNode = self.node
+        if not self.isDockVisible:
             return
-        csi.currentNode = self.node
 
         selectedIndexes = csi.selectionModel.selectedRows()
         items = csi.model.getItems(selectedIndexes)
@@ -1210,8 +1216,9 @@ class DataTreeView(qt.QTreeView):
         if csi.selectionModel.customSelectionMode:
             self._setVisibleItems(True, True)
 
-        if csi.mainWindow is not None:
-            csi.mainWindow.selChanged()
+        if self.hasFocus():
+            if csi.mainWindow is not None:
+                csi.mainWindow.selChanged()
 
         if csi.DEBUG_LEVEL > 0 and self.parent() is None:  # only for testing
             selNames = ', '.join([i.alias for i in csi.selectedItems])

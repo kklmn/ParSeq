@@ -191,6 +191,7 @@ def read_data(fpath, usecols):
     mix1.alias = 'mix1'
     mix1.e = e
     mix1.mu = data[:, -2]
+    mix1.transformParams = []
     mix1.transfortmTimes = {}
     mix1BasisNames = ['cufe2o4_ave4', 'cus_ave2', 'cucl_w_ave2']
     w1 = 1./len(mix1BasisNames)
@@ -221,6 +222,7 @@ def read_data(fpath, usecols):
     mix2.alias = 'mix2'
     mix2.e = e
     mix2.mu = data[:, -1]
+    mix2.transformParams = []
     mix2.transfortmTimes = {}
     mix2BasisNames = ['cuoh2_ave4', 'cucl2_ave2', 'cuco36h2o_ave3', 'cuo_ave2']
     w2 = 1./len(mix2BasisNames)

@@ -335,7 +335,15 @@ class ColumnFormatWidget(PropWidget):
                             txt = int(txt)
                         dres[kw] = txt
 
-            cols = [edit.text() for edit in self.dataEdits]
+            # cols = [edit.text() for edit in self.dataEdits]
+            cols = []
+            for edit in self.dataEdits:
+                txt = edit.text()
+                try:
+                    txt = int(txt)
+                except Exception:
+                    pass
+                cols.append(txt)
             dres['dataSource'] = cols
             slices = [edit.text() for edit in self.sliceEdits]
             if slices.count('') != len(slices):

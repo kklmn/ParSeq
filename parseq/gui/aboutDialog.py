@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "28 May 2023"
+__date__ = "21 Nov 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import os
@@ -290,8 +290,8 @@ class AboutDialog(qt.QDialog):
                     ficonTxt = '<img src="_images/{0}.png" height="20" />'\
                         .format(fitIcon)
                     for fitName in fits[name]:
-                        flowChart += u"""&nbsp <span id=
-                            "fn_{0}" class="pipeline-fit">{1} {2}</span>"""\
+                        flowChart += u"""&nbsp <span id="fn_{0}"
+                            class="pipeline-fit">{1} {2} &nbsp</span>"""\
                                 .format(name_, ficonTxt, fitName)
                 flowChart += "</div>"
             flowChart += """\n      </div>"""  # class="pipeline-rank"
@@ -342,18 +342,12 @@ class AboutDialog(qt.QDialog):
             testStr = """
 Test it as::
 
-    python {0} -p {1}
-""".format(sys.argv[0], self.prFiles[0])
-        else:
-            testStr = ""
-        if len(self.prFiles) > 1:
+"""
             for prFile in self.prFiles:
                 testStr += """
-or::
-
-    python {0} -p {1}
-""".format(sys.argv[0], prFile)
-
+        python {0} -p {1}""".format(sys.argv[0], prFile)
+        else:
+            testStr = ""
         flowChart = self.makeGraphPipeline()
         txt = u"""
 .. list-table::

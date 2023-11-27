@@ -1,2 +1,2 @@
 # -*- coding: utf-8 -*-
-from . import lcf, functionfit
+from . import lcf, functionfit, exafsfit

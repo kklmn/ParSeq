@@ -114,7 +114,7 @@ class RoiModel(qt.QAbstractTableModel):
     def flags(self, index):
         if not index.isValid():
             return qt.Qt.NoItemFlags
-        res = qt.Qt.ItemIsEnabled  # | qt.Qt.ItemIsSelectable
+        res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsSelectable
         column = index.column()
         if column == 1:  # use
             res |= qt.Qt.ItemIsUserCheckable
@@ -353,8 +353,8 @@ class RoiTableView(qt.QTableView):
         self.roiModel = RoiModel(roiManager, fmt)
         self.setModel(self.roiModel)
 
-        self.setSelectionMode(qt.QAbstractItemView.SingleSelection)
-        self.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
+        self.setSelectionMode(self.SingleSelection)
+        self.setSelectionBehavior(self.SelectItems)
         self.selectionModel().selectionChanged.connect(self.selChanged)
 
         horHeaders = self.horizontalHeader()  # QHeaderView instance
@@ -393,7 +393,10 @@ class RoiTableView(qt.QTableView):
     def selChanged(self):
         if not self.hasFocus():
             return
-        selectedIndex = self.selectionModel().selectedRows()[0]
+        selectedIndexes = self.selectionModel().selectedIndexes()
+        if not selectedIndexes:
+            return
+        selectedIndex = selectedIndexes[0]
         manager = self.roiModel.roiManager
         rois = manager.getRois()
         manager.setCurrentRoi(rois[selectedIndex.row()])
@@ -860,6 +863,7 @@ class RoiWidget(RoiWidgetBase):
 
 class RangeWidgetBase(qt.QWidget):
     rangeChanged = qt.pyqtSignal(list)
+    rangeToggled = qt.pyqtSignal(bool)
 
     def createRoi(self, vmin=None, vmax=None):
         if self.plot is None:
@@ -959,15 +963,17 @@ class RangeWidget(RangeWidgetBase):
 
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        panel = qt.QGroupBox(self)
-        panel.setFlat(True)
-        panel.setTitle(caption)
+        self.panel = qt.QGroupBox(self)
+        self.panel.setFlat(True)
+        self.panel.setTitle(caption)
+        # self.panel is by default uncheckable
+        self.panel.toggled.connect(self.toggled)
         layoutP = qt.QHBoxLayout()
         layoutP.setContentsMargins(10, 0, 0, 0)
-        self.rbAuto = qt.QRadioButton('auto', panel)
+        self.rbAuto = qt.QRadioButton('auto', self.panel)
         self.rbAuto.clicked.connect(self.setAutoRange)
         layoutP.addWidget(self.rbAuto)
-        self.rbCustom = qt.QRadioButton('custom', panel)
+        self.rbCustom = qt.QRadioButton('custom', self.panel)
         self.rbCustom.setStyleSheet("QRadioButton{color: " + color + ";}")
         self.rbCustom.clicked.connect(self.setCustomRange)
         layoutP.addWidget(self.rbCustom)
@@ -978,9 +984,17 @@ class RangeWidget(RangeWidgetBase):
         layoutP.addWidget(self.editCustom)
         if tooltip:
             self.editCustom.setToolTip(tooltip)
-        panel.setLayout(layoutP)
-        layout.addWidget(panel)
+        self.panel.setLayout(layoutP)
+        layout.addWidget(self.panel)
         self.setLayout(layout)
+
+    def toggled(self, on):
+        self.rangeToggled.emit(on)
+        if self.roi is None:
+            return
+        self.roi.blockSignals(True)
+        self.roi.setVisible(on and self.rbCustom.isChecked())
+        self.roi.blockSignals(False)
 
     def editSetText(self, ran):
         try:
@@ -988,7 +1002,7 @@ class RangeWidget(RangeWidgetBase):
         except Exception:
             self.editCustom.setText('')
 
-    def setRange(self, ran):
+    def setRange(self, ran, use=True):
         if not isinstance(ran, (tuple, list)):
             self.rbAuto.setChecked(True)
             self.rbCustom.setChecked(False)
@@ -1004,7 +1018,10 @@ class RangeWidget(RangeWidgetBase):
             isDefault = np.allclose(ran, defRange)
             self.rbAuto.setChecked(isDefault)
             self.rbCustom.setChecked(not isDefault)
-            self.roi.setVisible(not isDefault)
+
+            self.roi.blockSignals(True)
+            self.roi.setVisible(use and not isDefault)
+            self.roi.blockSignals(False)
 
     def setAutoRange(self):
         if callable(self.defaultRange):

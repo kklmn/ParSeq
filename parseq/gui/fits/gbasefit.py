@@ -13,12 +13,27 @@ __author__ = "Konstantin Klementiev"
 __date__ = "30 May 2023"
 # !!! SEE CODERULES.TXT !!!
 
-from silx.gui import qt
+from functools import partial
+from silx.gui import qt, icons
 from ...core import singletons as csi
 from ...gui.roi import RangeWidget
 
 GOOD_BKGND = '#90ee90'
 BAD_BKGND = '#ff8877'
+
+
+class UnderlinedHeaderView(qt.QHeaderView):
+    "The separation line between header and table is missing on Windows 10/11."
+    BOTTOM_COLOR = qt.QColor('#cccccc')
+
+    def paintSection(self, painter, rect, logicalIndex):
+        painter.save()
+        super().paintSection(painter, rect, logicalIndex)
+        painter.restore()
+
+        painter.setPen(qt.QPen(qt.QColor(self.BOTTOM_COLOR), 0.5))
+        bottom = rect.bottom()
+        painter.drawLine(rect.left(), bottom, rect.right(), bottom)
 
 
 class FitWidget(qt.QWidget):
@@ -35,50 +50,131 @@ class FitWidget(qt.QWidget):
         self.worker = worker
         self.plot = plot
 
-    def addRangeAndStartWidgets(self, layout):
-        layoutR = qt.QHBoxLayout()
-        self.rangeWidget = RangeWidget(
-            self, self.plot, 'fit range', 'eMin, eMax', 'fit-range',
-            "#da70d6", "{0[0]:.1f}, {0[1]:.1f}")
-        self.rangeWidget.rangeChanged.connect(self.updateFromRangeWidget)
-        self.rangeWidget.editCustom.returnPressed.connect(self.updateRange)
-        layoutR.addWidget(self.rangeWidget)
+    def addRangeAndStartWidgets(
+        self, layout, layoutRange=None, caption='fit range',
+        tooltip='eMin, eMax', rangeName='fit-range', color="#da70d6",
+            formatStr="{0[0]:.1f}, {0[1]:.1f}"):
+        layoutLoc = qt.QHBoxLayout()
+        if layoutRange is None:
+            layoutRange = layoutLoc
+        if isinstance(self.plot, (list, tuple)):
+            if isinstance(caption, str):
+                caption = caption, caption
+            if isinstance(tooltip, str):
+                tooltip = tooltip, tooltip
+            if isinstance(rangeName, str):
+                rangeName = rangeName, rangeName
+            if isinstance(color, str):
+                color = color, color
+            if isinstance(formatStr, str):
+                formatStr = formatStr, formatStr
+            self.rangeWidget = []
+            for iw, (plot, cap, ttip, rName, clr, fStr) in enumerate(zip(
+                    self.plot, caption, tooltip, rangeName, color, formatStr)):
+                rw = RangeWidget(self, plot, cap, ttip, rName, clr, fStr)
+                rangeName = 'range' if iw == 0 else 'range{0}'.format(iw+1)
+                rw.rangeChanged.connect(
+                    partial(self.updateFromRangeWidget, rangeName))
+                rw.editCustom.returnPressed.connect(
+                    partial(self.updateRange, rw))
+                rw.rangeToggled.connect(partial(self.toggleRange, iw))
+                self.rangeWidget.append(rw)
+                layoutRange.addWidget(rw)
+        else:
+            rw = RangeWidget(self, self.plot, caption, tooltip, rangeName,
+                             color, formatStr)
+            self.rangeWidget = rw
+            rw.rangeChanged.connect(
+                partial(self.updateFromRangeWidget, 'range'))
+            rw.editCustom.returnPressed.connect(partial(self.updateRange, rw))
+            rw.rangeToggled.connect(partial(self.toggleRange, 0))
+            layoutLoc.addWidget(rw)
 
         self.fitR = qt.QLabel('')
-        layoutR.addWidget(self.fitR)
+        layoutLoc.addWidget(self.fitR)
         self.fitN = qt.QLabel('')
-        layoutR.addWidget(self.fitN)
+        layoutLoc.addWidget(self.fitN)
 
-        self.startButton = qt.QPushButton('start fitting')
+        self.startButton = qt.QPushButton('Start fitting')
+        self.startButton.setIcon(icons.getQIcon('next'))
         self.startButton.clicked.connect(self.start)
-        layoutR.addStretch()
-        layoutR.addWidget(self.startButton)
-        layout.addLayout(layoutR)
+        layoutLoc.addStretch()
+        layoutLoc.addWidget(self.startButton)
+        layout.addLayout(layoutLoc)
 
     def setSpectrum(self, spectrum):
         self.spectrum = spectrum
-        dfparams = spectrum.fitParams
-        fitVars = dfparams[self.worker.ioAttrs['params']]
+        try:
+            dfparams = spectrum.fitParams
+            fitVars = dfparams[self.worker.ioAttrs['params']]
+        except (KeyError, AttributeError):
+            return
         self.fitModel.setParams(fitVars)
         try:
-            x = getattr(spectrum, self.worker.dataAttrs['x'])
+            if isinstance(self.rangeWidget, (list, tuple)):
+                for iw, w in enumerate(self.rangeWidget):
+                    attr = 'x' if iw == 0 else 'x{0}'.format(iw+1)
+                    x = getattr(spectrum, self.worker.dataAttrs[attr])
+                    w.defaultRange = [x.min(), x.max()]
+            else:
+                x = getattr(spectrum, self.worker.dataAttrs['x'])
+                self.rangeWidget.defaultRange = [x.min(), x.max()]
         except Exception as e:
             print(e)
             return
-        self.rangeWidget.defaultRange = [x.min(), x.max()]
-        xrange = dfparams[self.worker.ioAttrs['range']]
-        if xrange is not None:
-            self.rangeWidget.setRange(xrange)
+
+        if isinstance(self.rangeWidget, (list, tuple)):
+            for iw, w in enumerate(self.rangeWidget):
+                if w.panel.isCheckable():
+                    attr = 'use_range' if iw == 0 else \
+                        'use_range{0}'.format(iw+1)
+                    if attr in self.worker.ioAttrs:
+                        use = dfparams[self.worker.ioAttrs[attr]]
+                        w.panel.setChecked(use)
+                else:
+                    use = True
+                attr = 'range' if iw == 0 else 'range{0}'.format(iw+1)
+                if attr in self.worker.ioAttrs:
+                    xrange = dfparams[self.worker.ioAttrs[attr]]
+                    if xrange is not None:
+                        w.setRange(xrange, use)
+                    else:
+                        w.setAutoRange()
         else:
-            self.rangeWidget.setAutoRange()
+            if self.rangeWidget.panel.isCheckable():
+                if 'use_range' in self.worker.ioAttrs:
+                    use = dfparams[self.worker.ioAttrs['use_range']]
+                    self.rangeWidget.panel.setChecked(use)
+            else:
+                use = True
 
-    def updateFromRangeWidget(self, ran):
+            if 'range' in self.worker.ioAttrs:
+                xrange = dfparams[self.worker.ioAttrs['range']]
+                if xrange is not None:
+                    self.rangeWidget.setRange(xrange, use)
+                else:
+                    self.rangeWidget.setAutoRange()
+
+    def updateFromRangeWidget(self, rangeName, ran):
+        if self.spectrum is None:
+            return
         dfparams = self.spectrum.fitParams
-        dfparams[self.worker.ioAttrs['range']] = list(ran)
+        if rangeName in self.worker.ioAttrs:
+            dfparams[self.worker.ioAttrs[rangeName]] = list(ran)
 
-    def updateRange(self):
-        ran = self.rangeWidget.acceptEdit()
-        self.rangeWidget.setRange(ran)
+    def updateRange(self, w=None):
+        if w is None:
+            w = self.rangeWidget
+        ran = w.acceptEdit()
+        w.setRange(ran)
+
+    def toggleRange(self, iw=0, on=True):
+        if self.spectrum is None:
+            return
+        attr = 'use_range' if iw == 0 else 'use_range{0}'.format(iw+1)
+        if attr in self.worker.ioAttrs:
+            dfparams = self.spectrum.fitParams
+            dfparams[self.worker.ioAttrs[attr]] = on
 
     def start(self):
         if len(csi.selectedItems) == 0:
@@ -95,6 +191,8 @@ class FitWidget(qt.QWidget):
         self.fitReady.emit()
 
     def updateFitResults(self):
+        if self.spectrum is None:
+            return
         if hasattr(self.spectrum, 'error') and self.spectrum.error:
             self.fitR.setToolTip(self.spectrum.error)
             clr = BAD_BKGND
@@ -119,9 +217,13 @@ class FitWidget(qt.QWidget):
 
         info = fitRes['info']
         if 'nfev' in info:
-            self.fitN.setText(
-                '{0} function call{1}, {2} fitting parameter{3}'.format(
-                    info['nfev'], '' if info['nfev'] == 1 else 's',
-                    fitRes['nparam'], '' if fitRes['nparam'] == 1 else 's'))
+            txt = '{0} function call{1}'.format(
+                info['nfev'], '' if info['nfev'] == 1 else 's')
+            if 'Nind' in fitRes:
+                txt += ', Nind={0:.2f}'.format(fitRes['Nind'])
+            txt += ', P={0}'.format(fitRes['nparam'])
+            if 'Nind' in fitRes:
+                txt += ', ν={0:.2f}'.format(fitRes['Nind']-fitRes['nparam'])
+            self.fitN.setText(txt)
         else:
             self.fitN.setText('')

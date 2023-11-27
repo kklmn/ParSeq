@@ -225,7 +225,10 @@ class FunctionFitTableView(qt.QTableView):
         super().__init__(parent)
         self.setModel(model)
 
-        horHeaders = self.horizontalHeader()  # QHeaderView instance
+        # horHeaders = self.horizontalHeader()  # QHeaderView instance
+        horHeaders = gbf.UnderlinedHeaderView(qt.Qt.Horizontal, self)
+        self.setHorizontalHeader(horHeaders)
+
         verHeaders = self.verticalHeader()  # QHeaderView instance
         verHeaders.setVisible(True)
 
@@ -306,8 +309,9 @@ class FunctionFitTableView(qt.QTableView):
             for item in csi.selectedItems:
                 dfparams = item.fitParams
                 dfparams['ffit_formula'] = str(srcParams['ffit_formula'])
-                for prop in ('ffit_params', 'ffit_result'):
-                    dfparams[prop] = copy.deepcopy(srcParams[prop])
+                for prop in self.model().worker.defaultParams:
+                    if prop in srcParams:
+                        dfparams[prop] = copy.deepcopy(srcParams[prop])
 
         csi.selectionModel.clear()
         csi.model.selectItems(self.parent().spectrum)

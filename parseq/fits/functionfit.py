@@ -82,7 +82,7 @@ class FunctionFit(Fit):
                     tieStr = v['tie']
                     if not cls.can_interpret_tie_str(tieStr, fitVars):
                         raise ValueError(f'wrong tie expression for {k}')
-                    tie[k] = v['value'] if tieStr.startswith('f') else tieStr
+                    tie[k] = v['value'] if tieStr.startswith('fix') else tieStr
                     # if tieStr[0] in '<>' then k is in both tie and varied
                     if tieStr[0] not in '<>':
                         continue
@@ -100,11 +100,13 @@ class FunctionFit(Fit):
                 if isinstance(xRange, (list, tuple)) else None
             locx = x[where]
             locy = y[where]
+            fcounter = {'nfev': 0}
             popt, pcov, info, mesg, ier = curve_fit(
                 partial(cls.evaluate_formula, formula=formula,
-                        keys=varied, tie=tie),
+                        keys=varied, tie=tie, fcounter=fcounter),
                 locx, locy, p0=args, bounds=(mins, maxs), full_output=True)
-            info2 = {'nfev': info['nfev']}
+            # info2 = {'nfev': info['nfev']}
+            info2 = fcounter
             fitProps = dict(mesg=mesg, ier=ier, info=info2, nparam=len(popt))
             tieRes = {}
             fit = cls.evaluate_formula(x, *popt, formula=formula,
@@ -132,7 +134,7 @@ class FunctionFit(Fit):
 
     @classmethod
     def can_interpret_tie_str(cls, tieStr, fitVars):
-        if tieStr.startswith('f'):  # fixed
+        if tieStr.startswith('fix'):  # fixed
             return True
         if tieStr[0] not in '=<>':
             return False
@@ -145,7 +147,10 @@ class FunctionFit(Fit):
             return False
 
     @classmethod
-    def evaluate_formula(cls, x, *params, formula, keys, tie={}, tieRes={}):
+    def evaluate_formula(cls, x, *params, formula, keys, tie={}, tieRes={},
+                         fcounter={}):
+        if fcounter:
+            fcounter['nfev'] += 1
         res = 0.
         for key, param in zip(keys, params):
             locals()[key] = param

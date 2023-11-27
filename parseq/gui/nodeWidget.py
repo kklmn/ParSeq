@@ -224,6 +224,8 @@ class NodeWidget(qt.QWidget):
         self.autoPanel.toggled.connect(self.autoLoadToggled)
         self.enableAutoLoad.connect(self.autoLoadChangeEnabled)
         self.autoFileList = []
+
+        layoutAP = qt.QVBoxLayout()
         layoutA = qt.QHBoxLayout()
         layoutA.setContentsMargins(6, 0, 0, 0)
         labelA1 = qt.QLabel('auto load every')
@@ -240,7 +242,30 @@ class NodeWidget(qt.QWidget):
         labelA2 = qt.QLabel('file/dataset')
         layoutA.addWidget(labelA2)
         layoutA.addStretch()
-        self.autoPanel.setLayout(layoutA)
+        layoutAP.addLayout(layoutA)
+
+        for arrayName in self.node.arrays:
+            role = self.node.get_prop(arrayName, 'role')
+            if role.startswith('x'):
+                lbl = self.node.get_prop(arrayName, 'qLabel')
+                unit = self.node.get_prop(arrayName, 'qUnit')
+                layoutB = qt.QHBoxLayout()
+                layoutB.setContentsMargins(6, 0, 0, 0)
+                layoutB.setSpacing(0)
+                self.cbLonger = qt.QCheckBox(
+                    'only long scans Δ{0} >'.format(lbl))
+                layoutB.addWidget(self.cbLonger)
+                self.xLonger = qt.QLineEdit()
+                layoutB.addWidget(self.xLonger)
+                labelB1 = qt.QLabel(unit)
+                layoutB.addWidget(labelB1)
+                layoutB.addStretch()
+                layoutAP.addLayout(layoutB)
+                break
+        else:
+            self.cbLonger = None
+
+        self.autoPanel.setLayout(layoutAP)
 
         gotoLastButton = qt.QToolButton()
         gotoLastButton.setFixedSize(24, 24)
@@ -586,11 +611,24 @@ class NodeWidget(qt.QWidget):
 
     def makeFitWidgets(self):
         self.fitWidgets = []
-        for ifit, fit in enumerate(csi.fits.values()):
+        ifit = 0
+        for fit in csi.fits.values():
             if fit.node is self.node and fit.widgetClass is not None:
-                fitWidget = fit.widgetClass(self.splitterPlot, fit, self.plot)
-                fitWidget.fitReady.connect(
-                    partial(self.replotFit, fit, ifit))
+                if hasattr(fit, 'extraNodes'):
+                    plots = [self.plot] + \
+                        [node.widget.plot for node in fit.extraNodes]
+                else:
+                    plots = self.plot
+                fitWidget = fit.widgetClass(self.splitterPlot, fit, plots)
+                fitWidget.fitReady.connect(partial(self.replotFit, fit, ifit))
+                if hasattr(fit, 'extraNodes'):
+                    for inode, node in enumerate(fit.extraNodes):
+                        axtraFitAttrs = ['{0}{1}'.format(attr, inode+2)
+                                         for attr in ('x', 'y', 'fit')]
+                        fitWidget.fitReady.connect(partial(
+                            node.widget.replotFit, fit, (self, ifit),
+                            fitAttrs=axtraFitAttrs))
+                ifit += 1
                 self.fitWidgets.append(fitWidget)
                 curveLabel = fit.dataAttrs['fit']
                 if curveLabel not in self.fitLines:
@@ -891,7 +929,7 @@ class NodeWidget(qt.QWidget):
         self.wasNeverPlotted = False
 
     @logger(minLevel=50, attrs=[(0, 'node')])
-    def replotFit(self, fitWorker, ifit):
+    def replotFit(self, fitWorker, ifit, fitAttrs=('x', 'y', 'fit')):
         def plotOne(item, x, y, curveLabel, plotProps):
             symbolsize = plotProps.pop('symbolsize', 2)
             curve = self.plot.getCurve(curveLabel)
@@ -923,13 +961,19 @@ class NodeWidget(qt.QWidget):
 
         node = self.node
         xAttrName, yAttrName, fitAttrName = [
-            fitWorker.dataAttrs[a] for a in ('x', 'y', 'fit')]
-        fitSizes = self.splitterPlot.sizes()[1:-1]
-        assert len(fitSizes) == len(self.fitWidgets)
+            fitWorker.dataAttrs[a] for a in fitAttrs]
+        if isinstance(ifit, int):
+            fitSizes = self.splitterPlot.sizes()[1:-1]
+            assert len(fitSizes) == len(self.fitWidgets)
+        if isinstance(ifit, tuple):  # (nodeWidget, ifit)
+            fitSizes = ifit[0].splitterPlot.sizes()[1:-1]
+            assert len(fitSizes) == len(ifit[0].fitWidgets)
+            ifit = ifit[1]
 
         if node.plotDimension == 1:
             plotProps = fitWorker.plotParams['fit']
-            residueProps = fitWorker.plotParams['residue']
+            residueProps = fitWorker.plotParams['residue'] if \
+                'residue' in fitWorker.plotParams else None
             for item in csi.allLoadedItems:
                 curveLabel = item.alias + '.' + fitAttrName
                 residueLabel = curveLabel + '.residue'
@@ -944,7 +988,10 @@ class NodeWidget(qt.QWidget):
                 except AttributeError:
                     continue
                 plotOne(item, x, fity, curveLabel, dict(plotProps))
-                if fity.any():  # any non-zero
+                # if xAttrName == 'bftk':  # keep for tests
+                #     plotOne(item, x, item.ftfitwindow, curveLabel+'Window',
+                #             dict(plotProps))
+                if residueProps and fity.any():  # any non-zero
                     plotOne(item, x, y-fity, residueLabel, dict(residueProps))
         else:
             raise NotImplementedError('fit plot not implemented for dim={0}'
@@ -957,6 +1004,11 @@ class NodeWidget(qt.QWidget):
         if self.node.plotDimension in [1, 2]:
             if len(self.plot.getItems()) == 0:
                 return
+            if csi.mainWindow is not None:
+                # If a node has never been activated, its plot has an undefined
+                # size. Raising the node sets a correct size to its plot:
+                dock = csi.mainWindow.docks[self][0]
+                dock.raise_()
             self.plot.saveGraph(fname)
         elif self.node.plotDimension in [3]:
             if len(self.plot.getPlotWidget().getItems()) == 0:
@@ -1032,7 +1084,7 @@ class NodeWidget(qt.QWidget):
                 return it.madeOf
 
     def loadFiles(self, fileNamesFull=None, parentItem=None, insertAt=None,
-                  concatenate=False):
+                  concatenate=False, lengthCheck=None):
         def times(n):
             return " ({0} times)".format(n) if n > 1 else ""
 
@@ -1112,7 +1164,8 @@ class NodeWidget(qt.QWidget):
         # df['dataSource'] = [col[0][0] for col in colRecs]
         csi.model.importData(
             fileNamesFull, parentItem, insertAt, dataFormat=df,
-            originNodeName=self.node.name, concatenate=concatenate)
+            originNodeName=self.node.name, concatenate=concatenate,
+            lengthCheck=lengthCheck)
 
     def shouldShowColumnDialog(self):
         for it in csi.selectedItems:
@@ -1162,11 +1215,21 @@ class NodeWidget(qt.QWidget):
             if fitSize > 0 or shouldClear:
                 fitWidget.setSpectrum(csi.selectedItems[0])
             if shouldClear:
-                roi = fitWidget.rangeWidget.roi
-                if roi is not None:
-                    roi.blockSignals(True)
-                    roi.setVisible(fitSize > 0)
-                    roi.blockSignals(False)
+                if isinstance(fitWidget.rangeWidget, (list, tuple)):
+                    rangeWidgets = fitWidget.rangeWidget
+                else:
+                    rangeWidgets = [fitWidget.rangeWidget]
+                for rangeWidget in rangeWidgets:
+                    roi = rangeWidget.roi
+                    if roi is not None:
+                        p = rangeWidget.panel
+                        if p.isCheckable():
+                            isChecked = p.isChecked()
+                        else:
+                            isChecked = True
+                        roi.blockSignals(True)
+                        roi.setVisible((fitSize > 0) and isChecked)
+                        roi.blockSignals(False)
 
     def linkClicked(self, url):
         strURL = str(url.toString())
@@ -1258,4 +1321,11 @@ class NodeWidget(qt.QWidget):
             self.autoIndex += len(diffs)
             self.autoFileList = newFileList
             if toLoad:
-                self.loadFiles(toLoad)
+                if self.cbLonger is not None and self.cbLonger.isChecked():
+                    try:
+                        xLonger = float(self.xLonger.text())
+                    except Exception:
+                        xLonger = None
+                else:
+                    xLonger = None
+                self.loadFiles(toLoad, lengthCheck=xLonger)

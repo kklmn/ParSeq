@@ -420,6 +420,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         *dataStr* may have several expressions with the syntax of a list or a
         tuple or just one expression if it is a simple string.
         """
+        dataStr = str(dataStr)
         if "np." in dataStr:
             try:
                 arr = eval(dataStr)
@@ -530,7 +531,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 if role == 'optional':
                     lres.append('')
                     continue
-                if len(data) == 0:
+                if isinstance(data, str) and len(data) == 0:
                     return
                 colEval = self.interpretArrayFormula(data, arrs, 'col')
                 if colEval is None:

@@ -388,7 +388,8 @@ class MainWindowParSeq(qt.QMainWindow):
                 if osp.exists(fname):
                     tDoc = osp.getmtime(fname)
                     shouldBuild = tSource > tDoc  # source newer than doc
-            except Exception:
+            except Exception as e:
+                print('Cannot build doc pages with error:\n{0}'.format(e))
                 pass
             if not shouldBuild:
                 continue
@@ -485,6 +486,8 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def nodeChanged(self, node, visible):
         if visible:
+            if hasattr(node, 'widget'):
+                node.widget.tree.isDockVisible = True
             csi.currentNode = node
 
     def undoGroup(self):
@@ -618,16 +621,19 @@ class MainWindowParSeq(qt.QMainWindow):
                          "Invalid file name {0}".format(fname))
             return
         self.save_project(fname)
+
+        activeNode = csi.currentNode
         for i, (name, node) in enumerate(csi.nodes.items()):
             node.widget.saveGraph(fname, i, name)
-        if len(res) < 5:
-            return
-        saveNodes, saveTypes, saveScriptMpl, saveScriptSilx = res[1:5]
-        plots, h5plots = self.save_data(fname, saveNodes, saveTypes)
-        if saveScriptMpl:
-            self.save_script(fname, plots, h5plots, 'mpl')
-        if saveScriptSilx:
-            self.save_script(fname, plots, h5plots, 'silx')
+        self.docks[activeNode.widget][0].raise_()
+
+        if len(res) > 4:
+            saveNodes, saveTypes, saveScriptMpl, saveScriptSilx = res[1:5]
+            plots, h5plots = self.save_data(fname, saveNodes, saveTypes)
+            if saveScriptMpl:
+                self.save_script(fname, plots, h5plots, 'mpl')
+            if saveScriptSilx:
+                self.save_script(fname, plots, h5plots, 'silx')
         config.put(config.configLoad, 'Project', csi.pipelineName, fname)
 
     def slotLoadProject(self):
