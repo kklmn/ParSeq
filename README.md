@@ -95,4 +95,4 @@ Documentation
 -------------
 
 See the documentation inside ParSeq or at http://parseq.readthedocs.io 
-[![Documentation Status](https://readthedocs.org/projects/parseq/badge/?version=latest)](https://parseq.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/parseq/badge/?version=latest)](https://parseq.readthedocs.io)
