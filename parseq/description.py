@@ -15,7 +15,7 @@ ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
 
 A screenshot of a scanning XES analysis pipeline as an application example:
 
-.. imagezoom:: _images/node1.png
+.. imagezoom:: _images/XAS-foils.gif
    :scale: 50 %
 
 Main features
