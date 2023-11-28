@@ -94,5 +94,5 @@ the starting command line.
 Documentation
 -------------
 
-See the documentation inside ParSeq or at http://parseq.readthedocs.io 
-![Documentation Status](https://readthedocs.org/projects/parseq/badge/?version=latest)
+See the documentation inside ParSeq or at https://parseq.readthedocs.io 
+[![Documentation Status](https://readthedocs.org/projects/parseq/badge/?version=latest)](https://parseq.readthedocs.io)
