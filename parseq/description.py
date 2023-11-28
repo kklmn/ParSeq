@@ -16,7 +16,7 @@ ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
 A screenshot of ParSeq-XAS (an EXAFS analysis pipeline) as an application
 example:
 
-.. imagezoom:: _images/XAS-foils.gif
+.. image:: _images/XAS-foils.gif
    :scale: 50 %
 
 Main features
