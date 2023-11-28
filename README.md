@@ -14,7 +14,8 @@ relatively lightweight Python packages.
 
 ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
 
-A screenshot of a scanning XES analysis pipeline as an application example:
+A screenshot of ParSeq-XAS (an EXAFS analysis pipeline) as an application
+example:
 
 <p align="center">
   <img src="parseq/help/_images/XAS-foils.gif" width=1282 /></p>
