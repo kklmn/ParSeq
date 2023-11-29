@@ -112,7 +112,11 @@ class EXAFSFitModel(qt.QAbstractTableModel):
             elif column in self.colERRORS:
                 errorStr = self.ERRORS[column-self.colERRORS[0]]
                 if errorStr in pv:
-                    return fmtLonger.format(pv[errorStr])
+                    error = pv[errorStr]
+                    if error > self.INFERROR:
+                        # return '∞'
+                        return ''
+                    return fmtLonger.format(error)
         elif role == qt.Qt.BackgroundRole:
             if column == 3:  # tie
                 if 'tie' in pv:
@@ -128,6 +132,12 @@ class EXAFSFitModel(qt.QAbstractTableModel):
                             return qt.QColor(gbf.BAD_BKGND)
                         else:
                             return qt.QColor(gbf.GOOD_BKGND)
+            elif column in self.colERRORS:
+                errorStr = self.ERRORS[column-self.colERRORS[0]]
+                if errorStr in pv:
+                    error = pv[errorStr]
+                    if error > self.INFERROR:
+                        return qt.QColor(gbf.BAD_BKGND)
         elif role == gco.LIMITS_ROLE:  # return min, max, step
             if 'lim' in pv:
                 return *pv['lim'], pv['step']
@@ -198,12 +208,11 @@ class EXAFSFitModel(qt.QAbstractTableModel):
                         'value edit widget and the fitting method.'\
                         '\nIf min≥max, the variable is fixed at min value.'
                 elif section == 5:
-                    return 'fitting errors that ignore\npair correlations'
-                # elif section == 6:
-                #     return 'fitting errors that include' \
-                #         '\nmaxumum pair correlations'
+                    return 'Fitting errors excluding pair correlations.'\
+                        '\nClick to show/hide the correlation matrix.'
                 elif section == 6:
-                    return 'fitting errors that include\nall pair correlations'
+                    return 'Fitting errors including all pair correlations.'\
+                        '\nClick to show/hide the correlation matrix.'
 
     def setParams(self, params=None, emit=True):
         self.beginResetModel()
@@ -258,6 +267,7 @@ class EXAFSFitTableView(qt.QTableView):
             for i in range(1, nC):
                 horHeaders.setSectionResizeMode(i, qt.QHeaderView.Interactive)
             horHeaders.setSectionsClickable(True)
+        horHeaders.sectionClicked.connect(self.headerClicked)
         horHeaders.setStretchLastSection(False)
         verHeaders.setDefaultSectionSize(int(20/csi.screenFactor))
         verHeaders.hide()
@@ -285,6 +295,12 @@ class EXAFSFitTableView(qt.QTableView):
         self.setContextMenuPolicy(qt.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.onCustomContextMenu)
         self.makeActions()
+
+    def headerClicked(self, column):
+        nC = self.model().columnCount()
+        if nC-2 <= column <= nC-1:
+            isVisible = self.parent().parentFitWidget.corrTable.isVisible()
+            self.parent().parentFitWidget.corrTable.setVisible(not isVisible)
 
     def makeActions(self):
         if csi.mainWindow is not None:
@@ -630,6 +646,15 @@ class EXAFSFitWidget(gbf.FitWidget):
         self.tabWidget.setCornerWidget(addButton, qt.Qt.TopLeftCorner)
         layout.addWidget(self.tabWidget)
 
+        self.corrModel = gbf.CorrModel(['r1', 'n1', 's1', 'e1'])
+        self.corrTable = gbf.CorrTableView(self, self.corrModel)
+        self.corrTable.hide()
+        layoutC = qt.QHBoxLayout()
+        layoutC.setContentsMargins(0, 0, 0, 0)
+        layoutC.addWidget(self.corrTable, 1)
+        # layoutC.addStretch()
+        layout.addLayout(layoutC)
+
         layoutRange = qt.QHBoxLayout()
         self.optionsPage.layout().addLayout(layoutRange)
         self.addRangeAndStartWidgets(layout, layoutRange,
@@ -806,8 +831,8 @@ class EXAFSFitWidget(gbf.FitWidget):
         if not self.fitModel.params:
             return
         resMakeFit = self.fitModel.worker.make_model_curve(self.spectrum)
-        lcfRes = dfparams['exafsfit_result']
-        self.fitR.setText('R={0:.5g}'.format(lcfRes['R']))
+        fitRes = dfparams['exafsfit_result']
+        self.fitR.setText('R={0:.5g}'.format(fitRes['R']))
         self.updateTabs()
         if isinstance(resMakeFit, str):
             self.fitR.setToolTip(resMakeFit)

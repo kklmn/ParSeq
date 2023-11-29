@@ -10,9 +10,10 @@ A custom widget typically instantiates a table view class for displaying
 fitting parameters and an associated table model class for it.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "30 May 2023"
+__date__ = "29 Nov 2023"
 # !!! SEE CODERULES.TXT !!!
 
+import numpy as np
 from functools import partial
 from silx.gui import qt, icons
 from ...core import singletons as csi
@@ -20,6 +21,103 @@ from ...gui.roi import RangeWidget
 
 GOOD_BKGND = '#90ee90'
 BAD_BKGND = '#ff8877'
+
+
+class CorrModel(qt.QAbstractTableModel):
+    def __init__(self, defnames=[]):
+        super().__init__()
+        self.setTable(names=defnames)
+
+    def rowCount(self, parent=qt.QModelIndex()):
+        return self.corr.shape[0]
+
+    def columnCount(self, parent=qt.QModelIndex()):
+        return self.corr.shape[1]
+
+    def flags(self, index):
+        return qt.Qt.NoItemFlags
+
+    def setTable(self, names=None, corr=None, emit=True):
+        self.beginResetModel()
+        self.names = names if names else ['p1', 'p2']
+        self.corr = corr if corr is not None else np.identity(len(self.names))
+        self.endResetModel()
+        if emit:
+            self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+
+    def data(self, index, role):
+        column, row = index.column(), index.row()
+        if role == qt.Qt.ToolTipRole:
+            corr = self.corr[row, column]
+            txt = '{0} ∩ {1}\n{2:#.4g}'.format(
+                self.names[row], self.names[column], corr)
+            if not (-1-1e-8 < corr < 1+1e-8):
+                txt += '\nA value not within [0, 1] means no'
+                txt += '\nχ² minimum in particular variables.'
+                txt += '\nTry to change the fit range.'
+            return txt
+        elif role == qt.Qt.BackgroundRole:
+            corr = self.corr[row, column]
+            if corr > 0:
+                return qt.QColor(int(corr * 255), 0, 0)
+            else:
+                return qt.QColor(0, 0, int(-corr * 255))
+
+    def headerData(self, section, orientation, role):
+        if role == qt.Qt.DisplayRole:
+            if orientation == qt.Qt.Horizontal:
+                return str(section+1)
+            elif orientation == qt.Qt.Vertical:
+                try:
+                    return '{0} {1}'.format(section+1, self.names[section])
+                except Exception:
+                    return str(section+1)
+        # elif role == qt.Qt.TextAlignmentRole:
+        #     if orientation == qt.Qt.Horizontal:
+        #         return qt.Qt.AlignCenter
+        elif role == qt.Qt.ToolTipRole:
+            if orientation == qt.Qt.Horizontal:
+                try:
+                    return self.names[section]
+                except Exception:
+                    return str(section+1)
+
+
+class CorrTableView(qt.QTableView):
+    cellSize = 24
+
+    def __init__(self, parent, model):
+        super().__init__(parent)
+        self.setCornerButtonEnabled(False)
+        self.setModel(model)
+
+        horHeaders = UnderlinedHeaderView(qt.Qt.Horizontal, self)
+        horHeaders.setFixedHeight(self.cellSize)
+        self.setHorizontalHeader(horHeaders)
+        verHeaders = self.verticalHeader()  # QHeaderView instance
+
+        nC = model.columnCount()
+        for headers in (horHeaders, verHeaders):
+            headers.setMinimumSectionSize(self.cellSize)
+            if 'pyqt4' in qt.BINDING.lower():
+                headers.setMovable(False)
+                for i in range(nC):
+                    headers.setResizeMode(i, qt.QHeaderView.Fixed)
+                headers.setClickable(False)
+            else:
+                headers.setSectionsMovable(False)
+                for i in range(nC):
+                    headers.setSectionResizeMode(i, qt.QHeaderView.Fixed)
+                headers.setSectionsClickable(False)
+            headers.setStretchLastSection(False)
+            headers.setDefaultSectionSize(self.cellSize)
+            # for i in range(nC):
+            #     self.setColumnWidth(i, self.cellSize)
+            #     self.setRowHeight(i, self.cellSize)
+        horHeaders.hide()
+
+        height = 4*self.cellSize + 2
+        self.setMinimumHeight(height)
 
 
 class UnderlinedHeaderView(qt.QHeaderView):
@@ -187,6 +285,7 @@ class FitWidget(qt.QWidget):
         dfparams = cs.fitParams
         fitVars = dfparams[self.worker.ioAttrs['params']]
         self.fitModel.setParams(fitVars, False)
+        self.updateCorrMatrix()
         self.updateFitResults()
         self.fitReady.emit()
 
@@ -227,3 +326,19 @@ class FitWidget(qt.QWidget):
             self.fitN.setText(txt)
         else:
             self.fitN.setText('')
+
+    def updateCorrMatrix(self):
+        if not hasattr(self, 'corrModel'):
+            return
+        if self.spectrum is None:
+            return
+        dfparams = self.spectrum.fitParams
+        if not self.fitModel.params:
+            return
+        fitRes = dfparams[self.worker.ioAttrs['result']]
+        P = fitRes['nparam']
+        info = fitRes['info']
+        pnames = info['fitKeys'] if 'fitKeys' in info else \
+            ['{0}'.format(i) for i in range(P)]
+        corr = fitRes['corr'] if 'corr' in fitRes else np.identity(P)
+        self.corrModel.setTable(pnames, corr)

@@ -316,20 +316,17 @@ class EXAFSFit(Fit):
         if nu > 0:
             H = cls.get_Hessian_chi2(xw, chi2opt, fitStruct, err, popt, bounds)
             H *= nu / chi2opt
-        else:
-            H = np.ones((P, P)) * 1e-24
+            Hii = np.abs(np.diag(H))**0.5
+            fitProps['corr'] = H / np.dot(Hii.reshape(P, 1), Hii.reshape(1, P))
 
-        errA, errB = np.zeros(P), np.zeros(P)
-        wH, vH = eigh(H/2)
-        for i in range(P):
-            Hii = H[i, i]
-            errA[i] = (2/Hii)**0.5 if Hii > 0 else 1e20
-            # errB[i] = (
-            #     max([2*H[j, j]/(Hii*H[j, j] - H[i, j]**2)
-            #          for j in range(P)
-            #          if i != j and (Hii*H[j, j] - H[i, j]**2) > 0]))**0.5
-            errB[i] = (sum([vH[i][j]**2/wH[j] if wH[j] > 0 else 0
-                            for j in range(P)]))**0.5
+            errA = np.sqrt(2) / Hii
+
+            wH, vH = eigh(H/2)
+            errB2 = (vH**2 / wH).sum(axis=1)
+            errB = np.where(errB2 >= 0, np.abs(errB2)**0.5, np.full(P, 1e20))
+        else:
+            fitProps['corr'] = np.identity(P)
+            errA, errB = np.full(P, 1e20), np.full(P, 1e20)
 
         # exafs with optimal parameters in full k range
         for fs in fitStruct:
@@ -479,6 +476,7 @@ class EXAFSFit(Fit):
         if fcounter:
             fcounter['nfev'] += 1
         fit = {}
+        fitKeys = []
         for ifs, fs in enumerate(fitStruct):
             dp = DataProxy()
             # this loop is needed for tying to fixed params:
@@ -493,7 +491,12 @@ class EXAFSFit(Fit):
                 setattr(dp, key, val)
                 if ifs == 0:
                     locals()[key] = val  # needed to evaluate tie str
+                    fitKeys.append(key)
+                else:
+                    fitKeys.append('.'.join((fs['data'].alias, key)))
             fit[fs['data'].alias] = dp
+        if fcounter:
+            fcounter['fitKeys'] = fitKeys
 
         for ifs, fs in enumerate(fitStruct):
             dp = fit[fs['data'].alias]

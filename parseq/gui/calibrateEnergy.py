@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "28 Nov 2023"
 # !!! SEE CODERULES.TXT !!!
 
 from functools import partial
 
-from silx.gui import qt
+from silx.gui import qt, icons
 
 from ..core import singletons as csi
 # from ..core import commons as cco
 from ..core import spectra as csp
 from ..third_party import xrt
 
-HEADERS = ['reference data', 'slice', 'energy', 'DCM', 'FWHM']
-columnWidths = (114, 44, 64, 64, 54)
+HEADERS = ['ref data', 'slice', 'energy', 'DCM', 'FWHM']
+columnWidths = (80, 44, 64, 64, 54)
 
 
 class CalibrationModel(qt.QAbstractTableModel):
@@ -106,13 +106,13 @@ class CalibrationModel(qt.QAbstractTableModel):
             return qt.Qt.AlignHCenter
         elif role == qt.Qt.ToolTipRole:
             if section == 0:
-                return('data name (alias) of elastic scans')
+                return 'data name (alias) of elastic scans'
             elif section == 1:
-                return('data slice if needed, otherwise :')
+                return 'data slice if needed, otherwise :'
             elif section == 2:
-                return('formal energy value')
+                return 'formal energy value'
             elif section == 3:
-                return('crystals for calculating\nFWHM of DCM bandwidth')
+                return 'crystals for calculating\nFWHM of DCM bandwidth'
 
     def setDataCollection(self, dataCollection=None):
         self.beginResetModel()
@@ -194,16 +194,22 @@ class CalibrateEnergyWidget(qt.QWidget):
         self.autoSetButton = qt.QPushButton('auto set references')
         # self.autoSetButton.setMinimumWidth(120)
         layoutB.addWidget(self.autoSetButton)
-        self.addButton = qt.QPushButton('add')
-        self.addButton.setMinimumWidth(int(12*csi.screenFactor))
+        # self.addButton = qt.QPushButton('add')
+        self.addButton = qt.QToolButton()
+        self.addButton.setIcon(icons.getQIcon('add'))
         self.addButton.clicked.connect(self.add)
         layoutB.addWidget(self.addButton)
-        self.clearButton = qt.QPushButton('clear')
-        self.clearButton.setMinimumWidth(int(36*csi.screenFactor))
+        # self.clearButton = qt.QPushButton('clear')
+        self.clearButton = qt.QToolButton()
+        self.clearButton.setIcon(icons.getQIcon('rm'))
+        self.clearButton.setSizePolicy(
+            qt.QSizePolicy.Minimum, qt.QSizePolicy.Minimum)
         self.clearButton.clicked.connect(self.clear)
         layoutB.addWidget(self.clearButton)
         self.acceptButton = qt.QPushButton('accept')
-        self.acceptButton.setMinimumWidth(int(46*csi.screenFactor))
+        self.acceptButton.setSizePolicy(
+            qt.QSizePolicy.Minimum, qt.QSizePolicy.Minimum)
+        # self.acceptButton.setMinimumWidth(int(46*csi.screenFactor))
         layoutB.addWidget(self.acceptButton)
         layoutB.addStretch()
 
