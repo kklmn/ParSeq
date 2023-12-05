@@ -17,7 +17,7 @@ import numpy as np
 from functools import partial
 from silx.gui import qt, icons
 from ...core import singletons as csi
-from ...gui.roi import RangeWidget
+from ...gui.roi import AutoRangeWidget
 
 GOOD_BKGND = '#90ee90'
 BAD_BKGND = '#ff8877'
@@ -169,7 +169,7 @@ class FitWidget(qt.QWidget):
             self.rangeWidget = []
             for iw, (plot, cap, ttip, rName, clr, fStr) in enumerate(zip(
                     self.plot, caption, tooltip, rangeName, color, formatStr)):
-                rw = RangeWidget(self, plot, cap, ttip, rName, clr, fStr)
+                rw = AutoRangeWidget(self, plot, cap, ttip, rName, clr, fStr)
                 rangeName = 'range' if iw == 0 else 'range{0}'.format(iw+1)
                 rw.rangeChanged.connect(
                     partial(self.updateFromRangeWidget, rangeName))
@@ -179,8 +179,8 @@ class FitWidget(qt.QWidget):
                 self.rangeWidget.append(rw)
                 layoutRange.addWidget(rw)
         else:
-            rw = RangeWidget(self, self.plot, caption, tooltip, rangeName,
-                             color, formatStr)
+            rw = AutoRangeWidget(self, self.plot, caption, tooltip, rangeName,
+                                 color, formatStr)
             self.rangeWidget = rw
             rw.rangeChanged.connect(
                 partial(self.updateFromRangeWidget, 'range'))
