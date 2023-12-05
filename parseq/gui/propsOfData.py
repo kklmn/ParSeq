@@ -130,7 +130,7 @@ setLabelFromData = setEditFromData
 def setSpinBoxFromData(sb, prop):
     common = getCommonPropInSelectedItems(prop)
     if common is None:
-        sb.setSpecialValueText(' ')  # can't be just ''
+        sb.lineEdit().setText('')
         return
     if isinstance(common, type("")):
         sb.lineEdit().setText(common)

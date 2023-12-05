@@ -283,7 +283,7 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
             dock.defStyleSheet = "QDockWidget {font: bold; padding-left: 5px;}"
-            # dock.setStyleSheet(dock.defStyleSheet)
+            dock.setStyleSheet(dock.defStyleSheet)
             self.addDockWidget(qt.Qt.LeftDockWidgetArea, dock)
             nodeWidget = NodeWidget(node, dock)
             # nodeWidget = None  # for testing fo app closure

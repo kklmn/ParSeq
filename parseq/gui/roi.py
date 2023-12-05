@@ -861,13 +861,18 @@ class RoiWidget(RoiWidgetBase):
         return [model.getRoiGeometry(roi) for roi in rois]
 
 
-class RangeWidgetBase(qt.QWidget):
+class BaseRangeWidget(qt.QWidget):
     rangeChanged = qt.pyqtSignal(list)
     rangeToggled = qt.pyqtSignal(bool)
 
     def createRoi(self, vmin=None, vmax=None):
         if self.plot is None:
             return
+        elif isinstance(self.plot, str):
+            if csi.nodes[self.plot].widget is None:
+                return
+            self.plot = csi.nodes[self.plot].widget.plot
+
         needNew = False
         if self.roiManager is None:
             if self.is3dStack:
@@ -940,7 +945,115 @@ class RangeWidgetBase(qt.QWidget):
         return vmin, vmax  # just pass through
 
 
-class RangeWidget(RangeWidgetBase):
+class SimpleRangeWidget(BaseRangeWidget):
+    def __init__(self, parent, plot, caption, tooltip, rangeName, color,
+                 formatStr, defaultRange=[0, 1]):
+        """
+        *defaultRange*: callable or 2-sequence
+        """
+        super().__init__(parent)
+        self.plot = plot
+        self.is3dStack = hasattr(plot, '_plot')
+        self.formatStr = formatStr
+        if callable(defaultRange):
+            self.defaultRange = defaultRange
+        else:
+            self.defaultRange = list(defaultRange)
+        self.tooltip = tooltip
+        self.rangeName = rangeName
+        self.roiManager = None
+        self.roi = None
+        self.color = color
+        self.roiClass = HorizontalRangeROI
+
+        layout = qt.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.panel = qt.QGroupBox(self)
+        self.panel.setFlat(True)
+        self.panel.setTitle(caption)
+        # self.panel is by default uncheckable
+        self.panel.toggled.connect(self.toggled)
+        layoutP = qt.QHBoxLayout()
+        layoutP.setContentsMargins(10, 0, 0, 0)
+        self.setCustomRange()
+        self.editCustom = qt.QLineEdit()
+        self.editCustom.setStyleSheet("QLineEdit{color: " + color + ";}")
+        if not callable(self.defaultRange):
+            self.editSetText(self.defaultRange)
+        layoutP.addWidget(self.editCustom)
+        if tooltip:
+            self.editCustom.setToolTip(tooltip)
+        self.panel.setLayout(layoutP)
+        layout.addWidget(self.panel)
+        self.setLayout(layout)
+
+    def toggled(self, on):
+        self.rangeToggled.emit(on)
+        if self.roi is None:
+            ran = self.defaultRange() if callable(self.defaultRange) else \
+                self.defaultRange
+            self.createRoi(ran)
+        if self.roi is None:  # cannot create roi because self.plot is stll str
+            return
+        self.roi.blockSignals(True)
+        self.roi.setVisible(on)
+        self.roi.blockSignals(False)
+
+    def editSetText(self, ran):
+        try:
+            self.editCustom.setText(self.formatStr.format(ran))
+        except Exception:
+            self.editCustom.setText('')
+
+    def setRange(self, ran):
+        if not isinstance(ran, (tuple, list)):
+            return
+        if self.roi is None:
+            ran = self.defaultRange() if callable(self.defaultRange) else \
+                self.defaultRange
+            self.createRoi(ran)
+        if self.roi is None:  # cannot create roi because self.plot is stll str
+            return
+
+        if len(ran) == 2:
+            self.editSetText(ran)
+            self.createRoi(*ran)
+            self.roi.blockSignals(True)
+            if self.panel.isCheckable():
+                use = self.panel.isChecked()
+            else:
+                use = True
+            self.roi.setVisible(use)
+            self.roi.blockSignals(False)
+
+    def setCustomRange(self):
+        self.createRoi()
+        if self.roi is None:
+            return
+        vmin, vmax = self.roi.getRange()
+        ran = self.convert(-1, vmin, vmax)
+        if ran is None:
+            return
+        self.roi.blockSignals(True)
+        self.roi.setVisible(True)
+        self.rangeChanged.emit(list(ran))
+        self.roi.blockSignals(False)
+
+    def acceptEdit(self):
+        if self.roi is None:
+            return
+        txt = self.editCustom.text()
+        try:
+            t1, t2 = txt.split(',')
+            vmin = float(t1.strip())
+            vmax = float(t2.strip())
+            self.setRange([vmin, vmax])
+            return [vmin, vmax]
+        except Exception:
+            pass
+
+
+class AutoRangeWidget(BaseRangeWidget):
     def __init__(self, parent, plot, caption, tooltip, rangeName, color,
                  formatStr, defaultRange=[0, 1]):
         """
@@ -1065,7 +1178,7 @@ class RangeWidget(RangeWidgetBase):
             pass
 
 
-class RangeWidgetSplit(RangeWidgetBase):
+class SplitRangeWidget(BaseRangeWidget):
     spinBoxDelay = 500  # ms
 
     def __init__(self, parent, plot, var, optionsMin, optionsMax, rangeName,
