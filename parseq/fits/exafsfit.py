@@ -316,13 +316,13 @@ class EXAFSFit(Fit):
         if nu > 0:
             H = cls.get_Hessian_chi2(xw, chi2opt, fitStruct, err, popt, bounds)
             H *= nu / chi2opt
-            Hii = np.abs(np.diag(H))**0.5
+            Hii = np.where(np.diag(H) > 0, np.diag(H)**0.5, 1e-28)
             fitProps['corr'] = H / np.dot(Hii.reshape(P, 1), Hii.reshape(1, P))
 
             errA = np.sqrt(2) / Hii
 
             wH, vH = eigh(H/2)
-            errB2 = (vH**2 / wH).sum(axis=1)
+            errB2 = (vH[:, wH > 0]**2 / wH[wH > 0]).sum(axis=1)
             errB = np.where(errB2 >= 0, np.abs(errB2)**0.5, np.full(P, 1e20))
         else:
             fitProps['corr'] = np.identity(P)
