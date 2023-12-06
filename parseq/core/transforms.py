@@ -308,9 +308,11 @@ class Transform(object):
 
         nC = multiprocessing.cpu_count()
         if isinstance(self.nThreads, type('')):
-            self.nThreads = nC//2 if self.nThreads.startswith('h') else nC
+            self.nThreads = max(nC//2, 1) if self.nThreads.startswith('h')\
+                else nC
         if isinstance(self.nProcesses, type('')):
-            self.nProcesses = nC//2 if self.nProcesses.startswith('h') else nC
+            self.nProcesses = max(nC//2, 1) if self.nProcesses.startswith('h')\
+                else nC
 
         if self.nThreads > 1:
             workerClass = BackendThread
