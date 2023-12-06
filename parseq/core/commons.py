@@ -209,7 +209,7 @@ def make_int_ranges(iterable):
 # -> "(02..05)"
 
 
-def get_header(fname, readkwargs):
+def get_header(fname, readkwargs, searchAllLines=False):
     skipUntil = readkwargs.pop('lastSkipRowContains', '')
     headerLen = -1
     if 'skiprows' not in readkwargs:
@@ -227,7 +227,7 @@ def get_header(fname, readkwargs):
     header = []
     with open(fname, 'r', encoding="utf-8") as f:
         for il, line in enumerate(f):
-            if il == MAX_HEADER_LINES:
+            if il == MAX_HEADER_LINES and not searchAllLines:
                 break
             if ((headerLen >= 0) and (il <= headerLen)) or \
                     line.startswith('#'):

@@ -1076,7 +1076,7 @@ class Spectrum(TreeItem):
 
         arr = []
         if self.dataType == cco.DATA_COLUMN_FILE:
-            header = cco.get_header(madeOf, df)
+            header = cco.get_header(madeOf, df, searchAllLines=True)
         elif self.dataType == cco.DATA_DATASET:
             header = []
             try:
