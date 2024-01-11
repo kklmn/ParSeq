@@ -29,7 +29,7 @@ def make_ft_window(kind, x, xmin, xmax, width, vmin=0):
     the minimum value of the resulting window function at the ends.
     """
     res = np.ones_like(x)
-    if not kind or kind == 'none':
+    if not kind or kind == 'none' or xmin is None or xmax is None:
         return res
     if kind == 'box':
         res[x < xmin] = 0
