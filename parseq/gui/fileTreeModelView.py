@@ -654,7 +654,10 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         #     nodePath = self.h5Model.getHDF5NodePath(node)
         # else:
         #     nodePath = node.obj.name
-        return 'silx:' + '::'.join((node.obj.file.filename, nodePath))
+        try:
+            return 'silx:' + '::'.join((node.obj.file.filename, nodePath))
+        except AttributeError:
+            return
 
     def data(self, index, role=qt.Qt.DisplayRole):
         shouldSkip = False
