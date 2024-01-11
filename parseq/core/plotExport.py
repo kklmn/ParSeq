@@ -105,7 +105,11 @@ def plot1Dmpl(nodeData):
                     lbl += '.' + header
                 ax = axl if yaxis.startswith('l') else axr
                 ax.plot(x, y, color=clr, label=lbl, **kw)
+
     ax.legend()
+    # ax.legend([(l1, l2) for l1, l2 in zip(lines[::2], lines[1::2])],
+    #           usedLabels, handler_map={tuple: NLineObjectsHandler()})
+
     fig.savefig('{0}_{1}.png'.format(nodeData[1], saveType))
     # end plot1Dmpl
 
