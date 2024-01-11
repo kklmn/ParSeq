@@ -303,6 +303,7 @@ class MainWindowParSeq(qt.QMainWindow):
                 dock0, node0, tabName0 = dock, nodeWidget, tabName
             else:
                 self.tabifyDockWidget(dock0, dock)
+
             # the pipeline head(s) with initially opened file tree:
             first = 1 if len(node.upstreamNodes) == 0 else 0
 
@@ -333,8 +334,8 @@ class MainWindowParSeq(qt.QMainWindow):
             if tab.tabText(0) == tabName0:
                 self.tabWidget = tab
                 break
-        # self.tabWidget.setStyleSheet("QTabBar::tab { font:bold };")
-        # self.tabWidget.setStyleSheet("QTabBar::tab {padding: 4;};")
+        self.tabWidget.setStyleSheet(
+            "QTabBar::tab:selected {font:bold; padding: 4;};")
 
         self.setTabIcons()
 
