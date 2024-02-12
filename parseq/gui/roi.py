@@ -48,8 +48,8 @@ class RoiManager(RegionOfInterestManager):
         try:
             roi.setLineWidth(0.5)
             roi.setLineStyle('-')
-        except AttributeError:
-            pass
+        except AttributeError as e:
+            print(e)
         # roi.setSymbolSize(5)
         roi.setSelectable(True)
         roi.setEditable(True)
@@ -65,7 +65,10 @@ class RoiManager(RegionOfInterestManager):
                 data = plot.pixelToData(pos.x(), pos.y())
                 if roi.contains(data):
                     if isinstance(roi, InteractionModeMixIn):
-                        self._contextMenuForInteractionMode(menu, roi)
+                        try:
+                            self._contextMenuForInteractionMode(menu, roi)
+                        except AttributeError as e:
+                            print(e)
 
                 # removeAction = qt.QAction(menu)
                 # removeAction.setText("Remove %s" % roi.getName())
