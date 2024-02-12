@@ -1177,6 +1177,10 @@ class DataTreeView(qt.QTreeView):
             if not csi.dataRootItem.isVisible:  # visible are those selected
                 for it in csi.selectedItems:
                     csi.model.setVisible(it, value, emit)
+                for it in csi.allLoadedItems:  # unselect the others
+                    if it in csi.selectedItems:
+                        continue
+                    csi.model.setVisible(it, False, False)
             else:
                 if emit:
                     csi.model.needReplot.emit(False, True, '_setVisibleItems')
