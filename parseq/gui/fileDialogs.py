@@ -228,7 +228,7 @@ class LoadProjectDlg(qt.QFileDialog):
             if configProject.has_section('ParSeq Application'):
                 pName = configProject.get('ParSeq Application', 'pipelineName')
                 isOwn = pName == csi.pipelineName
-                colorStr = "#00ff00" if isOwn else "#ff0000"
+                colorStr = "#008800" if isOwn else "#ff0000"
                 self.previewPanel.pipelineName = \
                     "<font color={0}>{1}</font>".format(colorStr, pName)
                 self.previewPanel.pipelineToolTip = '' if isOwn else \

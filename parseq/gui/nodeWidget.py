@@ -149,7 +149,8 @@ class NodeWidget(qt.QWidget):
             self.updateNodeForSelectedItems()
             self.replot()
         else:
-            self.gotoLastData()
+            # self.gotoLastData()  # on beamline computers may get very slow
+            pass
         # # doesn't work in Linux:
         # self.fileSystemWatcher = qt.QFileSystemWatcher(self)
         self.setMinimumWidth(600)

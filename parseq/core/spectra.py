@@ -1103,7 +1103,8 @@ class Spectrum(TreeItem):
         else:
             raise TypeError('wrong datafile type')
 
-        try:
+        # try:
+        if True:
             df['skip_header'] = df.pop('skiprows', 0)
             dataSource = df.pop('dataSource', None)
             sliceStrs = df.pop('slices', ['' for ds in dataSource])
@@ -1124,7 +1125,6 @@ class Spectrum(TreeItem):
                         cols = max(cols, int(ch))
                 elif isinstance(ds, int):
                     cols = max(cols, ds)
-
             # important for column files that have incomplete columns:
             df['usecols'] = list(range(cols+1))
             if dataSource is None:
@@ -1178,8 +1178,9 @@ class Spectrum(TreeItem):
                                 arr = arr[sliceTuple]
                     setattr(self, setName, arr)
                 except Exception as e:
+                    print(e)
                     setattr(self, setName, None)
-                    raise ValueError(e)
+                    # raise ValueError(e)
 
                 if lengthCheck and role == 'x':
                     if isinstance(lengthCheck, (int, float)):
@@ -1207,10 +1208,10 @@ class Spectrum(TreeItem):
                     if isinstance(arrt, np.ndarray):
                         setattr(self, setName, arrt[sortIndices])
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
-        except (ValueError, OSError, IndexError) as e:
-            print('Error in read_file(): {0}'.format(e))
-            self.state = dict((n, cco.DATA_STATE_NOTFOUND) for n in csi.nodes)
-            return
+        # except (ValueError, OSError, IndexError) as e:
+        #     print('Error in read_file(): {0}'.format(e))
+        #     self.state = dict((n, cco.DATA_STATE_NOTFOUND) for n in csi.nodes)
+        #     return
 
         self.convert_units(conversionFactors)
         # define metadata

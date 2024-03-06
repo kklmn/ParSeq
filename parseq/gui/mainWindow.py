@@ -7,7 +7,7 @@ __date__ = "26 Feb 2023"
 import os.path as osp
 import time
 from functools import partial
-import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
+# import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 import textwrap
 import re
 import shutil

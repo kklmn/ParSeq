@@ -13,6 +13,8 @@ __author__ = "Konstantin Klementiev"
 __date__ = "13 Jun 2021"
 # !!! SEE CODERULES.TXT !!!
 
+import os
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"  # to work with external links
 import h5py
 
 

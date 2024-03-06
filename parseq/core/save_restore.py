@@ -9,7 +9,8 @@ import pickle
 import json
 import autopep8
 
-import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"  # to work with external links
+# import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 import h5py
 
 from ..core import config

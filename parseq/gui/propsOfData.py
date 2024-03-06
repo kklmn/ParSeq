@@ -63,14 +63,16 @@ def setComboBoxFromData(comboBox, prop, compareWith=None, defaultIndex=0):
             comboBox.lineEdit().setText(str(common))
             return
         ind = compareWith.index(common) if compareWith is not None else common
-        if isinstance(ind, int):
-            comboBox.setCurrentIndex(ind)
-        else:
-            comboBox.setCurrentIndex(comboBox.findText(ind))
+        newInd = ind if isinstance(ind, int) else comboBox.findText(ind)
     else:
         if defaultIndex in ['last', -1]:
             defaultIndex = comboBox.count() - 1
-        comboBox.setCurrentIndex(defaultIndex)
+        newInd = defaultIndex
+
+    curInd = comboBox.currentIndex()
+    comboBox.setCurrentIndex(newInd)
+    if curInd == newInd:  # force the signal for updating gui
+        comboBox.currentIndexChanged.emit(newInd)
 
 
 def setRangeWidgetFromData(rWidget, prop):

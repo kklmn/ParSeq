@@ -5,9 +5,10 @@ __date__ = "20 Sep 2018"
 
 #from silx.gui import qt
 
-import os.path as osp
+import os
 import sys; sys.path.append('../..')  # analysis:ignore
 import numpy as np
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"  # to work with external links
 import h5py
 from silx.gui.data.DataViewerFrame import DataViewerFrame
 from silx.gui import qt
@@ -17,7 +18,7 @@ crop = 0, 0, 1555, 515
 def write_avi(fName):
     import cv2
 
-    fPath = osp.join('../../_data_big', fName+'.hdf5')
+    fPath = os.path.join('../../_data_big', fName+'.hdf5')
     f = h5py.File(fPath, 'r')
 #    data = 'und_energy'
 #    e = f[data][:]
@@ -51,7 +52,7 @@ def write_avi(fName):
 
 
 def showInWidget(fName):
-    fPath = osp.join('../../_data_big', fName+'.hdf5')
+    fPath = os.path.join('../../_data_big', fName+'.hdf5')
     f = h5py.File(fPath, 'r')
 #    data = 'und_energy'
 #    e = f[data][:]

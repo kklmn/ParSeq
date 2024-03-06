@@ -8,6 +8,7 @@ __author__ = "Konstantin Klementiev"
 __date__ = "2 Mar 2023"
 # !!! SEE CODERULES.TXT !!!
 
+
 import os
 import os.path as osp
 import glob
@@ -18,9 +19,9 @@ import time
 import numpy as np
 import warnings
 
-os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"  # to work with external links
 os.environ["QT_FILESYSTEMMODEL_WATCH_FILES"] = '1'  # potentially heavy load!!
-import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
+# import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 
 import silx
 from distutils.version import LooseVersion  # , StrictVersion
@@ -28,7 +29,6 @@ assert LooseVersion(silx.version) >= LooseVersion("1.1.0")
 from silx.gui import qt
 import silx.io as silx_io
 from silx.gui.hdf5.Hdf5TreeModel import Hdf5TreeModel
-from silx.gui.hdf5.NexusSortFilterProxyModel import NexusSortFilterProxyModel
 
 from ..core import commons as cco
 from ..core import singletons as csi
@@ -37,6 +37,9 @@ from . import gcommons as gco
 
 useProxyFileModel = False  # proxy model for FileSystemWithHdf5Model
 useProxyH5Model = True  # for decoration and sorting
+if useProxyH5Model:
+    from silx.gui.hdf5.NexusSortFilterProxyModel import \
+        NexusSortFilterProxyModel
 
 NODE_FS, NODE_HDF5, NODE_HDF5_HEAD = range(3)
 LOAD_DATASET_ROLE = Hdf5TreeModel.USER_ROLE
@@ -82,29 +85,28 @@ class MyHdf5TreeModel(Hdf5TreeModel):
 
     def hasChildren(self, parent=qt.QModelIndex()):
         node = self.nodeFromIndex(parent)
-        try:  # may fail during loading
-            return node.isGroupObj()
-        except Exception:
-            return False
+        # try:  # may fail during loading
+        return node.isGroupObj()
+        # except Exception:
+        #     return False
 
     def canFetchMore(self, parent):
         node = self.nodeFromIndex(parent)
         if node is None:
             return False
-        try:
-            if not node.isGroupObj():
-                return False
-            if node._Hdf5Node__child is None:
-                return True
-        except AttributeError:
+        # try:
+        if not node.isGroupObj():
             return False
+        if node._Hdf5Node__child is None:
+            return True
+        # except AttributeError:
+        #     return False
         return True
 
     def fetchMore(self, parent):
         node = self.nodeFromIndex(parent)
         if node is None:
             return
-        # try:
         super().fetchMore(parent)
         added = 0
         for row in range(node.childCount()):
@@ -116,8 +118,6 @@ class MyHdf5TreeModel(Hdf5TreeModel):
                 self.nodesH5.append(intId)
         # if added:
         #     print('Added from {0}: {1}'.format(node.basename, added))
-        # except RuntimeError:
-        #     pass
 
     def findIndex(self, hdf5Obj):
         return self.index(self.h5pyObjectRow(hdf5Obj.obj), 0)
@@ -282,13 +282,13 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         else:
             return qt.QModelIndex()
 
-    def mapH5toFS(self, indexH5):  # only for h5 heads
-        parentH5 = self.h5Model.parent(indexH5)
-        if not parentH5.isValid():
-            hdf5Obj = self.h5Model.nodeFromIndex(indexH5)
-            return self.indexFileName(hdf5Obj.obj.file.filename)
-        else:
-            return qt.QModelIndex()
+    # def mapH5toFS(self, indexH5):  # only for h5 heads
+    #     parentH5 = self.h5Model.parent(indexH5)
+    #     if not parentH5.isValid():
+    #         hdf5Obj = self.h5Model.nodeFromIndex(indexH5)
+    #         return self.indexFileName(hdf5Obj.obj.file.filename)
+    #     else:
+    #         return qt.QModelIndex()
 
     def rowCount(self, parent=qt.QModelIndex()):
         nodeType = self.nodeType(parent)
@@ -331,8 +331,8 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         if nodeType == NODE_FS:
             return super().canFetchMore(parent)
         elif nodeType == NODE_HDF5_HEAD:
-            # return self.h5Model.canFetchMore(self.mapFStoH5(parent))
-            return True
+            return self.h5Model.canFetchMore(self.mapFStoH5(parent))
+            # return True
         elif nodeType == NODE_HDF5:
             return self.h5Model.canFetchMore(self.mapToH5(parent))
         else:
@@ -1441,12 +1441,12 @@ class FileTreeView(qt.QTreeView):
             child = model.index(0, 0, index)
             self.expand(child)
 
-        nodeType = model.nodeType(index)
-        if nodeType == NODE_HDF5:
-            res = model.h5Model.indexFromPath(index, 'measurement')
-            if res.isValid():
-                child = model.index(res.row(), 0, index)
-                self.expand(child)
+        # nodeType = model.nodeType(index)
+        # if nodeType == NODE_HDF5:
+        #     res = model.h5Model.indexFromPath(index, 'measurement')
+        #     if res.isValid():
+        #         child = model.index(res.row(), 0, index)
+        #         self.expand(child)
 
     # def restoreExpand(self, parent=qt.QModelIndex()):
     #     if not parent.isValid():
