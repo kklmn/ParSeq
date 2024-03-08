@@ -11,7 +11,6 @@ from silx.gui import qt, icons
 
 import sys; sys.path.append('../..')  # analysis:ignore
 from parseq.gui.fileTreeModelView import FileTreeView
-# from silx.gui.hdf5.Hdf5TreeView import Hdf5TreeView
 
 
 def test1():
@@ -52,7 +51,6 @@ def test2():
     path = 'silx:data/hdf5/20240213s.h5::/entry29270/instrument'
 
     view = FileTreeView()
-    # view = Hdf5TreeView()
     view.setMinimumSize(qt.QSize(700, 600))
     view.header().resizeSection(0, 320)
     view.setWindowTitle("Merged Tree Model: QFileSystemModel + h5Model")

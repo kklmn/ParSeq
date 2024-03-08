@@ -896,10 +896,12 @@ class SelectionDelegate(qt.QItemDelegate):
 
         active = (option.state & qt.QStyle.State_Selected or
                   option.state & qt.QStyle.State_MouseOver)
-        if active:
+        if active and self.parent().transformNode:
             loadState = index.data(LOAD_DATASET_ROLE)
             cf = self.parent().transformNode.widget.columnFormat
             cf = cf.saveButton.setEnabled(loadState is not None)
+        else:
+            loadState = None
 
         if option.state & qt.QStyle.State_MouseOver:
             # color = self.parent().palette().highlight().color()
@@ -942,10 +944,10 @@ class FileTreeView(qt.QTreeView):
 
         self.initModel()
 
-        if transformNode is not None:
-            self.setItemDelegateForColumn(0, SelectionDelegate(self))
-            if parent is not None:
-                self.parent().setMouseTracking(True)
+        self.setItemDelegateForColumn(0, SelectionDelegate(self))
+        if parent is not None:
+            self.parent().setMouseTracking(True)  # for Windows
+        self.viewport().setAttribute(qt.Qt.WA_Hover)  # for Linux
 
         # self.setMinimumSize(
         #     qt.QSize(int(COLUMN_NAME_WIDTH*csi.screenFactor), 250))
@@ -978,8 +980,8 @@ class FileTreeView(qt.QTreeView):
             "View text file (will be displayed in 'metadata' panel)",
             self.viewTextFile, "F3")
 
-        self.setStyleSheet("QTreeView"
-                           "{selection-background-color: transparent;}")
+        # self.setStyleSheet("QTreeView"
+        #                    "{selection-background-color: transparent;}")
 
         # # uncomment for testing the file model:
         # from ..tests.modeltest import ModelTest
@@ -1570,7 +1572,7 @@ class FileTreeView(qt.QTreeView):
         """Going directly to a file or directory is not possible because of the
         lazy loading mechanism. This is implemented here in 3 steps:
 
-        1) Go to the containing dir. This sends reques to QFileSystemModel to
+        1) Go to the containing dir. This sends request to QFileSystemModel to
            populate it.
 
         2) When the dir is ready, QFileSystemModel emits directoryLoaded
