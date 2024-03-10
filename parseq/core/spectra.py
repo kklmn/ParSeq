@@ -1239,7 +1239,7 @@ class Spectrum(TreeItem):
         if end is not None:
             toSave += self.madeOf[end:]
         config.put(config.configLoad, 'Data', fromNode.name, toSave)
-        config.write_configs('transform')
+        config.write_configs('transform, load')
 
     def interpret_array_formula(self, colStr, treeObj=None):
         if "np." in colStr:
