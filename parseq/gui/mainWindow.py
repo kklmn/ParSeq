@@ -58,9 +58,10 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
             self.titleBar.setAutoFillBackground(True)
             # self.titleBar.setStyleSheet(
             #     "QWidget {font: bold; font-size: " + str(fontSize) + "pt;}")
-            pal = self.titleBar.palette()
-            pal.setColor(qt.QPalette.Window, qt.QColor("lightgray"))
-            self.titleBar.setPalette(pal)
+
+            # pal = self.titleBar.palette()
+            # pal.setColor(qt.QPalette.Window, qt.QColor("lightgray"))
+            # self.titleBar.setPalette(pal)
             height = qt.QApplication.style().pixelMetric(
                 qt.QStyle.PM_TitleBarHeight)
             self.titleBar.setMaximumHeight(height)
@@ -335,7 +336,8 @@ class MainWindowParSeq(qt.QMainWindow):
                 self.tabWidget = tab
                 break
         self.tabWidget.setStyleSheet(
-            "QTabBar::tab:selected {font:bold; padding: 4;};")
+            "QTabBar::tab:selected {font:bold; "
+            "padding-left: 10; padding-right: 10;};")
 
         self.setTabIcons()
 
