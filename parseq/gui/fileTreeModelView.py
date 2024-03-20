@@ -52,7 +52,7 @@ NEXUS_HDF5_EXT = [e[1:] if e.startswith('.') else e for e in
 # = ["h5", "nx5", "nxs",  "hdf", "hdf5", "cxi"]
 COLUMN_FILE_EXT = ["dat", "fio"]
 
-COLUMN_NAME_WIDTH = 300
+COLUMN_NAME_WIDTH = 250
 NODE_INDENTATION = 12
 
 

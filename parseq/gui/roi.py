@@ -49,7 +49,8 @@ class RoiManager(RegionOfInterestManager):
             roi.setLineWidth(0.5)
             roi.setLineStyle('-')
         except AttributeError as e:
-            print(e)
+            # print(e)
+            pass
         # roi.setSymbolSize(5)
         roi.setSelectable(True)
         roi.setEditable(True)
@@ -66,15 +67,16 @@ class RoiManager(RegionOfInterestManager):
                 if roi.contains(data):
                     if isinstance(roi, InteractionModeMixIn):
                         try:
-                            self._contextMenuForInteractionMode(menu, roi)
-                        except AttributeError as e:
+                            intMenu = roi.createMenuForInteractionMode(menu)
+                            menu.addMenu(intMenu)
+                        except Exception as e:
                             print(e)
 
-                # removeAction = qt.QAction(menu)
-                # removeAction.setText("Remove %s" % roi.getName())
-                # callback = partial(self.removeRoi, roi)
-                # removeAction.triggered.connect(callback)
-                # menu.addAction(removeAction)
+                removeAction = qt.QAction(menu)
+                removeAction.setText("Remove %s" % roi.getName())
+                callback = partial(self.removeRoi, roi)
+                removeAction.triggered.connect(callback)
+                menu.addAction(removeAction)
 
 
 class RoiModel(qt.QAbstractTableModel):
@@ -732,7 +734,7 @@ class RoiWidget(RoiWidgetBase):
     def __init__(self, parent, plot, roiClassNames, roiMaxN=1, fmt='auto'):
         """
         *roiClassNames*: sequence of class names to appear in the toolbar
-        *roiMaxN*: max number of rois in the tabe
+        *roiMaxN*: max number of rois in the tabel
         """
         super().__init__(parent)
         self.plot = plot
