@@ -110,6 +110,9 @@ def plot1Dmpl(nodeData):
     # ax.legend([(l1, l2) for l1, l2 in zip(lines[::2], lines[1::2])],
     #           usedLabels, handler_map={tuple: NLineObjectsHandler()})
 
+    # if 'eV' in nodeData[3][0]:
+    #     ax.set_xlim(5950, 6125)  # set energy limits for XANES
+
     fig.savefig('{0}_{1}.png'.format(nodeData[1], saveType))
     # end plot1Dmpl
 
@@ -150,6 +153,9 @@ def plot1Dsilx(nodeData):
                     curve = plot.getCurve(lbl)
                     if curve is not None:
                         curve.setSymbolSize(symbolsize)
+
+    # if 'eV' in nodeData[3][0]:
+    #     plot.getXAxis().setLimits(5950, 6125)  # set energy limits for XANES
 
     plot.show()
     return plot  # end plot1Dsilx

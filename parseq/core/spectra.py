@@ -540,6 +540,7 @@ class Spectrum(TreeItem):
         if self.transformNames is None:
             self.transformNames = 'each'
 
+        self.state = dict((nn, cco.DATA_STATE_UNDEFINED) for nn in csi.nodes)
         self.alias = kwargs.get('alias',
                                 csi.dataRootItem.kwargs['alias'])
         self.suffix = kwargs.get('suffix',
@@ -559,7 +560,6 @@ class Spectrum(TreeItem):
             self.colorIndividual = kwargs['colorIndividual']
 
         self.hasChanged = False
-        self.state = dict((nn, cco.DATA_STATE_UNDEFINED) for nn in csi.nodes)
         self.aliasExtra = None  # for extra name qualifier
         self.meta = {'text': '', 'modified': '', 'size': 0}
         self.combinesTo = []  # list of instances of Spectrum if not empty
