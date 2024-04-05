@@ -553,8 +553,10 @@ class NodeWidget(qt.QWidget):
 
     def makePlotWidget(self):
         node = self.node
-        # self.backend = dict(backend='opengl')
-        self.backend = dict(backend='matplotlib')
+        if csi.plotBackend in ('matplotlib', 'opengl'):
+            self.backend = dict(backend=csi.plotBackend)
+        else:
+            self.backend = dict(backend='matplotlib')
 
         if node.plotDimension == 3:
             self.plot = Plot3D(self.splitterPlot, position=Plot3D.posInfo,
