@@ -192,6 +192,9 @@ class Node(object):
         node. This method can be useful in creating the GUI part of a
         transformation node."""
 
+        if prop in ('key', 'name'):
+            return arrayName
+
         if prop not in self.properties:
             raise ValueError("unknown prop {0} in arrays['{1}']".format(
                 prop, arrayName))

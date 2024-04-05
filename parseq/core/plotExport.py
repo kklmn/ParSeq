@@ -154,8 +154,9 @@ def plot1Dsilx(nodeData):
                     if curve is not None:
                         curve.setSymbolSize(symbolsize)
 
+    # # This is how one can set energy limits for XANES:
     # if 'eV' in nodeData[3][0]:
-    #     plot.getXAxis().setLimits(5950, 6125)  # set energy limits for XANES
+    #     plot.getXAxis().setLimits(5950, 6125)
 
     plot.show()
     return plot  # end plot1Dsilx
@@ -295,7 +296,8 @@ def plotSavedData(plots, lib='mpl'):
     widgets = []
     for nodeData in plots:
         ndim = nodeData[2]
-        plotFunc = globals()['plot{0}D{1}'.format(ndim, lib)]  # e.g.plot1Dmpl
+        plotFuncName = 'plot{0}D{1}'.format(ndim, lib)  # e.g. plot1Dmpl
+        plotFunc = globals()[plotFuncName]
         widgets.append(plotFunc(nodeData))  # to keep references to silx polots
     if lib == 'mpl':
         plt.show()  # end plotSavedData
