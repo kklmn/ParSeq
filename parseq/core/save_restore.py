@@ -58,6 +58,7 @@ def load_project(fname, qMessageBox=None, restore_perspective=None):
         configProject, 'Root', 'colorAutoUpdate',
         csp.DEFAULT_COLOR_AUTO_UPDATE)
 
+    cwd = os.getcwd()
     os.chdir(os.path.dirname(fname))
     if csi.model is not None:
         csi.model.importData(dataTree, configData=configProject)
@@ -65,6 +66,7 @@ def load_project(fname, qMessageBox=None, restore_perspective=None):
         items = root.insert_data(dataTree, configData=configProject)
         ctr.connect_combined(items, root)
         ctr.run_transforms(items, root)
+    os.chdir(cwd)
 
 
 def save_project(fname, save_perspective=None):

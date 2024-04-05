@@ -14,7 +14,7 @@ __date__ = "17 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
-# import os
+import os
 import numpy as np
 
 import traceback
@@ -38,7 +38,6 @@ from . import singletons as csi
 from . import commons as cco
 from .logger import logger
 from .config import configTransforms
-
 
 # class Param(object):
 #     def __init__(self, value, limits=[], step=None):
@@ -435,7 +434,7 @@ class Transform(object):
         reporting.
 
         Should an error happen during the transformation, the error state will
-        be notified in the ParSeq status bar and the traceback will be shown in
+        be reported in the ParSeq status bar and the traceback will be shown in
         the data item's tooltip in the data tree view.
 
         Returns True when successful. If returns an int, this int will be set
@@ -468,6 +467,9 @@ class Transform(object):
             if self.toNode.widget is not None:
                 self.toNode.widget.onTransform = False
 
+        for data in dataItems:
+            data.make_corrections(self.toNode)
+
         if runDownstream:
             for tr in self.toNode.transformsOut:
                 if self is tr:
@@ -489,7 +491,7 @@ class GenericProcessOrThread(object):
         # self.started_event.clear()
         # self.finished_event.clear()
 
-    @logger(minLevel=20, attrs=[(1, 'alias')])
+    # @logger(minLevel=20, attrs=[(1, 'alias')])
     def put_in_data(self, item):
         res = {'transformParams': item.transformParams,
                'alias': item.alias}
@@ -507,13 +509,13 @@ class GenericProcessOrThread(object):
         self.inDataQueue.put(res)
         return True
 
-    @logger(minLevel=20)
+    # @logger(minLevel=20)
     def get_in_data(self, item):
         outDict = retry_on_eintr(self.inDataQueue.get)
         for field in outDict:
             setattr(item, field, outDict[field])
 
-    @logger(minLevel=20, attrs=[(1, 'alias')])
+    # @logger(minLevel=20, attrs=[(1, 'alias')])
     def put_out_data(self, item):
         res = {'transformParams': item.transformParams}
         for key in self.outArrays:
@@ -523,7 +525,7 @@ class GenericProcessOrThread(object):
                 pass
         self.outDataQueue.put(res)
 
-    @logger(minLevel=20, attrs=[(1, 'alias')])
+    # @logger(minLevel=20, attrs=[(1, 'alias')])
     def get_out_data(self, item):
         outDict = retry_on_eintr(self.outDataQueue.get)
         for field in outDict:
@@ -532,7 +534,7 @@ class GenericProcessOrThread(object):
     def put_results(self, obj):
         self.resultQueue.put(obj)
 
-    @logger(minLevel=20, attrs=[(1, 'name')])
+    # @logger(minLevel=20, attrs=[(1, 'name')])
     def get_results(self, obj):
         res = retry_on_eintr(self.resultQueue.get)
         if isinstance(res, dict):
@@ -558,7 +560,7 @@ class GenericProcessOrThread(object):
             pass
         return values
 
-    @logger(minLevel=20, printClass=True)
+    # @logger(minLevel=20, printClass=True)
     def run(self):
         # self.started_event.set()
         np.seterr(all='raise')
@@ -616,7 +618,9 @@ def retry_on_eintr(function, *args, **kw):
 class DataProxy(object):
     """An empty object to attach fields to it. With a simple instance of
     object() this is impossible but doable with an empty class."""
-    pass
+
+    def __repr__(self):
+        return "DataProxy object for '{0}'".format(self.alias)
 
 
 class BackendProcess(GenericProcessOrThread, multiprocessing.Process):
@@ -635,6 +639,10 @@ class BackendProcess(GenericProcessOrThread, multiprocessing.Process):
         # self.finished_event = multiprocessing.Event()
         self.progressQueue = multiprocessing.Queue()
         GenericProcessOrThread.__init__(self, func, inArrays, outArrays)
+
+    def run(self):
+        sys.path.append(csi.parseqPath)  # to find parseq in multiprocessing
+        GenericProcessOrThread.run(self)
 
 
 class BackendThread(GenericProcessOrThread, threading.Thread):

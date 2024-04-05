@@ -28,6 +28,7 @@ import json
 import numpy as np
 import warnings
 from collections import Counter
+from scipy.interpolate import UnivariateSpline
 
 import silx.io as silx_io
 
@@ -834,6 +835,8 @@ class Spectrum(TreeItem):
         else:
             csi.nodesToReplot = [fromNode]
 
+        self.make_corrections(fromNode)
+
         if runDownstream and fromNode.transformsOut and \
                 self.state[fromNode.name] == cco.DATA_STATE_GOOD:
             for tr in fromNode.transformsOut:
@@ -910,6 +913,11 @@ class Spectrum(TreeItem):
             for tr in csi.transforms.values():
                 for key, val in tr.defaultParams.items():
                     res[key] = config.get(configData, name, key, default=val)
+            for node in csi.nodes.values():
+                corr_param_name = 'correction_' + node.name
+                vv = config.get(configData, name, corr_param_name)
+                if vv is not None:
+                    res[corr_param_name] = vv
             return res
 
         def getFitParams(configData):
@@ -1229,7 +1237,10 @@ class Spectrum(TreeItem):
                     self.meta['text'] = '\n'.join(header)
             else:
                 self.meta['text'] = ''
-        self.meta['length'] = len(arr)
+        try:
+            self.meta['length'] = len(arr)
+        except TypeError:  # another type, not array
+            pass
 
         start = 5 if self.madeOf.startswith('silx:') else 0
         end = self.madeOf.find('::') if '::' in self.madeOf else None
@@ -1691,3 +1702,102 @@ class Spectrum(TreeItem):
 
         if csi.model is not None:
             csi.model.endResetModel()
+
+    @logger(minLevel=20, attrs=[(0, 'alias')])
+    def calc_correction(self, correction, key, x, arr):
+        # print('Correction: {0} to {1} of {2}'.format(correction, key, self))
+        lims = correction['range']
+        # print('len(x)', len(x), len(x[(lims[0] < x) & (x < lims[1])]))
+        if correction['kind'] == 'delete':
+            res = np.concatenate((arr[x < lims[0]], arr[lims[1] < x]))
+            return res
+        elif correction['kind'] == 'replace':
+            if arr is x:
+                return
+            res = np.array(arr)
+            where = (lims[0] < x) & (x < lims[1])
+            if 'constant' in correction:
+                res[where] = correction['constant']
+            elif ('line' in correction) or ('spline' in correction):
+                ind0 = np.argwhere(x < lims[0])[-1]
+                ind1 = np.argwhere(x > lims[1])[0]
+                x0, x1 = x[ind0][0], x[ind1][0]
+                y0, y1 = arr[ind0][0], arr[ind1][0]
+                if 'line' in correction:
+                    res[where] = (y1 - y0)/(x1 - x0)*(x[where] - x0) + y0
+                elif 'spline' in correction:
+                    xkn = [x0] + [kn[0] for kn in correction['spline']] + [x1]
+                    ykn = [y0] + [kn[1] for kn in correction['spline']] + [y1]
+                    spl = UnivariateSpline(xkn, ykn)
+                    res[where] = spl(x[where])
+            else:
+                raise ValueError("unknown replace correction")
+            return res
+
+        return arr
+
+    def make_corrections(self, node):
+        corr_param_name = 'correction_' + node.name
+        if corr_param_name not in self.transformParams:
+            return
+        corrections = self.transformParams[corr_param_name]
+        for correction in corrections:
+            # if correction['kind'] in ('delete',):
+            #     prop = 'raw'
+            # else:
+            #     prop = 'key'
+            prop = 'raw'
+
+            if 'ndim' not in correction:
+                correction['ndim'] = 1
+            if correction['ndim'] == 1:
+                xkeys = node.get_arrays_prop('name', role='x')
+                if len(xkeys) == 0:
+                    continue
+                # xkey = xkeys[0]
+                xkey = node.get_prop(xkeys[0], prop)
+                try:
+                    x = getattr(self, xkey)
+                except AttributeError:
+                    continue
+                shapeBefore = x.shape
+                corrKeys = []
+                for k, arr in node.arrays.items():
+                    key = node.get_prop(k, prop)
+                    try:
+                        attr = getattr(self, key)
+                    except AttributeError:
+                        continue
+                    if attr is not None and attr.shape == shapeBefore:
+                        arrC = self.calc_correction(correction, key, x, attr)
+                        if arrC is None:
+                            continue
+                        setattr(self, key, arrC)
+                        corrKeys.append(key)
+
+                if correction['kind'] == 'delete':
+                    for nodeOther in csi.nodes.values():
+                        if nodeOther is node:
+                            continue
+                        xkeysOther = nodeOther.get_arrays_prop(
+                            'name', role='x')
+                        if len(xkeysOther) == 0:
+                            continue
+                        xkeyOther = xkeysOther[0]
+                        if xkeyOther != xkey:
+                            continue
+                        for k, arr in nodeOther.arrays.items():
+                            key = nodeOther.get_prop(k, prop)
+                            try:
+                                attr = getattr(self, key)
+                            except AttributeError:
+                                continue
+                            if key in corrKeys:
+                                continue
+                            if attr is not None and attr.shape == shapeBefore:
+                                aC = self.calc_correction(
+                                    correction, key, x, attr)
+                                setattr(self, key, aC)
+
+            elif correction['ndim'] == 2:
+                pass

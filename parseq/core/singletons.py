@@ -3,8 +3,11 @@ __author__ = "Konstantin Klementiev"
 __date__ = "29 Sep 2022"
 # !!! SEE CODERULES.TXT !!!
 
+import os.path as osp
 from collections import deque, OrderedDict
 # import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
+
+parseqPath = osp.dirname(osp.dirname(osp.dirname(__file__)))
 
 DEBUG_LEVEL = 0
 
@@ -36,6 +39,7 @@ currentNode = None
 withGUI = 'not set yet'
 # updated later by MainWindowParSeq as qt.qApp.desktop().logicalDpiX() / 120.:
 screenFactor = 1
+plotBackend = 'matplotlib'  # can also be 'opengl'
 
 dataRootItem = None
 extraDataFormat = {}
