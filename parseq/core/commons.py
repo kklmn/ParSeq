@@ -225,13 +225,16 @@ def get_header(fname, readkwargs, searchAllLines=False):
     else:
         headerLen = readkwargs['skiprows']
     header = []
-    with open(fname, 'r', encoding="utf-8") as f:
-        for il, line in enumerate(f):
-            if il == MAX_HEADER_LINES and not searchAllLines:
-                break
-            if ((headerLen >= 0) and (il <= headerLen)) or \
-                    line.startswith('#'):
-                header.append(line)
+    try:
+        with open(fname, 'r', encoding="utf-8") as f:
+            for il, line in enumerate(f):
+                if il == MAX_HEADER_LINES and not searchAllLines:
+                    break
+                if ((headerLen >= 0) and (il <= headerLen)) or \
+                        line.startswith('#'):
+                    header.append(line)
+    except FileNotFoundError as e:
+        print('core.commons.get_header():', e)
     return header
 
 

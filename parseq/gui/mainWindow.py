@@ -287,7 +287,7 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.setStyleSheet(dock.defStyleSheet)
             self.addDockWidget(qt.Qt.LeftDockWidgetArea, dock)
             nodeWidget = NodeWidget(node, dock)
-            # nodeWidget = None  # for testing fo app closure
+            # nodeWidget = None  # for testing app closure
             dock.setWidget(nodeWidget)
 
             if node.plotDimension is None:
@@ -316,7 +316,12 @@ class MainWindowParSeq(qt.QMainWindow):
             if node.widgetClass is None:
                 last = 0
             if nodeWidget:
-                nodeWidget.splitter.setSizes([first, 1, 1, last])
+                splitterStates = [0] * nodeWidget.splitter.count()
+                splitterStates[0] = first  # files
+                splitterStates[1] = 1  # data
+                splitterStates[2] = 1  # plot
+                splitterStates[-1] = last  # transform
+                nodeWidget.splitter.setSizes(splitterStates)
             self.docks[nodeWidget] = dock, node, tabName
             dock.visibilityChanged.connect(partial(self.nodeChanged, node))
             dock.topLevelChanged.connect(dock.changeWindowFlags)

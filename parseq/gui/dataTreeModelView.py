@@ -254,8 +254,9 @@ class DataTreeModel(qt.QAbstractItemModel):
             return
         csi.selectionModel.select(selection, mode)
         csi.selectionModel.setCurrentIndex(index, mode)
-        csi.selectedItems[:] = []
-        csi.selectedItems.extend(items)
+        # csi.selectedItems[:] = []
+        # csi.selectedItems.extend(items)
+        csi.selectedItems = list(items)
 
     def _removeFromGlobalLists(self, item):
         for ll in (csi.selectedItems, csi.selectedTopItems,

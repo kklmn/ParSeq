@@ -16,7 +16,7 @@ Qt, where the user does not have to know about the underlying objects and
 methods. See :ref:`Notes on usage of GUI <notesgui>`.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "6 Apr 2023"
+__date__ = "22 Apr 2024"
 # !!! SEE CODERULES.TXT !!!
 
 # import sys
@@ -28,13 +28,13 @@ import json
 import numpy as np
 import warnings
 from collections import Counter
-from scipy.interpolate import UnivariateSpline
 
 import silx.io as silx_io
 
 from . import singletons as csi
 from . import commons as cco
 from . import config
+from .correction import calc_correction
 from .logger import logger
 from ..utils.format import format_memory_size
 
@@ -115,10 +115,10 @@ class TreeItem(object):
                     res = self.name
             elif hasattr(self, 'madeOf'):  # instance of Spectrum
                 if self.error is not None:
-                    return self.error
+                    res = self.error
                 elif self.beingTransformed:
-                    return '{0} is {1:.0f}% done'.format(
-                        self.beingTransformed, self.progress*100)
+                    res = '{0} is {1:.0f}% done'.format(self.beingTransformed,
+                                                        self.progress*100)
                 elif isinstance(self.madeOf, (type(""), dict, tuple, list)):
                     if isinstance(self.madeOf, type("")):
                         res = str(self.madeOf)
@@ -217,6 +217,10 @@ class TreeItem(object):
                             else:
                                 res += 'This node is out of the pipeline'\
                                     ' for this data'
+                        elif self.state[node.name] == cco.DATA_STATE_MATHERROR:
+                            res += '\nSee the error message in `metadata` '\
+                                'widget'
+
             return res
 
     def data(self, column):
@@ -1440,7 +1444,7 @@ class Spectrum(TreeItem):
             self.state[fromNode.name] = cco.DATA_STATE_MATHERROR
             msg = '\nThe conbined arrays have different lengths'
             self.meta['text'] += msg
-            if csi.DEBUG_LEVEL > 50:
+            if csi.DEBUG_LEVEL > 0:
                 print('calc_combined', self.alias, msg)
 
     @logger(minLevel=50, attrs=[(0, 'alias')])
@@ -1703,43 +1707,11 @@ class Spectrum(TreeItem):
         if csi.model is not None:
             csi.model.endResetModel()
 
-    @logger(minLevel=20, attrs=[(0, 'alias')])
-    def calc_correction(self, correction, key, x, arr):
-        # print('Correction: {0} to {1} of {2}'.format(correction, key, self))
-        lims = correction['range']
-        # print('len(x)', len(x), len(x[(lims[0] < x) & (x < lims[1])]))
-        if correction['kind'] == 'delete':
-            res = np.concatenate((arr[x < lims[0]], arr[lims[1] < x]))
-            return res
-        elif correction['kind'] == 'replace':
-            if arr is x:
-                return
-            res = np.array(arr)
-            where = (lims[0] < x) & (x < lims[1])
-            if 'constant' in correction:
-                res[where] = correction['constant']
-            elif ('line' in correction) or ('spline' in correction):
-                ind0 = np.argwhere(x < lims[0])[-1]
-                ind1 = np.argwhere(x > lims[1])[0]
-                x0, x1 = x[ind0][0], x[ind1][0]
-                y0, y1 = arr[ind0][0], arr[ind1][0]
-                if 'line' in correction:
-                    res[where] = (y1 - y0)/(x1 - x0)*(x[where] - x0) + y0
-                elif 'spline' in correction:
-                    xkn = [x0] + [kn[0] for kn in correction['spline']] + [x1]
-                    ykn = [y0] + [kn[1] for kn in correction['spline']] + [y1]
-                    spl = UnivariateSpline(xkn, ykn)
-                    res[where] = spl(x[where])
-            else:
-                raise ValueError("unknown replace correction")
-            return res
-
-        return arr
-
     def make_corrections(self, node):
+        wasCorrected = False
         corr_param_name = 'correction_' + node.name
         if corr_param_name not in self.transformParams:
-            return
+            return wasCorrected
         corrections = self.transformParams[corr_param_name]
         for correction in corrections:
             # if correction['kind'] in ('delete',):
@@ -1747,9 +1719,9 @@ class Spectrum(TreeItem):
             # else:
             #     prop = 'key'
             prop = 'raw'
-
             if 'ndim' not in correction:
                 correction['ndim'] = 1
+
             if correction['ndim'] == 1:
                 xkeys = node.get_arrays_prop('name', role='x')
                 if len(xkeys) == 0:
@@ -1761,18 +1733,27 @@ class Spectrum(TreeItem):
                 except AttributeError:
                     continue
                 shapeBefore = x.shape
+
                 corrKeys = []
                 for k, arr in node.arrays.items():
                     key = node.get_prop(k, prop)
+                    if key == xkey:
+                        continue
                     try:
-                        attr = getattr(self, key)
+                        y = getattr(self, key)
                     except AttributeError:
                         continue
-                    if attr is not None and attr.shape == shapeBefore:
-                        arrC = self.calc_correction(correction, key, x, attr)
-                        if arrC is None:
+                    if y is not None and y.shape == shapeBefore:
+                        # if node.widget is not None:
+                        #     x, y = \
+                        #         node.widget.transformWidget.extraPlotTransform(
+                        #             self, xkey, x, k, y)
+                        res = calc_correction(x, y, correction)
+                        if res is None:
                             continue
-                        setattr(self, key, arrC)
+                        wasCorrected = True
+                        xn, yn = res
+                        setattr(self, key, yn)
                         corrKeys.append(key)
 
                 if correction['kind'] == 'delete':
@@ -1795,9 +1776,10 @@ class Spectrum(TreeItem):
                             if key in corrKeys:
                                 continue
                             if attr is not None and attr.shape == shapeBefore:
-                                aC = self.calc_correction(
-                                    correction, key, x, attr)
+                                _, aC = calc_correction(x, attr, correction)
                                 setattr(self, key, aC)
+                    setattr(self, xkey, xn)
 
             elif correction['ndim'] == 2:
                 pass
+        return wasCorrected

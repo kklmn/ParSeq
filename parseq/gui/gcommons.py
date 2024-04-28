@@ -11,7 +11,7 @@ colorCycle1 = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
 colorCycle2 = ['#0000ff', '#00ee00', '#ff0000', '#00ffff', '#ff00ff',
                '#ffff00', '#aaaaaa', '#000000']
 
-COLOR_POLICY_INDIVIDUAL, COLOR_POLICY_LOOP1, COLOR_POLICY_LOOP2,\
+COLOR_POLICY_INDIVIDUAL, COLOR_POLICY_LOOP1, COLOR_POLICY_LOOP2, \
     COLOR_POLICY_GRADIENT = range(4)
 COLOR_POLICY_NAMES = 'individual', 'loop1', 'loop2', 'gradient'
 
@@ -21,6 +21,7 @@ COLOR_LOAD_CAN = '#44c044'
 COLOR_LOAD_CANNOT = '#d03333'
 COLOR_UNDEFINED = '#ff160c'
 COLOR_ROI = '#f7b43e'
+COLOR_CORRECTION = '#ff55dd'
 COLOR_COMBINED = '#ff00ff'
 
 GROUP_COLOR = qt.QColor('#f4f0f0')

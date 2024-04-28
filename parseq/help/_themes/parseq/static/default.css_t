@@ -380,6 +380,7 @@ div.viewcode-block:target {
     background: #eef;
     box-shadow: 1px 2px 3px #aac, inset 0px 0px 7px rgba(0,0,50,1);
     text-align: center;
+    line-height: 95%;
 
     /* center a div insie another div*/
     display: flex;

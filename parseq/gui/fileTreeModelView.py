@@ -1608,10 +1608,11 @@ class FileTreeView(qt.QTreeView):
             model.pendingPath = (dirname, path) if callback else None
             index = model.indexFileName(dirname)
 
-        ind = self.getProxyIndex(index)
-        if ind.isValid():
-            self.scrollTo(ind, qt.QAbstractItemView.PositionAtCenter)
-            self.setCurrentIndex(ind)
+        if index.isValid():
+            ind = self.getProxyIndex(index)
+            if ind.isValid():
+                self.scrollTo(ind, qt.QAbstractItemView.PositionAtCenter)
+                self.setCurrentIndex(ind)
 
     def _gotoIsReady(self, path, delay=2500):  # ms
         """The delay can be as short as 500 ms for a stand alone treeView. In

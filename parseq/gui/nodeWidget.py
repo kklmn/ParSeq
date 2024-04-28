@@ -9,7 +9,7 @@ import webbrowser
 from collections import Counter
 from functools import partial
 import traceback
-# import time
+import time
 import glob
 
 from silx.gui import qt, colors, icons
@@ -26,6 +26,7 @@ from ..gui.plot import Plot1D, Plot2D, Plot3D
 from ..gui.webWidget import QWebView
 from ..gui.columnFormat import ColumnFormatWidget
 from ..gui.combineSpectra import CombineSpectraWidget
+from ..gui.gcorrection import Correction1DWidget
 from . import gcommons as gco
 
 SPLITTER_WIDTH, SPLITTER_BUTTON_MARGIN = 14, 6
@@ -51,6 +52,7 @@ class QSplitterButton(qt.QPushButton):
                 margin: 0px 0px """ + bottomMargin + """px 0px;
                 background-color: qlineargradient(
                 """ + grad + """, stop: 0 #e6e7ea, stop: 1 #cacbce);}
+            QPushButton:disabled {color: #777777;}
             QPushButton:pressed {
                 background-color: qlineargradient(
                 """ + grad + """, stop: 0 #cacbce, stop: 1 #e6e7ea);}
@@ -117,6 +119,7 @@ class NodeWidget(qt.QWidget):
         self.node = node
         self.helpFile = ''
         node.widget = self
+        self.correctionWidget = None
         self.transformWidget = None
         self.tree = None
         self.help = None
@@ -130,8 +133,10 @@ class NodeWidget(qt.QWidget):
         self.fillSplitterFiles()
         self.fillSplitterData()
         self.fillSplitterPlot()
+        self.fillSplitterCorrection()
         self.makeTransformWidget(self.splitterTransform)
         self.fillSplitterTransform()
+
         self.makeSplitterButtons()
         self.splitter.setStretchFactor(0, 0)
         self.splitter.setStretchFactor(1, 0)
@@ -144,7 +149,7 @@ class NodeWidget(qt.QWidget):
         self.splitterButtons['files && containers'].clicked.emit()
         self.splitterButtons['transform'].clicked.emit()
 
-        self.splitter.setSizes([1, 1, 1, 1])  # set in MainWindowParSeq
+        # self.splitter.setSizes([1, 1, 1, 1])  # set in MainWindowParSeq
         if len(csi.selectedItems) > 0:
             self.updateNodeForSelectedItems()
             self.replot()
@@ -191,6 +196,8 @@ class NodeWidget(qt.QWidget):
         self.splitterData.setOrientation(qt.Qt.Vertical)
         self.splitterPlot = qt.QSplitter(self.splitter)
         self.splitterPlot.setOrientation(qt.Qt.Vertical)
+        self.splitterCorrection = qt.QSplitter(self.splitter)
+        self.splitterCorrection.setOrientation(qt.Qt.Vertical)
         self.splitterTransform = qt.QSplitter(self.splitter)
         self.splitterTransform.setOrientation(qt.Qt.Vertical)
 
@@ -352,6 +359,16 @@ class NodeWidget(qt.QWidget):
         sizes[0] = 1
         self.splitterPlot.setSizes(sizes)
 
+    def fillSplitterCorrection(self):
+        if self.node.plotDimension == 1:
+            self.correctionWidget = Correction1DWidget(
+                self.splitterCorrection, self.node, self.plot,
+                ['CorrectionDelete', 'CorrectionScale',
+                 'CorrectionSpline', 'CorrectionStep'])
+            po = qt.QSizePolicy(
+                qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
+            self.correctionWidget.setSizePolicy(po)
+
     def fillSplitterTransform(self):
         self.help = QWebView(self.splitterTransform)
         # self.help.setHtml('no documentation available')
@@ -391,7 +408,13 @@ class NodeWidget(qt.QWidget):
         self.splitterButtons = {}
         self.makeSplitterButton('files && containers', self.splitter, 1, 0)
         self.makeSplitterButton('data', self.splitter, 2, 1)
-        self.makeSplitterButton('transform', self.splitter, 3, 3)
+        but = self.makeSplitterButton('data corrections', self.splitter, 3, 3)
+        if self.node.plotDimension == 1:
+            but.setEnabled(True)
+        else:
+            but.setEnabled(False)
+            but.setToolTip("corrections are available only for 1D data")
+        self.makeSplitterButton('transform', self.splitter, 4, 4)
         self.makeSplitterButton('data format', self.splitterFiles, 1, 1)
         self.makeSplitterButton('combine', self.splitterData, 1, 1)
 
@@ -1069,6 +1092,7 @@ class NodeWidget(qt.QWidget):
             self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
 
     def updateNodeForSelectedItems(self):
+        time.sleep(0.01)  # roi counts do not update with 0 wait
         self.updateSplittersForSelectedItems()
         fname = self.shouldUpdateFileModel()
         if fname:

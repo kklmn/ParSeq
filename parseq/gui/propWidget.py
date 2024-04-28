@@ -36,9 +36,9 @@ from . import propsOfData as gpd
 
 propWidgetTypes = (
     'edit', 'label', 'spinbox', 'groupbox', 'checkbox', 'pushbutton',
-    'tableview', 'combobox', 'rangewidget', 'statebuttons')
+    'tableview', 'combobox', 'rangewidget', 'statebuttons', 'correction')
 
-spinBoxDelay = 500  # ms
+spinBoxDelay = 100  # ms
 
 
 class FloatRepr(reprlib.Repr):
@@ -539,9 +539,13 @@ class PropWidget(qt.QWidget):
                         widget.rangeChanged.connect(
                             partial(self.updatePropFromRangeWidget, widget,
                                     dataItems, prop))
-                    elif iwt == 9:  # 'statebuttons' from gui.roi
+                    elif iwt == 9:  # 'statebuttons' from gui.gcommons
                         widget.statesActive.connect(
                             partial(self.updatePropFromStateButtons, widget,
+                                    dataItems, prop))
+                    elif iwt == 10:  # 'correction' from gui.gcorrection
+                        widget.sigCorrectionChanged.connect(
+                            partial(self.updatePropFromCorrections, widget,
                                     dataItems, prop))
                     break
             else:
@@ -641,8 +645,8 @@ class PropWidget(qt.QWidget):
             for dd in (list(self.propWidgets.values()) +
                        list(self.exclusivePropGroups.values())):
                 try:
+                    # may start with 'transformParams':
                     if dd['prop'].endswith(key):
-                        # may start with 'transformParams'
                         tNames = dd['transformNames']
                         break
                 except Exception:  # dd['prop'] can be a list
@@ -794,6 +798,15 @@ class PropWidget(qt.QWidget):
         # if not widget.hasFocus():
         #     return
         self.updateProp(key, value, dataItems)
+
+    def updatePropFromCorrections(self, widget, dataItems, key):
+        # # if not widget.hasFocus():
+        # #     return
+        corrections = widget.getCorrections()
+
+        if dataItems is None:
+            dataItems = csi.selectedItems
+        self.updateProp(key, corrections, dataItems)
 
     def setUIFromData(self):
         for widget in self.exclusivePropGroups:

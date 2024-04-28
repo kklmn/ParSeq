@@ -5,8 +5,19 @@ __date__ = "18 Feb 2023"
 
 import time
 from functools import wraps
+try:
+    import colorama
+    colorama.init(autoreset=True)
+    green = colorama.Fore.GREEN
+    red = colorama.Fore.RED
+    reset = colorama.Fore.RESET
+except ImportError:
+    colorama = None
+    green = red = reset = ''
 
 from . import singletons as csi
+
+longTime = 1.
 
 
 def logger(minLevel=1, printClass=False, attrs=None):
@@ -31,7 +42,10 @@ def logger(minLevel=1, printClass=False, attrs=None):
             res = func(*args, **kwargs)
             if csi.DEBUG_LEVEL > minLevel:
                 dt = time.time() - tstart
-                print(f"exit {out} in {dt:.5f}s")
+                mark = green if dt < longTime else red
+                print(f"exit {out} in {mark}{dt:.6f}{reset}s")
+                if 'worker' in out:
+                    print()
             return res
         return wrapper
     return decorate

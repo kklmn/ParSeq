@@ -10,7 +10,7 @@ parameters; the values of these parameters are individual per data item. Each
 transformation in a pipeline requires subclassing from :class:`Transform`.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Feb 2023"
+__date__ = "28 Apr 2024"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -167,8 +167,9 @@ class Transform(object):
     def update_params(self, params, dataItems):
         for data in dataItems:
             for par in params:
-                if par not in data.transformParams:
-                    raise KeyError("Unknown parameter '{0}'".format(par))
+                if par not in data.transformParams and not par.startswith(
+                        'correction_'):
+                    raise KeyError(u"Unknown parameter '{0}'".format(par))
                 data.transformParams[par] = params[par]
         # data = csi.selectedItems[0]
         # dtparams = data.transformParams
@@ -193,12 +194,13 @@ class Transform(object):
                 return
             self.toNode.widget.tree.transformProgress.emit([alias, ps[-1]])
 
+    @logger(minLevel=20, attrs=[(0, 'name')])
     def _run_multi_worker(self, workers, workedItems, args):
+        time0 = time.time()
         wt = workers[0].workerType
         if csi.DEBUG_LEVEL > 1:
-            print('run "{0}" in {1} {2}{3} for {4}'.format(
-                self.name, len(workers), wt, '' if len(workers) == 1 else 's',
-                [d.alias for d in workedItems]))
+            print('run "{0}" in {1} {2}{3}'.format(
+                self.name, len(workers), wt, '' if len(workers) == 1 else 's'))
         if self.sendSignals:
             csi.mainWindow.beforeDataTransformSignal.emit(workedItems)
 
@@ -214,8 +216,8 @@ class Transform(object):
                 continue
             else:
                 item.beingTransformed = self.name
-            worker.start()
             item.transfortm_t0 = time.time()
+            worker.start()
 
         for worker, item in zip(workers, workedItems):
             if not item.beingTransformed:
@@ -243,6 +245,7 @@ class Transform(object):
         if self.sendSignals:
             csi.mainWindow.afterDataTransformSignal.emit(workedItems)
 
+    @logger(minLevel=20, attrs=[(0, 'name')])
     def _run_single_worker(self, data, args):
         data.beingTransformed = self.name
         data.transfortm_t0 = time.time()
@@ -293,8 +296,7 @@ class Transform(object):
         elif isinstance(res, int):
             data.state[self.toNode.name] = res
         data.beingTransformed = False
-        data.transfortmTimes[self.name] = \
-            time.time() - data.transfortm_t0
+        data.transfortmTimes[self.name] = time.time() - data.transfortm_t0
         if self.sendSignals:
             csi.mainWindow.afterDataTransformSignal.emit([data])
 
@@ -313,16 +315,16 @@ class Transform(object):
             self.nProcesses = max(nC//2, 1) if self.nProcesses.startswith('h')\
                 else nC
 
-        if self.nThreads > 1:
-            workerClass = BackendThread
-            cpus = self.nThreads
-        elif self.nProcesses > 1:
-            workerClass = BackendProcess
-            cpus = self.nProcesses
-        else:
-            workerClass = None
-        if workerClass is not None:
-            workers, workedItems = [], []
+        workerClass = None
+        if len(items) > 1:
+            if self.nThreads > 1:
+                workerClass = BackendThread
+                cpus = self.nThreads
+            elif self.nProcesses > 1:
+                workerClass = BackendProcess
+                cpus = self.nProcesses
+            if workerClass is not None:
+                workers, workedItems = [], []
 
         args = getargspec(self.__class__.run_main)[0]
         if 'allData' in args and workerClass is not None:
@@ -461,14 +463,14 @@ class Transform(object):
             if self.fromNode.name == self.toNode.name:
                 self.run(dataItems=toBeUpdated, runDownstream=False)
 
+        for data in dataItems:
+            data.make_corrections(self.toNode)
+
         if self.sendSignals:
             csi.mainWindow.afterTransformSignal.emit(self.toNode.widget)
         if hasattr(self.toNode, 'widget'):
             if self.toNode.widget is not None:
                 self.toNode.widget.onTransform = False
-
-        for data in dataItems:
-            data.make_corrections(self.toNode)
 
         if runDownstream:
             for tr in self.toNode.transformsOut:
@@ -491,7 +493,7 @@ class GenericProcessOrThread(object):
         # self.started_event.clear()
         # self.finished_event.clear()
 
-    # @logger(minLevel=20, attrs=[(1, 'alias')])
+    @logger(minLevel=20, attrs=[(0, 'transformName'), (1, 'alias')])
     def put_in_data(self, item):
         res = {'transformParams': item.transformParams,
                'alias': item.alias}
@@ -509,13 +511,13 @@ class GenericProcessOrThread(object):
         self.inDataQueue.put(res)
         return True
 
-    # @logger(minLevel=20)
+    @logger(minLevel=20, attrs=[(0, 'transformName')])
     def get_in_data(self, item):
         outDict = retry_on_eintr(self.inDataQueue.get)
         for field in outDict:
             setattr(item, field, outDict[field])
 
-    # @logger(minLevel=20, attrs=[(1, 'alias')])
+    @logger(minLevel=20, attrs=[(0, 'transformName'), (1, 'alias')])
     def put_out_data(self, item):
         res = {'transformParams': item.transformParams}
         for key in self.outArrays:
@@ -525,7 +527,7 @@ class GenericProcessOrThread(object):
                 pass
         self.outDataQueue.put(res)
 
-    # @logger(minLevel=20, attrs=[(1, 'alias')])
+    @logger(minLevel=20, attrs=[(0, 'transformName'), (1, 'alias')])
     def get_out_data(self, item):
         outDict = retry_on_eintr(self.outDataQueue.get)
         for field in outDict:
@@ -534,7 +536,7 @@ class GenericProcessOrThread(object):
     def put_results(self, obj):
         self.resultQueue.put(obj)
 
-    # @logger(minLevel=20, attrs=[(1, 'name')])
+    @logger(minLevel=20, attrs=[(0, 'transformName'), (1, 'name')])
     def get_results(self, obj):
         res = retry_on_eintr(self.resultQueue.get)
         if isinstance(res, dict):
@@ -638,6 +640,7 @@ class BackendProcess(GenericProcessOrThread, multiprocessing.Process):
         # self.started_event = multiprocessing.Event()
         # self.finished_event = multiprocessing.Event()
         self.progressQueue = multiprocessing.Queue()
+        sys.path.append(csi.parseqPath)  # to find parseq in multiprocessing
         GenericProcessOrThread.__init__(self, func, inArrays, outArrays)
 
     def run(self):

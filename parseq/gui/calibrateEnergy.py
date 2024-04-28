@@ -228,13 +228,13 @@ class CalibrateEnergyWidget(qt.QWidget):
         if len(col) == 0:
             col['base'] = ['none', 'none']
             col['slice'] = [':', ':']
-            col['energy'] = [9000, 10000]
+            col['energy'] = [9000.0, 10000.0]
             col['DCM'] = ['Si111', 'Si111']
             col['FWHM'] = [0, 0]
         else:
             col['base'].append('none')
             col['slice'].append(':')
-            col['energy'].append(col['energy'][-1] + 20)
+            col['energy'].append(col['energy'][-1] + 20.0)
             col['DCM'].append(col['DCM'][-1])
             col['FWHM'].append(0)
         self.calibrationModel.setDataCollection(col)
