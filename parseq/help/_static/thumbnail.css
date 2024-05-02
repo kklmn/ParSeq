@@ -1,6 +1,6 @@
 .thumbnail{
 position: relative;
-display: block;
+display: inherit;
 z-index: 0;
 cursor: zoom-in;
 transition: 0.3s;
