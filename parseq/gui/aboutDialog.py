@@ -11,6 +11,7 @@ import sphinx
 from silx.gui import qt
 from silx import version as versilx
 import platform as pythonplatform
+import multiprocessing
 import webbrowser
 
 from ..core import singletons as csi
@@ -33,6 +34,8 @@ except ImportError:
 except cl.LogicError:
     isOpenCL = False
     isOpenStatus = 'is installed '+redStr.format('but no OpenCL driver found')
+
+nC = multiprocessing.cpu_count()
 
 PARSEQPATH = osp.dirname(osp.dirname(osp.abspath(__file__)))
 ICONPATHP = osp.join(osp.dirname(__file__), '_images', 'parseq.ico')
@@ -200,6 +203,19 @@ class AboutDialog(qt.QDialog):
 #        txt = txt.replace('imagezoom::', 'image::')
         return txt
 
+    def makeThreadProcessStr(self, nThreads, nProcesses):
+        if isinstance(nThreads, type('')):
+            nThreads = max(nC//2, 1) if nThreads.startswith('h') else nC
+        if isinstance(nProcesses, type('')):
+            nProcesses = max(nC//2, 1) if nProcesses.startswith('h') else nC
+
+        res = ''
+        if nProcesses > 1:
+            res = ' ({0} processes)'.format(nProcesses)
+        elif nThreads > 1:
+            res = ' ({0} threads)'.format(nThreads)
+        return res
+
     def makeGraphPipeline(self):
         ranks = {}
         for i in range(len(csi.nodes)):
@@ -220,14 +236,16 @@ class AboutDialog(qt.QDialog):
                         iName = 'icon-item-ndim-32'
                     icons.append(iName)
                     for tr in node.transformsOut:
-                        transforms.append(
-                            [tr.name, tr.fromNode.name, tr.toNode.name])
+                        trEntry = [tr.name, tr.fromNode.name, tr.toNode.name,
+                                   tr.nThreads, tr.nProcesses]
+                        transforms.append(trEntry)
                     for fit in csi.fits.values():
                         if fit.node is node:
+                            fitEntry = [fit.name, fit.nThreads, fit.nProcesses]
                             if name in fits:
-                                fits[name].append(fit.name)
+                                fits[name].append(fitEntry)
                             else:
-                                fits[name] = [fit.name]
+                                fits[name] = [fitEntry]
 
             ranks[i] = dict(nodes=nodes, icons=icons, transforms=transforms,
                             fits=fits)
@@ -290,10 +308,12 @@ class AboutDialog(qt.QDialog):
                 if name in fits:
                     ficonTxt = '<img src="_images/{0}.png" height="20" />'\
                         .format(fitIcon)
-                    for fitName in fits[name]:
+                    for fit in fits[name]:
+                        fitName = fit[0]
+                        thr_pr = self.makeThreadProcessStr(fit[1], fit[2])
                         flowChart += u"""&nbsp <span id="fn_{0}"
-                            class="pipeline-fit">{1} {2} &nbsp</span>"""\
-                                .format(name_, ficonTxt, fitName)
+                            class="pipeline-fit">{1} {2} {3}&nbsp</span>"""\
+                                .format(name_, ficonTxt, fitName, thr_pr)
                 flowChart += "</div>"
             flowChart += """\n      </div>"""  # class="pipeline-rank"
 
@@ -309,8 +329,9 @@ class AboutDialog(qt.QDialog):
                 colorStr = \
                     'style="color: {0}; text-shadow: 1px 1.5px 3px {0}99;"'\
                     .format(color)
+                thr_pr = self.makeThreadProcessStr(transform[3], transform[4])
                 flowChart += u"""\n        <div class="pipeline-tr" {1}>
-                {0}</div>""".format(transform[0], colorStr)
+                {0}{2}</div>""".format(transform[0], colorStr, thr_pr)
                 name1_ = "_".join(transform[1].split())
                 name2_ = "_".join(transform[2].split())
                 colorStr = """style="stroke: {0}; """\

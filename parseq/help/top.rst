@@ -1,7 +1,7 @@
 ParSeq
 ======
 
-:GitHub: |GHver| |GHdate|
+:GitHub: |GHver| |GHdate| :ref:`version history <history>`
 :PyPI: |PPver| |PPdate|
 :License:  |GHlic|
 :Author: Konstantin Klementiev (MAX IV Laboratory)

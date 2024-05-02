@@ -3,71 +3,156 @@ u"""
 Create analysis pipeline
 ========================
 
-Consider `parseq_XES_scan` as an example for the development steps described
-below.
+Consider `parseq_XES_scan` and `parseq_XAS` as examples for the development
+steps described below.
 
-Basic concepts and ideas
-------------------------
+Centralized facilities
+----------------------
+
+Nodes and transformations
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. imagezoom:: _images/pipeline-graph-XAS.png
+   :align: right
+   :alt: &ensp;A pipeline for data processing of XAS spectra. This pipeline has
+       multiple entry nodes and three fitting routines.
 
 An analysis pipeline consists of data nodes and transformations that connect
-the nodes. Data nodes define array names that will appear as attributes of data
-objects, e.g as ``item.x``, with ``x`` being an attribute of a data object
-``item``. The array values will be read from files or calculated from other
-arrays. The pipeline can be used with or without GUI widgets. In the former
-case, the defined node arrays will appear in the node plotting: 1D, 2D or 3D
-(a stack of 2D plots).
+the nodes, see an example on the right.
+
+Data nodes define array names that will appear as attributes of data objects,
+e.g as ``item.x``, with ``x`` being an attribute of a data object ``item``. The
+array values will be read from files or calculated from other arrays. The
+pipeline can be used with or without GUI widgets. In the former case, the
+defined node arrays will appear in the node plot: 1D, 2D or 3D (a stack of 2D
+plots).
+
+.. imagezoom:: _images/pipeline-data-tree.png
+   :alt: &ensp;EXAFS data arranged in a tree. The item tooltips present data
+       flow information, array sizes and error messages.
+
+The data tree model (as in the Qt's `Model/View Programming
+<https://doc.qt.io/qt-6/model-view-programming.html>`_ concept) is a single
+object throughout the pipeline. In contrast, data tree widgets, see an example
+on the left, are present in *each* data node, not as a single tree instance,
+with the idea also to serve as a plot legend. Data can be rearranged by the
+user: ordered, renamed, grouped and removed. User selection in the data model
+is common for all transformation nodes. For 1D data, the line color is the same
+in all data nodes. 1D data plotting can optionally be done for several curves
+simultaneously: being selected either dynamically (via mouse selection) or
+statically (via check boxes). 2D and 3D data plotting is always done for one
+selected data object.
 
 Each transformation class defines a dictionary of transformation parameters and
 default values for them. It also defines a static method that calculates data
-arrays. The parameters will be attributed to each data object. The parameter
-values are supposed to be changed in user supplied GUI widgets. This change can
+arrays. The transformation parameters will be attributed to each data object.
+The parameter values are supposed to be changed in GUI widgets. This change can
 be done simultaneously for one or several active data objects. Alternatively,
 any parameter can be copied to one or several later selected data.
 
 Each transformation can optionally define the number of threads or processes
-that will start in parallel and run the transformation of several data items.
+that will start in parallel to run the transformation of several data items.
 The multiprocessing python API requires the main transformation method as a
 *static* or *class* method (not an instance method). Additionally, for the sake
-of data transfer in multiprocessing, all input and output arrays have to be
-added to ``inArrays`` and ``outArrays`` lists (attributes of the transformation
-class).
+of inter-process data transfer in multiprocessing, all input and output arrays
+have to be added to ``inArrays`` and ``outArrays`` lists (attributes of the
+transformation class).
 
-In the user-supplied GUI widgets, one for each data node, all interactive GUI
-elements should get registered using a few dedicated methods. The registration
-will enable automatic GUI update from the active data and will run
-transformations given the updated parameters, so no
+.. imagezoom:: _images/pipeline-transform-apply.png
+   :align: right
+   :alt: &ensp;An example of the apply/reset popup menu on a control element.
+
+In the pipeline GUI widgets, all interactive GUI elements can be registered
+using a few dedicated methods of the base class :class:`PropWidget`. The
+registration will enable (a) automatic GUI update from the active data and will
+run transformations given the updated GUI elements, so no
 `signal slots <https://doc.qt.io/qt-6/signalsandslots.html>`_
-are typically required. The registration will also enable copying
+are typically required. The registration will also enable (b) copying
 transformation parameters to other data by means of popup menus on each GUI
-element.
+element, see on the right.
 
-One or more curve fitting routines can optionally be defined per data node.
-Similarly to transformations, fitting solvers can run in parallel for several
-data items. Fitting parameters can be constrained or tied to other parameters.
+The transformation class docstrings will be built by ParSeq at the application
+strat up time using `Sphinx <https://www.sphinx-doc.org>`_ into an html file
+and will be displayed in a help panel close to the transformation widget.
 
-The data model is a single object throughout the pipeline. Data can be
-rearranged by the user: ordered, renamed, grouped and removed. The data model
-tree is present in *each* data node, not as a single tree instance, with the
-idea also to serve as a plot legend that should always be close to the plot.
-User selection in the data model is common for all transformation nodes. For 1D
-data, the line color is the same in all data nodes. 1D data plotting can
-optionally be done for dynamically (via mouse selection) or statically (via
-check boxes) selected data. 2D and 3D data plotting is always done for one
-selected data object.
+Undo and redo
+~~~~~~~~~~~~~
 
-The transformation class docstrings will be built by ParSeq using `Sphinx
-<https://www.sphinx-doc.org>`_ into an html file and will be displayed in a
-help panel close to the transformation widget.
+TODO
+
+File tree views and file formats
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+TODO
+
+Metadata
+~~~~~~~~
+
+TODO
+
+Plots
+~~~~~
+
+TODO
+
+Fits
+~~~~
+
+.. imagezoom:: _images/pipeline-fit-EXAFS.png
+   :align: right
+   :alt: &ensp;EXAFS fit widget as an example of ParSeq fit widgets. It was
+       built on top of the ParSeq base fit and base fit widget classes.
+
+Data nodes can optionally host curve fitting routines. Similarly to
+transformations, fitting solvers can run in parallel for several data items.
+Fitting parameters can be constrained or tied to other parameters, also to
+parameters of another data item fit. See an example fit widget on the right.
+
+Cross-data combinations
+~~~~~~~~~~~~~~~~~~~~~~~
+
+TODO
+
+Standard data corrections
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+TODO
+
+Project saving with data export and plot script generation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+TODO
+
+Command-line interface and start options
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+TODO
+
+Error handling
+~~~~~~~~~~~~~~
+
+TODO
+
+Help system
+~~~~~~~~~~~
+
+TODO
+
+Performance profiling
+~~~~~~~~~~~~~~~~~~~~~
+
+TODO
+
 
 Prepare pipeline metadata and images
 ------------------------------------
 
 Create a project directory for the pipeline. Create `__init__.py` file that
-defines metadata about the project. Note that user pipeline applications and
-ParSeq itself use the module `parseq.core.singletons` as a means to store
-global variables; the pipeline’s `__init__.py` module defines a few of them.
-Together with the docstrings of the module, these metadata will appear in the
-About dialog.
+defines metadata about the project. Note that pipeline applications and ParSeq
+itself use the module `parseq.core.singletons` as a means to store global
+variables; the pipeline’s `__init__.py` module defines a few of them. Together
+with the docstrings of the module, these metadata will appear in the About
+dialog.
 
 Create `doc/_images` directory and put an application icon there. The pipeline
 transformations will have class docstrings that may also include images; those
@@ -76,8 +161,9 @@ images should be located here, in `doc/_images`.
 Make data nodes
 ---------------
 
-To define a node class means to name all necessary arrays, define their roles,
-labels and units.
+To define a node class means to name all plot arrays, define their roles,
+labels and units. The data containers may also have other array attributes that
+do not participate in plots; these are not to be declared.
 
 Make data transformations
 -------------------------
@@ -114,7 +200,7 @@ Because each transformation already has a set of default parameter values,
 these GUI widgets can gradually grow during the development time, without
 compromising the data pipeline functionality.
 
-Provide docstrings in reStructuredText markup, they will be built by Sphinx and
+Provide docstrings in reStructuredText markup. They will be built by Sphinx and
 displayed near the corresponding widgets.
 
 Make fitting worker classes

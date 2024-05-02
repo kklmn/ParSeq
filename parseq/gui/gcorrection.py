@@ -26,7 +26,7 @@ HEADERS = '🏷', 'use', 'geometry'
 columnWidths = 36, 32, 124
 
 __iconDir__ = osp.join(osp.dirname(__file__), '_images')
-ICON_SIZE = 32
+ICON_SIZE = 24
 
 
 def makeMarker(obj, symbol):
@@ -631,7 +631,7 @@ class CorrectionToolBar(qt.QToolBar):
     def __init__(self, parent, roiManager, roiClassNames):
         super().__init__(parent)
         # self.setStyleSheet('QToolBar{margin: 0px 10px;}')
-        self.setIconSize(qt.QSize(32, 32))
+        self.setIconSize(qt.QSize(24, 24))
 
         for roiClassName in roiClassNames:
             if roiClassName == 'CorrectionDelete':

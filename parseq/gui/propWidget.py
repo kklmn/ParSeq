@@ -124,6 +124,14 @@ class PropWidget(qt.QWidget):
 
     def _addAction(self, menu, text, slot, shortcut=None):
         action = qt.QAction(text, self)
+        if text.startswith('apply'):
+            icon = self.style().standardIcon(qt.QStyle.SP_DialogApplyButton)
+        elif text.startswith('reset'):
+            icon = self.style().standardIcon(qt.QStyle.SP_DialogCancelButton)
+        else:
+            icon = None
+        if icon is not None:
+            action.setIcon(icon)
         action.triggered.connect(slot)
         if shortcut:
             action.setShortcut(qt.QKeySequence(shortcut))
@@ -206,7 +214,8 @@ class PropWidget(qt.QWidget):
                 cap = self.propGroups[widget]['caption']
             elif widget in self.propWidgets:
                 propWidget = self.propWidgets[widget]
-                tNames = propWidget['transformNames']
+                tNames = list(propWidget['transformNames'])
+                tNames += [tr.name for tr in self.node.transformsOut]
                 props = self._getPropListWidget(widget)
                 if 'copyValue' in propWidget:
                     res = propWidget['copyValue']
@@ -249,36 +258,46 @@ class PropWidget(qt.QWidget):
                 print('props', props)
                 print('values', values)
 
+        if len(tNames) == 0:
+            return
+
         for tName in tNames:
             tr = csi.transforms[tName]
+            validProps = []
+            for prop in props:
+                key = cco.shrinkTransformParam(prop)
+                if key in tr.defaultParams:
+                    validProps.append(prop)
+            if len(validProps) == 0:
+                continue
+
             keys = tr.defaultParams.keys()
-            props = [cco.expandTransformParam(key) for key in keys]
-            values = [data.transformParams[key] for key in keys]
-            actionName = 'apply all params of "{0}" transform to picked data'\
-                .format(tName)
+            allDefProps = [cco.expandTransformParam(key) for key in keys]
+            allDefValues = [data.transformParams[key] for key in keys]
+            actionName = 'apply all params of "{0}"'.format(tName)
             actionName2 = actionName + ' to picked data'
             self._addAction(
                 menu, actionName2,
-                partial(self.startPick, props, values, actionName))
+                partial(self.startPick, allDefProps, allDefValues, actionName))
             if csi.DEBUG_LEVEL > 10:
                 print('apply all params of the transform')
                 print('actionName', actionName)
-                print('props', props)
-                print('values', values)
+                print('allDEfProps', allDefProps)
+                print('allDefValues', allDefValues)
 
-            props = [cco.expandTransformParam(key)
-                     for key in data.transformParams.keys()]
-            values = list(data.transformParams.values())
-            actionName = 'apply all params of all transforms to picked data'
-            actionName2 = actionName + ' to picked data'
-            self._addAction(
-                menu, actionName2,
-                partial(self.startPick, props, values, actionName))
-            if csi.DEBUG_LEVEL > 10:
-                print('apply all params of all transforms')
-                print('actionName', actionName)
-                print('props', props)
-                print('values', values)
+        allProps = [cco.expandTransformParam(key)
+                    for key in data.transformParams.keys()]
+        allValues = list(data.transformParams.values())
+        actionName = 'apply all params of all transforms'
+        actionName2 = actionName + ' to picked data'
+        self._addAction(
+            menu, actionName2,
+            partial(self.startPick, allProps, allValues, actionName))
+        if csi.DEBUG_LEVEL > 10:
+            print('apply all params of all transforms')
+            print('actionName', actionName)
+            print('allProps', allProps)
+            print('allValues', allValues)
 
     def fillMenuReset(self, widgetsOver, menu):
         actionStr = 'reset {0} to default value{1}'
@@ -296,7 +315,8 @@ class PropWidget(qt.QWidget):
             elif widget in self.propWidgets:
                 props = self._getPropListWidget(widget)
                 cap = self.propWidgets[widget]['caption']
-                tNames = self.propWidgets[widget]['transformNames']
+                tNames = list(self.propWidgets[widget]['transformNames'])
+                tNames += [tr.name for tr in self.node.transformsOut]
             elif widget in self.exclusivePropGroups:
                 props = self._getPropListExclusiveGroup(widget)
                 cap = self.exclusivePropGroups[widget]['caption']
@@ -310,7 +330,8 @@ class PropWidget(qt.QWidget):
                 for prop in props:
                     key = cco.shrinkTransformParam(prop)
                     if key in tr.defaultParams:
-                        values.append(tr.defaultParams[key])
+                        defVal = tr.defaultParams[key]
+                        values.append(defVal)
                         validProps.append(prop)
 
             if len(values) == 0:
@@ -333,7 +354,7 @@ class PropWidget(qt.QWidget):
         keys = tr.defaultParams.keys()
         props = [cco.expandTransformParam(key) for key in keys]
         values = list(tr.defaultParams.values())
-        actionName = 'reset all params of "{0}" transform to default values'\
+        actionName = 'reset all params of "{0}" to default values'\
             .format(tr.name)
         self._addAction(menu, actionName,
                         partial(self.resetProps, props, values, actionName))
