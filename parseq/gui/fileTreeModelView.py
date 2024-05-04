@@ -974,11 +974,17 @@ class FileTreeView(qt.QTreeView):
             strLoad = "Load data (you can also drag it to the data tree)"
             self.actionLoad = self._addAction(
                 strLoad, self.transformNode.widget.loadFiles, "Ctrl+L")
+            iconLoad = self.style().standardIcon(qt.QStyle.SP_ArrowRight)
+            self.actionLoad.setIcon(iconLoad)
         self.actionSynchronize = self._addAction(
             "Reload location", self.reload, ["Ctrl+R", "F5"])
+        iconReload = self.style().standardIcon(qt.QStyle.SP_BrowserReload)
+        self.actionSynchronize.setIcon(iconReload)
         self.actionViewTextFile = self._addAction(
             "View text file (will be displayed in 'metadata' panel)",
             self.viewTextFile, "F3")
+        iconT = self.style().standardIcon(qt.QStyle.SP_FileDialogContentsView)
+        self.actionViewTextFile.setIcon(iconT)
 
         # self.setStyleSheet("QTreeView"
         #                    "{selection-background-color: transparent;}")

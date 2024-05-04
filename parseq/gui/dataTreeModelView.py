@@ -944,18 +944,32 @@ class DataTreeView(qt.QTreeView):
 
         self.actionMoveUp = self._addAction(
             "Move up", partial(self.moveItems, +1), "Ctrl+Up")
+        iconUp = self.style().standardIcon(qt.QStyle.SP_ArrowUp)
+        self.actionMoveUp.setIcon(iconUp)
+
         self.actionMoveDown = self._addAction(
             "Move down", partial(self.moveItems, -1), "Ctrl+Down")
+        iconDown = self.style().standardIcon(qt.QStyle.SP_ArrowDown)
+        self.actionMoveDown.setIcon(iconDown)
 
         self.actionMakeGroup = self._addAction(
             "Make group", self.groupItems, "Ctrl+G")
+        iconDir = self.style().standardIcon(qt.QStyle.SP_FileDialogNewFolder)
+        self.actionMakeGroup.setIcon(iconDir)
+
         self.actionUngroup = self._addAction("Ungroup", self.ungroup, "Ctrl+U")
+        iconUn = self.style().standardIcon(qt.QStyle.SP_DockWidgetCloseButton)
+        self.actionUngroup.setIcon(iconUn)
 
         self.actionRemove = self._addAction(
             "Remove", self.removeItemsView, "Del")
+        iconDel = self.style().standardIcon(qt.QStyle.SP_DialogCloseButton)
+        self.actionRemove.setIcon(iconDel)
 
         self.actionCopyError = self._addAction(
             "Copy error traceback", self.copyError, "Ctrl+C")
+        iconT = self.style().standardIcon(qt.QStyle.SP_FileDialogContentsView)
+        self.actionCopyError.setIcon(iconT)
 
         self.actionAUCC = self._addAction(
             "Auto update collective colors", self.autoUpdateColors)
@@ -963,6 +977,8 @@ class DataTreeView(qt.QTreeView):
 
         self.actionLines = self._addAction(
             "Line properties", self.setLines, "Ctrl+P")
+        iconL = self.style().standardIcon(qt.QStyle.SP_FileDialogDetailedView)
+        self.actionLines.setIcon(iconL)
 
     def _addAction(self, text, slot, shortcut=None):
         action = qt.QAction(text, self)
