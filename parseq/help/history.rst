@@ -3,7 +3,7 @@
 Version history
 ---------------
 
-2024.4.0:
+2024.5.0:
     - Add general data corrections.
 
     - Add EXAFS fit. It features two fit intervals (k and r), constraints,
