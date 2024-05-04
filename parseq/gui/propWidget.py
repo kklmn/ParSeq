@@ -18,7 +18,7 @@ widgets that are internally integrated to plotting e.g. ROIs. A good first
 point of interaction with silx is its collection of examples.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Feb 2021"
+__date__ = "4 May 2024"
 # !!! SEE CODERULES.TXT !!!
 
 from functools import partial
@@ -738,8 +738,6 @@ class PropWidget(qt.QWidget):
         if hasattr(csi, 'nodesToReplot'):
             for node in csi.nodesToReplot:
                 node.widget.replot()
-            if csi.mainWindow is not None:
-                csi.mainWindow.selChanged()
 
         if tName:
             tr = csi.transforms[tName]

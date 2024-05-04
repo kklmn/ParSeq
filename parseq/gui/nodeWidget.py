@@ -415,7 +415,8 @@ class NodeWidget(qt.QWidget):
             but.setEnabled(False)
             but.setToolTip("corrections are available only for 1D data")
         self.makeSplitterButton('transform', self.splitter, 4, 4)
-        self.makeSplitterButton('data format', self.splitterFiles, 1, 1)
+        self.makeSplitterButton('data format (see tab tooltips)',
+                                self.splitterFiles, 1, 1)
         self.makeSplitterButton('combine', self.splitterData, 1, 1)
 
         ind = 1

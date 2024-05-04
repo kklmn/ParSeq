@@ -485,6 +485,7 @@ class MainWindowParSeq(qt.QMainWindow):
                 cSelected, combinedNames))
         else:
             self.statusBarLeft.setText('')
+        self.statusBarLeft.update()
         sLoaded = '{0} loaded'.format(cLoaded) if cLoaded else ''
         sBranched = '{0} branched'.format(cBranched) if cBranched else ''
         sCreated = '{0} created'.format(cCreated) if cCreated else ''

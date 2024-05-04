@@ -22,6 +22,10 @@ body {
     padding: 0;
 }
 
+section {
+    text-align: justify;
+}
+
 div.documentwrapper {
     float: left;
     width: 100%;

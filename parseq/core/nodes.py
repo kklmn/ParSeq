@@ -40,7 +40,8 @@ class Node(object):
             2D plots and '3D' for stacked 2D images. '0D' values are listed in
             the data tree. 'optional' array is not required in data files and
             can be used as an auxiliary. Unless with a '0D' role, each array
-            will appear in `data location` dialog to define its location.
+            will appear in `data format` dialog (resides under the file tree)
+            to define its location.
 
         *raw*: str, default = array name
             Can define an intermediate array at the pipeline head when the main
@@ -70,9 +71,12 @@ class Node(object):
 
         *plotParams*: dict, default is `{}` that assumes thin solid lines
             Default parameters for plotting. Can have the following keys:
-            *linewidth* (or *lw*), *style*, *symbol* and *symbolsize*. Note
-            that color is set for a data item and is equal across the nodes, so
-            it is set not here.
+            *linewidth* (or *lw*), *style*, *symbol* and *symbolsize*.
+
+            .. note::
+                Color is set for a data item as its attribute and is equal
+                for all 1D curves of the data item across the nodes, so it is
+                set not here.
 
     *checkShapes*: list of str
         Can be useful at data file reading. If given, the list contains keys of

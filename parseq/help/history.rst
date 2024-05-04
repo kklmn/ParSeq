@@ -9,6 +9,8 @@ Version history
     - Add EXAFS fit. It features two fit intervals (k and r), constraints,
       ties to other parameters (also of another data item) and error analysis.
 
+    - Update the main help pages.
+
 2023.5.0:
     - Add curve fitting facilities. Implemented 2 general fitting routines:
       linear combination fit and function fit.

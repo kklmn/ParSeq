@@ -13,7 +13,7 @@ documentation explains how. Otherwise, most typically it is used within the
 ParSeq GUI, where the tree model feeds the `model-view-controller
 <https://doc.qt.io/qt-6/model-view-programming.html>`_ software architecture of
 Qt, where the user does not have to know about the underlying objects and
-methods. See :ref:`Notes on usage of GUI <notesgui>`.
+methods.
 """
 __author__ = "Konstantin Klementiev"
 __date__ = "22 Apr 2024"

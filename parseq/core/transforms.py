@@ -287,10 +287,12 @@ class Transform(object):
             if True:
                 print(errorMsg)
             data.error = errorMsg
-        if isinstance(res, dict):
+        if res is None:
+            data.state[self.toNode.name] = cco.DATA_STATE_BAD
+        elif isinstance(res, dict):
             for field in res:
                 setattr(self, field, res[field])
-        if isinstance(res, bool):
+        elif isinstance(res, bool):
             data.state[self.toNode.name] = cco.DATA_STATE_GOOD \
                 if res is not None else cco.DATA_STATE_BAD
         elif isinstance(res, int):
@@ -423,7 +425,7 @@ class Transform(object):
 
         *allData* and *progress* are both optional in the method’s signature.
         The keyword names must be kept as given above if they are used and must
-        be in this given order if both are present.
+        be in this given order.
 
         *allData* is a list of all data items living in the data model. If
         *allData* is needed, both *nThreads* or *nProcesses* must be set to 1.
@@ -539,10 +541,13 @@ class GenericProcessOrThread(object):
     @logger(minLevel=20, attrs=[(0, 'transformName'), (1, 'name')])
     def get_results(self, obj):
         res = retry_on_eintr(self.resultQueue.get)
-        if isinstance(res, dict):
+        if res is None:
+            return False
+        elif isinstance(res, dict):
             for field in res:
                 setattr(obj, field, res[field])
-        return res is not None
+            return True
+        return res
 
     def put_error(self, obj):
         self.errorQueue.put(obj)

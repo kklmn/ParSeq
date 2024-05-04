@@ -1233,6 +1233,9 @@ class FileTreeView(qt.QTreeView):
             if len(paths) > 0:
                 menu.addSeparator()
                 action = qt.QAction("Add to metadata list", menu)
+                iconL = self.style().standardIcon(
+                    qt.QStyle.SP_FileDialogDetailedView)
+                action.setIcon(iconL)
                 action.triggered.connect(partial(self.addMetadata, paths))
                 menu.addAction(action)
 

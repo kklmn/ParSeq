@@ -36,9 +36,9 @@ class ColumnFormatWidget(PropWidget):
         ind = self.tabWidget.addTab(self.dataLocationTab, 'arrays')
         self.tabWidget.setTabToolTip(
             ind, "For HDF5/SPEC datasets: use context menu on data arrays.\n"
-            "For column files: use expressions of variables `Col1`, `Col2`, …"
+            "For column files: use expressions of variables `Col0`, `Col1`, …"
             "\n(zero-based!) or give a zero-based int column index.\n"
-            "Example: `np.log(Col6/Col7)`")
+            "numpy can be used as `np`. Example: `np.log(Col6/Col7)`")
 
         self.conversionTab = self.makeConversionTab()
         ind = self.tabWidget.addTab(self.conversionTab, 'conversion')

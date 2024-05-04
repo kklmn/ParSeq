@@ -127,6 +127,9 @@ class AnimationDirective(Directive):
                 alignC = 'align-right'
                 if loc is None:
                     loc = "upper-right-corner"
+            else:
+                if loc is None:
+                    loc = "upper-left-corner"
         else:
             alignC = 'align-left'
             if loc is None:
