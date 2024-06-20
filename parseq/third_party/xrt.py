@@ -4,11 +4,12 @@ __date__ = "28 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
 
 # path to xrt under 'c:\Ray-tracing':
-import sys; sys.path.append(r'c:\Ray-tracing')  # analysis:ignore
+# import sys; sys.path.append(r'c:\Ray-tracing')  # analysis:ignore
+import os, sys; sys.path.append(os.path.join('..', '..', 'Ray-tracing'))  # analysis:ignore
 from os.path import expanduser, join
 home = expanduser("~")
 # path to xrt under 'Ray-tracing' in home directory:
-sys.path.append(join(home, r'Ray-tracing'))  # analysis:ignore
+sys.path.append(join(home, 'Ray-tracing'))  # analysis:ignore
 
 import xrt.backends.raycing.materials as rm
 
