@@ -276,12 +276,9 @@ class NodeWidget(qt.QWidget):
         self.autoPanel.setLayout(layoutAP)
 
         gotoLastButton = qt.QToolButton()
+        self.gotoLastButton = gotoLastButton
         gotoLastButton.setFixedSize(24, 24)
         gotoLastButton.setIcon(icons.getQIcon('last'))
-        tt = "Go to the latest loaded data"
-        if configLoad.has_option('Data', self.node.name):
-            tt += "\n" + configLoad.get('Data', self.node.name)
-        gotoLastButton.setToolTip(tt)
         gotoLastButton.clicked.connect(self.gotoLastData)
         color = qt.QColor(gco.COLOR_LOAD_CAN)
         color.setAlphaF(0.32)
@@ -289,6 +286,10 @@ class NodeWidget(qt.QWidget):
             "QToolButton{border-radius: 8px;}"
             "QToolButton:hover{background-color: " +
             color.name(qt.QColor.HexArgb) + ";}")
+        tt = "Go to the latest loaded data"
+        if configLoad.has_option('Data', self.node.name):
+            tt += "\n" + configLoad.get('Data', self.node.name)
+        gotoLastButton.setToolTip(tt)
 
         fileFilterLayout = qt.QGridLayout()
         fileFilterLayout.addWidget(labelIncludeFilter, 0, 0)
@@ -1194,6 +1195,11 @@ class NodeWidget(qt.QWidget):
             fileNamesFull, parentItem, insertAt, dataFormat=df,
             originNodeName=self.node.name, concatenate=concatenate,
             lengthCheck=lengthCheck)
+
+        tt = "Go to the latest loaded data"
+        if configLoad.has_option('Data', self.node.name):
+            tt += "\n" + configLoad.get('Data', self.node.name)
+        self.gotoLastButton.setToolTip(tt)
 
     def shouldShowColumnDialog(self):
         for it in csi.selectedItems:

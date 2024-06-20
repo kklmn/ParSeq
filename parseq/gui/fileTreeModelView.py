@@ -95,7 +95,7 @@ class MyHdf5TreeModel(Hdf5TreeModel):
         if node is None:
             return False
         # try:
-        if not node.isGroupObj():
+        if not hasattr(node, 'isGroupObj') or not node.isGroupObj():
             return False
         if node._Hdf5Node__child is None:
             return True
@@ -398,7 +398,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                         # self.h5Model.insertFileAsync(fname)  # faster?
                         countHdf5 += 1
                         # self.endInsertRows()
-                    except IOError as e:
+                    except Exception as e:
                         print(e)
                         self.nodesNoHead.append(intId)
                 else:
@@ -421,7 +421,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         tuple or just one expression if it is a simple string.
         """
         dataStr = str(dataStr)
-        if "np." in dataStr:
+        if "np." in dataStr:  # in both 'col' and 'h5'
             try:
                 arr = eval(dataStr)
                 return [(dataStr, None, None, arr.shape)]
@@ -441,6 +441,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         for colStr in dataStr:
             keys = re.findall(r'\[(.*?)\]', colStr)
             if len(keys) == 0:
+                colStr = colStr.replace('col', 'Col')
                 if "Col" in colStr:
                     regex = re.compile('Col([0-9]*)')
                     # remove possible duplicates by list(dict.fromkeys())
@@ -490,16 +491,18 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         return out
 
     def hasH5ChildPath(self, node, path):
-        nodePath = self.h5Model.getHDF5NodePath(node)
+        # nodePath = self.h5Model.getHDF5NodePath(node)
         # if node.dataLink(qt.Qt.DisplayRole) == 'External':
         #     nodePath = self.h5Model.getHDF5NodePath(node)
         # else:
         #     nodePath = node.obj.name
-        pathInH5 = '/'.join((nodePath, path))
         try:
-            test = node.obj[pathInH5]  # test for existence
+            test = node.obj[path]  # test for existence
+            # pathInH5 = '/'.join((nodePath, path))
+            # test = node.obj[pathInH5]  # test for existence
             return test.shape
-        except KeyError:
+        except KeyError as ke:
+            # print('KeyError in hasH5ChildPath():', ke)
             return
 
     def tryLoadColDataset(self, indexFS):
@@ -540,8 +543,8 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                     if len(colEval[0][3]) < nd:
                         return
                 lres.append(colEval)
-        except Exception:  # as e:
-            # print('tryLoadColDataset:', e)
+        except Exception as e:
+            print('tryLoadColDataset:', e)
             return
         return lres, df
 
@@ -591,7 +594,8 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                             if len(slicelist) != nd:
                                 return
                 lres.append(colEval)
-        except Exception:
+        except Exception as e:
+            print('Exception in tryLoadHDF5Dataset():', e)
             return
         return lres, df
 

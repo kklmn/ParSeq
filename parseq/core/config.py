@@ -10,29 +10,33 @@ try:
 except ImportError:
     from ConfigParser import ConfigParser  # python 2
 
+from . import singletons as csi
+
 iniDir = os.path.expanduser(os.path.join('~', '.parseq'))
 if not os.path.exists(iniDir):
     os.makedirs(iniDir)
 
 encoding = 'utf-8'
 
-iniFileLoad = (os.path.join(iniDir, 'load.ini'))
+iniFileLoad = os.path.join(iniDir, '{0}_load.ini'.format(csi.pipelineName))
 configLoad = ConfigParser()
 configLoad.read(iniFileLoad, encoding=encoding)
 
-iniFileGUI = (os.path.join(iniDir, 'gui.ini'))
+iniFileGUI = os.path.join(iniDir, '{0}_gui.ini'.format(csi.pipelineName))
 configGUI = ConfigParser()
 configGUI.read(iniFileGUI, encoding=encoding)
 
-iniFileTransforms = (os.path.join(iniDir, 'transforms.ini'))
+iniFileTransforms = os.path.join(
+    iniDir, '{0}_transforms.ini'.format(csi.pipelineName))
 configTransforms = ConfigParser()
 configTransforms.read(iniFileTransforms, encoding=encoding)
 
-iniFileFits = (os.path.join(iniDir, 'fits.ini'))
+iniFileFits = os.path.join(iniDir, '{0}_fits.ini'.format(csi.pipelineName))
 configFits = ConfigParser()
 configFits.read(iniFileFits, encoding=encoding)
 
-iniFileFormats = (os.path.join(iniDir, 'formats.ini'))
+iniFileFormats = os.path.join(
+    iniDir, '{0}_formats.ini'.format(csi.pipelineName))
 configFormats = ConfigParser()
 configFormats.read(iniFileFormats, encoding=encoding)
 configFormats.optionxform = str  # makes it case sensitive

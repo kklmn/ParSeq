@@ -1271,6 +1271,7 @@ class Spectrum(TreeItem):
 
         keys = re.findall(r'\[(.*?)\]', colStr)
         if len(keys) == 0:
+            colStr = colStr.replace('col', 'Col')
             if "Col" in colStr:
                 regex = re.compile('Col([0-9]*)')
                 # remove possible duplicates by list(dict.fromkeys())
