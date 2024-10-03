@@ -147,7 +147,8 @@ class EXAFSFit(Fit):
         fitw = fit * data.ftfitwindow
         if 'forceFT0' in dtparams:
             if dtparams['forceFT0']:
-                fitw -= np.trapz(fitw, x) / np.trapz(np.ones_like(fitw), x)
+                fitw -= np.trapezoid(fitw, x=x) / np.trapezoid(
+                    np.ones_like(fitw), x=x)
         fitft = np.fft.rfft(fitw, n=cls.nfft) * dk/2
         r = np.fft.rfftfreq(cls.nfft, dk/np.pi)
         wherer = r <= dtparams['rmax'] if 'rmax' in dtparams else None
@@ -316,7 +317,9 @@ class EXAFSFit(Fit):
         if nu > 0:
             H = cls.get_Hessian_chi2(xw, chi2opt, fitStruct, err, popt, bounds)
             H *= nu / chi2opt
-            Hii = np.where(np.diag(H) > 0, np.diag(H)**0.5, 1e-28)
+            diagH = np.array(np.diag(H))
+            diagH[diagH < 0] = 1e-28
+            Hii = diagH**0.5
             fitProps['corr'] = H / np.dot(Hii.reshape(P, 1), Hii.reshape(1, P))
 
             errA = np.sqrt(2) / Hii

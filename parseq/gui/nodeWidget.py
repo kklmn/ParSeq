@@ -842,7 +842,7 @@ class NodeWidget(qt.QWidget):
                             if self.backend['backend'] == 'opengl':
                                 # don't know why it is small with opengl
                                 symbolsize *= 2
-                            curve.setSymbolSize(symbolsize)
+                            # curve.setSymbolSize(symbolsize)
                     curve = self.plot.getCurve(curveLabel)
                     if curve is None:
                         continue
