@@ -3,13 +3,14 @@ r"""
 Package ParSeq is a python software library for **Par**\ allel execution of
 **Seq**\ uential data analysis. It implements a general analysis framework that
 consists of transformation nodes -- intermediate stops along the data pipeline
-to visualize data, display status and provide user input -- and transformations
-that connect the nodes. It provides an adjustable data model (supports
-grouping, renaming, moving and drag-and-drop), tunable data format definitions,
-plotters for 1D, 2D and 3D data, cross-data analysis routines and flexible
-widget work space suitable for single- and multi-screen computers. It also
-defines a structure to implement particular analysis pipelines as relatively
-lightweight Python packages.
+for data visualization, cross-data operations (e.g. taking average), providing
+user input and displaying status -- and transformations that connect the nodes.
+
+It provides an adjustable data tree model (supports grouping, renaming, moving
+and drag-and-drop arrangement), tunable data format definitions, plotters for
+1D, 2D and 3D data, cross-data analysis routines and flexible widget work space
+suitable for single- and multi-screen computers. It also defines a structure to
+implement particular analysis pipelines as lightweight Python packages.
 
 ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
 
@@ -22,7 +23,7 @@ example:
 Main features
 -------------
 
--  ParSeq allows creating analysis pipelines as lightweight modules.
+-  ParSeq allows creating analysis pipelines as lightweight Python packages.
 
 -  Flexible use of screen area by detachable/dockable transformation nodes
    (parts of analysis pipeline).
@@ -41,6 +42,9 @@ Main features
    possibility of termination of the parental data at any selected downstream
    node.
 
+-  General data correction routines for 1D data: range deletion, scaling,
+   replacement by a spline and jump correction.
+
 -  Parallel execution of data transformations with multiprocessing or
    multithreading (can be opted by the pipeline application).
 
@@ -49,6 +53,9 @@ Main features
 
 -  Informative error handling that provides alerts and stack traceback -- the
    type and location of the occurred error.
+
+-  Optional time profiling of the pipeline, as controlled by a command-line
+   argument.
 
 -  Export of the workflow into a project file. Export of data into various data
    formats with accompanied Python scripts that visualize the exported data for
@@ -62,7 +69,7 @@ Main features
    from the analysis widget doc strings. The help pages are built by Sphinx at
    the startup time.
 
--  The pipeline can be operated via scripts or GUI.
+-  The pipeline can be operated by the GUI or from a Python script without GUI.
 
 -  Optional automatic loading of new data during a measurement time.
 
@@ -70,15 +77,14 @@ The mechanisms for creating nodes, transformations and curve fitting solvers,
 connecting them together and creating Qt widgets for the transformations and
 and curve fits are exemplified by separately installed analysis packages:
 
-- `ParSeq-XES-scan <https://github.com/kklmn/ParSeq-XES-scan>`_
-- `ParSeq-XES-dispersive <https://github.com/kklmn/ParSeq-XES-dispersive>`_
 - `ParSeq-XAS <https://github.com/kklmn/ParSeq-XAS>`_
+- `ParSeq-XES-scan <https://github.com/kklmn/ParSeq-XES-scan>`_
 
 Dependencies
 ------------
 
-- `silx <https://github.com/silx-kit/silx>`_ -- for plotting and Qt imports
-- `sphinx <https://github.com/sphinx-doc/sphinx>`_ -- for building html documentation
+- `silx <https://github.com/silx-kit/silx>`_ -- plotting, hdf5 handling, Qt
+- `sphinx <https://github.com/sphinx-doc/sphinx>`_ -- building documentation
 
 Launch an example
 -----------------

@@ -4,6 +4,8 @@ __date__ = "5 Nov 2023"
 # !!! SEE CODERULES.TXT !!!
 
 import numpy as np
+if not hasattr(np, 'trapezoid'):
+    np.trapezoid = np.trapz
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 from scipy.linalg import eigh
