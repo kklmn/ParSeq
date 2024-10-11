@@ -14,7 +14,7 @@ ParSeq
 .. |GHdate| image:: https://img.shields.io/github/last-commit/kklmn/ParSeq.svg
    :target: https://github.com/kklmn/ParSeq
 
-.. |PPver| image:: https://badge.fury.io/py/ParSeq.svg
+.. |PPver| image:: https://img.shields.io/pypi/v/ParSeq.svg
    :target: https://pypi.org/project/ParSeq/
 
 .. |PPdate| image:: https://img.shields.io/github/release-date/kklmn/ParSeq.svg
