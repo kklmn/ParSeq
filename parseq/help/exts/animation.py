@@ -135,7 +135,9 @@ class AnimationDirective(Directive):
             if loc is None:
                 loc = "upper-left-corner"
 
+        loctop = u'top: 0px; '
         lochor = u'width: {}px; '.format(int(widthzoom))
+        ta = 'text-align: left; '
         if 'corner' in loc:
             if 'lower' in loc:
                 loctop = u'top: -{0}px; '.format(int(heightzoom-height//2))
