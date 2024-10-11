@@ -8,7 +8,7 @@ ParSeq
 
 -----
 
-.. |GHver| image:: https://badge.fury.io/gh/kklmn%2FParSeq.svg
+.. |GHver| image:: https://img.shields.io/github/v/release/kklmn/ParSeq.svg
    :target: https://github.com/kklmn/ParSeq
 
 .. |GHdate| image:: https://img.shields.io/github/last-commit/kklmn/ParSeq.svg
