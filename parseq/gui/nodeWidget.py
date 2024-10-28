@@ -826,7 +826,7 @@ class NodeWidget(qt.QWidget):
                         else:
                             curve.setData(x, y)
                             curve.setZValue(z)
-                    except Exception as e:
+                    except (Exception, AssertionError) as e:
                         print('plotting in {0} failed for ({1}, len={2}) vs '
                               '({3}, len={4}): {5}'
                               .format(self.node.name, yN, len(y),
@@ -1037,11 +1037,17 @@ class NodeWidget(qt.QWidget):
                 # size. Raising the node sets a correct size to its plot:
                 dock = csi.mainWindow.docks[self][0]
                 dock.raise_()
-            self.plot.saveGraph(fname)
+            try:
+                self.plot.saveGraph(fname)
+            except FileNotFoundError:  # from matplotlib -> PIL.Image.save
+                pass
         elif self.node.plotDimension in [3]:
             if len(self.plot.getPlotWidget().getItems()) == 0:
                 return
-            self.plot._plot.saveGraph(fname)
+            try:
+                self.plot._plot.saveGraph(fname)
+            except FileNotFoundError:  # from matplotlib -> PIL.Image.save
+                pass
 
     def _makeYLabel(self, yNames, yUnits):
         if not yNames:
