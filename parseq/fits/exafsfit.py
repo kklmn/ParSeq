@@ -205,14 +205,20 @@ class EXAFSFit(Fit):
                     v['value'] = vMin
 
             if kRangeUse:
-                wherek = (kRange[0] <= x) & (x <= kRange[1]) \
-                    if isinstance(kRange, (list, tuple)) else None
+                try:
+                    wherek = (kRange[0] <= x) & (x <= kRange[1])
+                except Exception:
+                    if 'kmin' in dtparams and 'kmax' in dtparams:
+                        kRange = [dtparams['kmin'], dtparams['kmax']]
+                    else:
+                        kRange = [0, x.max()]
+                    wherek = (kRange[0] <= x) & (x <= kRange[1])
                 xw, yw = x[wherek], y[wherek]
-                Deltak = kRange[1] - kRange[0]
+                Deltak = kRange[1] - kRange[0] \
+                    if isinstance(kRange, (list, tuple)) else x.max() - x.min()
             else:
                 wherek = None
-                if not rRangeUse:
-                    xw, yw = x, y
+                xw, yw = x, y
                 Deltak = x.max() - x.min()
             sigmax = xw**kw
 
@@ -220,8 +226,14 @@ class EXAFSFit(Fit):
                 dk = x[1] - x[0]
                 ft = np.fft.rfft(y, n=cls.nfft) * dk/2
                 r = np.fft.rfftfreq(cls.nfft, dk/np.pi)
-                wherer = (rRange[0] <= r) & (r <= rRange[1]) \
-                    if isinstance(rRange, (list, tuple)) else None
+                try:
+                    wherer = (rRange[0] <= r) & (r <= rRange[1])
+                except Exception:
+                    if 'rmax' in dtparams:
+                        rRange = [0, dtparams['rmax']]
+                    else:
+                        rRange = [0, r.max()]
+                    wherer = (rRange[0] <= r) & (r <= rRange[1])
                 Deltar = rRange[1] - rRange[0]
                 rw, ftwr, ftwi = r[wherer], ft.real[wherer], ft.imag[wherer]
                 # ftwm = np.abs(ft)[wherer]
