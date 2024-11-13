@@ -4,4 +4,4 @@ __date__ = "27 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
 
 import sys; sys.path.append('../..')  # analysis:ignore
-import parseq_XES_dispersive as testapp
+import parseq_XAS as testapp
