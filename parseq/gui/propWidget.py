@@ -692,39 +692,49 @@ class PropWidget(qt.QWidget):
                     key, type(key)))
             params = {param: value}
 
-        tr = None
-        data = dataItems[0]
         # in the case when several transforms come to one node, we need to
-        # check which one to run, there can be only one!
-        for tName in tNames:
-            if isinstance(tName, str):
-                tr = csi.transforms[tName]
-                if (tr.fromNode.is_between_nodes(
-                    data.originNodeName, data.terminalNodeName) and
-                    tr.toNode.is_between_nodes(
-                        data.originNodeName, data.terminalNodeName)):
-                    break
-            elif isinstance(tName, (list, tuple)):
-                for tN in tName:
-                    tr = csi.transforms[tN]
+        # check which one to run for each data object
+        foundTransformNames = dict()
+        for data in dataItems:
+            foundTrName = None
+            for tName in tNames:
+                if isinstance(tName, str):
+                    foundTrName = tName
+                    tr = csi.transforms[tName]
                     if (tr.fromNode.is_between_nodes(
                         data.originNodeName, data.terminalNodeName) and
                         tr.toNode.is_between_nodes(
                             data.originNodeName, data.terminalNodeName)):
                         break
-        else:
-            trs = csi.nodes[data.originNodeName].transformsOut
-            tr = trs[0] if trs else None
-        if tr is None:
-            return
+                elif isinstance(tName, (list, tuple)):
+                    for tN in tName:
+                        foundTrName = tN
+                        tr = csi.transforms[tN]
+                        if (tr.fromNode.is_between_nodes(
+                            data.originNodeName, data.terminalNodeName) and
+                            tr.toNode.is_between_nodes(
+                                data.originNodeName, data.terminalNodeName)):
+                            break
+            else:
+                trs = csi.nodes[data.originNodeName].transformsOut
+                foundTrName = trs[0].name if trs else None
+            if foundTrName is None:
+                return
+            if foundTrName in foundTransformNames:
+                foundTransformNames[foundTrName].append(data)
+            else:
+                foundTransformNames[foundTrName] = [data,]
 
-        if csi.tasker is not None:
+        if csi.tasker is not None and len(foundTransformNames) == 1:
             csi.tasker.prepare(
                 tr, params=params, runDownstream=True, dataItems=dataItems,
                 starter=self)
             csi.tasker.thread().start()
         else:
-            tr.run(params=params, dataItems=dataItems)
+            for trName, trData in foundTransformNames.items():
+                tr = csi.transforms[trName]
+                tr.run(params=params, dataItems=trData)
+                self._onTransformThreadReady(self, trName, props=params)
 
     # @logger(minLevel=50, attrs=[(0, 'node')])
     def _onTransformThreadReady(

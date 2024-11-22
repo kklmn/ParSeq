@@ -877,6 +877,7 @@ class NodeWidget(qt.QWidget):
             if nPlottedItems == 0:
                 self.plot.clearCurves()
                 return
+            csi.mainWindow.afterTransformSignal.emit(self)
             self.plotLeftYLabel = self._makeYLabel(
                 leftAxisColumns, leftAxisUnits)
             self.plot.setGraphYLabel(label=self.plotLeftYLabel, axis='left')

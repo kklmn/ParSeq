@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-u"""
+r"""
 Data corrections
 ----------------
 
@@ -71,6 +71,7 @@ defines a dictionary of parameters. The following corrections are defined.
    constant shift at the right.
 
 """
+
 __author__ = "Konstantin Klementiev"
 __date__ = "22 Nov 2024"
 # !!! SEE CODERULES.TXT !!!
@@ -83,7 +84,7 @@ AUTO_CUTOFF = 0.7  # for 'spikes', fraction of max(d²y)
 
 def calc_correction(x, y, correction, datainds=None):
     if 'lim' not in correction and 'range' in correction:  # compatibility
-        correction['lim'] = correction['range']
+        correction['lim'] = correction.pop('range')
     if correction['kind'] == 'delete':
         lim = correction['lim']
         args = np.argwhere((lim[0] < x) & (x < lim[1]))

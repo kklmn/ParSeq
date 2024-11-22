@@ -967,6 +967,8 @@ class CorrectionTable(qt.QTableView):
                 name = roid.pop('name', '')
                 roid.pop('use', True)
                 roid.pop('ndim', 1)
+                if 'lim' not in roid and 'range' in roid:  # compatibility
+                    roid['lim'] = roid.pop('range')
                 # model.reset()
                 if 'delete' in kind:
                     roi = CorrectionDelete()
