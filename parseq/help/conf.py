@@ -10,14 +10,11 @@ import codecs
 
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 
-if on_rtd:
-    autodoc_mock_imports = [
-        # 'pyopencl',
-        # 'PyQt5', 'PyQt5.QtCore', 'PyQt5.QtGui', 'PyQt5.QtWidgets',
-        # 'PyQt5.QtWebEngineWidgets',
-        'numpy',
-        'silx', 'silx.gui', 'silx.io',
-        ]
+autodoc_mock_imports = [
+    'numpy', 'scipy', 'qt',
+    'silx', 'silx.gui', 'silx.io',
+    'parseq.gui.gcommons'
+    ]
 
 __fdir__ = os.path.dirname(os.path.abspath(__file__))
 
