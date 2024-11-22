@@ -11,6 +11,19 @@ from parseq.core.correction import calc_correction
 from silx.gui.plot import Plot1D
 
 curveLabel = 'test_curve'
+corrections1 = [
+    dict(kind='delete', name='del1', lim=(8950, 9050)),
+    ]
+corrections2 = [
+    dict(kind='scale', name='scl1', lim=(8950, 9050), scale=0.8),
+    dict(kind='spikes', name='spk1', lim=(8960, 9070), cutoff='auto'),
+    ]
+corrections3 = [
+    dict(kind='spline', name='spl1', lim=(8950, 9050),
+         knots=[[8960, 0.8], [9000, 0.9], [9030, 1.0]]),
+    dict(kind='step', name='stp1', left=8950, right=[8960, 0.8]),
+    ]
+allCorrections = [corrections1, corrections2, corrections3]
 
 
 def test_curve(col=1):
@@ -45,8 +58,15 @@ def syncCorrection(correctionWidget):
 
     res = calc_correction(e0, mu0, correction)
     if res is not None:
-        en, mun = res
+        en, mun = res[0:2]
         curve.setData(en, mun)
+
+
+def cycleCorrections(correctionWidget):
+    correctionWidget.iCorr += 1
+    if correctionWidget.iCorr >= len(allCorrections):
+        correctionWidget.iCorr = 0
+    correctionWidget.setCorrections(allCorrections[correctionWidget.iCorr])
 
 
 def main():
@@ -54,6 +74,7 @@ def main():
 
     # Create the plot widget and add a curve
     e0, mu0, header = test_curve(4)
+    print("test data lngth = {}".format(len(mu0)))
     plot = Plot1D()
     plot.setGraphTitle(header)
     plot.setGraphXLabel(label='energy (eV)')
@@ -61,27 +82,27 @@ def main():
     plot.addCurve(e0, mu0, legend=curveLabel)
     plot._test_curve = e0, mu0
 
+    rightDockWidget = qt.QWidget()
+    layout = qt.QVBoxLayout()
     correctionWidget = Correction1DWidget(
         None, None, plot,  # parent, node, plot
         ['CorrectionDelete', 'CorrectionScale',
-         'CorrectionSpline', 'CorrectionStep'])
-    correctionDict = [
-        dict(kind='CorrectionDelete', name='del1', lim=(8950, 9050)),
-        # dict(kind='CorrectionScale', name='scl1', lim=(8950, 9050),
-        #      scale=0.8),
-        # dict(kind='CorrectionSpline', name='spl1', lim=(8950, 9050),
-        #      knots=[[8960, 0.8], [9000, 0.9], [9030, 1.0]]),
-        # dict(kind='CorrectionStep', name='stp1', left=8950,
-        #      right=[8960, 0.8]),
-        ]
-    correctionWidget.setCorrections(correctionDict)
-    correctionWidget.table.sigCorrectionChanged.connect(
-        partial(syncCorrection, correctionWidget))
+         'CorrectionSpline', 'CorrectionStep', 'CorrectionSpikes'])
+    correctionWidget.iCorr = 0
+    correctionWidget.setCorrections(allCorrections[correctionWidget.iCorr])
+    correctionWidget.table.sigCorrectionChanged.connect(partial(
+        syncCorrection, correctionWidget))
+    layout.addWidget(correctionWidget)
+    gotoNextCorrectionDict = qt.QPushButton('go to next Corrections')
+    gotoNextCorrectionDict.pressed.connect(partial(
+        cycleCorrections, correctionWidget))
+    layout.addWidget(gotoNextCorrectionDict)
+    rightDockWidget.setLayout(layout)
 
     dock = qt.QDockWidget('1D corrections')
-    dock.setWidget(correctionWidget)
-    dock.visibilityChanged.connect(
-        partial(correctionDockVisibilityChanged, correctionWidget))
+    dock.setWidget(rightDockWidget)
+    dock.visibilityChanged.connect(partial(
+        correctionDockVisibilityChanged, correctionWidget))
     plot.addDockWidget(qt.Qt.RightDockWidgetArea, dock)
 
     # Show the widget and start the application

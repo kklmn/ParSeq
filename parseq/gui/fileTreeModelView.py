@@ -544,7 +544,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                         return
                 lres.append(colEval)
         except Exception as e:
-            print('tryLoadColDataset:', e)
+            # print('tryLoadColDataset:', e)
             return
         return lres, df
 
@@ -805,7 +805,10 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         indexFS = self.indexFileName(filename)
         indexH5 = self.mapFStoH5(indexFS)
 
-        h5py_object = self.h5Model.data(indexH5, role=H5PY_OBJECT_ROLE)
+        try:
+            h5py_object = self.h5Model.data(indexH5, role=H5PY_OBJECT_ROLE)
+        except AttributeError:  # 'Hdf5Node' object has no attribute 'obj'
+            return
 #        if not h5py_object.ntype is h5py.File:
 #            return
 

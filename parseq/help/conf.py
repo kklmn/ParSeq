@@ -68,6 +68,11 @@ rst_prolog = """
 .. role:: red
 .. role:: bigger
 .. role:: underline
+
+.. |br| raw:: html
+
+      <br>
+
 """
 
 # The encoding of source files.

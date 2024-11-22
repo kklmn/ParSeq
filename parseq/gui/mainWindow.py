@@ -36,6 +36,7 @@ from . import webWidget as gww
 # fontSize = 12 if sys.platform == "darwin" else 8.5
 mainWindowWidth, mainWindowHeight = 1600, 768
 ICON_SIZE = 32
+INACTIVE_TAB_COLOR = '#aa8085'
 
 
 class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
@@ -283,8 +284,8 @@ class MainWindowParSeq(qt.QMainWindow):
             dock = QDockWidgetNoClose(tabName, self)
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
-            dock.defStyleSheet = "QDockWidget {font: bold; padding-left: 5px;}"
-            dock.setStyleSheet(dock.defStyleSheet)
+            # dock.defStyleSheet = "QDockWidget {font: bold; padding-left: 5px;}"
+            # dock.setStyleSheet(dock.defStyleSheet)
             self.addDockWidget(qt.Qt.LeftDockWidgetArea, dock)
             nodeWidget = NodeWidget(node, dock)
             # nodeWidget = None  # for testing app closure
@@ -445,8 +446,10 @@ class MainWindowParSeq(qt.QMainWindow):
             node.widget.help.load(qt.QUrl(html))
 
     def setTabIcons(self):
+        cc = qt.QColor(INACTIVE_TAB_COLOR)
         for itab, (dock, _, _) in enumerate(self.docks.values()):
             self.setTabIcon(itab, dock)
+            self.tabWidget.setTabTextColor(itab, cc)
 
     def setTabIcon(self, itab, dock, state=0):
         icon = dock.dimIconBusy if state == 1 else dock.dimIcon
@@ -708,9 +711,9 @@ class MainWindowParSeq(qt.QMainWindow):
             self.setTabIcon(itab, dock, state)
             cc = qt.QColor(color)
             self.tabWidget.setTabTextColor(itab, cc)
-            ss = dock.defStyleSheet.replace(
-                "}", " color: "+cc.name(qt.QColor.HexArgb)+";}")
-            dock.setStyleSheet(ss)
+            # ss = dock.defStyleSheet.replace(
+            #     "}", " color: "+cc.name(qt.QColor.HexArgb)+";}")
+            # dock.setStyleSheet(ss)
 
     def displayStatusMessage(self, txt, starter=None, trName='', what='',
                              props={}, duration=0, errorList=None):

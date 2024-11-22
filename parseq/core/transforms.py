@@ -407,6 +407,7 @@ class Transform(object):
             if self.toNode.widget is not None:
                 self.toNode.widget.onTransform = True
         if self.sendSignals:
+            csi.mainWindow.afterTransformSignal.emit(self.fromNode.widget)
             csi.mainWindow.beforeTransformSignal.emit(self.toNode.widget)
 
     # @staticmethod
@@ -734,6 +735,7 @@ def run_transforms(items, parentItem):
                 tr.run(dataItems=its)
                 if hasattr(tr, 'widget'):  # when with GUI
                     tr.widget.replotAllDownstream(tr.name)
+
             if tr.fromNode is tr.toNode:
                 break
 

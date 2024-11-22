@@ -513,6 +513,10 @@ class PropWidget(qt.QWidget):
             'transformNames', [tr.name for tr in self.node.transformsIn])
         if isinstance(transformNames, str):
             transformNames = [transformNames]
+        # if 'correction_' in prop:
+        #     if len(transformNames) == 0:
+        #         transformNames = [tr.name for tr in self.node.transformsOut]
+        #         print(self.node.name, prop, transformNames)
 
         if not isinstance(widgets, (list, tuple)):
             widgets = [widgets]
@@ -821,11 +825,31 @@ class PropWidget(qt.QWidget):
     def updatePropFromCorrections(self, widget, dataItems, key):
         # # if not widget.hasFocus():
         # #     return
-        corrections = widget.getCorrections()
+        corrs = widget.getCorrections()
 
         if dataItems is None:
             dataItems = csi.selectedItems
-        self.updateProp(key, corrections, dataItems)
+        if 'correction' in key:
+            param = key.split('.')[-1] if '.' in key else key
+            for it in dataItems:
+                it.hasChanged = False
+                if param in it.transformParams:
+                    if len(corrs) != len(it.transformParams[param]):
+                        it.hasChanged = True
+                    else:
+                        try:
+                            if corrs != it.transformParams[param]:
+                                for corr in corrs + it.transformParams[param]:
+                                    if corr['kind'] in ('delete', 'spikes'):
+                                        it.hasChanged = True
+                                        break
+                        except ValueError:  # ambiguous comparison
+                            it.hasChanged = True
+                it.transformParams[param] = corrs
+                if it.hasChanged:
+                    it.read_data(runDownstream=True)
+                    it.hasChanged = False
+            self.updateProp(key, corrs, dataItems)
 
     def setUIFromData(self):
         for widget in self.exclusivePropGroups:
@@ -860,6 +884,8 @@ class PropWidget(qt.QWidget):
                 gpd.setRangeWidgetFromData(widget, prop)
             elif widgetTypeIndex == 9:  # 'statebuttons'
                 gpd.setStateButtonsFromData(widget, prop)
+            elif widgetTypeIndex == 10:  # 'correction'
+                gpd.setCorrectionsFromData(widget, prop)
         self.updateStatusWidgets()
         self.extraSetUIFromData()
 

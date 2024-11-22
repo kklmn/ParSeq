@@ -55,7 +55,7 @@ class AnimationDirective(Directive):
         if uri.endswith('.*'):
             uri = uri[:-1] + 'png'
 
-        if uri.endswith('.png'):
+        if uri.endswith(('.png', '.gif')):
             try:
                 im = Image.open(uri)
             except FileNotFoundError:
@@ -165,14 +165,13 @@ class AnimationDirective(Directive):
 #        self.options['uri'] = uri
         env = self.state.document.settings.env
         targetid = "animation{0}".format(env.new_serialno('animation'))
-        if uri.endswith('.png'):
-            text = '<a class="{6}">'\
-                '<img class="{7}" src="{0}" {1} />'\
-                '<span {5}>{2}<br><canvas id="{3}" {4} ></canvas><br>{2}'\
-                '<script>set_static("{0}", "{3}")</script></span></a>'\
+        if uri.endswith(('.png', '.gif')):
+            text = '<a class="{5}">'\
+                '<img class="{6}" src="{0}" {1} />'\
+                '<span {4}>{2}<br><img class="{6}" src="{0}" {3}/>'\
+                '<br>{2}</span></a>'\
                 .format(
-                    uri, size, alt, targetid, sizezoom, locst, self.aclass,
-                    alignC)
+                    uri, size, alt, sizezoom, locst, self.aclass, alignC)
         else:
             text = '<a class={6}>'\
                 '<script type="text/javascript" src="{0}/s_anim.js"></script>'\

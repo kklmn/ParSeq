@@ -364,7 +364,7 @@ class NodeWidget(qt.QWidget):
         if self.node.plotDimension == 1:
             self.correctionWidget = Correction1DWidget(
                 self.splitterCorrection, self.node, self.plot,
-                ['CorrectionDelete', 'CorrectionScale',
+                ['CorrectionDelete', 'CorrectionSpikes', 'CorrectionScale',
                  'CorrectionSpline', 'CorrectionStep'])
             po = qt.QSizePolicy(
                 qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
@@ -870,10 +870,10 @@ class NodeWidget(qt.QWidget):
                                 if unit not in rightAxisUnits:
                                     rightAxisUnits.append(unit)
             self.plot.isRightAxisVisible = len(rightAxisColumns) > 0
-            zoomModeAction = self.plot.getInteractiveModeToolBar().\
-                getZoomModeAction()
-            if hasattr(zoomModeAction, 'setAxesMenuEnabled'):
-                zoomModeAction.setAxesMenuEnabled(self.plot.isRightAxisVisible)
+            # zoomModeAction = self.plot.getInteractiveModeToolBar().\
+            #     getZoomModeAction()
+            # if hasattr(zoomModeAction, 'setAxesMenuEnabled'):
+            #     zoomModeAction.setAxesMenuEnabled(self.plot.isRightAxisVisible)
             if nPlottedItems == 0:
                 self.plot.clearCurves()
                 return
@@ -1109,6 +1109,7 @@ class NodeWidget(qt.QWidget):
 
         self.updateMeta()
         self.combiner.setUIFromData()
+        self.updateCorrections()
         self.updateTransforms()
         self.updateFits()
 
@@ -1226,6 +1227,12 @@ class NodeWidget(qt.QWidget):
         for item in csi.selectedItems[1:]:
             cs = cco.common_substring((cs, item.meta['text']))
         self.metadata.setText(cs)
+
+    def updateCorrections(self):
+        if len(csi.selectedItems) < 1:
+            return
+        if self.node.plotDimension == 1:
+            self.correctionWidget.setUIFromData()
 
     def updateTransforms(self):
         if len(csi.selectedItems) < 1:

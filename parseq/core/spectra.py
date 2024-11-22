@@ -1708,12 +1708,16 @@ class Spectrum(TreeItem):
         if csi.model is not None:
             csi.model.endResetModel()
 
+    @logger(minLevel=50, attrs=[(0, 'alias'), (1, 'name')])
     def make_corrections(self, node):
-        wasCorrected = False
         corr_param_name = 'correction_' + node.name
         if corr_param_name not in self.transformParams:
-            return wasCorrected
+            return False
         corrections = self.transformParams[corr_param_name]
+        if corrections is None:
+            return False
+
+        wasCorrected = False
         for correction in corrections:
             # if correction['kind'] in ('delete',):
             #     prop = 'raw'
@@ -1736,6 +1740,7 @@ class Spectrum(TreeItem):
                 shapeBefore = x.shape
 
                 corrKeys = []
+                datainds = None
                 for k, arr in node.arrays.items():
                     key = node.get_prop(k, prop)
                     if key == xkey:
@@ -1749,15 +1754,16 @@ class Spectrum(TreeItem):
                         #     x, y = \
                         #         node.widget.transformWidget.extraPlotTransform(
                         #             self, xkey, x, k, y)
-                        res = calc_correction(x, y, correction)
+                        res = calc_correction(x, y, correction, datainds)
                         if res is None:
                             continue
                         wasCorrected = True
-                        xn, yn = res
+                        xn, yn = res[:2]
+                        datainds = res[2] if len(res) > 2 else None
                         setattr(self, key, yn)
                         corrKeys.append(key)
 
-                if correction['kind'] == 'delete':
+                if correction['kind'] in ('delete', 'spikes'):
                     for nodeOther in csi.nodes.values():
                         if nodeOther is node:
                             continue
@@ -1777,7 +1783,8 @@ class Spectrum(TreeItem):
                             if key in corrKeys:
                                 continue
                             if attr is not None and attr.shape == shapeBefore:
-                                _, aC = calc_correction(x, attr, correction)
+                                aC = calc_correction(
+                                    x, attr, correction, datainds)[1]
                                 setattr(self, key, aC)
                     setattr(self, xkey, xn)
 

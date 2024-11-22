@@ -13,6 +13,7 @@ User's Guide
    nodes.rst
    data.rst
    transforms.rst
+   corrections.rst
    widgets.rst
    fits.rst
 

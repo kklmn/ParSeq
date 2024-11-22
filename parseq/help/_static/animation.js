@@ -34,15 +34,3 @@ function set_animation(img_url, timeline, canvas_id)
 		if (timer) window.clearTimeout(timer);
 	}
 }
-
-function set_static(img_url, canvas_id)
-{
-	var canvas = document.getElementById(canvas_id);
-	var ctx = canvas.getContext("2d");
-	var img = new Image();
-	img.src = img_url;
-	img.onload = function()
-	{
-    	ctx.drawImage(img, 0, 0);
-	}
-}

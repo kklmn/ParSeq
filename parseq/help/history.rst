@@ -3,7 +3,11 @@
 Version history
 ---------------
 
-2024.5.0:
+2024.11.0 (22 Nov 2024):
+    - Finalize general data corrections. Include doc pages with descriptions
+      and animated examples. Add "delete spikes" data correction.
+
+2024.5.0 (4 May 2024):
     - Add general data corrections.
 
     - Add EXAFS fit. It features two fit intervals (k and r), constraints,
@@ -11,7 +15,7 @@ Version history
 
     - Update the main help pages.
 
-2023.5.0:
+2023.5.0 (May 2023): 
     - Add curve fitting facilities. Implemented 2 general fitting routines:
       linear combination fit and function fit.
 

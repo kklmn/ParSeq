@@ -9,9 +9,9 @@ from ..core import singletons as csi
 from ..core import commons as cco
 
 
-def getCommonPropInSelectedItems(prop):
+def getCommonPropInSelectedItems(prop, outLevel=10):
     values = [cco.getDotAttr(it, prop) for it in csi.selectedItems]
-    if isinstance(prop, type('')):
+    if outLevel > 1 and isinstance(prop, type('')):
         if prop.startswith('transformParams'):
             for it in csi.selectedItems:
                 test = cco.getDotAttr(it, prop, True)
@@ -83,6 +83,11 @@ def setRangeWidgetFromData(rWidget, prop):
 def setStateButtonsFromData(sb, prop):
     common = getCommonPropInSelectedItems(prop)
     sb.setActive(common)
+
+
+def setCorrectionsFromData(corrTable, prop):
+    common = getCommonPropInSelectedItems(prop, outLevel=0)
+    corrTable.setCorrections(common)
 
 
 def setCButtonFromData(cButton, prop, compareWith=None):

@@ -1,6 +1,67 @@
 # -*- coding: utf-8 -*-
+u"""
+Data correction widgets
+-----------------------
+
+The correction widget is located to the right of the main plot and is hidden
+by default. Use the vertical splitter bar "data corrections" to get it visible.
+The correction widget is a table of corrections; each correction has a
+corresponding plot tool. Any correction can be modified in the plot and in the
+table. If the check box "live" is selected, the modifications in the plot tools
+and in the table are immediately applied, otherwise they are applied by the
+"Accept Corrections" button.
+
+Examine the table of corrections below and also the supplied test script
+`tests/test_dataCorrection.py`.
+
++------------------+------------------+
+|    correction    | animated example |
++==================+==================+
+| delete region    |   |corr_del|     |
++------------------+------------------+
+| scale region     |   |corr_scl|     |
++------------------+------------------+
+| replace region   |                  |
+| by spline        |   |corr_spl|     |
++------------------+------------------+
+| delete spikes    |   |corr_spk|     |
++------------------+------------------+
+| remove data step |   |corr_stp|     |
++------------------+------------------+
+
+.. |corr_del| imagezoom:: _images/corr_del.gif
+   :loc: upper-right-corner
+   :alt: &ensp;A pipeline for data processing of XAS spectra. This pipeline has
+       multiple entry nodes and three fitting routines. It partially operates
+       in multithreading and multiprocessing.
+
+.. |corr_scl| imagezoom:: _images/corr_scl.gif
+   :loc: upper-right-corner
+   :alt: &ensp;A pipeline for data processing of XAS spectra. This pipeline has
+       multiple entry nodes and three fitting routines. It partially operates
+       in multithreading and multiprocessing.
+
+.. |corr_spl| imagezoom:: _images/corr_spl.gif
+   :loc: upper-right-corner
+   :alt: &ensp;A pipeline for data processing of XAS spectra. This pipeline has
+       multiple entry nodes and three fitting routines. It partially operates
+       in multithreading and multiprocessing.
+
+.. |corr_spk| imagezoom:: _images/corr_spk.gif
+   :loc: upper-right-corner
+   :alt: &ensp;A pipeline for data processing of XAS spectra. This pipeline has
+       multiple entry nodes and three fitting routines. It partially operates
+       in multithreading and multiprocessing.
+
+.. |corr_stp| imagezoom:: _images/corr_stp.gif
+   :loc: lower-right-corner
+   :alt: &ensp;A pipeline for data processing of XAS spectra. This pipeline has
+       multiple entry nodes and three fitting routines. It partially operates
+       in multithreading and multiprocessing.
+
+"""
 __author__ = "Konstantin Klementiev"
-__date__ = "16 Apr 2023"
+__date__ = "22 Nov 2023"
 # !!! SEE CODERULES.TXT !!!
 
 # import time
@@ -22,11 +83,11 @@ from . import gcommons as gco
 from ..core import singletons as csi
 from .propWidget import PropWidget
 
-HEADERS = '🏷', 'use', 'geometry'
-columnWidths = 36, 32, 124
+HEADERS = 'kind', 'label', 'use', 'geometry'
+columnWidths = 36, 40, 28, 136
 
 __iconDir__ = osp.join(osp.dirname(__file__), '_images')
-ICON_SIZE = 24
+ICON_SIZE = 32
 
 
 def makeMarker(obj, symbol):
@@ -49,25 +110,28 @@ def makeMarker(obj, symbol):
 
 
 class CorrectionDelete(HorizontalRangeROI):
-    ICON = "add-correction-delete"
+    KIND = 'delete'
+    ICON = "icon-correction-delete"
+    ICON_ADD = "icon-add-correction-delete"
     NAME = "delete region"
-    SHORT_NAME = "cdelete"
+    SHORT_NAME = "del"
 
     def setCorrection(self, lim):
         self.setRange(lim[0], lim[1])
 
     def getCorrection(self):
-        return dict(name=self.getName(), kind='delete', lim=self.getRange())
+        return dict(name=self.getName(), kind=self.KIND, lim=self.getRange())
 
     def __str__(self):
         rng = self.getRange()
         prX = self.parent().precisionX
-        return 'lim:\n{0[0]:.{1}f}, {0[1]:.{1}f}'.format(rng, prX)
+        return 'lim: {0[0]:.{1}f}, {0[1]:.{1}f}'.format(rng, prX)
 
     def setFromTxt(self, txt):
         try:
-            txt = txt.replace(':', '=(')
-            kw = eval('dict({0}))'.format(txt))
+            rows = txt.split('\n')
+            strLim = rows[0][rows[0].find(':')+1:]
+            kw = dict(lim=eval(strLim))
             self.setCorrection(**kw)
         except Exception as e:
             print("Error in `CorrectionDelete.setFromTxt()`: " + str(e))
@@ -76,9 +140,11 @@ class CorrectionDelete(HorizontalRangeROI):
 
 
 class CorrectionScale(HorizontalRangeROI):
-    ICON = "add-correction-scale"
+    KIND = 'scale'
+    ICON = "icon-correction-scale"
+    ICON_ADD = "icon-add-correction-scale"
     NAME = "scale region"
-    SHORT_NAME = "cscale"
+    SHORT_NAME = "scl"
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -124,20 +190,22 @@ class CorrectionScale(HorizontalRangeROI):
         self.setScale(scale)
 
     def getCorrection(self):
-        return dict(name=self.getName(), kind='scale',
+        return dict(name=self.getName(), kind=self.KIND,
                     lim=self.getRange(), scale=self.getScale())
 
     def __str__(self):
         prX = self.parent().precisionX
         prY = self.parent().precisionY
-        text = 'lim:\n{0[0]:.{1}f}, {0[1]:.{1}f}'.format(self.getRange(), prX)
-        text += '\nscale:\n{0:.{1}f}'.format(self.getScale(), prY)
+        text = 'lim: {0[0]:.{1}f}, {0[1]:.{1}f}'.format(self.getRange(), prX)
+        text += '\nscale: {0:.{1}f}'.format(self.getScale(), prY)
         return text
 
     def setFromTxt(self, txt):
         try:
             rows = txt.split('\n')
-            kw = dict(lim=list(eval(rows[1])), scale=eval(rows[3]))
+            strLim = rows[0][rows[0].find(':')+1:]
+            strScale = rows[1][rows[1].find(':')+1:]
+            kw = dict(lim=eval(strLim), scale=eval(strScale))
             self.setCorrection(**kw)
         except Exception as e:
             print("Error in `CorrectionScale.setFromTxt()`: " + str(e))
@@ -146,9 +214,11 @@ class CorrectionScale(HorizontalRangeROI):
 
 
 class CorrectionSpline(HorizontalRangeROI):
-    ICON = "add-correction-spline"
+    KIND = 'spline'
+    ICON = "icon-correction-spline"
+    ICON_ADD = "icon-add-correction-spline"
     NAME = "replace region by spline"
-    SHORT_NAME = "cspline"
+    SHORT_NAME = "spl"
     SPLINE_LEN = 100
 
     def __init__(self, parent=None):
@@ -259,14 +329,14 @@ class CorrectionSpline(HorizontalRangeROI):
         self.setSpline()
 
     def getCorrection(self):
-        return dict(name=self.getName(), kind='spline',
+        return dict(name=self.getName(), kind=self.KIND,
                     lim=self.getRange(), knots=self.getKnots())
 
     def __str__(self):
         rng = self.getRange()
         prX = self.parent().precisionX
         prY = self.parent().precisionY
-        text = 'lim:\n{0[0]:.{1}f}, {0[1]:.{1}f}'.format(rng, prX)
+        text = 'lim: {0[0]:.{1}f}, {0[1]:.{1}f}'.format(rng, prX)
         if len(self._knots) > 0:
             text += '\nknots: {0}'.format(len(self._knots))
             for knot in self._knots:
@@ -275,16 +345,14 @@ class CorrectionSpline(HorizontalRangeROI):
 
     def setFromTxt(self, txt):
         try:
-            txt = txt.replace(':', '=(')
             rows = txt.split('\n')
-            s = 'dict(' + ''.join(rows[:2]) + '))'
-            kw = eval(s)
-            s = rows[2]
-            kw['length'] = int(s[s.find('knots')+7:])
+            strLim = rows[0][rows[0].find(':')+1:]
+            strKnots = rows[1][rows[1].find(':')+1:]
+            kw = dict(lim=eval(strLim), length=eval(strKnots))
             if kw['length'] < 1:
                 raise ValueError('length must be > 0')
             kw['knots'] = []
-            for row in rows[3:]:
+            for row in rows[2:]:
                 kw['knots'].append(list(eval(row)))
             self.setCorrection(**kw)
         except Exception as e:
@@ -294,9 +362,11 @@ class CorrectionSpline(HorizontalRangeROI):
 
 
 class CorrectionStep(HorizontalRangeROI):
-    ICON = "add-correction-step"
+    KIND = 'step'
+    ICON = "icon-correction-step"
+    ICON_ADD = "icon-add-correction-step"
     NAME = "remove data step"
-    SHORT_NAME = "cstep"
+    SHORT_NAME = "stp"
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -348,24 +418,88 @@ class CorrectionStep(HorizontalRangeROI):
         return x, y
 
     def getCorrection(self):
-        return dict(name=self.getName(), kind='step',
+        return dict(name=self.getName(), kind=self.KIND,
                     left=self.getRange()[0], right=self.getRight())
 
     def __str__(self):
         prX = self.parent().precisionX
         prY = self.parent().precisionY
-        text = 'left:\n{0[0]:.{1}f}'.format(self.getRange(), prX)
-        text += '\nright:\n{0[0]:.{1}f}, {0[1]:.{2}f}'.format(
+        text = 'left: {0[0]:.{1}f}'.format(self.getRange(), prX)
+        text += '\nright: {0[0]:.{1}f}, {0[1]:.{2}f}'.format(
             self.getRight(), prX, prY)
         return text
 
     def setFromTxt(self, txt):
         try:
             rows = txt.split('\n')
-            kw = dict(left=eval(rows[1]), right=list(eval(rows[3])))
+            strLeft = rows[0][rows[0].find(':')+1:]
+            strRight = rows[1][rows[1].find(':')+1:]
+            kw = dict(left=eval(strLeft), right=list(eval(strRight)))
             self.setCorrection(**kw)
         except Exception as e:
             print("Error in `CorrectionStep.setFromTxt()`: " + str(e))
+            return False
+        return True
+
+
+class CorrectionSpikes(HorizontalRangeROI):
+    KIND = 'spikes'
+    ICON = "icon-correction-spikes"
+    ICON_ADD = "icon-add-correction-spikes"
+    NAME = "delete spikes"
+    SHORT_NAME = "spk"
+    TOOLTIP = "set a cutoff level as a fraction of max|d²y| value"\
+        "\n0 < cutoff < 1"
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self._cutoff = 'auto'
+
+    def setCorrection(self, lim, cutoff):
+        self.setRange(lim[0], lim[1])
+        self._cutoff = cutoff
+
+    def getCorrection(self):
+        return dict(name=self.getName(), kind=self.KIND, lim=self.getRange(),
+                    cutoff=self._cutoff)
+
+    def __str__(self):
+        rng = self.getRange()
+        prX = self.parent().precisionX
+        prY = self.parent().precisionY
+        text = 'lim: {0[0]:.{1}f}, {0[1]:.{1}f}'.format(rng, prX)
+        if isinstance(self._cutoff, str):
+            cutoffStr = self._cutoff
+        elif self._cutoff is None:
+            cutoffStr = "None"
+        else:
+            try:
+                cutoffStr = '{0:.{1}f}'.format(self._cutoff, prY)
+            except Exception:
+                cutoffStr = "auto"
+        text += '\ncutoff: {0}'.format(cutoffStr)
+        return text
+
+    def setFromTxt(self, txt):
+        try:
+            rows = txt.split('\n')
+            strLim = rows[0][rows[0].find(':')+1:]
+            kw = dict(lim=eval(strLim))
+            s = rows[1][rows[1].find(':')+1:]
+            if 'uto' in s:
+                kw['cutoff'] = 'auto'
+            elif 'one' in s:
+                kw['cutoff'] = None
+            else:
+                try:
+                    kw['cutoff'] = eval(s)
+                    if not (0 < kw['cutoff'] < 1):
+                        kw['cutoff'] = None
+                except Exception:
+                    kw['cutoff'] = 'auto'
+            self.setCorrection(**kw)
+        except Exception as e:
+            print("Error in `CorrectionSpikes.setFromTxt()`: " + str(e))
             return False
         return True
 
@@ -389,8 +523,8 @@ class CreateCorrectionModeAction(qt.QAction):
         iconName = None
         if hasattr(roiClass, "NAME"):
             name = roiClass.NAME
-        if hasattr(roiClass, "ICON"):
-            iconName = roiClass.ICON
+        if hasattr(roiClass, "ICON_ADD"):
+            iconName = roiClass.ICON_ADD
 
         if name is None:
             name = roiClass.__name__
@@ -398,7 +532,7 @@ class CreateCorrectionModeAction(qt.QAction):
             .format(name)
 
         if iconName is not None:
-            iname = 'icon-{0}-{1}.png'.format(iconName, ICON_SIZE)
+            iname = '{0}-{1}.png'.format(iconName, ICON_SIZE)
             icon = qt.QIcon(osp.join(__iconDir__, iname))
             self.setIcon(icon)
         self.setText(text)
@@ -421,7 +555,6 @@ class CreateCorrectionModeAction(qt.QAction):
         """Handle mode actions being checked by the user
 
         :param bool checked:
-        :param str kind: Corresponding shape kind
         """
         roiManager = self.getRoiManager()
         if roiManager is None:
@@ -483,14 +616,11 @@ class CorrectionManager(RegionOfInterestManager):
     def updateAddedRegionOfInterest(self, roi):
         # silx.gui.plot.tools.roi.RegionOfInterestManager.ROI_CLASSES:
         if roi.getName() == '':
-            if isinstance(roi, CorrectionDelete):
-                name = 'del'
-            elif isinstance(roi, CorrectionScale):
-                name = 'scl'
-            elif isinstance(roi, CorrectionSpline):
-                name = 'spl'
-            elif isinstance(roi, CorrectionStep):
-                name = 'stp'
+            name = roi.SHORT_NAME
+            if isinstance(roi, (CorrectionDelete, CorrectionScale,
+                                CorrectionSpline, CorrectionStep,
+                                CorrectionSpikes)):
+                name = roi.SHORT_NAME
             else:
                 name = 'cor'
             roi.setName('{0}{1}'.format(name, len(self.getRois())))
@@ -523,8 +653,7 @@ class CorrectionManager(RegionOfInterestManager):
 
                 removeAction = qt.QAction(menu)
                 removeAction.setText("Remove %s" % roi.getName())
-                callback = partial(self.removeRoi, roi)
-                removeAction.triggered.connect(callback)
+                removeAction.triggered.connect(partial(self.removeRoi, roi))
                 menu.addAction(removeAction)
 
     def getInteractionModeAction(self, roiClass):
@@ -575,9 +704,9 @@ class CorrectionModel(qt.QAbstractTableModel):
             return qt.Qt.NoItemFlags
         res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsSelectable
         column = index.column()
-        if column == 1:  # use
+        if column == 2:  # use
             res |= qt.Qt.ItemIsUserCheckable
-        elif column in (0, 2):  # label, geometry
+        elif column in (1, 3):  # label, geometry
             res |= qt.Qt.ItemIsEditable
         return res
 
@@ -590,17 +719,28 @@ class CorrectionModel(qt.QAbstractTableModel):
         column, row = index.column(), index.row()
         roi = rois[row]
         if role in (qt.Qt.DisplayRole, qt.Qt.EditRole):
-            if column == 0:  # label
+            if column == 0:  # kind
+                return roi.KIND
+            elif column == 1:  # label
                 return roi.getName()
-            elif column == 2:  # geometry
+            elif column == 3:  # geometry
                 return str(roi)
         elif role == qt.Qt.CheckStateRole:
-            if column == 1:  # use
+            if column == 2:  # use
                 return qt.Qt.Checked if roi.isVisible() else qt.Qt.Unchecked
+        elif role == qt.Qt.DecorationRole:
+            if column == 0 and hasattr(roi, "ICON"):  # kind
+                iconName = roi.ICON
+                iname = '{0}-{1}.png'.format(iconName, ICON_SIZE)
+                icon = qt.QIcon(osp.join(__iconDir__, iname))
+                return icon
         elif role == qt.Qt.ToolTipRole:
-            return roi.__class__.__name__
+            res = roi.__class__.NAME
+            if hasattr(roi.__class__, 'TOOLTIP'):
+                res += '\n' + roi.__class__.TOOLTIP
+            return res
         elif role == qt.Qt.TextAlignmentRole:
-            if column == 1:
+            if column == 2:  # use
                 return qt.Qt.AlignCenter
 
     def setData(self, index, value, role=qt.Qt.EditRole):
@@ -610,10 +750,10 @@ class CorrectionModel(qt.QAbstractTableModel):
         if role == qt.Qt.EditRole:
             column, row = index.column(), index.row()
             roi = rois[row]
-            if column == 0:  # label
+            if column == 1:  # label
                 roi.setName(value)
                 return True
-            elif column == 2:  # geometry
+            elif column == 3:  # geometry
                 return roi.setFromTxt(value)
             else:
                 return False
@@ -631,7 +771,7 @@ class CorrectionToolBar(qt.QToolBar):
     def __init__(self, parent, roiManager, roiClassNames):
         super().__init__(parent)
         # self.setStyleSheet('QToolBar{margin: 0px 10px;}')
-        self.setIconSize(qt.QSize(24, 24))
+        self.setIconSize(qt.QSize(ICON_SIZE, ICON_SIZE))
 
         for roiClassName in roiClassNames:
             if roiClassName == 'CorrectionDelete':
@@ -642,6 +782,8 @@ class CorrectionToolBar(qt.QToolBar):
                 roiClass = CorrectionSpline
             elif roiClassName == 'CorrectionStep':
                 roiClass = CorrectionStep
+            elif roiClassName == 'CorrectionSpikes':
+                roiClass = CorrectionSpikes
             else:
                 raise ValueError('unsupported ROI {0}'.format(roiClassName))
             action = roiManager.getInteractionModeAction(roiClass)
@@ -671,6 +813,7 @@ class CorrectionTable(qt.QTableView):
         super().__init__(parent)
         self.roiModel = CorrectionModel(roiManager)
         self.setModel(self.roiModel)
+        self.setIconSize(qt.QSize(ICON_SIZE, ICON_SIZE))
 
         self.setSelectionMode(self.SingleSelection)
         self.setSelectionBehavior(self.SelectRows)
@@ -678,6 +821,12 @@ class CorrectionTable(qt.QTableView):
 
         horHeaders = self.horizontalHeader()  # QHeaderView instance
         horHeaders.setHighlightSections(False)
+        # horHeaders.setStyleSheet(
+        #     "QHeaderView::section {"
+        #     "background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+        #     "stop:0 #616161, stop: 0.5 #505050,"
+        #     "stop: 0.6 #434343, stop:1 #656565);"
+        #     "padding-left: -2px; padding-right: -2px;}")
         verHeaders = self.verticalHeader()  # QHeaderView instance
         verHeaders.setVisible(False)
 
@@ -685,14 +834,14 @@ class CorrectionTable(qt.QTableView):
             horHeaders.setMovable(False)
             for i in range(len(HEADERS)):
                 horHeaders.setResizeMode(i, qt.QHeaderView.Interactive)
-            horHeaders.setResizeMode(2, qt.QHeaderView.Stretch)
+            horHeaders.setResizeMode(3, qt.QHeaderView.Stretch)
             horHeaders.setClickable(True)
             verHeaders.setResizeMode(qt.QHeaderView.ResizeToContents)
         else:
             horHeaders.setSectionsMovable(False)
             for i in range(len(HEADERS)):
                 horHeaders.setSectionResizeMode(i, qt.QHeaderView.Interactive)
-            horHeaders.setSectionResizeMode(2, qt.QHeaderView.Stretch)
+            horHeaders.setSectionResizeMode(3, qt.QHeaderView.Stretch)
             horHeaders.setSectionsClickable(True)
             verHeaders.setSectionResizeMode(qt.QHeaderView.ResizeToContents)
         horHeaders.setStretchLastSection(False)
@@ -708,8 +857,8 @@ class CorrectionTable(qt.QTableView):
         self.setContextMenuPolicy(qt.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.onCustomContextMenu)
 
-        self.setItemDelegateForColumn(1, gco.CheckBoxDelegate(self))
-        self.setItemDelegateForColumn(2, gco.MultiLineEditDelegate(self))
+        self.setItemDelegateForColumn(2, gco.CheckBoxDelegate(self))
+        self.setItemDelegateForColumn(3, gco.MultiLineEditDelegate(self))
 
         for i in range(len(HEADERS)):
             self.setColumnWidth(i, int(columnWidths[i]*csi.screenFactor))
@@ -730,14 +879,18 @@ class CorrectionTable(qt.QTableView):
 
         removeAction = qt.QAction(menu)
         removeAction.setText("Remove %s" % roi.getName())
-        callback = partial(self.roiModel.roiManager.removeRoi, roi)
-        removeAction.triggered.connect(callback)
+        removeAction.triggered.connect(partial(self.removeRoi, roi))
         menu.addAction(removeAction)
 
         menu.exec_(self.viewport().mapToGlobal(point))
 
+    def removeRoi(self, roi):
+        self.roiModel.roiManager.removeRoi(roi)
+        self.roiModel.beginResetModel()
+        self.roiModel.endResetModel()
+
     def headerClicked(self, column):
-        if column in [0, 1, 2]:
+        if column in [2,]:
             rois = self.roiModel.roiManager.getRois()
             for roi in rois:
                 roi.setVisible(not roi.isVisible())
@@ -771,8 +924,8 @@ class CorrectionTable(qt.QTableView):
             return
 
         row = rois.index(curRoi)
-        ind1 = model.index(row, 2)
-        ind2 = model.index(row, 3)
+        ind1 = model.index(row, 3)
+        ind2 = model.index(row, 4)
         model.dataChanged.emit(ind1, ind2)
 
         if self.parent().isLive:
@@ -781,6 +934,73 @@ class CorrectionTable(qt.QTableView):
     def getCorrections(self):
         corrs = self.roiModel.roiManager.getRois()
         return [corr.getCorrection() for corr in corrs if corr.isVisible()]
+
+    def setCorrections(self, roiDicts):
+        model = self.roiModel
+
+        if roiDicts is None:
+            roiDicts = []
+        if not isinstance(roiDicts, (tuple, list)):
+            roiDicts = roiDicts,
+        roiDicts = [dict(roid) for roid in roiDicts]  # deep copy
+        rois = model.roiManager.getRois()
+        if len(rois) != len(roiDicts):
+            needReset = True
+        else:
+            for roi, roid in zip(rois, roiDicts):
+                try:
+                    if roi.__class__.__name__ != roid['kind']:
+                        needReset = True
+                        break
+                except KeyError:
+                    needReset = True
+                    break
+            else:
+                needReset = False
+
+        if needReset:
+            model.roiManager.setCurrentRoi(None)
+            model.roiManager.clear()
+            # model.reset()
+            for roid in roiDicts:
+                kind = roid.pop('kind', '').lower()
+                name = roid.pop('name', '')
+                roid.pop('use', True)
+                roid.pop('ndim', 1)
+                # model.reset()
+                if 'delete' in kind:
+                    roi = CorrectionDelete()
+                elif 'scale' in kind:
+                    roi = CorrectionScale()
+                elif 'spline' in kind:
+                    roi = CorrectionSpline()
+                elif 'step' in kind:
+                    roi = CorrectionStep()
+                elif 'spikes' in kind:
+                    roi = CorrectionSpikes()
+                else:
+                    # continue
+                    raise ValueError('unsupported ROI "{0}"'.format(kind))
+                if name:
+                    roi.setName(name)
+                roi.setVisible(True)
+                roi.setCorrection(**roid)
+                model.roiManager.addRoi(roi)
+            if len(roiDicts) > 0:
+                model.roiManager.setCurrentRoi(roi)
+        else:
+            for roi, roid in zip(rois, roiDicts):
+                kind = roid.pop('kind')
+                name = roid.pop('name', '')
+                use = roid.pop('use', True)
+                roid.pop('ndim')
+                if name:
+                    roi.setName(name)
+                roi.setVisible(bool(use))
+                roi.setCorrection(**roid)
+
+        model.reset()
+        model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
 
 class Correction1DWidget(PropWidget):
@@ -808,10 +1028,11 @@ class Correction1DWidget(PropWidget):
         self.liveCB.setChecked(self.isLive)
         self.liveCB.toggled.connect(self.setLive)
         self.liveCB.setToolTip('live correction update\n'
-                               'while dragging in the plot')
+                               'while dragging in the plot\n'
+                               'or typing in the table')
         layoutP.addWidget(self.liveCB)
         layoutP.addStretch()
-        lp = qt.QLabel('precisions:')
+        lp = qt.QLabel('precisions x:')
         lp.setToolTip('decimals in X and Y geometry values')
         layoutP.addWidget(lp)
         self.precisionXSB = qt.QSpinBox()
@@ -821,6 +1042,8 @@ class Correction1DWidget(PropWidget):
         self.precisionXSB.setToolTip('decimals in X geometry values')
         self.precisionXSB.valueChanged.connect(self.precisionXChanged)
         layoutP.addWidget(self.precisionXSB)
+        lp2 = qt.QLabel(' y:')
+        layoutP.addWidget(lp2)
         self.precisionYSB = qt.QSpinBox()
         self.precisionYSB.setMaximum(9)
         self.precisionYSB.setMaximumWidth(30)
@@ -838,11 +1061,12 @@ class Correction1DWidget(PropWidget):
         layout.addWidget(self.acceptButton, 1)
         layout.addStretch()
         self.setLayout(layout)
+        # self.setMinimumWidth(len(roiClassNames)*(ICON_SIZE+8))
 
         if node is not None:
-            corr_param_name = 'correction_' + node.name
-            self.registerPropWidget(self.table, 'correction', corr_param_name)
-            # transformNames=[tr.name for tr in node.transformsIn])
+            self.corr_param_name = 'correction_' + node.name
+            self.registerPropWidget(
+                self.table, 'correction', self.corr_param_name)
 
         self.setSizePolicy(qt.QSizePolicy.Minimum, qt.QSizePolicy.Minimum)
 
@@ -859,67 +1083,6 @@ class Correction1DWidget(PropWidget):
         model = self.table.roiModel
         model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
-    def setCorrections(self, roiDicts):
-        if not roiDicts:
-            return
-        if not isinstance(roiDicts, (tuple, list)):
-            roiDicts = roiDicts,
-        roiDicts = [dict(roid) for roid in roiDicts]  # deep copy
-        rois = self.roiManager.getRois()
-        if len(rois) != len(roiDicts):
-            needReset = True
-        else:
-            for roi, roid in zip(rois, roiDicts):
-                try:
-                    if roi.__class__.__name__ != roid['kind']:
-                        needReset = True
-                        break
-                except KeyError:
-                    needReset = True
-                    break
-            else:
-                needReset = False
-
-        model = self.table.roiModel
-        if needReset:
-            self.roiManager.setCurrentRoi(None)
-            self.roiManager.clear()
-            # model.reset()
-            for roid in roiDicts:
-                kind = roid.pop('kind', '')
-                roid.pop('use', True)
-                name = roid.pop('name', '')
-                # model.reset()
-                if kind == 'CorrectionDelete':
-                    roi = CorrectionDelete()
-                elif kind == 'CorrectionScale':
-                    roi = CorrectionScale()
-                elif kind == 'CorrectionSpline':
-                    roi = CorrectionSpline()
-                elif kind == 'CorrectionStep':
-                    roi = CorrectionStep()
-                else:
-                    # continue
-                    raise ValueError('unsupported ROI "{0}"'.format(kind))
-                if name:
-                    roi.setName(name)
-                roi.setVisible(True)
-                roi.setCorrection(**roid)
-                self.roiManager.addRoi(roi)
-            self.roiManager.setCurrentRoi(roi)
-        else:
-            for roi, roid in zip(rois, roiDicts):
-                kind = roid.pop('kind')
-                name = roid.pop('name', '')
-                use = roid.pop('use', True)
-                if name:
-                    roi.setName(name)
-                roi.setVisible(bool(use))
-                roi.setCorrection(**roid)
-
-        model.reset()
-        model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-
     def getCurrentCorrection(self):
         curRoi = self.roiManager.getCurrentRoi()
         if curRoi is None or not curRoi.isVisible():
@@ -928,3 +1091,6 @@ class Correction1DWidget(PropWidget):
 
     def getCorrections(self):
         return self.table.getCorrections()
+
+    def setCorrections(self, roiDicts):
+        self.table.setCorrections(roiDicts)
