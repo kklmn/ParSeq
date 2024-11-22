@@ -685,7 +685,7 @@ class PropWidget(qt.QWidget):
             gur.pushTransformToUndo(self, dataItems, [key], [value])
             if isinstance(key, (list, tuple)):
                 param = key[-1]
-            elif isinstance(key, type('')):
+            elif isinstance(key, str):
                 param = key.split('.')[-1] if '.' in key else key
             else:
                 raise ValueError('unknown key "{0}" of type {1}'.format(

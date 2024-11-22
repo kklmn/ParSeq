@@ -155,7 +155,7 @@ class AboutDialog(qt.QDialog):
         strSphinx = 'Sphinx {0}'.format(sphinx.__version__)
         strSilx = r'silx {0}'.format(versilx)
         strParSeq = '{0}'.format(PARSEQPATH).replace('\\', '/')
-        if type(self.parseq_pypi_version) is tuple:
+        if isinstance(self.parseq_pypi_version, tuple):
             pypiver, curver = self.parseq_pypi_version
             pstr = "`PyPI <https://pypi.python.org/pypi/parseq>`_"
             if curver < pypiver:
@@ -204,9 +204,9 @@ class AboutDialog(qt.QDialog):
         return txt
 
     def makeThreadProcessStr(self, nThreads, nProcesses):
-        if isinstance(nThreads, type('')):
+        if isinstance(nThreads, str):
             nThreads = max(nC//2, 1) if nThreads.startswith('h') else nC
-        if isinstance(nProcesses, type('')):
+        if isinstance(nProcesses, str):
             nProcesses = max(nC//2, 1) if nProcesses.startswith('h') else nC
 
         res = ''

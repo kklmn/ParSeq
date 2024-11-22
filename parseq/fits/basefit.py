@@ -253,10 +253,10 @@ class Fit:
         self.run_pre(params, items, updateUndo)
 
         nC = multiprocessing.cpu_count()
-        if isinstance(self.nThreads, type('')):
+        if isinstance(self.nThreads, str):
             self.nThreads = max(nC//2, 1) if self.nThreads.startswith('h')\
                 else nC
-        if isinstance(self.nProcesses, type('')):
+        if isinstance(self.nProcesses, str):
             self.nProcesses = max(nC//2, 1) if self.nProcesses.startswith('h')\
                 else nC
 

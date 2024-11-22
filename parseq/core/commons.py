@@ -46,7 +46,7 @@ def expandDotAttr(attr):
 
 def expandTransformParam(prop):
     "add `transformParams` from the left of the prop name"
-    if isinstance(prop, type("")):
+    if isinstance(prop, str):
         if '.' not in prop:
             # then a single attribute
             return '.'.join(('transformParams', prop))
@@ -59,7 +59,7 @@ def shrinkTransformParam(prop):
     if isinstance(prop, (list, tuple)):
         if 'transformParams' in prop:
             prop = [pr for pr in prop if pr != 'transformParams']
-    elif isinstance(prop, type("")):
+    elif isinstance(prop, str):
         if 'transformParams.' in prop:
             prop = prop.replace('transformParams.', '')
     return prop

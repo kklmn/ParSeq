@@ -111,7 +111,7 @@ class TreeItem(object):
         else:
             res = ""
             if hasattr(self, 'name'):  # instance of TreeItem
-                if isinstance(self.name, type("")):
+                if isinstance(self.name, str):
                     res = self.name
             elif hasattr(self, 'madeOf'):  # instance of Spectrum
                 if self.error is not None:
@@ -119,13 +119,13 @@ class TreeItem(object):
                 elif self.beingTransformed:
                     res = '{0} is {1:.0f}% done'.format(self.beingTransformed,
                                                         self.progress*100)
-                elif isinstance(self.madeOf, (type(""), dict, tuple, list)):
-                    if isinstance(self.madeOf, type("")):
+                elif isinstance(self.madeOf, (str, dict, tuple, list)):
+                    if isinstance(self.madeOf, str):
                         res = str(self.madeOf)
                     elif isinstance(self.madeOf, (tuple, list)) and\
                             'combine' in self.dataFormat:
                         what = self.dataFormat['combine']
-                        if type(self.madeOf[0]) is str:
+                        if isinstance(self.madeOf[0], str):
                             names = self.madeOf
                         else:
                             names = [it.alias for it in self.madeOf]
@@ -139,7 +139,7 @@ class TreeItem(object):
                         res += ': {0}'.format(self.aliasExtra)
                     dataSource = self.dataFormat.get('dataSource', [])
                     for ds in dataSource:
-                        if isinstance(ds, type("")):
+                        if isinstance(ds, str):
                             if ds.startswith('silx'):
                                 if res:
                                     res += '\n'

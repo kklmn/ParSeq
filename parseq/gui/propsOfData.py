@@ -11,7 +11,7 @@ from ..core import commons as cco
 
 def getCommonPropInSelectedItems(prop, outLevel=10):
     values = [cco.getDotAttr(it, prop) for it in csi.selectedItems]
-    if outLevel > 1 and isinstance(prop, type('')):
+    if outLevel > 1 and isinstance(prop, str):
         if prop.startswith('transformParams'):
             for it in csi.selectedItems:
                 test = cco.getDotAttr(it, prop, True)
@@ -45,7 +45,7 @@ def setRButtonGroupWithEditsFromData(rButtons, edits, props):
         common = getCommonPropInSelectedItems(prop)
         if common is not None:
             rb.setChecked(True)
-            if isinstance(common, type('')):
+            if isinstance(common, str):
                 ed.setText(common)
             else:
                 ed.setText(str(common))
@@ -110,7 +110,7 @@ def setEditFromData(edit, prop, textFormat='', skipDefault=None, **kw):
     if common is None or common == skipDefault:
         edit.setText('')
         return ''
-    if isinstance(common, type('')):
+    if isinstance(common, str):
         edit.setText(common)
         return common
     else:
@@ -139,7 +139,7 @@ def setSpinBoxFromData(sb, prop):
     if common is None:
         sb.lineEdit().setText('')
         return
-    if isinstance(common, type("")):
+    if isinstance(common, str):
         sb.lineEdit().setText(common)
     else:
         sb.setValue(common)
@@ -244,7 +244,7 @@ def updateDataFromComboBox(combobox, prop, convertType=None, textReplace=None,
             pass
     for it in csi.selectedItems:
         itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)
-        val = ind if type(itValue) == int else txt
+        val = ind if isinstance(itValue, int) else txt
         if itValue != val:
             itContainer[itAttr] = txt
             it.hasChanged = True

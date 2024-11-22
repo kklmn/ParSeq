@@ -798,7 +798,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         h5pyObject = self.data(index, role=H5PY_OBJECT_ROLE)
         if h5pyObject is None:
             return
-        if isinstance(h5pyObject, type('')):
+        if isinstance(h5pyObject, str):
             filename = h5pyObject
         else:
             filename = h5pyObject.file.filename

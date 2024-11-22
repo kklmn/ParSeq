@@ -45,7 +45,7 @@ configFormats.optionxform = str  # makes it case sensitive
 def get(conf, section, entry, default=None):
     if conf.has_option(section, entry):
         res = conf.get(section, entry)
-        if isinstance(default, (type(''), type(u''))):
+        if isinstance(default, str):
             return res
         else:
             try:

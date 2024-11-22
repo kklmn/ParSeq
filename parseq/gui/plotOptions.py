@@ -465,7 +465,7 @@ class LineProps(qt.QDialog):
             axisY = gpd.getCommonPropInSelectedItems(
                 ['plotProps', self.node.name, yName, 'yaxis'])
             if axisY is not None:
-                if isinstance(axisY, type("")):
+                if isinstance(axisY, str):
                     axisY = -1 if axisY.startswith("l") else 1
                 tab.yAxisLeft.setChecked(axisY == -1)
                 tab.yAxisRight.setChecked(axisY != -1)

@@ -850,7 +850,7 @@ class NodeWidget(qt.QWidget):
                     if yaxis == 'left':
                         if yN not in leftAxisColumns:
                             leftAxisColumns.append(yN)
-                        if isinstance(cN, type("")):
+                        if isinstance(cN, str):
                             if cN not in leftAxisUnits:
                                 leftAxisUnits.append(cN)
                         else:
@@ -861,7 +861,7 @@ class NodeWidget(qt.QWidget):
                     if yaxis == 'right':
                         if yN not in rightAxisColumns:
                             rightAxisColumns.append(yN)
-                        if isinstance(cN, type("")):
+                        if isinstance(cN, str):
                             if cN not in rightAxisUnits:
                                 rightAxisUnits.append(cN)
                         else:
@@ -1297,7 +1297,7 @@ class NodeWidget(qt.QWidget):
             self.autoFileExt = None
             if reversed(csi.recentlyLoadedItems):
                 for item in csi.recentlyLoadedItems:
-                    if isinstance(item.madeOf, type("")):
+                    if isinstance(item.madeOf, str):
                         self.autoFileExt = osp.splitext(item.madeOf)[1]
                         break
             if self.autoFileExt is None:

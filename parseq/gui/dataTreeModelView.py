@@ -598,7 +598,7 @@ class DataCheckDelegate(NodeDelegate):
             for xy in self.coords[1:]:
                 if isinstance(xy, tuple):
                     pointerPath.lineTo(*xy)
-                if isinstance(xy, type('')):
+                if isinstance(xy, str):
                     end = xy.split(',')
                     if end[0] == 'close':
                         pointerPath.closeSubpath()
@@ -648,7 +648,7 @@ class LineStyleDelegate(NodeDelegate):
             painter.setBrush(color)
         painter.drawRect(rect)
 
-        if (type(data) is tuple and
+        if (isinstance(data, tuple) and
                 bknd not in [BAD_BKGND, UNDEFINED_BKGND, NOTFOUND_BKGND,
                              MATHERROR_BKGND]):  # plot props
             lineColor = qt.QColor(data[0])
@@ -663,7 +663,7 @@ class LineStyleDelegate(NodeDelegate):
                     painter.drawText(option.rect, qt.Qt.AlignCenter, "hidden")
             else:
                 axisY = lineProps.get('yaxis', -1)
-                if isinstance(axisY, type("")):
+                if isinstance(axisY, str):
                     axisY = -1 if axisY.startswith("l") else 1
 
                 # line
@@ -725,7 +725,7 @@ class LineStyleDelegate(NodeDelegate):
                 painter.setPen(symbolPen)
                 painter.setBrush(symbolBrush)
                 painter.drawPath(symbolPath)
-        elif type(data) is not tuple:
+        elif not isinstance(data, tuple):
             if isinstance(data, int):
                 if option.state & qt.QStyle.State_MouseOver:
                     painter.setPen(qt.QPen(qt.Qt.darkBlue))
@@ -778,7 +778,7 @@ class EyeHeader(qt.QHeaderView):
     #         for xy in coords[1:]:
     #             if isinstance(xy, tuple):
     #                 pointerPath.lineTo(*xy)
-    #             if isinstance(xy, type('')):
+    #             if isinstance(xy, str):
     #                 end = xy.split(',')
     #                 if end[0] == 'close':
     #                     pointerPath.closeSubpath()
