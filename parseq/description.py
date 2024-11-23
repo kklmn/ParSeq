@@ -18,7 +18,7 @@ A screenshot of ParSeq-XAS (an EXAFS analysis pipeline) as an application
 example:
 
 .. image:: _images/XAS-foils.gif
-   :scale: 50 %
+   :scale: 60 %
 
 Main features
 -------------
@@ -37,13 +37,13 @@ Main features
 -  Entering into the analysis pipeline at any node, not only at the head of the
    pipeline.
 
--  Creation of cross-data combinations (e.g. averaging, RMS or PCA) and their
+-  Creation of cross-data combinations (e.g. averaging, PCA) and their
    propagation downstream the pipeline together with the parental data. The
    possibility of termination of the parental data at any selected downstream
    node.
 
 -  General data correction routines for 1D data: range deletion, scaling,
-   replacement by a spline and jump correction.
+   replacement by a spline, deletion of spikes and jump correction.
 
 -  Parallel execution of data transformations with multiprocessing or
    multithreading (can be opted by the pipeline application).
@@ -51,15 +51,15 @@ Main features
 -  Optional curve fitting solvers, also executed in parallel for multiple data
    items.
 
--  Informative error handling that provides alerts and stack traceback -- the
+-  Informative error handling that provides alerts and stack traceback with the
    type and location of the occurred error.
 
 -  Optional time profiling of the pipeline, as controlled by a command-line
    argument.
 
 -  Export of the workflow into a project file. Export of data into various data
-   formats with accompanied Python scripts that visualize the exported data for
-   the user to tune their publication plots.
+   formats with accompanied Python scripts that visualize the exported data in
+   publication-quality plots.
 
 -  ParSeq understands container files (presently only hdf5) and adds them to
    the system file tree as subfolders. The file tree, including hdf5
@@ -80,11 +80,14 @@ and curve fits are exemplified by separately installed analysis packages:
 - `ParSeq-XAS <https://github.com/kklmn/ParSeq-XAS>`_
 - `ParSeq-XES-scan <https://github.com/kklmn/ParSeq-XES-scan>`_
 
-Dependencies
+Installation
 ------------
 
-- `silx <https://github.com/silx-kit/silx>`_ -- plotting, hdf5 handling, Qt
-- `sphinx <https://github.com/sphinx-doc/sphinx>`_ -- building documentation
+Install it by pip or conda or get ParSeq from
+`GitHub <https://github.com/kklmn/ParSeq>`_ and use it with or without
+installation. See :ref:`detailed installation instructions <instructions>`.
+The documentation is available online on
+`Read the Docs <http://parseq.readthedocs.io>`_.
 
 Launch an example
 -----------------
