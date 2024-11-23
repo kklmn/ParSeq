@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "2 Mar 2023"
+__date__ = "23 Nov 2024"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -916,6 +916,7 @@ class NodeWidget(qt.QWidget):
             self.plot.addImage(image, colormap=colors.Colormap(COLORMAP),
                                origin=(xOrigin, yOrigin),
                                scale=(xScale, yScale), z=-100)
+            csi.mainWindow.afterTransformSignal.emit(self)
         elif node.plotDimension == 3:
             self.plot._plot.clearCurves()
             # if needClear:
@@ -943,6 +944,7 @@ class NodeWidget(qt.QWidget):
             if item:
                 calibrations = [self.getCalibration(item, ax) for ax in 'xyz']
                 self.plot.setStack(stack, calibrations=calibrations)
+                csi.mainWindow.afterTransformSignal.emit(self)
 
         if keepExtent:
             self._restorePlotState()

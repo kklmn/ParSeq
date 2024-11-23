@@ -3,7 +3,7 @@
 Version history
 ---------------
 
-2024.11.0 (22 Nov 2024):
+2024.11.0 (23 Nov 2024):
     - Finalize general data corrections. Include doc pages with descriptions
       and animated examples. Add "delete spikes" data correction.
 
