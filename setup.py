@@ -14,8 +14,9 @@ def read(pathnames):
 def get_long_description():
     inLines = read(('parseq', 'description.py')).splitlines()
     outLines = []
-    # as (1st line of exclusion, the line _after_ exclusion)
-    excludeBetweens = [('A screenshot of a', 'Main features')]
+    # as (1st line of exclusion, the line _after_ exclusion):
+    excludeBetweens = [('A screenshot of', 'Main features'),
+                       ('See :ref:', 'The documentation is available')]
     excludeStates = [False] * len(excludeBetweens)
     for line in inLines:
         if line.startswith('#'):
@@ -25,8 +26,9 @@ def get_long_description():
                 excludeStates[ie] = True
             elif line.startswith(excludeBetween[1]):
                 excludeStates[ie] = False
-            if not excludeStates[ie]:
-                outLines.append(line)
+        if any(excludeStates):
+            continue
+        outLines.append(line)
     return "\n".join(outLines[1:-1])  # exclude the tripple quotes
 
 

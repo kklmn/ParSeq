@@ -23,7 +23,7 @@ example:
 Main features
 -------------
 
--  ParSeq allows creating analysis pipelines as lightweight modules.
+-  ParSeq allows creating analysis pipelines as lightweight Python packages.
 
 -  Flexible use of screen area by detachable/dockable transformation nodes
    (parts of analysis pipeline).
@@ -37,23 +37,29 @@ Main features
 -  Entering into the analysis pipeline at any node, not only at the head of the
    pipeline.
 
--  Creation of cross-data combinations (e.g. averaging, RMS or PCA) and their
+-  Creation of cross-data combinations (e.g. averaging, PCA) and their
    propagation downstream the pipeline together with the parental data. The
    possibility of termination of the parental data at any selected downstream
    node.
 
--  Parallel execution of data analysis with multiprocessing or multithreading
-   (can be opted by the pipeline application).
+-  General data correction routines for 1D data: range deletion, scaling,
+   replacement by a spline, deletion of spikes and jump correction.
+
+-  Parallel execution of data transformations with multiprocessing or
+   multithreading (can be opted by the pipeline application).
 
 -  Optional curve fitting solvers, also executed in parallel for multiple data
    items.
 
--  Informative error handling that provides alerts and stack traceback -- the
+-  Informative error handling that provides alerts and stack traceback with the
    type and location of the occurred error.
 
+-  Optional time profiling of the pipeline, as controlled by a command-line
+   argument.
+
 -  Export of the workflow into a project file. Export of data into various data
-   formats with accompanied Python scripts that visualize the exported data for
-   the user to tune their publication plots.
+   formats with accompanied Python scripts that visualize the exported data in
+   publication-quality plots.
 
 -  ParSeq understands container files (presently only hdf5) and adds them to
    the system file tree as subfolders. The file tree, including hdf5
@@ -63,23 +69,23 @@ Main features
    from the analysis widget doc strings. The help pages are built by Sphinx at
    the startup time.
 
--  The pipeline can be operated via scripts or GUI.
+-  The pipeline can be operated by the GUI or from a Python script without GUI.
 
 -  Optional automatic loading of new data during a measurement time.
 
-The mechanisms for creating nodes and transformations, connecting them together
-and creating Qt widgets for the transformations are exemplified by separately
-installed analysis packages:
+The mechanisms for creating nodes, transformations and curve fitting solvers,
+connecting them together and creating Qt widgets for the transformations and
+and curve fits are exemplified by separately installed analysis packages:
 
 - [ParSeq-XES-scan](https://github.com/kklmn/ParSeq-XES-scan)
-- [ParSeq-XES-dispersive](https://github.com/kklmn/ParSeq-XES-dispersive)
 - [ParSeq-XAS](https://github.com/kklmn/ParSeq-XAS)
 
-Dependencies
+Installation
 ------------
 
-- [silx](https://github.com/silx-kit/silx) -- for plotting and Qt imports,
-- [sphinx](https://github.com/sphinx-doc/sphinx) -- for building html documentation.
+Install it by pip or conda or get ParSeq from [GitHub](https://github.com/kklmn/ParSeq)
+and use it with or without installation. See
+[detailed installation instructions](https://parseq.readthedocs.io/instructions.html).
 
 Launch an example
 -----------------

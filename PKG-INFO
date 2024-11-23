@@ -50,12 +50,6 @@ implement particular analysis pipelines as lightweight Python packages.
 
 ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
 
-A screenshot of ParSeq-XAS (an EXAFS analysis pipeline) as an application
-example:
-
-.. image:: _images/XAS-foils.gif
-   :scale: 60 %
-
 Main features
 -------------
 
@@ -121,7 +115,7 @@ Installation
 
 Install it by pip or conda or get ParSeq from
 `GitHub <https://github.com/kklmn/ParSeq>`_ and use it with or without
-installation. See :ref:`detailed installation instructions <instructions>`.
+installation.
 The documentation is available online on
 `Read the Docs <http://parseq.readthedocs.io>`_.
 

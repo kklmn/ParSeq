@@ -85,7 +85,12 @@ Installation
 
 Install it by pip or conda or get ParSeq from
 `GitHub <https://github.com/kklmn/ParSeq>`_ and use it with or without
-installation. See :ref:`detailed installation instructions <instructions>`.
+installation.
+See :ref:`detailed installation instructions <instructions>`.
+
+Documentation
+-------------
+
 The documentation is available online on
 `Read the Docs <http://parseq.readthedocs.io>`_.
 
