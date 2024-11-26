@@ -726,6 +726,8 @@ class PropWidget(qt.QWidget):
                 foundTransformNames[foundTrName] = [data,]
 
         if csi.tasker is not None and len(foundTransformNames) == 1:
+            trName = list(foundTransformNames.keys())[0]
+            tr = csi.transforms[trName]
             csi.tasker.prepare(
                 tr, params=params, runDownstream=True, dataItems=dataItems,
                 starter=self)

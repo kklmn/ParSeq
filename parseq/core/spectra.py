@@ -1703,7 +1703,7 @@ class Spectrum(TreeItem):
             newItem.state[nodeStart] = cco.DATA_STATE_GOOD
             for key in toTransfer:
                 setattr(newItem, key, getattr(self, key))
-        self.state[nodeStart] == cco.DATA_STATE_UNDEFINED
+        self.state[nodeStart] = cco.DATA_STATE_UNDEFINED
 
         if csi.model is not None:
             csi.model.endResetModel()
