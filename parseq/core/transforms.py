@@ -87,6 +87,13 @@ class Transform(object):
     *progressTimeDelta*, float, default 1.0 sec, a timeout delta to report on
     transformation progress. Only needed if :meth:`run_main` is defined with
     a parameter *progress*.
+
+    *dontSaveParamsWhenUnused*, dict, is a class variable that optionally
+    defines transformation parameters to be removed from saved project files if
+    those parameters are not used. The idea is to unclutter the saved project
+    files. The dictionary binds a parameter with another parameter that serves
+    as a usage switch. For example:
+    {'selfAbsorptionCorrectionDict': 'selfAbsorptionCorrectionNeeded'}.
     """
 
     nThreads = 1
@@ -94,6 +101,7 @@ class Transform(object):
     inArrays = []
     outArrays = []
     progressTimeDelta = 1.0  # sec
+    dontSaveParamsWhenUnused = dict()  # paramName=paramUsed
 
     def __init__(self, fromNode, toNode):
         """
@@ -167,10 +175,21 @@ class Transform(object):
     def update_params(self, params, dataItems):
         for data in dataItems:
             for par in params:
-                if par not in data.transformParams and not par.startswith(
-                        'correction_'):
-                    raise KeyError(u"Unknown parameter '{0}'".format(par))
-                data.transformParams[par] = params[par]
+                if '.' in par:
+                    parSplits = par.split('.')
+                    obj = data.transformParams
+                    for parSplit in parSplits[:-1]:
+                        obj = obj[parSplit]
+                    paru = parSplits[-1]
+                    if paru not in obj and not paru.startswith(
+                            'correction_'):
+                        raise KeyError(u"Unknown parameter '{0}'".format(paru))
+                    obj[paru] = params[par]
+                else:
+                    if par not in data.transformParams and not par.startswith(
+                            'correction_'):
+                        raise KeyError(u"Unknown parameter '{0}'".format(par))
+                    data.transformParams[par] = params[par]
         # data = csi.selectedItems[0]
         # dtparams = data.transformParams
 

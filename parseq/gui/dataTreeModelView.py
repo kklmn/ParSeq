@@ -1042,7 +1042,8 @@ class DataTreeView(qt.QTreeView):
         csi.currentNode = self.node
         leadingColumns = len(csi.modelLeadingColumns)
         if column == 0:
-            self.selectAll()
+            # self.selectAll()
+            csi.model.selectItems()
         elif column == 1:
             if self.plotDimension == 1:
                 csi.model.setVisible(

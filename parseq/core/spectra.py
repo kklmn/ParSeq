@@ -26,6 +26,7 @@ import time
 import copy
 import json
 import numpy as np
+from scipy.interpolate import interp1d
 import warnings
 from collections import Counter
 
@@ -219,7 +220,7 @@ class TreeItem(object):
                                     ' for this data'
                         elif self.state[node.name] == cco.DATA_STATE_MATHERROR:
                             res += '\nSee the error message in `metadata` '\
-                                'widget'
+                                'widget for this data item (click on it first)'
 
             return res
 
@@ -570,9 +571,11 @@ class Spectrum(TreeItem):
         self.combinesTo = []  # list of instances of Spectrum if not empty
 
         self.transformParams = {}  # each transform will add to this dict
+        self.dontSaveParamsWhenUnused = {}  # paramName=paramUsed
         # init self.transformParams:
         for tr in csi.transforms.values():
             self.transformParams.update(copy.deepcopy(tr.defaultParams))
+            self.dontSaveParamsWhenUnused.update(tr.dontSaveParamsWhenUnused)
 
         self.fitParams = {}  # each fit will add to this dict
         # init self.fitParams:
@@ -917,6 +920,9 @@ class Spectrum(TreeItem):
             for tr in csi.transforms.values():
                 for key, val in tr.defaultParams.items():
                     res[key] = config.get(configData, name, key, default=val)
+                    if isinstance(res[key], dict):
+                        for keyd, vald in tr.defaultParams[key].items():
+                            res[key][keyd] = res[key].get(keyd, vald)
             for node in csi.nodes.values():
                 corr_param_name = 'correction_' + node.name
                 vv = config.get(configData, name, corr_param_name)
@@ -1115,8 +1121,7 @@ class Spectrum(TreeItem):
         else:
             raise TypeError('wrong datafile type')
 
-        # try:
-        if True:
+        try:  # if True:
             df['skip_header'] = df.pop('skiprows', 0)
             dataSource = df.pop('dataSource', None)
             sliceStrs = df.pop('slices', ['' for ds in dataSource])
@@ -1190,9 +1195,8 @@ class Spectrum(TreeItem):
                                 arr = arr[sliceTuple]
                     setattr(self, setName, arr)
                 except Exception as e:
-                    print(e)
                     setattr(self, setName, None)
-                    # raise ValueError(e)
+                    raise ValueError(e)
 
                 if lengthCheck and role == 'x':
                     if isinstance(lengthCheck, (int, float)):
@@ -1220,10 +1224,10 @@ class Spectrum(TreeItem):
                     if isinstance(arrt, np.ndarray):
                         setattr(self, setName, arrt[sortIndices])
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
-        # except (ValueError, OSError, IndexError) as e:
-        #     print('Error in read_file(): {0}'.format(e))
-        #     self.state = dict((n, cco.DATA_STATE_NOTFOUND) for n in csi.nodes)
-        #     return
+        except (ValueError, OSError, IndexError) as e:
+            print('Error in read_file(): {0}'.format(e))
+            self.state = dict((n, cco.DATA_STATE_NOTFOUND) for n in csi.nodes)
+            return
 
         self.convert_units(conversionFactors)
         # define metadata
@@ -1369,6 +1373,8 @@ class Spectrum(TreeItem):
         """
         madeOf = self.madeOf
         what = self.dataFormat['combine']
+        combineInterpolate = 'combineInterpolate' in self.dataFormat and \
+            self.dataFormat['combineInterpolate']
         # define metadata
         self.meta['text'] = '{0} of {1}'.format(
             cco.combineNames[what], ', '.join(it.alias for it in madeOf))
@@ -1387,18 +1393,19 @@ class Spectrum(TreeItem):
                 fromNode.get_arrays_prop('raw', role='0D')
             dims = fromNode.get_arrays_prop('ndim')
 
-            # check equal shape of data to combine:
-            shapes = [None]*4
-            for dName, dim in zip(dNames, dims):
-                if 1 <= dim <= 3:
-                    for data in madeOf:
-                        if getattr(data, dName) is None:  # optional
-                            continue
-                        sh = getattr(data, dName).shape
-                        if shapes[dim] is None:
-                            shapes[dim] = sh
-                        else:
-                            assert shapes[dim] == sh
+            if not combineInterpolate:
+                # check equal shape of data to combine:
+                shapes = [None]*4
+                for dName, dim in zip(dNames, dims):
+                    if 1 <= dim <= 3:
+                        for data in madeOf:
+                            if getattr(data, dName) is None:  # optional
+                                continue
+                            sh = getattr(data, dName).shape
+                            if shapes[dim] is None:
+                                shapes[dim] = sh
+                            else:
+                                assert shapes[dim] == sh
 
             for data in madeOf:
                 if self not in data.combinesTo:
@@ -1406,18 +1413,34 @@ class Spectrum(TreeItem):
 
             ns = len(madeOf)
             # x and 0D as average over all contributing spectra:
-            for arrayName in xNames:
-                sumx = 0
-                for data in madeOf:
-                    sumx += np.array(getattr(data, arrayName))
-                setattr(self, arrayName, sumx/ns)
+
+            if combineInterpolate:
+                it = madeOf[0]
+                for arrayName in xNames:
+                    setattr(self, arrayName, np.array(getattr(it, arrayName)))
+                x0 = getattr(it, xNames[0])
+            else:
+                for arrayName in xNames:
+                    sumx = 0
+                    for data in madeOf:
+                        sumx += np.array(getattr(data, arrayName))
+                    setattr(self, arrayName, sumx/ns)
 
             dimArray = None
             for arrayName, dim in zip(dNames, dims):
                 if arrayName in xNames:
                     continue
                 if what in (cco.COMBINE_AVE, cco.COMBINE_SUM, cco.COMBINE_RMS):
-                    arrays = [getattr(data, arrayName) for data in madeOf]
+                    arrays = []
+                    for data in madeOf:
+                        arr = getattr(data, arrayName)
+                        if combineInterpolate and arr is not None:
+                            x = getattr(data, xNames[0])
+                            interp = interp1d(x, arr, fill_value="extrapolate",
+                                              assume_sorted=True)
+                            arrays.append(interp(x0))
+                        else:
+                            arrays.append(arr)
                     ns = sum(1 for arr in arrays if arr is not None)
                     if ns == 0:  # arrayName is optional, all arrays are None
                         setattr(self, arrayName, None)
@@ -1445,7 +1468,7 @@ class Spectrum(TreeItem):
             self.state[fromNode.name] = cco.DATA_STATE_MATHERROR
             msg = '\nThe conbined arrays have different lengths'
             self.meta['text'] += msg
-            if csi.DEBUG_LEVEL > 0:
+            if csi.DEBUG_LEVEL > -1:
                 print('calc_combined', self.alias, msg)
 
     @logger(minLevel=50, attrs=[(0, 'alias')])
@@ -1511,6 +1534,13 @@ class Spectrum(TreeItem):
 
     def save_to_project(self, configProject, dirname):
         from ..gui import gcommons as gco  # only needed with gui
+
+        def cleanJSON(inputStr):
+            res = inputStr.replace('null', 'None')
+            res = res.replace('true', 'True')
+            res = res.replace('false', 'False')
+            return res
+
         item = self
         if ((isinstance(item.madeOf, str) and item.dataFormat) or
                 isinstance(item.madeOf, (list, tuple, dict))):
@@ -1553,16 +1583,14 @@ class Spectrum(TreeItem):
                         ind = dataFormatCopy['dataSource'].index(ds)
                         dataFormatCopy['dataSource'][ind] = dsabs
 
-                dataFormat = json.dumps(dataFormatCopy)
-                dataFormat = dataFormat.replace('null', 'None')
+                dataFormat = cleanJSON(json.dumps(dataFormatCopy))
                 config.put(configProject, item.alias, 'dataFormat', dataFormat)
             elif isinstance(item.madeOf, (list, tuple)):
                 config.put(configProject, item.alias, 'madeOf',
                            str(item.madeOf))
-                dataFormat = json.dumps(item.dataFormat)
+                dataFormat = cleanJSON(json.dumps(item.dataFormat))
                 cf = item.dataFormat['combine']
                 dataFormat += "  # {0}='{1}'".format(cf, cco.combineNames[cf])
-                dataFormat = dataFormat.replace('null', 'None')
                 config.put(configProject, item.alias, 'dataFormat', dataFormat)
             elif isinstance(item.madeOf, dict):
                 config.put(configProject, item.alias, 'madeOf',
@@ -1590,11 +1618,9 @@ class Spectrum(TreeItem):
                         relpath = osp.relpath(path, dirname).replace('\\', '/')
                         madeOfRel = ds[:start] + relpath + ds[end:]
                         dataSourceRel[ids] = madeOfRel
-                dataFormat = json.dumps(dataFormatRel)
-                dataFormat = dataFormat.replace('null', 'None')
-                config.put(
-                    configProject, item.alias, 'dataFormat_relative',
-                    dataFormat)
+                dataFormat = cleanJSON(json.dumps(dataFormatRel))
+                config.put(configProject, item.alias, 'dataFormat_relative',
+                           dataFormat)
 
             config.put(configProject, item.alias, 'suffix', str(item.suffix))
             config.put(
@@ -1620,6 +1646,9 @@ class Spectrum(TreeItem):
                 item.alias, ';transform params:')  # ';'=comment out
             dtparams = item.transformParams
             for key in dtparams:
+                if key in self.dontSaveParamsWhenUnused and \
+                        (not dtparams[self.dontSaveParamsWhenUnused[key]]):
+                    continue
                 if isinstance(dtparams[key], np.ndarray):
                     toSave = dtparams[key].tolist()
                 else:
@@ -1750,10 +1779,6 @@ class Spectrum(TreeItem):
                     except AttributeError:
                         continue
                     if y is not None and y.shape == shapeBefore:
-                        # if node.widget is not None:
-                        #     x, y = \
-                        #         node.widget.transformWidget.extraPlotTransform(
-                        #             self, xkey, x, k, y)
                         res = calc_correction(x, y, correction, datainds)
                         if res is None:
                             continue

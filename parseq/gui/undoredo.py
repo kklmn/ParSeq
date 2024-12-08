@@ -111,7 +111,11 @@ def pushTransformToUndo(propWidget, dataItems, params, values, strChange=''):
                     hasChanged = True
                     break
             except ValueError:  # ambiguous for numpy arrays
-                if not (v == pv).all():
+                try:
+                    if not (v == pv).all():
+                        hasChanged = True
+                        break
+                except ValueError:  # ambiguous for numpy arrays
                     hasChanged = True
                     break
         else:

@@ -310,11 +310,14 @@ class MainWindowParSeq(qt.QMainWindow):
             first = 1 if len(node.upstreamNodes) == 0 else 0
 
             try:
-                last = 0 if node.widget.transformWidget.hideInitialView \
-                    else 1
+                last = 1
+                for transformWidget in node.widget.transformWidgets:
+                    if transformWidget.hideInitialView:
+                        last = 0
+                        break
             except AttributeError:
                 last = 1
-            if node.widgetClass is None:
+            if len(node.widgetClasses) == 0:
                 last = 0
             if nodeWidget:
                 splitterStates = [0] * nodeWidget.splitter.count()
@@ -328,8 +331,9 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.topLevelChanged.connect(dock.changeWindowFlags)
 
         for node in csi.nodes.values():
-            if hasattr(node.widget.transformWidget, 'extraGUISetup'):
-                node.widget.transformWidget.extraGUISetup()
+            for transformWidget in node.widget.transformWidgets:
+                if hasattr(transformWidget, 'extraGUISetup'):
+                    transformWidget.extraGUISetup()
 
         dock0.raise_()
         if node0:
@@ -386,14 +390,15 @@ class MainWindowParSeq(qt.QMainWindow):
         for i, (name, node) in enumerate(csi.nodes.items()):
             if node.widget is None:
                 continue
-            if node.widgetClass is None:
+            if len(node.widgetClasses) == 0:
                 continue
-            if not node.widgetClass.__doc__:
+            widgetClass = node.widgetClasses[0]
+            if not widgetClass.__doc__:
                 continue
 
             shouldBuild = True
             try:
-                tSource = osp.getmtime(inspect.getfile(node.widgetClass))
+                tSource = osp.getmtime(inspect.getfile(widgetClass))
                 docName = name.replace(' ', '_')
                 fname = osp.join(gww.DOCDIR, docName) + '.html'
                 if osp.exists(fname):
@@ -405,7 +410,7 @@ class MainWindowParSeq(qt.QMainWindow):
             if not shouldBuild:
                 continue
 
-            rawTexts.append(textwrap.dedent(node.widgetClass.__doc__))
+            rawTexts.append(textwrap.dedent(widgetClass.__doc__))
             rawTextNames.append(name)
 
         # make doc pages
@@ -672,8 +677,9 @@ class MainWindowParSeq(qt.QMainWindow):
             csi.selectedItems[0].save_fit_params()
         nodes = csi.nodes.values()
         for node in nodes:
-            if hasattr(node.widget.transformWidget, 'properties'):
-                node.widget.transformWidget.save_properties()
+            for transformWidget in node.widget.transformWidgets:
+                if hasattr(transformWidget, 'properties'):
+                    transformWidget.save_properties()
         config.write_configs()
         time.sleep(0.1)
         for dock, _, _ in self.docks.values():

@@ -28,9 +28,12 @@ class SaveProjectDlg(qt.QFileDialog):
         selNames = [it.alias for it in csi.selectedItems]
         combinedNames = cco.combine_names(selNames)
         sellen = len(csi.selectedItems)
-        exportStr = 'export data of {0} selected item{1}: {2}'.format(
-            sellen, 's' if sellen > 1 else '', combinedNames) if sellen < 4 \
-            else 'export data of {0} selected items'.format(sellen)
+        if sellen < 4:
+            exportStr = 'export data of {0} selected item{1}: {2}'.format(
+                sellen, 's' if sellen > 1 else '', combinedNames)
+        else:
+            exportStr = 'export data of {0} selected items'.format(sellen)
+            exportStr += ' ordered as visible in the main window status line'
         self.saveData = qt.QGroupBox(exportStr, self)
         self.saveData.setCheckable(True)
         self.saveData.setChecked(True)

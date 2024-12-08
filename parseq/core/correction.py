@@ -114,7 +114,7 @@ def calc_correction(x, y, correction, datainds=None):
         if len(wx) == 0:
             return
         yn = np.array(y)
-        kns = correction['knots']
+        kns = np.array(correction['knots'])
         if len(kns) == 1:
             yn[where] = kns[0][1]
         else:  # len(knots) >= 2:

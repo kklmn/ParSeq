@@ -3,6 +3,7 @@ __author__ = "Konstantin Klementiev"
 __date__ = "19 Jul 2022"
 # !!! SEE CODERULES.TXT !!!
 
+from functools import partial
 import numpy as np
 from silx.gui import qt, icons
 
@@ -400,13 +401,18 @@ class QVBoxLayoutAbove(qt.QVBoxLayout):
 
 
 class StateButtons(qt.QFrame):
+    """
+    A collection of QPushButtons that define a list of active settings. The
+    buttons act as independent checkboxes.
+    """
+
     statesActive = qt.pyqtSignal(list)
 
     def __init__(self, parent, caption, names, active=None, default=None):
         """
         *names*: a list of any objects that will be displayed as str(object),
 
-        *active*: a subset of names that will be displayed as checked,
+        *active*: a subset of *names* that will be displayed as checked,
 
         *caption* will be displayed as QLabel in front of all state buttons.
 
@@ -455,7 +461,7 @@ class StateButtons(qt.QFrame):
             bbox = but.fontMetrics().boundingRect(strName)
             but.setFixedSize(bbox.width()+12, bbox.height()+4)
             # but.setToolTip("go to the key frame")
-            but.clicked.connect(self.buttonClicked)
+            but.clicked.connect(partial(self.buttonClicked, but))
             but.setStyleSheet(styleSheet)
 
             self.buttons.append(but)
@@ -478,7 +484,36 @@ class StateButtons(qt.QFrame):
         for button, name in zip(self.buttons, self.names):
             button.setChecked(name in active)
 
-    def buttonClicked(self, checked):
+    def buttonClicked(self, button, checked):
+        self.statesActive.emit(self.getActive())
+
+
+class StateButtonsExclusive(StateButtons):
+    """
+    A collection of QPushButtons that define a single active one among them,
+    like car radio buttons, where only one button can be set pressed at a time.
+    """
+
+    statesActive = qt.pyqtSignal(str)
+
+    def getActive(self):
+        """
+        *active*: str, one of *names*
+        """
+        for button, name in zip(self.buttons, self.names):
+            if button.isChecked():
+                return name
+
+    def setActive(self, active):
+        for button, name in zip(self.buttons, self.names):
+            button.setChecked(name == active)
+
+    def buttonClicked(self, button, checked):
+        button.setChecked(True)
+        for but in self.buttons:
+            if but is button:
+                continue
+            but.setChecked(False)
         self.statesActive.emit(self.getActive())
 
 

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-"This script was created by ParSeq."
 
 import matplotlib.pyplot as plt
 
@@ -79,7 +78,10 @@ def plot1Dmpl(nodeData):
     savedColumns = nodeData[4]
     # colors = [f'C{i%9}' for i in range(len(savedColumns))]  # custom colors
     for icurve, (fname, props) in enumerate(savedColumns.items()):
-        curves = read1D(saveType, fname, props)
+        try:
+            curves = read1D(saveType, fname, props)
+        except KeyError:
+            continue
         if len(props) > 3:
             yprops = props[3]
             clr = props[1]  # same color as in ParSeq wanted
@@ -106,14 +108,14 @@ def plot1Dmpl(nodeData):
                 ax = axl if yaxis.startswith('l') else axr
                 ax.plot(x, y, color=clr, label=lbl, **kw)
 
-    ax.legend()
-    # ax.legend([(l1, l2) for l1, l2 in zip(lines[::2], lines[1::2])],
+    axl.legend()
+    # axl.legend([(l1, l2) for l1, l2 in zip(lines[::2], lines[1::2])],
     #           usedLabels, handler_map={tuple: NLineObjectsHandler()})
 
     # if 'eV' in nodeData[3][0]:
     #     ax.set_xlim(5950, 6125)  # set energy limits for XANES
 
-    fig.savefig('{0}_{1}.png'.format(nodeData[1], saveType))
+    fig.savefig(r'{0}_{1}.png'.format(saveType, nodeData[1]))
     # end plot1Dmpl
 
 
@@ -130,7 +132,10 @@ def plot1Dsilx(nodeData):
 
     savedColumns = nodeData[4]
     for fname, props in savedColumns.items():
-        curves = read1D(saveType, fname, props)
+        try:
+            curves = read1D(saveType, fname, props)
+        except KeyError:
+            continue
         if len(props) > 3:
             yprops = props[3]
             clr = props[1]
@@ -291,20 +296,28 @@ def getPlotsFromHDF5(path):
     return plots  # end getPlotsFromHDF5
 
 
-def plotSavedData(plots, lib='mpl'):
-    global widgets
-    widgets = []
+def plotSavedDataMpl(plots):
+    plotFuncNames = ['plot1Dmpl', 'plot2Dmpl', 'plot3Dmpl']
     for nodeData in plots:
         ndim = nodeData[2]
-        plotFuncName = 'plot{0}D{1}'.format(ndim, lib)  # e.g. plot1Dmpl
-        plotFunc = globals()[plotFuncName]
+        plotFunc = globals()[plotFuncNames[ndim-1]]
+        plotFunc(nodeData)
+    plt.show()  # end plotSavedDataMpl
+
+
+def plotSavedDataSilx(plots):
+    global widgets
+    widgets = []
+    plotFuncNames = ['plot1Dsilx', 'plot2Dsilx', 'plot3Dsilx']
+    for nodeData in plots:
+        ndim = nodeData[2]
+        plotFunc = globals()[plotFuncNames[ndim-1]]
         widgets.append(plotFunc(nodeData))  # to keep references to silx plots
-    if lib == 'mpl':
-        plt.show()  # end plotSavedData
+    # end plotSavedDataSilx
 
 
 if __name__ == '__main__':
-    h5name = r'c:\ParSeq\Scripts\aaa.h5'
+    h5name = r'../../parseq_XAS/saved/CrFeCoCu-foils.h5'
     plots = getPlotsFromHDF5(h5name)
 
     # lib = 'silx'
@@ -312,7 +325,7 @@ if __name__ == '__main__':
     if lib == 'silx':
         from silx.gui import qt
         app = qt.QApplication([])
-        plotSavedData(plots, 'silx')
+        plotSavedDataSilx(plots)
         app.exec_()
     elif lib == 'mpl':
-        plotSavedData(plots, 'mpl')
+        plotSavedDataMpl(plots)

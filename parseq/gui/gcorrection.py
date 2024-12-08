@@ -172,7 +172,7 @@ class CorrectionScale(HorizontalRangeROI):
         handle = self.sender()
         if handle is not self._scaleHandle:
             return
-        self._scale = np.array(handle.getPosition())[1]
+        self._scale = handle.getPosition()[1]
         self.sigRegionChanged.emit()
 
     def setVisible(self, visible):
@@ -245,7 +245,7 @@ class CorrectionSpline(HorizontalRangeROI):
         for handle in self._handlesKnots:
             knots.append(handle.getPosition())
         knots = sorted(knots, key=lambda k: k[0])
-        return np.array(knots)
+        return knots
 
     def setKnots(self, knots):
         self._knots = knots
@@ -273,7 +273,7 @@ class CorrectionSpline(HorizontalRangeROI):
         if len(self._knots) == 0:
             return
         rng = self.getRange()
-        knots = sorted(self._knots.tolist(), key=lambda k: k[0])
+        knots = sorted(self._knots, key=lambda k: k[0])
         if len(knots) == 1:
             y = knots[0][1]
             if rng[0] < knots[0][0]:  # add a leg to the left limit
@@ -299,7 +299,7 @@ class CorrectionSpline(HorizontalRangeROI):
         if handle not in self._handlesKnots:
             return
         iKnot = self._handlesKnots.index(handle)
-        self._knots[iKnot] = np.array(handle.getPosition())
+        self._knots[iKnot] = list(handle.getPosition())
         self.setSpline()
         self.sigRegionChanged.emit()
 
@@ -325,7 +325,7 @@ class CorrectionSpline(HorizontalRangeROI):
             elif len(knots) > length:
                 newKnots = knots[:length]
             knots = newKnots
-        self.setKnots(np.array(knots))
+        self.setKnots(knots)
         self.setSpline()
 
     def getCorrection(self):
@@ -388,7 +388,7 @@ class CorrectionStep(HorizontalRangeROI):
         return self._rightHandle.getPosition()
 
     def setRight(self, right):
-        self._right = np.array(right)
+        self._right = right
         handle = self._rightHandle
         with utils.blockSignals(handle):
             handle.setPosition(right[0], right[1])
@@ -398,7 +398,7 @@ class CorrectionStep(HorizontalRangeROI):
         handle = self.sender()
         if handle is not self._rightHandle:
             return
-        self._right = np.array(handle.getPosition())
+        self._right = handle.getPosition()
         self.sigRegionChanged.emit()
 
     # left: x left of the step; right: [x right of the step, y where to put it]

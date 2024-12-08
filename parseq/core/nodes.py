@@ -95,7 +95,7 @@ class Node(object):
                   'plotParams', 'ndim')
     defaultPlotParams = {'symbolsize': 2, 'linewidth': 1.3, 'linestyle': '-'}
 
-    def __init__(self, widgetClass=None):
+    def __init__(self, widgetClasses=[]):
         u"""Instantiates the node and optionally passes a Qt widget class of a
         user dialog that defines transformation parameters."""
 
@@ -110,7 +110,13 @@ class Node(object):
             self.auxArrays = []
         if not hasattr(self, 'checkShapes'):
             self.checkShapes = []
-        self.widgetClass = widgetClass
+
+        if not widgetClasses:
+            self.widgetClasses = []
+        elif isinstance(widgetClasses, (list, tuple)):
+            self.widgetClasses = widgetClasses
+        else:
+            self.widgetClasses = [widgetClasses]
         self.widget = None
 
         # filled automatically by transforms after creation of all nodes:

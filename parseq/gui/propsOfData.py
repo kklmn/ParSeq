@@ -21,7 +21,7 @@ def getCommonPropInSelectedItems(prop, outLevel=10):
     try:
         if values.count(values[0]) == len(values):  # equal in selectedItems
             return values[0]
-    except (AttributeError, TypeError, IndexError) as e:
+    except (AttributeError, TypeError, IndexError, ValueError) as e:
         if csi.DEBUG_LEVEL > 30:
             print('getCommonPropInSelectedItems', prop, e,
                   [it.alias for it in csi.selectedItems])
@@ -56,16 +56,17 @@ def setRButtonGroupWithEditsFromData(rButtons, edits, props):
             ed.setText('')
 
 
-def setComboBoxFromData(comboBox, prop, compareWith=None, defaultIndex=0):
+def setComboBoxFromData(comboBox, prop, compareWith=None, defaultIndex=-1,
+                        **kw):
     common = getCommonPropInSelectedItems(prop)
     if common is not None:
         if isinstance(common, float):
             comboBox.lineEdit().setText(str(common))
             return
-        ind = compareWith.index(common) if compareWith is not None else common
+        ind = common if compareWith is None else compareWith.index(common)
         newInd = ind if isinstance(ind, int) else comboBox.findText(ind)
     else:
-        if defaultIndex in ['last', -1]:
+        if defaultIndex in ['last',]:
             defaultIndex = comboBox.count() - 1
         newInd = defaultIndex
 
@@ -93,17 +94,18 @@ def setCorrectionsFromData(corrTable, prop):
 def setCButtonFromData(cButton, prop, compareWith=None):
     common = getCommonPropInSelectedItems(prop)
     if common is not None:
-        if compareWith is not None:
-            cond = common == compareWith
-        else:
+        if compareWith is None:
             cond = True if common else False  # prop can be not bool
+        else:
+            cond = common == compareWith
         cButton.setChecked(cond)
     else:
         cButton.setChecked(False)
 
 
 def setEditFromData(edit, prop, textFormat='', skipDefault=None, **kw):
-    common = getCommonPropInSelectedItems(prop)
+    kwc = dict(outLevel=0) if 'ignoreErrors' in kw else {}
+    common = getCommonPropInSelectedItems(prop, **kwc)
     hideEmpty = kw.get('hideEmpty', False)
     if hideEmpty:
         edit.setVisible(common not in ['', None])
@@ -230,11 +232,12 @@ def updateDataFromSpinBox(spinBox, prop):
 
 
 def updateDataFromComboBox(combobox, prop, convertType=None, textReplace=None,
-                           **kw):
+                           compareWith=None, **kw):
     if not combobox.isEnabled():
         return
     ind = combobox.currentIndex()
-    txt = combobox.currentText()
+    txt = combobox.currentText() if compareWith is None else compareWith[ind]
+
     if textReplace is not None:
         txt = txt.replace(*textReplace)
     if convertType is not None:

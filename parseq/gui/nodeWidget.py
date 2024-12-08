@@ -120,7 +120,7 @@ class NodeWidget(qt.QWidget):
         self.helpFile = ''
         node.widget = self
         self.correctionWidget = None
-        self.transformWidget = None
+        self.transformWidgets = []
         self.tree = None
         self.help = None
         self.pendingPropDialog = None
@@ -369,6 +369,13 @@ class NodeWidget(qt.QWidget):
             po = qt.QSizePolicy(
                 qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
             self.correctionWidget.setSizePolicy(po)
+            for widgetClass in self.node.widgetClasses:
+                if widgetClass.LOCATION != 'correction':
+                    continue
+                layout = self.correctionWidget.layout()
+                widget = widgetClass(self, node=self.node)
+                self.transformWidgets.append(widget)
+                layout.addWidget(widget)
 
     def fillSplitterTransform(self):
         self.help = QWebView(self.splitterTransform)
@@ -393,16 +400,19 @@ class NodeWidget(qt.QWidget):
         scrollArea.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
         scrollArea.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAsNeeded)
 
-        if self.node.widgetClass is not None:
-            self.transformWidget = self.node.widgetClass(
-                parent=scrollArea, node=self.node)
-            scrollArea.setMinimumWidth(self.transformWidget.sizeHint().width())
-        else:
-            self.transformWidget = qt.QWidget(parent=scrollArea)
-        scrollArea.setWidget(self.transformWidget)
-        for tr in self.node.transformsIn:
-            tr.sendSignals = csi.mainWindow is not None
-            tr.widget = self.transformWidget
+        for widgetClass in self.node.widgetClasses:
+            if widgetClass.LOCATION != 'transform':
+                continue
+            widget = widgetClass(parent=scrollArea, node=self.node)
+            self.transformWidgets.append(widget)
+            scrollArea.setMinimumWidth(widget.sizeHint().width())
+            scrollArea.setWidget(widget)
+            for tr in self.node.transformsIn:
+                tr.sendSignals = csi.mainWindow is not None
+                tr.widget = widget
+            break  # only one widget at LOCATION 'transform' is allowed
+        # else:
+            # self.transformWidget = qt.QWidget(parent=scrollArea)
 
     def makeSplitterButtons(self):
         "Orientation should be given for the closed state."
@@ -439,9 +449,11 @@ class NodeWidget(qt.QWidget):
         isVerical = splitter.orientation() == qt.Qt.Horizontal
         trNames = ''
         if name == 'transform':
-            if self.node.widgetClass is not None:
-                if hasattr(self.node.widgetClass, 'name'):
-                    trNames = self.node.widgetClass.name
+            for widgetClass in self.node.widgetClasses:
+                if widgetClass.LOCATION == 'transform' and hasattr(
+                        widgetClass, 'name'):
+                    trNames = widgetClass.name
+                    break
             if not trNames:
                 trNames = ', '.join([tr.name for tr in self.node.transformsIn])
         if trNames:
@@ -594,15 +606,16 @@ class NodeWidget(qt.QWidget):
             xLbl = node.get_arrays_prop('qLabel', role='x')[0]
             yLbl = node.get_arrays_prop('qLabel', role='y')[0]
             hasCustomCursorLabels = False
-            if self.node.widgetClass is not None:
-                if (hasattr(self.node.widgetClass, 'cursorPositionCallback')
-                        and hasattr(self.node.widgetClass, 'cursorLabels')):
+            for widgetClass in self.node.widgetClasses:
+                if (hasattr(widgetClass, 'cursorPositionCallback')
+                        and hasattr(widgetClass, 'cursorLabels')):
                     hasCustomCursorLabels = True
+                    break
+
             if hasCustomCursorLabels:
                 position = [
-                    (label, partial(
-                        self.node.widgetClass.cursorPositionCallback, label))
-                    for label in self.node.widgetClass.cursorLabels]
+                    (label, partial(widgetClass.cursorPositionCallback, label))
+                    for label in widgetClass.cursorLabels]
             else:
                 position = [(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)]
             self.plot = Plot1D(self.splitterPlot, position=position,
@@ -816,9 +829,10 @@ class NodeWidget(qt.QWidget):
                     symbolsize = plotProps.pop('symbolsize', 2)
                     z = 1 if item in csi.selectedItems else 0
                     try:
-                        if hasattr(self.transformWidget, 'extraPlotTransform'):
-                            x, y = self.transformWidget.extraPlotTransform(
-                                item, node.plotXArray, x, yN, y)
+                        for transformWidget in self.transformWidgets:
+                            if hasattr(transformWidget, 'extraPlotTransform'):
+                                x, y = transformWidget.extraPlotTransform(
+                                    item, node.plotXArray, x, yN, y)
                         if curve is None:
                             self.plot.addCurve(
                                 x, y, legend=curveLabel, color=item.color, z=z,
@@ -827,10 +841,14 @@ class NodeWidget(qt.QWidget):
                             curve.setData(x, y)
                             curve.setZValue(z)
                     except (Exception, AssertionError) as e:
+                        try:
+                            length = len(x)
+                        except Exception:
+                            length = 'unknown'
                         print('plotting in {0} failed for ({1}, len={2}) vs '
                               '({3}, len={4}): {5}'
                               .format(self.node.name, yN, len(y),
-                                      node.plotXArray, len(x), e))
+                                      node.plotXArray, length, e))
                         tb = traceback.format_exc()
                         print(tb)
                         continue
@@ -950,8 +968,9 @@ class NodeWidget(qt.QWidget):
             self._restorePlotState()
 
         try:
-            if hasattr(self.transformWidget, 'extraPlot'):
-                self.transformWidget.extraPlot()
+            for transformWidget in self.transformWidgets:
+                if hasattr(transformWidget, 'extraPlot'):
+                    transformWidget.extraPlot()
         except Exception as e:
             print('extraPlot in {0} failed: {1}'.format(self.node.name, e))
 
@@ -1235,7 +1254,8 @@ class NodeWidget(qt.QWidget):
         if len(csi.selectedItems) < 1:
             return
         if self.node.plotDimension == 1:
-            self.correctionWidget.setUIFromData()
+            if self.correctionWidget is not None:
+                self.correctionWidget.setUIFromData()
 
     def updateTransforms(self):
         if len(csi.selectedItems) < 1:
@@ -1249,12 +1269,12 @@ class NodeWidget(qt.QWidget):
             not self.node.is_between_nodes(
                 data.originNodeName, data.terminalNodeName,
                 node1in=False)):
-            self.transformWidget.setEnabled(False)
+            for transformWidget in self.transformWidgets:
+                transformWidget.setEnabled(False)
         else:
-            self.transformWidget.setEnabled(True)
-            # in tests, transformWidget is a QWidget instance:
-            if hasattr(self.transformWidget, 'setUIFromData'):
-                self.transformWidget.setUIFromData()
+            for transformWidget in self.transformWidgets:
+                transformWidget.setEnabled(True)
+                transformWidget.setUIFromData()
 
     def updateFits(self, shouldClear=False):
         if len(csi.selectedItems) < 1:

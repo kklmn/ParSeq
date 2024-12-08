@@ -10,6 +10,7 @@ try:
 except ImportError:
     from ConfigParser import ConfigParser  # python 2
 
+import numpy as np  # for doing eval() in `get`
 from . import singletons as csi
 
 iniDir = os.path.expanduser(os.path.join('~', '.parseq'))

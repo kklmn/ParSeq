@@ -4,7 +4,9 @@ __date__ = "13 Feb 2022"
 # !!! SEE CODERULES.TXT !!!
 
 # path to xrt:
-import sys; sys.path.append(r'../../../Ray-tracing/XAFSmass')  # analysis:ignore
+import sys
+sys.path.append(r'../..')
+
 import os
 import XAFSmass as xm
 from XAFSmass import XAFSmassCalc as xmc
@@ -46,3 +48,7 @@ def parse_compound(compound, mass_digit=5):
 
 def calculate_element_dict(formulaList, E, table):
     return xmc.calculate_element_dict(formulaList, E, table)
+
+
+def calculate_absorption_background(elementsDict, E):
+    return xmc.calculate_absorption_background(elementsDict, E)

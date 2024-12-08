@@ -3,6 +3,14 @@
 Version history
 ---------------
 
+Current GitHub code (modified 8 Dec 2024):
+    - Enable several transformation widgets per node, with the idea to get a
+      widget in the 'corrections' splitter.
+
+    - Add optional interpolation when making data combinations.
+
+    - Minor new features and minor bug fixes.
+
 2024.11.0 (23 Nov 2024):
     - Finalize general data corrections. Include doc pages with descriptions
       and animated examples. Add "delete spikes" data correction.

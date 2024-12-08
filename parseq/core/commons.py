@@ -47,8 +47,9 @@ def expandDotAttr(attr):
 def expandTransformParam(prop):
     "add `transformParams` from the left of the prop name"
     if isinstance(prop, str):
-        if '.' not in prop:
-            # then a single attribute
+        if prop.startswith('dataFormat.'):
+            return prop
+        if not prop.startswith('transformParams.'):
             return '.'.join(('transformParams', prop))
             # return ['transformParams', prop]
     return prop

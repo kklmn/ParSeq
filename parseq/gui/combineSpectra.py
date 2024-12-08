@@ -33,6 +33,9 @@ class CombineSpectraWidget(PropWidget):
         self.combineType = qt.QComboBox()
         self.combineType.addItems(cco.combineNames)
         self.combineType.currentIndexChanged.connect(self.combineTypeChanged)
+        self.combineInterpolateCB = qt.QCheckBox(u"interpolate")
+        self.combineInterpolateCB.setToolTip(
+            "interpolate all selected data\nto the grid of the first data")
         self.combineNLabel = qt.QLabel("N=")
         self.combineN = qt.QSpinBox()
         self.combineN.setMinimum(1)
@@ -55,6 +58,7 @@ class CombineSpectraWidget(PropWidget):
         layout = qt.QGridLayout()
         layout.setContentsMargins(2, 0, 2, 2)
         layout.addWidget(self.combineType, 0, 0)
+        layout.addWidget(self.combineInterpolateCB, 0, 1)
         layoutN = qt.QHBoxLayout()
         layoutN.addStretch()
         layoutN.addWidget(self.combineNLabel)
@@ -90,6 +94,8 @@ class CombineSpectraWidget(PropWidget):
         gpd.setCButtonFromData(self.stopHereCB, 'terminalNodeName',
                                compareWith=self.node.name)
         gpd.setComboBoxFromData(self.combineType, 'dataFormat.combine')
+        gpd.setCButtonFromData(
+            self.combineInterpolateCB, 'dataFormat.combineInterpolate')
         gpd.setCButtonFromData(self.combineStopCB, 'terminalNodeName')
         gpd.setComboBoxFromData(self.combineStop, 'terminalNodeName',
                                 compareWith=list(csi.nodes.keys()))
@@ -101,7 +107,7 @@ class CombineSpectraWidget(PropWidget):
         if self.node is None:
             return
         ind = self.combineType.currentIndex()
-        if ind == 0:
+        if ind < 1:
             return
         if ind == cco.COMBINE_PCA:
             msgBox = qt.QMessageBox()
@@ -112,8 +118,10 @@ class CombineSpectraWidget(PropWidget):
             nPCA = self.combineN.value()  # !!! TODO !!!
         # isStopHere = self.stopHereCB.checkState() == qt.Qt.Checked
         isStoppedAt = self.combineStopCB.checkState() == qt.Qt.Checked
-        kw = dict(dataFormat={'combine': ind}, colorTag=ind,
-                  originNodeName=self.node.name, runDownstream=False)
+        ci = self.combineInterpolateCB.checkState() == qt.Qt.Checked
+        kw = dict(dataFormat={'combine': ind, 'combineInterpolate': ci},
+                  colorTag=ind, originNodeName=self.node.name,
+                  runDownstream=False)
         if isStoppedAt:
             for it in csi.selectedItems:
                 it.terminalNodeName = self.combineStop.currentText()
@@ -126,7 +134,8 @@ class CombineSpectraWidget(PropWidget):
         first = csi.selectedItems[0]
         pit = first.parentItem
         newItem = pit.insert_item(list(csi.selectedItems), first.row(), **kw)
-        ctr.run_transforms([newItem], pit)
+        if newItem.state[self.node.name] == cco.DATA_STATE_GOOD:
+            ctr.run_transforms([newItem], pit)
         model.endResetModel()
         model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 

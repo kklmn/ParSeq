@@ -78,6 +78,7 @@ class PropWidget(qt.QWidget):
     # this dict is designed to hold widget-related properties, not data-related
     # ones (the latter are stored in data.transformParams).
     properties = dict()
+    LOCATION = 'transform'  # 'transform' or 'correction'
 
     def __init__(self, parent=None, node=None):
         u"""*node* is the corresponding transformation node, instance of
@@ -480,6 +481,8 @@ class PropWidget(qt.QWidget):
         *caption*: str, will appear in the popup menu in its "apply to" part.
 
         *prop*: str or a sequence of str, transformation parameter name(s).
+        If the wished transformation parameter resides inside a dictionary, a
+        chained dot notation can be used, e.g. 'transformParams.aDict.aParam'.
 
         Optional key words (in *kw*):
 
@@ -680,13 +683,13 @@ class PropWidget(qt.QWidget):
                 raise ValueError('unknown parameter {0}'.format(key))
             if len(tNames) == 0:
                 return
-            if '.' not in key:
-                key = cco.expandTransformParam(key)
+            # if '.' not in key:
+            key = cco.expandTransformParam(key)
             gur.pushTransformToUndo(self, dataItems, [key], [value])
             if isinstance(key, (list, tuple)):
                 param = key[-1]
             elif isinstance(key, str):
-                param = key.split('.')[-1] if '.' in key else key
+                param = '.'.join(key.split('.')[1:]) if '.' in key else key
             else:
                 raise ValueError('unknown key "{0}" of type {1}'.format(
                     key, type(key)))
@@ -811,14 +814,14 @@ class PropWidget(qt.QWidget):
         self.updateProp(key, irb, dataItems)
 
     def updatePropFromComboBox(self, comboBox, dataItems, key, index,
-                               indexToValue=None, convertType=None, **kw):
+                               compareWith=None, convertType=None, **kw):
         # comboBox = self.sender()  # doesn't work in PySide2
         if not comboBox.hasFocus():
             return
         if convertType is not None:
             value = convertType()
         else:
-            value = indexToValue[index] if indexToValue is not None else index
+            value = compareWith[index] if compareWith is not None else index
         if isinstance(key, (list, tuple)):
             self.updateProp(None, value, dataItems)
         else:
@@ -841,7 +844,7 @@ class PropWidget(qt.QWidget):
 
         if dataItems is None:
             dataItems = csi.selectedItems
-        if 'correction' in key:
+        if 'correction_' in key:
             param = key.split('.')[-1] if '.' in key else key
             for it in dataItems:
                 it.hasChanged = False
@@ -891,7 +894,7 @@ class PropWidget(qt.QWidget):
             elif widgetTypeIndex == 4:  # 'checkbox'
                 gpd.setCButtonFromData(widget, prop)
             elif widgetTypeIndex == 7:  # 'combobox'
-                gpd.setComboBoxFromData(widget, prop)
+                gpd.setComboBoxFromData(widget, prop, **dd['kw'])
             elif widgetTypeIndex == 8:  # 'rangewidget'
                 gpd.setRangeWidgetFromData(widget, prop)
             elif widgetTypeIndex == 9:  # 'statebuttons'

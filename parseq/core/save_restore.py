@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "6 Apr 2023"
+__date__ = "6 Dec 2024"
 # !!! SEE CODERULES.TXT !!!
 
 import os
 import numpy as np
 import pickle
 import json
+import datetime
 import autopep8
 
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"  # to work with external links
@@ -18,6 +19,7 @@ from ..core import singletons as csi
 from ..core import spectra as csp
 from ..core import transforms as ctr
 from ..gui import gcommons as gco
+from ..version import __versioninfo__, __version__, __date__
 
 __fdir__ = os.path.abspath(os.path.dirname(__file__))
 chars2removeMap = {ord(c): '-' for c in '/*? '}
@@ -131,11 +133,10 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                     continue
                 for aN in node.arrays:
                     d = getattr(it, aN)
-                    if ((aN in node.plotYArrays) and
-                        hasattr(node.widget.transformWidget,
-                                'extraPlotTransform')):
-                        x, d = \
-                            node.widget.transformWidget.extraPlotTransform(
+                    for trWidget in node.widget.transformWidgets:
+                        if ((aN in node.plotYArrays) and
+                                hasattr(trWidget, 'extraPlotTransform')):
+                            x, d = trWidget.extraPlotTransform(
                                 it, node.plotXArray, x, aN, d)
                     dataToSave.append(d)
                 dataToSave = [d for d in dataToSave if d is not None]
@@ -218,12 +219,11 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                         continue
                 for aN in node.arrays:
                     d = getattr(it, aN)
-                    if (node.plotDimension == 1 and
-                        (aN in node.plotYArrays) and
-                        hasattr(node.widget.transformWidget,
-                                'extraPlotTransform')):
-                        x, d = \
-                            node.widget.transformWidget.extraPlotTransform(
+                    for trWidget in node.widget.transformWidgets:
+                        if (node.plotDimension == 1 and
+                            (aN in node.plotYArrays) and
+                                hasattr(trWidget, 'extraPlotTransform')):
+                            x, d = trWidget.extraPlotTransform(
                                 it, node.plotXArray, x, aN, d)
                     dataToSave[it][aN] = d.tolist() if d is not None else None
                 for aN in [j for i in node.auxArrays for j in i]:
@@ -302,12 +302,11 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                 for aN in node.arrays:
                     try:
                         y = getattr(it, aN)
-                        if (node.plotDimension == 1 and
-                            (aN in node.plotYArrays) and
-                            hasattr(node.widget.transformWidget,
-                                    'extraPlotTransform')):
-                            x, y = \
-                                node.widget.transformWidget.extraPlotTransform(
+                        for trWidget in node.widget.transformWidgets:
+                            if (node.plotDimension == 1 and
+                                (aN in node.plotYArrays) and
+                                    hasattr(trWidget, 'extraPlotTransform')):
+                                x, y = trWidget.extraPlotTransform(
                                     it, node.plotXArray, x, aN, y)
                         dataToSave[it][aN] = y
                     except AttributeError:
@@ -347,14 +346,15 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                             node.widget.getAxisLabels(), curves])
 
         try:
-            with h5py.File(fname+'.h5', 'w') as f:
-                dataGrp = f.create_group('data')
-                plotsGrp = f.create_group('plots')
+            with h5py.File(fname+'.h5', 'w', track_order=True) as f:
+                # the global `track_order=True` does not work
+                dataGrp = f.create_group('data', track_order=True)
+                plotsGrp = f.create_group('plots', track_order=True)
                 for it in csi.selectedItems:
                     dname = it.alias.translate(chars2removeMap)
                     if dname in f:
                         continue
-                    grp = dataGrp.create_group(dname)
+                    grp = dataGrp.create_group(dname, track_order=True)
                     for aN in dataToSave[it]:
                         if aN in grp:
                             continue
@@ -366,8 +366,9 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                                            compression=com)
                     grp.create_dataset('transformParams',
                                        data=str(it.transformParams))
+                # print('data keys:', dataGrp.keys())
                 for plot in h5plots:
-                    grp = plotsGrp.create_group(plot[0])
+                    grp = plotsGrp.create_group(plot[0], track_order=True)
                     grp.create_dataset('ndim', data=plot[1])
                     grp.create_dataset('axes', data=str(plot[2]))
                     grp.create_dataset('plots', data=str(plot[3]))
@@ -406,8 +407,13 @@ def save_script(fname, plots, h5plots, lib='mpl'):
         lines = [line.rstrip('\n') for line in f]
 
     output = lines[:2]
+    now = datetime.datetime.now()
+    header = '"""This script was created by ParSeq v{0} on {1}"""'.format(
+        __version__, now.strftime('%Y-%m-%d %H:%M:%S'))
+    output.extend([header])
+
     if lib == 'mpl':
-        output.extend(lines[2:4])
+        output.extend(lines[1:3])
 
     output.extend(_script(lines, "readFile"))
     dims = set([plot[2] for plot in plots] + [plot[1] for plot in h5plots])
@@ -418,7 +424,12 @@ def save_script(fname, plots, h5plots, lib='mpl'):
 
     if len(h5plots) > 0:
         output.extend(_script(lines, "getPlotsFromHDF5"))
-    output.extend(_script(lines, "plotSavedData"))
+
+    if lib == 'mpl':
+        output.extend(_script(lines, "plotSavedDataMpl"))
+    elif lib == 'silx':
+        output.extend(_script(lines, "plotSavedDataSilx"))
+
     output.extend(["", "", "if __name__ == '__main__':"])
 
     if len(plots) == 0:
@@ -436,12 +447,14 @@ def save_script(fname, plots, h5plots, lib='mpl'):
             "    plots = {0}".format(
                 autopep8.fix_code(repr(plots), options={'aggressive': 2}))
             ])
-    if lib == 'silx':
+
+    if lib == 'mpl':
+        output.extend(["    plotSavedDataMpl(plots)", ""])
+    elif lib == 'silx':
         output.extend(["    from silx.gui import qt",
-                       "    app = qt.QApplication([])"])
-    output.extend(["    plotSavedData(plots, '{0}')".format(lib), ""])
-    if lib == 'silx':
-        output.extend(["    app.exec_()"])
+                       "    app = qt.QApplication([])",
+                       "    plotSavedDataSilx(plots)",
+                       "    app.exec_()", ""])
 
     fnameOut = '{0}_{1}.py'.format(fname, lib)
     os.chdir(os.path.dirname(fname))
