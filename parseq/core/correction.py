@@ -107,7 +107,7 @@ def calc_correction(x, y, correction, datainds=None):
         line = (wy[-1] - wy[0])/(wx[-1] - wx[0])*(wx - wx[0]) + wy[0]
         yn[where] = (wy - line)*factor + line
         return x, yn
-    elif correction['kind'] == 'spline':
+    elif correction['kind'].startswith('spline'):
         lim = correction['lim']
         where = (lim[0] < x) & (x < lim[1])
         wx = x[where]

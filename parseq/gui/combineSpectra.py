@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Nov 2018"
+__date__ = "17 Dec 2024"
 # !!! SEE CODERULES.TXT !!!
 
 from silx.gui import qt
@@ -12,10 +12,15 @@ from ..core import commons as cco
 from .propWidget import PropWidget
 from . import propsOfData as gpd
 
+COLOR_GRADIENT_PCA1 = 'green'
+COLOR_GRADIENT_PCA2 = 'red'
+
 
 class CombineSpectraWidget(PropWidget):
     def __init__(self, parent=None, node=None):
         super().__init__(parent, node)
+        self.selectedItemsTT = []
+
         combineDataGroup = self.makeCombineDataGroup()
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(4, 2, 2, 0)
@@ -32,6 +37,8 @@ class CombineSpectraWidget(PropWidget):
     def makeCombineDataGroup(self):
         self.combineType = qt.QComboBox()
         self.combineType.addItems(cco.combineNames)
+        for itt, tt in enumerate(cco.combineToolTips):
+            self.combineType.setItemData(itt, tt, qt.Qt.ToolTipRole)
         self.combineType.currentIndexChanged.connect(self.combineTypeChanged)
         self.combineInterpolateCB = qt.QCheckBox(u"interpolate")
         self.combineInterpolateCB.setToolTip(
@@ -58,16 +65,16 @@ class CombineSpectraWidget(PropWidget):
         layout = qt.QGridLayout()
         layout.setContentsMargins(2, 0, 2, 2)
         layout.addWidget(self.combineType, 0, 0)
-        layout.addWidget(self.combineInterpolateCB, 0, 1)
         layoutN = qt.QHBoxLayout()
         layoutN.addStretch()
         layoutN.addWidget(self.combineNLabel)
         layoutN.addWidget(self.combineN)
         layout.addLayout(layoutN, 0, 1)
-        layout.addWidget(self.combineStopCB, 1, 0)
-        layout.addWidget(self.combineStop, 1, 1)
-        layout.addWidget(self.combineMoveToGroupCB, 2, 0, 1, 2)
-        layout.addWidget(self.combineDo, 3, 0, 1, 2)
+        layout.addWidget(self.combineInterpolateCB, 1, 0)
+        layout.addWidget(self.combineStopCB, 2, 0)
+        layout.addWidget(self.combineStop, 2, 1)
+        layout.addWidget(self.combineMoveToGroupCB, 3, 0, 1, 2)
+        layout.addWidget(self.combineDo, 4, 0, 1, 2)
 
         group = qt.QGroupBox('combine selected data')
         group.setLayout(layout)
@@ -84,8 +91,16 @@ class CombineSpectraWidget(PropWidget):
         model.invalidateData()
 
     def combineTypeChanged(self, ind):
-        self.combineNLabel.setVisible(ind == 3)  # PCA
-        self.combineN.setVisible(ind == 3)  # PCA
+        self.combineNLabel.setVisible(ind == cco.COMBINE_PCA)
+        self.combineN.setVisible(ind == cco.COMBINE_PCA)
+        if ind == cco.COMBINE_PCA:
+            self.combineN.setMaximum(len(csi.selectedItems))
+        elif ind == cco.COMBINE_TT:
+            self.combineStopCB.setChecked(False)
+            self.combineStop.setVisible(False)
+            self.combineMoveToGroupCB.setChecked(False)
+        self.combineStopCB.setEnabled(ind != cco.COMBINE_TT)
+        self.combineMoveToGroupCB.setEnabled(ind != cco.COMBINE_TT)
 
     def combineStopCBChanged(self, state):
         self.combineStop.setVisible(state == qt.Qt.Checked)
@@ -99,6 +114,9 @@ class CombineSpectraWidget(PropWidget):
         gpd.setCButtonFromData(self.combineStopCB, 'terminalNodeName')
         gpd.setComboBoxFromData(self.combineStop, 'terminalNodeName',
                                 compareWith=list(csi.nodes.keys()))
+        ind = self.combineType.currentIndex()
+        if ind == cco.COMBINE_PCA:
+            self.combineN.setMaximum(len(csi.selectedItems))
 
     def updateDataFromUI(self):
         self.createCombined()
@@ -109,13 +127,20 @@ class CombineSpectraWidget(PropWidget):
         ind = self.combineType.currentIndex()
         if ind < 1:
             return
+
+        madeOf = list(csi.selectedItems)
         if ind == cco.COMBINE_PCA:
-            msgBox = qt.QMessageBox()
-            msgBox.information(self, 'Not implemented',
-                               'PCA is not implemented yet',
-                               buttons=qt.QMessageBox.Close)
+            # msgBox = qt.QMessageBox()
+            # msgBox.information(self, 'Not implemented',
+            #                    'PCA is not implemented yet',
+            #                    buttons=qt.QMessageBox.Close)
+            # return
+            nPCA = self.combineN.value()
+        elif ind == cco.COMBINE_TT:
+            self.selectedItemsTT = madeOf
+            self.node.widget.preparePickData(self, 'Pick basis set')
             return
-            nPCA = self.combineN.value()  # !!! TODO !!!
+
         # isStopHere = self.stopHereCB.checkState() == qt.Qt.Checked
         isStoppedAt = self.combineStopCB.checkState() == qt.Qt.Checked
         ci = self.combineInterpolateCB.checkState() == qt.Qt.Checked
@@ -128,21 +153,63 @@ class CombineSpectraWidget(PropWidget):
                 it.colorTag = 0
                 it.set_auto_color_tag()
         isMoveToGroup = self.combineMoveToGroupCB.checkState() == qt.Qt.Checked
-        model = self.node.widget.tree.model()
 
+        model = self.node.widget.tree.model()
         model.beginResetModel()
-        first = csi.selectedItems[0]
-        pit = first.parentItem
-        newItem = pit.insert_item(list(csi.selectedItems), first.row(), **kw)
-        if newItem.state[self.node.name] == cco.DATA_STATE_GOOD:
-            ctr.run_transforms([newItem], pit)
+        if ind == cco.COMBINE_PCA:
+            kw['dataFormat']['nPCA'] = nPCA
+            for idata, data in enumerate(madeOf):
+                grPCA = data.parentItem.insert_item(
+                    '{0}-PCA{1}'.format(data.alias, nPCA),
+                    data.row()+1, colorPolicy='gradient')
+                newItems = []
+                for i in range(nPCA):
+                    kw['dataFormat']['iSpectrumPCA'] = idata
+                    kw['dataFormat']['iPCA'] = i
+                    kw['alias'] = '{0}-PCA{1}_{2}'.format(data.alias, nPCA, i)
+                    newItem = grPCA.insert_item(madeOf, **kw)
+                    newItems.append(newItem)
+                grPCA.color1 = COLOR_GRADIENT_PCA1
+                grPCA.color2 = COLOR_GRADIENT_PCA2
+                grPCA.init_colors(grPCA.childItems)
+                if idata == 0:
+                    ctr.run_transforms(newItems[0:1], grPCA, runParallel=False)
+                    for idata, data in enumerate(madeOf):
+                        data.skip_eigh = True
+                    ctr.run_transforms(newItems[1:], grPCA, runParallel=False)
+                else:
+                    ctr.run_transforms(newItems, grPCA, runParallel=False)
+            for idata, data in enumerate(madeOf):
+                del data.skip_eigh
+        else:
+            last = csi.selectedItems[-1]
+            pit = last.parentItem
+            newItem = pit.insert_item(madeOf, last.row()+1, **kw)
+            if newItem.state[self.node.name] == cco.DATA_STATE_GOOD:
+                ctr.run_transforms([newItem], pit)
         model.endResetModel()
         model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
         if isMoveToGroup:
             self.node.widget.tree.groupItems()
+        model.selectItems(madeOf)
 
-        mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
-        row = newItem.row()
-        index = model.createIndex(row, 0, newItem)
-        csi.selectionModel.select(index, mode)
+    def applyPendingProps(self):
+        ci = self.combineInterpolateCB.checkState() == qt.Qt.Checked
+        ind = cco.COMBINE_TT
+        kw = dict(dataFormat={'combine': ind, 'combineInterpolate': ci},
+                  colorTag=ind, color='#ee00ee',
+                  originNodeName=self.node.name, runDownstream=False)
+
+        model = self.node.widget.tree.model()
+        model.beginResetModel()
+
+        madeOf = list(csi.selectedItems)
+        for idata, data in enumerate(self.selectedItemsTT):
+            kw['alias'] = '{0}-TT{1}'.format(data.alias, len(madeOf))
+            newItem = data.parentItem.insert_item(
+                madeOf+[data], data.row()+1, **kw)
+            ctr.run_transforms([newItem], newItem.parentItem)
+
+        model = self.node.widget.tree.model()
+        model.selectItems(self.selectedItemsTT)

@@ -313,7 +313,7 @@ class NodeWidget(qt.QWidget):
     def fillSplitterData(self):
         splitterInner = qt.QWidget(self.splitterData)
         self.pickWidget = qt.QWidget(splitterInner)
-        labelPick = qt.QLabel('Pick data')
+        self.pickLabel = qt.QLabel('Pick data')
         cancelPick = qt.QPushButton('Cancel')
         cancelPick.setStyleSheet("QPushButton {background-color: tomato;}")
         cancelPick.setMinimumWidth(40)
@@ -325,7 +325,7 @@ class NodeWidget(qt.QWidget):
 
         pickLayout = qt.QHBoxLayout()
         pickLayout.setContentsMargins(0, 0, 0, 0)
-        pickLayout.addWidget(labelPick)
+        pickLayout.addWidget(self.pickLabel)
         pickLayout.addWidget(cancelPick, 1)
         pickLayout.addWidget(applyPick, 1)
         self.pickWidget.setLayout(pickLayout)
@@ -365,7 +365,8 @@ class NodeWidget(qt.QWidget):
             self.correctionWidget = Correction1DWidget(
                 self.splitterCorrection, self.node, self.plot,
                 ['CorrectionDelete', 'CorrectionSpikes', 'CorrectionScale',
-                 'CorrectionSpline', 'CorrectionStep'])
+                 'CorrectionSpline', 'CorrectionSplineSubtract',
+                 'CorrectionStep'])
             po = qt.QSizePolicy(
                 qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
             self.correctionWidget.setSizePolicy(po)
@@ -1094,23 +1095,28 @@ class NodeWidget(qt.QWidget):
                     if curve is not None:
                         curve._updated()
 
-    def preparePickData(self, pendingPropDialog):
+    def preparePickData(self, pendingPropDialog, pickMessage='Pick data'):
         self.pendingPropDialog = pendingPropDialog
         self.pickWidget.setVisible(True)
+        self.pickLabel.setText(pickMessage)
         self.tree.setCustomSelectionMode(0)  # ignore gui updates on picking
+        # csi.selectionModel.blockSignals(True)
 
     def cancelPropsToPickedData(self):
         self.pendingPropDialog = None
         self.pickWidget.setVisible(False)
         self.tree.setCustomSelectionMode()
+        # csi.selectionModel.blockSignals(False)
 
     def applyPropsToPickedData(self):
         if self.pendingPropDialog is not None:
             self.pendingPropDialog.applyPendingProps()
             self.pendingPropDialog = None
         self.pickWidget.setVisible(False)
-        self.selChanged()
         self.tree.setCustomSelectionMode()
+        self.tree.selChanged()
+        self.selChanged()
+        # csi.selectionModel.blockSignals(False)
 
     def selChanged(self):
         if not self.pickWidget.isVisible() and \
@@ -1253,9 +1259,20 @@ class NodeWidget(qt.QWidget):
     def updateCorrections(self):
         if len(csi.selectedItems) < 1:
             return
-        if self.node.plotDimension == 1:
-            if self.correctionWidget is not None:
-                self.correctionWidget.setUIFromData()
+        if self.node.plotDimension == 1 and self.correctionWidget is not None:
+            # dataType = csi.selectedItems[0].dataType
+            # for data in csi.selectedItems:
+            #     if dataType != data.dataType:
+            #         dataType = None
+            #         break
+            # if (dataType == cco.DATA_COMBINATION and
+            #     not self.node.is_between_nodes(
+            #         data.originNodeName, data.terminalNodeName,
+            #         node1in=False)):
+            #     self.correctionWidget.setEnabled(False)
+            # else:
+            self.correctionWidget.setEnabled(True)
+            self.correctionWidget.setUIFromData()
 
     def updateTransforms(self):
         if len(csi.selectedItems) < 1:

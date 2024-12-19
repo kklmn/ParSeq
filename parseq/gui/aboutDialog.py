@@ -83,8 +83,11 @@ class AboutDialog(qt.QDialog):
             for file in files:
                 if file.endswith(".pspj"):
                     pr = os.path.join(root, file)
-                    self.prFiles.append(
-                        osp.relpath(pr, path).replace('\\', '/'))
+                    with open(pr, 'r') as fp:
+                        prd = fp.read()
+                        if "pipelineName = {}".format(csi.pipelineName) in prd:
+                            self.prFiles.append(
+                                osp.relpath(pr, path).replace('\\', '/'))
 
         self.webView = gww.QWebView(self)
         self.webView.page().setLinkDelegationPolicy(2)

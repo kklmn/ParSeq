@@ -87,7 +87,7 @@ HEADERS = 'kind', 'label', 'use', 'geometry'
 columnWidths = 36, 40, 28, 136
 
 __iconDir__ = osp.join(osp.dirname(__file__), '_images')
-ICON_SIZE = 32
+ICON_SIZE = 32  # or 24
 
 
 def makeMarker(obj, symbol):
@@ -361,6 +361,14 @@ class CorrectionSpline(HorizontalRangeROI):
         return True
 
 
+class CorrectionSplineSubtract(CorrectionSpline):
+    KIND = 'spline-'
+    ICON = "icon-correction-spline-"
+    ICON_ADD = "icon-add-correction-spline-"
+    NAME = "subtract spline"
+    SHORT_NAME = "sps"
+
+
 class CorrectionStep(HorizontalRangeROI):
     KIND = 'step'
     ICON = "icon-correction-step"
@@ -533,11 +541,15 @@ class CreateCorrectionModeAction(qt.QAction):
 
         if iconName is not None:
             iname = '{0}-{1}.png'.format(iconName, ICON_SIZE)
-            icon = qt.QIcon(osp.join(__iconDir__, iname))
+            iconPath = osp.join(__iconDir__, iname)
+            icon = qt.QIcon(iconPath)
             self.setIcon(icon)
+            iname = '{0}-{1}.png'.format(iconName, 64)
+            icon64Path = osp.join(__iconDir__, iname)
         self.setText(text)
         self.setCheckable(True)
-        self.setToolTip(text)
+        self.setToolTip('<img src="{0}" height="{1}"/><br>'.format(
+            icon64Path, 64) + text)
 
     def getRoiClass(self):
         return self._roiClass
@@ -618,8 +630,8 @@ class CorrectionManager(RegionOfInterestManager):
         if roi.getName() == '':
             name = roi.SHORT_NAME
             if isinstance(roi, (CorrectionDelete, CorrectionScale,
-                                CorrectionSpline, CorrectionStep,
-                                CorrectionSpikes)):
+                                CorrectionSpline, CorrectionSplineSubtract,
+                                CorrectionStep, CorrectionSpikes)):
                 name = roi.SHORT_NAME
             else:
                 name = 'cor'
@@ -778,6 +790,8 @@ class CorrectionToolBar(qt.QToolBar):
                 roiClass = CorrectionDelete
             elif roiClassName == 'CorrectionScale':
                 roiClass = CorrectionScale
+            elif roiClassName == 'CorrectionSplineSubtract':
+                roiClass = CorrectionSplineSubtract
             elif roiClassName == 'CorrectionSpline':
                 roiClass = CorrectionSpline
             elif roiClassName == 'CorrectionStep':
@@ -785,7 +799,8 @@ class CorrectionToolBar(qt.QToolBar):
             elif roiClassName == 'CorrectionSpikes':
                 roiClass = CorrectionSpikes
             else:
-                raise ValueError('unsupported ROI {0}'.format(roiClassName))
+                raise ValueError(
+                    'unsupported correction {0}'.format(roiClassName))
             action = roiManager.getInteractionModeAction(roiClass)
             action.setSingleShot(True)
             self.addAction(action)
@@ -974,6 +989,8 @@ class CorrectionTable(qt.QTableView):
                     roi = CorrectionDelete()
                 elif 'scale' in kind:
                     roi = CorrectionScale()
+                elif 'spline-' in kind:
+                    roi = CorrectionSplineSubtract()
                 elif 'spline' in kind:
                     roi = CorrectionSpline()
                 elif 'step' in kind:
@@ -982,7 +999,8 @@ class CorrectionTable(qt.QTableView):
                     roi = CorrectionSpikes()
                 else:
                     # continue
-                    raise ValueError('unsupported ROI "{0}"'.format(kind))
+                    raise ValueError(
+                        'unsupported correction "{0}"'.format(kind))
                 if name:
                     roi.setName(name)
                 roi.setVisible(True)

@@ -27,6 +27,7 @@ import copy
 import json
 import numpy as np
 from scipy.interpolate import interp1d
+import scipy.linalg as spl
 import warnings
 from collections import Counter
 
@@ -128,11 +129,29 @@ class TreeItem(object):
                         what = self.dataFormat['combine']
                         if isinstance(self.madeOf[0], str):
                             names = self.madeOf
-                        else:
+                        else:  # class Spectrum
                             names = [it.alias for it in self.madeOf]
+                            if what == cco.COMBINE_TT:
+                                names = names[:-1]
                         cNames = cco.combine_names(names)
-                        res = '{0} of [{1}]'.format(
-                            cco.combineNames[what], cNames)
+                        if what == cco.COMBINE_PCA:
+                            iSpectrumPCA = self.dataFormat['iSpectrumPCA']
+                            it = self.madeOf[iSpectrumPCA]
+                            ws = ', '.join(
+                                ['{0:.3g}'.format(w) for w in it.wPCA]) \
+                                if hasattr(it, 'wPCA') else '...'
+                            res = '{0} of {1}\nbase={2}\nw=[{3}]'.format(
+                                cco.combineNames[what], it.alias, cNames, ws)
+                        elif what == cco.COMBINE_TT:
+                            it = self.madeOf[-1]
+                            ws = ', '.join(
+                                ['{0:.3g}'.format(w) for w in it.wPCA]) \
+                                if hasattr(it, 'wPCA') else '...'
+                            res = '{0} of {1}\nbase={2}\nw=[{3}]'.format(
+                                cco.combineNames[what], it.alias, cNames, ws)
+                        else:
+                            res = '{0} of [{1}]'.format(
+                                cco.combineNames[what], cNames)
                         # res = self.meta['shortText']
                     else:
                         res = ""
@@ -220,7 +239,8 @@ class TreeItem(object):
                                     ' for this data'
                         elif self.state[node.name] == cco.DATA_STATE_MATHERROR:
                             res += '\nSee the error message in `metadata` '\
-                                'widget for this data item (click on it first)'
+                                'widget for this data item '\
+                                '(click the splitter button first)'
 
             return res
 
@@ -453,7 +473,10 @@ class Spectrum(TreeItem):
         *madeOf*
             is either a file name, a callable, a list of other
             :class:`Spectrum` instances (for making a combination) or a
-            dictionary (for creating branches).
+            dictionary (for creating branches). Here, combination is one of
+            ('ave', 'sum', 'PCA', 'RMS') and branching can be used to create
+            several data items from one, e.g. multiple 1D cuts from a 2D data
+            set.
 
         *parentItem*
             is another :class:`Spectrum` instance or None (for the tree root).
@@ -603,6 +626,7 @@ class Spectrum(TreeItem):
                 'runDownstream',
                 csi.dataRootItem.kwargs.get('runDownstream', False))
             if csi.withGUI:
+                self.color = kwargs.pop('color', 'k')
                 self.init_plot_props()
                 plotProps = kwargs.pop('plotProps', {})
                 if plotProps:
@@ -656,7 +680,6 @@ class Spectrum(TreeItem):
         row = self.row()
         if row is None:
             row = 0
-        self.color = 'k'
         self.plotProps = {}
         for node in csi.nodes.values():
             self.plotProps[node.name] = {}
@@ -759,8 +782,6 @@ class Spectrum(TreeItem):
             else:
                 self.dataType = cco.DATA_COMBINATION
                 self.colorTag = 5
-                if shouldLoadNow:
-                    self.calc_combined()
                 if self.alias == 'auto':
                     cs = self.madeOf[0].alias
                     for data in self.madeOf[1:]:
@@ -769,6 +790,8 @@ class Spectrum(TreeItem):
                     lenC = len(self.madeOf)
                     tmpalias = "{0}_{1}{2}".format(
                         cs, cco.combineNames[what], lenC)
+                if shouldLoadNow:
+                    self.calc_combined()
         elif isinstance(self.madeOf, str):
             self.madeOf = self.madeOf.replace('\\', '/')
             if self.madeOf.startswith('silx:'):
@@ -1213,11 +1236,14 @@ class Spectrum(TreeItem):
             if sortIndices is not None:
                 count = sortCounts[sortCounts > 1].sum()
                 if count > 0:
-                    print("{0} duplicate {1} value{2} ha{3} been removed"
-                          .format(count,
-                                  fromNode.get_prop(sortArrayName, 'qLabel'),
-                                  '' if count == 1 else 's',
-                                  's' if count == 1 else 've'))
+                    errorTxt = "{0} duplicate {1} value{2} ha{3} been removed"\
+                        .format(count,
+                                fromNode.get_prop(sortArrayName, 'qLabel'),
+                                '' if count == 1 else 's',
+                                's' if count == 1 else 've')
+                    print(errorTxt)
+                    header.append(errorTxt+'\n')
+
                 for aName in fromNode.arrays:
                     setName = fromNode.get_prop(aName, 'raw')
                     arrt = getattr(self, setName)
@@ -1367,6 +1393,7 @@ class Spectrum(TreeItem):
                     print(aName, e)
                     setattr(self, setName, None)
 
+    @logger(minLevel=50, attrs=[(0, 'alias')])
     def calc_combined(self):
         """Case of *madeOf* as list of Spectrum instances. self.dataFormat is
         the type of the combination being made: one of COMBINE_XXX constants.
@@ -1388,9 +1415,13 @@ class Spectrum(TreeItem):
             fromNode = csi.nodes[self.originNodeName]
 
             # if no 'raw' present, returns arrayName itself:
-            dNames = fromNode.get_arrays_prop('raw')
-            xNames = fromNode.get_arrays_prop('raw', role='x') +\
-                fromNode.get_arrays_prop('raw', role='0D')
+            # dNames = fromNode.get_arrays_prop('raw')
+            # xNames = fromNode.get_arrays_prop('raw', role='x') +\
+            #     fromNode.get_arrays_prop('raw', role='0D')
+
+            dNames = fromNode.get_arrays_prop('key')
+            xNames = fromNode.get_arrays_prop('key', role='x') +\
+                fromNode.get_arrays_prop('key', role='0D')
             dims = fromNode.get_arrays_prop('ndim')
 
             if not combineInterpolate:
@@ -1430,7 +1461,8 @@ class Spectrum(TreeItem):
             for arrayName, dim in zip(dNames, dims):
                 if arrayName in xNames:
                     continue
-                if what in (cco.COMBINE_AVE, cco.COMBINE_SUM, cco.COMBINE_RMS):
+                if what in (cco.COMBINE_AVE, cco.COMBINE_SUM, cco.COMBINE_RMS,
+                            cco.COMBINE_PCA, cco.COMBINE_TT):
                     arrays = []
                     for data in madeOf:
                         arr = getattr(data, arrayName)
@@ -1454,8 +1486,55 @@ class Spectrum(TreeItem):
                     elif what == cco.COMBINE_RMS:
                         s2 = sum((a-s/ns)**2 for a in arrays if a is not None)
                         v = (s2 / ns)**0.5
-                elif what == cco.COMBINE_PCA:
-                    raise NotImplementedError  # TODO
+                    elif what == cco.COMBINE_PCA:
+                        iSpectrumPCA = self.dataFormat['iSpectrumPCA']
+                        iPCA = self.dataFormat['iPCA']
+                        nPCA = self.dataFormat['nPCA']
+                        D = np.array(
+                            [ar for ar in arrays if ar is not None]).T
+                        k, nN = D.shape
+
+                        if hasattr(madeOf[0], 'skip_eigh'):
+                            doeigh = False
+                        else:
+                            doeigh = iPCA == 0
+                        if doeigh:
+                            DTD = np.dot(D.T, D)
+                            DTD /= np.diag(DTD).sum()
+                            kweigh = dict(eigvals=(nN-nPCA, nN-1))
+                            w, v = spl.eigh(DTD, **kweigh)
+                            # rec = np.dot(np.dot(v, np.diag(w)), v.T)
+                            # print("diff DTD--decomposed(DTD) = {0}".format(
+                            #     np.abs(DTD-rec).sum()))
+                            for data in madeOf:
+                                data.wPCA, data.vPCA = w, v
+                        else:
+                            sPCA = madeOf[iSpectrumPCA]
+                            w, v = sPCA.wPCA, sPCA.vPCA
+
+                        if iPCA == 0:
+                            outPCA = np.zeros((k, nPCA))
+                            for i in range(nPCA):
+                                ii = -1-i
+                                pr = np.dot(v[:, ii:], v[:, ii:].T)
+                                outPCA[:, i] = np.dot(D, pr)[:, iSpectrumPCA]
+                            if not hasattr(self.parentItem, 'pcas'):
+                                self.parentItem.pcas = dict()
+                            self.parentItem.pcas[fromNode.name] = outPCA
+
+                        v = self.parentItem.pcas[fromNode.name][:, iPCA]
+                    elif what == cco.COMBINE_TT:
+                        B = np.array(
+                            [ar for ar in arrays[:-1] if ar is not None]).T
+                        d = arrays[-1]
+                        BTB = np.dot(B.T, B)
+                        w, v = spl.eigh(BTB)
+                        revBTB = np.dot(np.dot(v, np.diag(1/w)), v.T)
+                        BTd = np.dot(B.T, d)
+                        revBTBBTd = np.dot(revBTB, BTd)
+                        v = np.dot(B, revBTBBTd)
+                        norm = sum(w)
+                        madeOf[-1].wPCA = [i/norm for i in w]
                 else:
                     raise ValueError("unknown data combination")
                 setattr(self, arrayName, v)
@@ -1466,7 +1545,14 @@ class Spectrum(TreeItem):
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
         except AssertionError:
             self.state[fromNode.name] = cco.DATA_STATE_MATHERROR
-            msg = '\nThe conbined arrays have different lengths'
+            msg = '\nThe conbined arrays have different lengths. '\
+                'Use "interpolate".'
+            self.meta['text'] += msg
+            if csi.DEBUG_LEVEL > -1:
+                print('calc_combined', self.alias, msg)
+        except AttributeError as e:
+            self.state[fromNode.name] = cco.DATA_STATE_BAD
+            msg = str(e)
             self.meta['text'] += msg
             if csi.DEBUG_LEVEL > -1:
                 print('calc_combined', self.alias, msg)
@@ -1785,7 +1871,10 @@ class Spectrum(TreeItem):
                         wasCorrected = True
                         xn, yn = res[:2]
                         datainds = res[2] if len(res) > 2 else None
-                        setattr(self, key, yn)
+                        if correction['kind'] in ('spline-',):
+                            setattr(self, key, y-yn)
+                        else:
+                            setattr(self, key, yn)
                         corrKeys.append(key)
 
                 if correction['kind'] in ('delete', 'spikes'):

@@ -33,7 +33,7 @@ class SaveProjectDlg(qt.QFileDialog):
                 sellen, 's' if sellen > 1 else '', combinedNames)
         else:
             exportStr = 'export data of {0} selected items'.format(sellen)
-            exportStr += ' ordered as visible in the main window status line'
+            exportStr += ' ordered as shown in the main window status line'
         self.saveData = qt.QGroupBox(exportStr, self)
         self.saveData.setCheckable(True)
         self.saveData.setChecked(True)

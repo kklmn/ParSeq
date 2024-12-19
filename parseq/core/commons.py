@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "12 Sep 2022"
+__date__ = "19 Dec 2024"
 # !!! SEE CODERULES.TXT !!!
 
 import itertools
@@ -12,8 +12,13 @@ MIME_TYPE_HDF5 = 'parseq-hdf5-model-items'
 
 (DATA_COLUMN_FILE, DATA_DATASET, DATA_COMBINATION, DATA_FUNCTION, DATA_GROUP,
  DATA_BRANCH) = range(6)
-COMBINE_NONE, COMBINE_AVE, COMBINE_SUM, COMBINE_PCA, COMBINE_RMS = range(5)
-combineNames = '', 'ave', 'sum', 'PCA', 'RMS'
+COMBINE_NONE, COMBINE_AVE, COMBINE_SUM, COMBINE_RMS, COMBINE_PCA, COMBINE_TT \
+    = range(6)
+combineNames = '', 'ave', 'sum', 'RMS', 'PCA', 'TT'
+combineToolTips = '', 'average', 'sum', 'Root Mean Square', \
+    'Principal Component Analysis', \
+    'Target Transformation\n' \
+    'The basis set is selected later (after pressing Combine)'
 
 DATA_STATE_GOOD = 1
 DATA_STATE_BAD = 0
@@ -109,30 +114,81 @@ def common_substring(strs, isReversed=False):
             else:
                 return
     assert isinstance(isReversed, bool)
+    if len(strs) == 1:
+        return '' if isReversed else strs[0]
     res = ''.join(_iter())
     return res[::-1] if isReversed else res
 
 
+# def combine_names(names, minLenLeft=2, minLenRight=2):
+#     if len(names) == 0:
+#         return ''
+#     elif len(names) == 1:
+#         return names[0]
+#     elif all(name == names[0] for name in names[1:]):
+#         return names[0]
+#     cleft = common_substring(names)
+#     cright = common_substring(names, isReversed=True)
+#     if len(cleft) < minLenLeft:
+#         cleft = ''
+#     if len(cright) < minLenRight:
+#         cright = ''
+#     nleft, nright = len(cleft), len(cright)
+#     numStr = [c[nleft:] if nright == 0 else c[nleft:-nright] for c in names]
+#     try:
+#         label = cleft + make_int_ranges(numStr) + cright
+#     except:  # noqa
+#         label = cleft + '[' + ', '.join(numStr) + ']' + cright
+#     return label
+
 def combine_names(names, minLenLeft=2, minLenRight=2):
+    def get_chunk(cleft):
+        sub = names[iname:iname+dname-1]
+        if len(sub) == 1:
+            res.append(sub[0])
+            return
+        cright = common_substring(sub, isReversed=True)
+        if len(cleft) < minLenLeft:
+            cleft = ''
+        if len(cright) < minLenRight:
+            cright = ''
+        nleft, nright = len(cleft), len(cright)
+        numStr = [c[nleft:] if nright == 0 else c[nleft:-nright] for c in sub]
+        try:
+            label = cleft + make_int_ranges(numStr) + cright
+        except:  # noqa
+            label = cleft + '[' + ', '.join(numStr) + ']' + cright
+        res.append(label)
+
     if len(names) == 0:
         return ''
     elif len(names) == 1:
         return names[0]
     elif all(name == names[0] for name in names[1:]):
         return names[0]
-    cleft = common_substring(names)
-    cright = common_substring(names, isReversed=True)
-    if len(cleft) < minLenLeft:
-        cleft = ''
-    if len(cright) < minLenRight:
-        cright = ''
-    nleft, nright = len(cleft), len(cright)
-    numStr = [c[nleft:] if nright == 0 else c[nleft:-nright] for c in names]
-    try:
-        label = cleft + make_int_ranges(numStr) + cright
-    except:  # noqa
-        label = cleft + '[' + ', '.join(numStr) + ']' + cright
-    return label
+
+    iname, dname = 0, 1
+    cleft = ''
+    res = []
+    while True:
+        if dname == 1:
+            cleftN = names[iname]
+            dname = 2
+            continue
+        cleftN = common_substring(names[iname:iname+dname])
+        if len(cleftN)+1 < len(cleft) or len(cleftN) < minLenLeft:
+            get_chunk(cleft)
+            cleft = ''
+            iname, dname = iname+dname-1, 1
+            if iname >= len(names):
+                break
+        else:
+            cleft = cleftN
+            dname += 1
+            if iname+dname >= len(names)+1:
+                get_chunk(cleft)
+                break
+    return ', '.join(res)
 
 
 def slice_repr(slice_obj):
@@ -186,6 +242,8 @@ def intervals_extract(iterable):
 
 
 def make_int_ranges(iterable):
+    if iterable == ['']:
+        return ''
     try:
         intit = [int('a') if '_' in i else int(i) for i in iterable]
     except Exception:
@@ -193,8 +251,10 @@ def make_int_ranges(iterable):
     ranges = list(intervals_extract(intit))
     try:
         nr = max([len(str(max(r[0], r[1]))) for r in ranges])
-        aslist = [r"{0[0]:0{1}d}..{0[1]:0{1}d}".format(r, nr) if r[0] < r[1]
-                  else r"{0[0]:0{1}d}".format(r, nr) for r in ranges]
+        delimr = '..' if len(iterable) > 2 else ', '
+        aslist = [r"{0[0]:0{1}d}{2}{0[1]:0{1}d}".format(r, nr, delimr)
+                  if r[0] < r[1] else r"{0[0]:0{1}d}".format(r, nr)
+                  for r in ranges]
     except ValueError:
         aslist = iterable
     return "[{}]".format(', '.join(aslist))
@@ -231,7 +291,7 @@ def get_header(fname, readkwargs, searchAllLines=False):
             for il, line in enumerate(f):
                 if il == MAX_HEADER_LINES and not searchAllLines:
                     break
-                if ((headerLen >= 0) and (il <= headerLen)) or \
+                if ((headerLen >= 0) and (il < headerLen)) or \
                         line.startswith('#'):
                     header.append(line)
     except FileNotFoundError as e:

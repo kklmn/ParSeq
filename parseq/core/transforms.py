@@ -468,6 +468,9 @@ class Transform(object):
         raise NotImplementedError  # must be overridden
 
     def run_post(self, dataItems, runDownstream=True):
+        for data in dataItems:
+            data.make_corrections(self.toNode)
+
         # do data.calc_combined() if a member of data.combinesTo has
         # its originNode as toNode:
         toBeUpdated = []
@@ -476,17 +479,14 @@ class Transform(object):
                 if data.state[self.toNode.name] == cco.DATA_STATE_BAD:
                     d.state[self.toNode.name] = cco.DATA_STATE_BAD
                     continue
-                if (csi.nodes[d.originNodeName] is self.toNode) and \
-                        (d not in toBeUpdated):
+                if d.originNodeName in [self.toNode.name, self.fromNode.name] \
+                        and d not in toBeUpdated:
                     toBeUpdated.append(d)
         if toBeUpdated:
             for d in toBeUpdated:
                 d.calc_combined()
-            if self.fromNode.name == self.toNode.name:
+            if d.originNodeName in [self.toNode.name, self.fromNode.name]:
                 self.run(dataItems=toBeUpdated, runDownstream=False)
-
-        for data in dataItems:
-            data.make_corrections(self.toNode)
 
         if self.sendSignals:
             csi.mainWindow.afterTransformSignal.emit(self.toNode.widget)
@@ -525,8 +525,9 @@ class GenericProcessOrThread(object):
                 #     setattr(item, key, None)
                 res[key] = getattr(item, key)
             except AttributeError as e:
-                print('Error in put_in_data():')
-                print('{0} for spectrum {1}'.format(e, item.alias))
+                if csi.DEBUG_LEVEL > 1:
+                    print('Error in put_in_data():')
+                    print('{0} for spectrum {1}'.format(e, item.alias))
                 # raise e
                 return False
                 # res[key] = None
@@ -726,7 +727,7 @@ def connect_combined(items, parentItem):
         pass
 
 
-def run_transforms(items, parentItem):
+def run_transforms(items, parentItem, runParallel=True):
     topItems = [it for it in items if it in parentItem.childItems]
     bottomItems = [it for it in items if it not in parentItem.childItems
                    and (not isinstance(it.madeOf, (dict, list, tuple)))]
@@ -743,7 +744,8 @@ def run_transforms(items, parentItem):
     for originNodeName, its in itemsByOrigin.items():
         for tr in csi.nodes[originNodeName].transformsOut:
             # first bottomItems, then topItems...:
-            if (csi.tasker is not None) and len(itemsByOrigin) == 1:
+            if (csi.tasker is not None) and len(itemsByOrigin) == 1 and \
+                    runParallel:
                 # with a threaded transform
                 csi.tasker.prepare(
                     tr, runDownstream=True, dataItems=its, starter=tr.widget)
