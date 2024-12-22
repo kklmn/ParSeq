@@ -9,6 +9,9 @@ Current GitHub code (modified 8 Dec 2024):
 
     - Add optional interpolation when making data combinations.
 
+    - Add Principal Component Analysis and Target Transformation to data
+      combinations.
+
     - Minor new features and minor bug fixes.
 
 2024.11.0 (23 Nov 2024):

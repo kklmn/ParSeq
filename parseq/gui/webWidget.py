@@ -33,7 +33,7 @@ COREDIR = osp.join(PARSEQDIR, 'core')
 GLOBDIR = osp.dirname(osp.abspath(PARSEQDIR))
 
 DOCDIR = osp.expanduser(osp.join('~', '.parseq', 'doc'))
-HELPDIR = osp.expanduser(osp.join('~', '.parseq', 'help'))
+HELPDIR = osp.expanduser(osp.join('~', '.parseq', 'help-ParSeq'))
 HELPFILE = osp.join(HELPDIR, '_build', 'index.html')
 
 
@@ -252,7 +252,7 @@ class SphinxWorker(qt.QObject):
 
         for doc, docName in zip(docs, docNames):
             docName = docName.replace(' ', '_')
-            fname = osp.join(srcdir, docName) + '.rst'
+            fname = osp.join(srcdir, '{0}.rst'.format(docName))
             with codecs.open(fname, 'w', encoding='utf-8') as f:
                 f.write(".. title:: {0}\n".format(docName))
                 f.write(doc)

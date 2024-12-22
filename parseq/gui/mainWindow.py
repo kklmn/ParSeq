@@ -29,7 +29,7 @@ from ..gui import undoredo as gur
 from .nodeWidget import NodeWidget
 from .tasker import Tasker
 from .fileDialogs import SaveProjectDlg, LoadProjectDlg
-from .aboutDialog import AboutDialog
+from . import aboutDialog as gab
 from . import gcommons as gco
 from . import webWidget as gww
 
@@ -162,6 +162,9 @@ class MainWindowParSeq(qt.QMainWindow):
         self.helpFile = gww.HELPFILE
 
         self.initTabs()
+
+        self.makeHelpPages()  # of ParSeq
+        self.makeDocPages()  # of pipeline
 
         # self.settings = qt.QSettings('parseq.ini', qt.QSettings.IniFormat)
         self.setWindowIcon(qt.QIcon(osp.join(self.iconDir, 'parseq.ico')))
@@ -353,12 +356,9 @@ class MainWindowParSeq(qt.QMainWindow):
 
         self.setTabIcons()
 
-        self.makeHelpPages()
-        self.makeDocPages()
-
     def makeHelpPages(self):
         if not osp.exists(self.helpFile):
-            shouldBuild = True
+            self.shouldBuildHelp = True
         else:
             latest = []
             for files in [glob.glob(osp.join(gww.CONFDIR, '*')),
@@ -367,8 +367,8 @@ class MainWindowParSeq(qt.QMainWindow):
                 latest.append(max(files, key=osp.getmtime))
             tSource = max(map(osp.getmtime, latest))
             tDoc = osp.getmtime(self.helpFile)
-            shouldBuild = tSource > tDoc  # source newer than doc
-        if not shouldBuild:
+            self.shouldBuildHelp = tSource > tDoc  # source newer than doc
+        if not self.shouldBuildHelp:
             return
 
         if csi.DEBUG_LEVEL > -1:
@@ -386,7 +386,12 @@ class MainWindowParSeq(qt.QMainWindow):
             print('help ready')
 
     def makeDocPages(self):
-        rawTexts, rawTextNames = [], []
+        if self.shouldBuildHelp:
+            rawTexts = [gab.makeTextMain(), gab.makeTextPipeline()]
+            rawTextNames = list(gab.tabNames)
+        else:
+            rawTexts, rawTextNames = [], []
+
         for i, (name, node) in enumerate(csi.nodes.items()):
             if node.widget is None:
                 continue
@@ -396,42 +401,47 @@ class MainWindowParSeq(qt.QMainWindow):
             if not widgetClass.__doc__:
                 continue
 
+            docName = '{0}-{1}'.format(
+                csi.pipelineName, name.replace(' ', '_'))
             shouldBuild = True
             try:
                 tSource = osp.getmtime(inspect.getfile(widgetClass))
-                docName = name.replace(' ', '_')
                 fname = osp.join(gww.DOCDIR, docName) + '.html'
                 if osp.exists(fname):
                     tDoc = osp.getmtime(fname)
                     shouldBuild = tSource > tDoc  # source newer than doc
+                    html = 'file:///' + fname
+                    html = re.sub('\\\\', '/', html)
+                    node.widget.helpFile = fname
+                    node.widget.help.load(qt.QUrl(html))
             except Exception as e:
                 print('Cannot build doc pages with error:\n{0}'.format(e))
-                pass
-            if not shouldBuild:
                 continue
 
-            rawTexts.append(textwrap.dedent(widgetClass.__doc__))
-            rawTextNames.append(name)
+            if shouldBuild:
+                rawTexts.append(textwrap.dedent(widgetClass.__doc__))
+                rawTextNames.append(docName)
+            else:
+                continue
 
-        # make doc pages
-        if rawTexts:
-            # copy images
-            impath = osp.join(csi.appPath, 'doc', '_images')
-            if osp.exists(impath):
-                dst = osp.join(gww.DOCDIR, '_images')
-                shutil.copytree(impath, dst, dirs_exist_ok=True)
+        if len(rawTexts) == 0:
+            return
 
-            sphinxThread = qt.QThread(self)
-            sphinxWorker = gww.SphinxWorker()
-            sphinxWorker.moveToThread(sphinxThread)
-            sphinxThread.started.connect(partial(sphinxWorker.render, 'docs'))
-            sphinxWorker.html_ready.connect(self._on_docs_ready)
-            if csi.DEBUG_LEVEL > -1:
-                print('building docs...')
-            sphinxWorker.prepareDocs(rawTexts, rawTextNames)
-            sphinxThread.start()
-        else:
-            self._on_docs_ready(shouldReport=False)
+        # copy images
+        impath = osp.join(csi.appPath, 'doc', '_images')
+        if osp.exists(impath):
+            dst = osp.join(gww.DOCDIR, '_images')
+            shutil.copytree(impath, dst, dirs_exist_ok=True)
+
+        if csi.DEBUG_LEVEL > -1:
+            print('building docs...')
+        sphinxThreadD = qt.QThread(self)
+        sphinxWorkerD = gww.SphinxWorker()
+        sphinxWorkerD.moveToThread(sphinxThreadD)
+        sphinxThreadD.started.connect(partial(sphinxWorkerD.render, 'docs'))
+        sphinxWorkerD.html_ready.connect(self._on_docs_ready)
+        sphinxWorkerD.prepareDocs(rawTexts, rawTextNames)
+        sphinxThreadD.start()
 
     def _on_docs_ready(self, shouldReport=True):
         if shouldReport and csi.DEBUG_LEVEL > -1:
@@ -441,7 +451,8 @@ class MainWindowParSeq(qt.QMainWindow):
                 continue
             if node.widget.help is None:
                 continue
-            docName = name.replace(' ', '_')
+            docName = '{0}-{1}'.format(
+                csi.pipelineName, name.replace(' ', '_'))
             fname = osp.join(gww.DOCDIR, docName) + '.html'
             if not osp.exists(fname):
                 continue
@@ -610,7 +621,7 @@ class MainWindowParSeq(qt.QMainWindow):
         self.redoAction.setEnabled(len(csi.redo) > 0)
 
     def slotAbout(self):
-        lineDialog = AboutDialog(self)
+        lineDialog = gab.AboutDialog(self)
         lineDialog.exec_()
 
     def slotHelp(self):
