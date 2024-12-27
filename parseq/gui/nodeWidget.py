@@ -973,7 +973,8 @@ class NodeWidget(qt.QWidget):
                 if hasattr(transformWidget, 'extraPlot'):
                     transformWidget.extraPlot()
         except Exception as e:
-            print('extraPlot in {0} failed: {1}'.format(self.node.name, e))
+            if csi.DEBUG_LEVEL > 0:
+                print('extraPlot in {0} failed: {1}'.format(self.node.name, e))
 
         # if self.wasNeverPlotted and node.plotDimension == 1:
         #     self.plot.resetZoom()

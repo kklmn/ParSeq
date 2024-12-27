@@ -113,6 +113,12 @@ def setEditFromData(edit, prop, textFormat='', skipDefault=None, **kw):
         edit.setText('')
         return ''
     if isinstance(common, str):
+        if 'styleDict' in kw:
+            styleDict = kw['styleDict']
+            for word, styleStr in styleDict.items():
+                if word in common:
+                    edit.setText(styleStr.format(common))
+                    return common
         edit.setText(common)
         return common
     else:
