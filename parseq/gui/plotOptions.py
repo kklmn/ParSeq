@@ -215,7 +215,7 @@ class QColorLoop(qt.QPushButton):
 
 
 class LineProps(qt.QDialog):
-    def __init__(self, parent, node, activeTab=None):
+    def __init__(self, parent, node, activeTab=0):
         super().__init__(parent)
         self.setWindowTitle("Line properties")
 
@@ -257,16 +257,20 @@ class LineProps(qt.QDialog):
         self.colorPolicy = gco.COLOR_POLICY_LOOP1
         groupColor = self.makeColorGroup()
 
-        self.tabWidget = qt.QTabWidget(parent=self)
+        self.tabWidget = qt.QTabWidget()
         self.tabs = []
         self.node = node
-        yNs = node.get_arrays_prop('qLabel', role='y')
-        for yN in yNs:
+        labels = node.get_arrays_prop('qLabel', role='y')
+        self.extraPlotParams = {}
+        if node.widget is not None:
+            for trw in node.widget.transformWidgets:
+                self.extraPlotParams.update(trw.plotParams)
+        for yN in labels + list(self.extraPlotParams.keys()):
             tab = self.makeTab()
             self.tabWidget.addTab(tab, yN)
             self.tabs.append(tab)
-        if activeTab is not None:
-            self.tabWidget.setCurrentIndex(activeTab)
+
+        self.tabWidget.setCurrentIndex(activeTab)
 
         mainLayout = qt.QVBoxLayout()
         mainLayout.addWidget(nSpectraLabel)
@@ -413,57 +417,78 @@ class LineProps(qt.QDialog):
             tab.color = self.color
         self.colorIndividualButton.colorCycle = [self.color]
 
-        if len(csi.selectedItems) == 0:
-            return
-        parentItem = csi.selectedItems[0].parentItem
-        if hasattr(parentItem, "color1"):
-            self.color1 = parentItem.color1
-        else:
-            self.color1 = csi.selectedItems[0].color
-        if hasattr(parentItem, "color2"):
-            self.color2 = parentItem.color2
-        else:
-            self.color2 = csi.selectedItems[-1].color
-        self.colorGradientButton.colorCycle = \
-            gco.makeGradientCollection(self.color1, self.color2)
-
-        item = csi.selectedTopItems[0]
-        if hasattr(item, 'colorAutoUpdate'):
-            cond = item.colorAutoUpdate
-        else:
-            cond = item.parentItem.colorAutoUpdate
-        self.colorAutoCollective.setChecked(cond)
-
-        if self.node.columnCount == 0:
-            return
-        for yName, tab in zip(self.node.plotYArrays, self.tabs):
-            lineStyle = gpd.getCommonPropInSelectedItems(
-                ['plotProps', self.node.name, yName, 'linestyle'])
-            if lineStyle is not None:
-                tab.styleComboBox.setCurrentIndex(
-                    tuple(lineStylesText.values()).index(lineStyle))
+        if len(csi.selectedItems) > 0:
+            parentItem = csi.selectedItems[0].parentItem
+            if hasattr(parentItem, "color1"):
+                self.color1 = parentItem.color1
             else:
-                defaultIndex = tab.styleComboBox.count() - 1
-                tab.styleComboBox.setCurrentIndex(defaultIndex)
+                self.color1 = csi.selectedItems[0].color
+            if hasattr(parentItem, "color2"):
+                self.color2 = parentItem.color2
+            else:
+                self.color2 = csi.selectedItems[-1].color
+            self.colorGradientButton.colorCycle = \
+                gco.makeGradientCollection(self.color1, self.color2)
 
-            gpd.setSpinBoxFromData(
-                tab.widthSpinBox,
-                ['plotProps', self.node.name, yName, 'linewidth'])
+            item = csi.selectedTopItems[0]
+            if hasattr(item, 'colorAutoUpdate'):
+                cond = item.colorAutoUpdate
+            else:
+                cond = item.parentItem.colorAutoUpdate
+            self.colorAutoCollective.setChecked(cond)
 
-            symbol = gpd.getCommonPropInSelectedItems(
-                ['plotProps', self.node.name, yName, 'symbol'])
+        # if self.node.columnCount == 0:
+        #     return
+        nodeArrays = self.node.plotYArrays
+        for itab, (yName, tab) in enumerate(zip(
+                nodeArrays + list(self.extraPlotParams.keys()), self.tabs)):
+            if itab < len(nodeArrays):
+                lineStyle = gpd.getCommonPropInSelectedItems(
+                    ['plotProps', self.node.name, yName, 'linestyle'])
+            else:
+                props = self.extraPlotParams[yName]
+                lineStyle = props.get('linestyle', None)
+            if lineStyle is not None:
+                ind = tuple(lineStylesText.values()).index(lineStyle)
+            else:
+                ind = 0
+            tab.styleComboBox.setCurrentIndex(ind)
+
+            if itab < len(nodeArrays):
+                gpd.setSpinBoxFromData(
+                    tab.widthSpinBox,
+                    ['plotProps', self.node.name, yName, 'linewidth'])
+            else:
+                linewidth = props.get('linewidth', None)
+                if linewidth is not None:
+                    tab.widthSpinBox.setValue(linewidth)
+            self.comboBoxChanged(tab, 'width', ind)
+
+            if itab < len(nodeArrays):
+                symbol = gpd.getCommonPropInSelectedItems(
+                    ['plotProps', self.node.name, yName, 'symbol'])
+            else:
+                symbol = props.get('symbol', None)
             if not symbol or (symbol in noSymbols):
                 symbol = 'None'
             ind = tuple(lineSymbolsText.values()).index(symbol)
             tab.symbolComboBox.setCurrentIndex(ind)
+
+            if itab < len(nodeArrays):
+                gpd.setSpinBoxFromData(
+                    tab.sizeSpinBox,
+                    ['plotProps', self.node.name, yName, 'symbolsize'])
+            else:
+                symbolsize = props.get('symbolsize', None)
+                if symbolsize is not None:
+                    tab.sizeSpinBox.setValue(symbolsize)
             self.comboBoxChanged(tab, 'size', ind)
 
-            gpd.setSpinBoxFromData(
-                tab.sizeSpinBox,
-                ['plotProps', self.node.name, yName, 'symbolsize'])
-
-            axisY = gpd.getCommonPropInSelectedItems(
-                ['plotProps', self.node.name, yName, 'yaxis'])
+            if itab < len(nodeArrays):
+                axisY = gpd.getCommonPropInSelectedItems(
+                    ['plotProps', self.node.name, yName, 'yaxis'])
+            else:
+                axisY = props.get('yaxis', 'left')
             if axisY is not None:
                 if isinstance(axisY, str):
                     axisY = -1 if axisY.startswith("l") else 1
@@ -598,27 +623,40 @@ class LineProps(qt.QDialog):
 
     def setLineOptions(self):
         lineProps = None
-        for yName, tab in zip(self.node.plotYArrays, self.tabs):
-            props = {}
+        nodeArrays = self.node.plotYArrays
+        for itab, (yName, tab) in enumerate(zip(
+                nodeArrays + list(self.extraPlotParams.keys()), self.tabs)):
+            nprops = {}
             txt = tab.symbolComboBox.currentText()
             if cco.str_not_blank(txt):
-                props['symbol'] = lineSymbolsText[txt]
-            txt = tab.sizeSpinBox.text()
-            if cco.str_not_blank(txt):
-                props['symbolsize'] = tab.sizeSpinBox.value()
+                symbol = lineSymbolsText[txt]
+            if symbol not in noSymbols:
+                nprops['symbol'] = symbol
+                txt = tab.sizeSpinBox.text()
+                if cco.str_not_blank(txt):
+                    nprops['symbolsize'] = tab.sizeSpinBox.value()
+
             txt = tab.styleComboBox.currentText()
             if cco.str_not_blank(txt):
-                props['linestyle'] = lineStylesText[txt]
-            txt = tab.widthSpinBox.text()
-            if cco.str_not_blank(txt):
-                props['linewidth'] = tab.widthSpinBox.value()
-            if tab.yAxisLeft.isChecked() or tab.yAxisRight.isChecked():
-                props['yaxis'] = 'left' if tab.yAxisLeft.isChecked() else \
-                    'right'
-            for item in csi.selectedItems:
-                lineProps = item.plotProps[self.node.name][yName]
-                for prop in props:
-                    lineProps[prop] = props[prop]
+                nprops['linestyle'] = lineStylesText[txt]
+            if nprops['linestyle'] not in noSymbols:
+                txt = tab.widthSpinBox.text()
+                if cco.str_not_blank(txt):
+                    nprops['linewidth'] = tab.widthSpinBox.value()
+
+            if tab.yAxisRight.isChecked():
+                nprops['yaxis'] = 'right'
+
+            if itab < len(nodeArrays):
+                for item in csi.selectedItems:
+                    lineProps = item.plotProps[self.node.name][yName]
+                    for prop in nprops:
+                        lineProps[prop] = nprops[prop]
+            else:
+                oprops = self.extraPlotParams[yName]
+                for prop in nprops:
+                    oprops[prop] = nprops[prop]
+
         if csi.model is not None:  # can be None in dialog test
             csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
         return lineProps
@@ -626,10 +664,10 @@ class LineProps(qt.QDialog):
     def accept(self):
         self.setColorOptions()
         self.setLineOptions()
-        try:  # self.node.widget may be None in tests
-            # self.node.widget.replot(needClear=True)
-            for node in csi.nodes.values():
+        for node in csi.nodes.values():
+            try:  # self.node.widget may be None in tests
+                # self.node.widget.replot(needClear=True)
                 node.widget.replot(needClear=True)
-        except Exception:
-            pass
+            except Exception:
+                pass
         super().accept()

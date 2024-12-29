@@ -78,6 +78,7 @@ class PropWidget(qt.QWidget):
     # this dict is designed to hold widget-related properties, not data-related
     # ones (the latter are stored in data.transformParams).
     properties = dict()
+    plotParams = {}
     LOCATION = 'transform'  # 'transform' or 'correction'
 
     def __init__(self, parent=None, node=None):
@@ -122,6 +123,15 @@ class PropWidget(qt.QWidget):
                     self.properties[key] = eval(testStr)
                 except (SyntaxError, NameError):
                     self.properties[key] = testStr
+            if len(self.plotParams) > 0:
+                try:
+                    testStr = config.configTransforms.get(sec, 'plotParams')
+                except Exception:
+                    return
+                try:
+                    self.plotParams.update(eval(testStr))
+                except (SyntaxError, NameError):
+                    return
 
     def _addAction(self, menu, text, slot, shortcut=None):
         action = qt.QAction(text, self)
@@ -938,3 +948,6 @@ class PropWidget(qt.QWidget):
         for key in self.properties:
             config.put(config.configTransforms, sec, key,
                        str(self.properties[key]))
+        if len(self.plotParams) > 0:
+            config.put(config.configTransforms, sec, 'plotParams',
+                       str(self.plotParams))

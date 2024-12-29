@@ -1054,7 +1054,7 @@ class DataTreeView(qt.QTreeView):
             role = node.get_prop(key, 'role')
             if role.startswith('0'):
                 return
-            self.setLines(column - leadingColumns)
+            self.setLines()
 
     def restoreExpand(self, parent=qt.QModelIndex()):
         for row in range(csi.model.rowCount(parent)):
@@ -1183,10 +1183,10 @@ class DataTreeView(qt.QTreeView):
                 cb.setText(item.error, mode=cb.Clipboard)
                 return
 
-    def setLines(self, column=0):
+    def setLines(self):
         if self.node is None:
             return
-        lineDialog = LineProps(self, self.node, column)
+        lineDialog = LineProps(self, self.node)
         lineDialog.exec_()
 
     def _setVisibleItems(self, value, emit=True):

@@ -689,8 +689,7 @@ class MainWindowParSeq(qt.QMainWindow):
         nodes = csi.nodes.values()
         for node in nodes:
             for transformWidget in node.widget.transformWidgets:
-                if hasattr(transformWidget, 'properties'):
-                    transformWidget.save_properties()
+                transformWidget.save_properties()
         config.write_configs()
         time.sleep(0.1)
         for dock, _, _ in self.docks.values():
