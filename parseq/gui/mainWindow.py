@@ -358,7 +358,7 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def makeHelpPages(self):
         if not osp.exists(self.helpFile):
-            self.shouldBuildHelp = True
+            shouldBuildHelp = True
         else:
             latest = []
             for files in [glob.glob(osp.join(gww.CONFDIR, '*')),
@@ -367,8 +367,8 @@ class MainWindowParSeq(qt.QMainWindow):
                 latest.append(max(files, key=osp.getmtime))
             tSource = max(map(osp.getmtime, latest))
             tDoc = osp.getmtime(self.helpFile)
-            self.shouldBuildHelp = tSource > tDoc  # source newer than doc
-        if not self.shouldBuildHelp:
+            shouldBuildHelp = tSource > tDoc  # source newer than doc
+        if not shouldBuildHelp:
             return
 
         if csi.DEBUG_LEVEL > -1:
@@ -386,7 +386,15 @@ class MainWindowParSeq(qt.QMainWindow):
             print('help ready')
 
     def makeDocPages(self):
-        if self.shouldBuildHelp:
+        shouldBuild = False
+        for tabName in gab.tabNames:
+            docName = tabName.replace(' ', '_')
+            fname = osp.join(gww.DOCDIR, docName+'.html')
+            if not osp.exists(fname):
+                shouldBuild = True
+                break
+
+        if shouldBuild:
             rawTexts = [gab.makeTextMain(), gab.makeTextPipeline()]
             rawTextNames = list(gab.tabNames)
         else:
@@ -401,12 +409,11 @@ class MainWindowParSeq(qt.QMainWindow):
             if not widgetClass.__doc__:
                 continue
 
-            docName = '{0}-{1}'.format(
-                csi.pipelineName, name.replace(' ', '_'))
+            dName = '{0}-{1}'.format(csi.pipelineName, name).replace(' ', '_')
             shouldBuild = True
             try:
                 tSource = osp.getmtime(inspect.getfile(widgetClass))
-                fname = osp.join(gww.DOCDIR, docName) + '.html'
+                fname = osp.join(gww.DOCDIR, dName) + '.html'
                 if osp.exists(fname):
                     tDoc = osp.getmtime(fname)
                     shouldBuild = tSource > tDoc  # source newer than doc
@@ -420,7 +427,7 @@ class MainWindowParSeq(qt.QMainWindow):
 
             if shouldBuild:
                 rawTexts.append(textwrap.dedent(widgetClass.__doc__))
-                rawTextNames.append(docName)
+                rawTextNames.append(dName)
             else:
                 continue
 
@@ -451,9 +458,8 @@ class MainWindowParSeq(qt.QMainWindow):
                 continue
             if node.widget.help is None:
                 continue
-            docName = '{0}-{1}'.format(
-                csi.pipelineName, name.replace(' ', '_'))
-            fname = osp.join(gww.DOCDIR, docName) + '.html'
+            dName = '{0}-{1}'.format(csi.pipelineName, name).replace(' ', '_')
+            fname = osp.join(gww.DOCDIR, dName) + '.html'
             if not osp.exists(fname):
                 continue
             html = 'file:///' + fname

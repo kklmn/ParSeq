@@ -200,7 +200,7 @@ class SphinxWorker(qt.QObject):
             shutil.rmtree(HELPDIR)
         except FileNotFoundError:
             pass
-        shutil.copytree(CONFDIR, HELPDIR)
+        shutil.copytree(CONFDIR, HELPDIR, dirs_exist_ok=True)
         shutil.copy2(osp.join(PARSEQDIR, 'version.py'),
                      osp.join(osp.dirname(DOCDIR), 'version.py'))
         # insert abs path to parseq into conf.py:
@@ -219,10 +219,10 @@ class SphinxWorker(qt.QObject):
         self.note = note
 
     def prepareDocs(self, docs, docNames, argspec="", note=""):
-        try:
-            shutil.rmtree(DOCDIR)
-        except FileNotFoundError:
-            pass
+        # try:
+        #     shutil.rmtree(DOCDIR)
+        # except FileNotFoundError:
+        #     pass
 
         # copy images
         impath = osp.join(csi.appPath, 'doc', '_images')
@@ -240,9 +240,8 @@ class SphinxWorker(qt.QObject):
         fname = 'icon-fit-32.png'
         shutil.copy2(osp.join(GUIDIR, '_images', fname),
                      osp.join(DOCDIR, '_images', fname))
-
         shutil.copytree(osp.join(CONFDIR, '_themes'),
-                        osp.join(DOCDIR, '_themes'))
+                        osp.join(DOCDIR, '_themes'), dirs_exist_ok=True)
         shutil.copy2(osp.join(CONFDIR, 'conf_doc.py'),
                      osp.join(DOCDIR, 'conf.py'))
 
