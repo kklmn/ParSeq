@@ -635,8 +635,11 @@ class EXAFSFitWidget(gbf.FitWidget):
 
         self.optionsPage = EXAFSSettingsPage(self, self.fitModel)
         self.tabWidget.addTab(self.optionsPage, icons.getQIcon('rudder'), '')
-        tabBar.tabButton(0, qt.QTabBar.RightSide).deleteLater()
-        tabBar.setTabButton(0, qt.QTabBar.RightSide, None)
+        try:
+            tabBar.tabButton(0, qt.QTabBar.RightSide).deleteLater()
+            tabBar.setTabButton(0, qt.QTabBar.RightSide, None)
+        except Exception:
+            pass
 
         addButton = qt.QToolButton()
         addButton.setIcon(icons.getQIcon('add'))
