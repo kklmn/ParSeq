@@ -17,6 +17,7 @@ from silx.gui.plot.items.roi import (
 
 from . import gcommons as gco
 from ..core import singletons as csi
+from ..core.logger import syslogger
 from ..utils import math as uma
 
 HEADERS = 'label', 'use', 'geometry', 'counts'
@@ -70,7 +71,7 @@ class RoiManager(RegionOfInterestManager):
                             intMenu = roi.createMenuForInteractionMode(menu)
                             menu.addMenu(intMenu)
                         except Exception as e:
-                            print(e)
+                            syslogger.error(str(e))
 
                 removeAction = qt.QAction(menu)
                 removeAction.setText("Remove %s" % roi.getName())
@@ -282,7 +283,7 @@ class RoiModel(qt.QAbstractTableModel):
             self.setRoi(roi, kw)
             return True
         except Exception as e:
-            print(e)
+            syslogger.error(str(e))
             return False
 
     def setRoi(self, roi, kw):
@@ -495,7 +496,7 @@ class RoiWidgetBase(qt.QWidget):
                     iy = abs(min(iy, sh[0]-1))
                     model.roiCounts[row] = frame[iy, ix]
             except IndexError as e:
-                print(e)
+                syslogger.error(str(e))
                 model.roiCounts[row] = 0
 
         ind0 = model.index(0, 3)
@@ -726,8 +727,7 @@ class RoiWidgetWithKeyFrames(RoiWidgetBase):
             try:
                 del geom[indRemove]
             except IndexError as e:
-                print(e)
-                print('The dict of rois is broken')
+                syslogger.error('The dict of rois is broken:\n'+str(e))
 
 
 class RoiWidget(RoiWidgetBase):

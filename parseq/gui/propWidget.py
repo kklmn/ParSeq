@@ -30,7 +30,7 @@ from silx.gui import qt
 from ..core import singletons as csi
 from ..core import commons as cco
 from ..core import config
-from ..core.logger import logger
+from ..core.logger import logger, syslogger
 from . import undoredo as gur
 from . import propsOfData as gpd
 
@@ -263,11 +263,10 @@ class PropWidget(qt.QWidget):
             self._addAction(
                 menu, actionName2,
                 partial(self.startPick, props, values, actionName))
-            if csi.DEBUG_LEVEL > 10:
-                print('widget in widgetsOver')
-                print('actionName', actionName)
-                print('props', props)
-                print('values', values)
+            syslogger.info('widget in widgetsOver:')
+            syslogger.info(f'actionName is {actionName}')
+            syslogger.info(f'props = {props}')
+            syslogger.info(f'values = {values}')
 
         if len(tNames) == 0:
             return
@@ -290,11 +289,10 @@ class PropWidget(qt.QWidget):
             self._addAction(
                 menu, actionName2,
                 partial(self.startPick, allDefProps, allDefValues, actionName))
-            if csi.DEBUG_LEVEL > 10:
-                print('apply all params of the transform')
-                print('actionName', actionName)
-                print('allDEfProps', allDefProps)
-                print('allDefValues', allDefValues)
+            syslogger.info('apply all params of the transform')
+            syslogger.info(f'actionName = {actionName}')
+            syslogger.info(f'allDEfProps = {allDefProps}')
+            syslogger.info(f'allDefValues = {allDefValues}')
 
         allProps = [cco.expandTransformParam(key)
                     for key in data.transformParams.keys()]
@@ -304,11 +302,10 @@ class PropWidget(qt.QWidget):
         self._addAction(
             menu, actionName2,
             partial(self.startPick, allProps, allValues, actionName))
-        if csi.DEBUG_LEVEL > 10:
-            print('apply all params of all transforms')
-            print('actionName', actionName)
-            print('allProps', allProps)
-            print('allValues', allValues)
+        syslogger.info('apply all params of all transforms')
+        syslogger.info(f'actionName: {actionName}')
+        syslogger.info(f'allProps = {allProps}')
+        syslogger.info(f'allValues = {allValues}')
 
     def fillMenuReset(self, widgetsOver, menu):
         actionStr = 'reset {0} to default value{1}'
@@ -409,20 +406,18 @@ class PropWidget(qt.QWidget):
         self.pendingProps = props
         self.pendingValues = values
         self.pendingActionName = actionName
-        if csi.DEBUG_LEVEL > 10:
-            print('startPick')
-            print('pendingActionName', self.pendingActionName)
-            print('pendingProps', self.pendingProps)
-            print('pendingValues', self.pendingValues)
+        syslogger.info('startPick')
+        syslogger.info(f'pendingActionName: {self.pendingActionName}')
+        syslogger.info(f'pendingProps = {self.pendingProps}')
+        syslogger.info(f'pendingValues = {self.pendingValues}')
         if self.node is not None:  # can be True with tests
             self.node.widget.preparePickData(self)
 
     def applyPendingProps(self):
-        if csi.DEBUG_LEVEL > 10:
-            print('applyPendingProps')
-            print('pendingActionName', self.pendingActionName)
-            print('pendingProps', self.pendingProps)
-            print('pendingValues', self.pendingValues)
+        syslogger.info('applyPendingProps')
+        syslogger.info(f'pendingActionName: {self.pendingActionName}')
+        syslogger.info(f'pendingProps = {self.pendingProps}')
+        syslogger.info(f'pendingValues = {self.pendingValues}')
         dataItems = csi.selectedItems
         gur.pushTransformToUndo(
             self, dataItems, self.pendingProps, self.pendingValues,

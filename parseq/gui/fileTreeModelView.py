@@ -33,6 +33,7 @@ from silx.gui.hdf5.Hdf5TreeModel import Hdf5TreeModel
 from ..core import commons as cco
 from ..core import singletons as csi
 from ..core import config
+from ..core.logger import syslogger
 from . import gcommons as gco
 
 useProxyFileModel = False  # proxy model for FileSystemWithHdf5Model
@@ -399,7 +400,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                         countHdf5 += 1
                         # self.endInsertRows()
                     except Exception as e:
-                        print(e)
+                        syslogger.error(str(e))
                         self.nodesNoHead.append(intId)
                 else:
                     self.nodesNoHead.append(intId)
@@ -595,7 +596,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                                 return
                 lres.append(colEval)
         except Exception as e:
-            print('Exception in tryLoadHDF5Dataset():', e)
+            syslogger.error('Exception in tryLoadHDF5Dataset():\n'+str(e))
             return
         return lres, df
 
@@ -1089,7 +1090,7 @@ class FileTreeView(qt.QTreeView):
                 try:
                     os.chdir(dirname)
                 except FileNotFoundError as e:  # can happen if disk is removed
-                    print(e)
+                    syslogger.error(str(e))
                     return
             self.gotoWhenReady(path)
 
@@ -1412,7 +1413,7 @@ class FileTreeView(qt.QTreeView):
             try:
                 indexHead = model.reloadHdf5(ind)
             except PermissionError as e:
-                print(e)
+                syslogger.error(str(e))
                 return
             self.setCurrentIndex(indexHead)
             self.setExpanded(indexHead, True)

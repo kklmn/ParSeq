@@ -10,6 +10,7 @@ import numpy as np
 
 from ...core import singletons as csi
 from ...core import config
+from ...core.logger import syslogger
 from ...gui import gcommons as gco
 from . import gbasefit as gbf
 
@@ -553,7 +554,7 @@ class LoadFEFFfileDlg(qt.QFileDialog):
         for iline, line in enumerate(lines):
             if iline == 0:
                 feffVersion = line.split()[-1].strip()
-                # print('feffVersion', feffVersion)
+                syslogger.info('feffVersion = {0}'.format(feffVersion))
             if not isFEFFfile and (self.uniqueWord in line):
                 isFEFFfile = True
             if self.endHeaderWord in line:

@@ -18,7 +18,7 @@ from ..core import singletons as csi
 from ..core import commons as cco
 # from ..core import spectra as csp
 from ..core.config import configLoad
-from ..core.logger import logger
+from ..core.logger import logger, syslogger
 from ..gui import fileTreeModelView as gft
 from ..gui.fileTreeModelView import FileTreeView
 from ..gui.dataTreeModelView import DataTreeView
@@ -846,12 +846,13 @@ class NodeWidget(qt.QWidget):
                             length = len(x)
                         except Exception:
                             length = 'unknown'
-                        print('plotting in {0} failed for ({1}, len={2}) vs '
-                              '({3}, len={4}): {5}'
-                              .format(self.node.name, yN, len(y),
-                                      node.plotXArray, length, e))
+                        syslogger.error(
+                            'plotting in {0} failed for ({1}, len={2}) vs '
+                            '({3}, len={4}):\n{5}'
+                            .format(self.node.name, yN, len(y),
+                                    node.plotXArray, length, e))
                         tb = traceback.format_exc()
-                        print(tb)
+                        syslogger.error(tb)
                         continue
                     nPlottedItems += 1
                     symbol = plotProps.get('symbol', None)
@@ -924,8 +925,8 @@ class NodeWidget(qt.QWidget):
                 image = getattr(item, self.node.plot2DArray)
             except AttributeError as e:
                 if not self.wasNeverPlotted:
-                    print(e)
-                    print(
+                    syslogger.error(e)
+                    syslogger.error(
                         'If you use multiprocessing, check that this array is '
                         'included into *outArrays* list in your transform.')
                 return
@@ -955,8 +956,8 @@ class NodeWidget(qt.QWidget):
                 stack = getattr(item, self.node.plot3DArray) if item else None
             except AttributeError as e:
                 if not self.wasNeverPlotted:
-                    print(e)
-                    print(
+                    syslogger.error(e)
+                    syslogger.error(
                         'If you use multiprocessing, check that this array is '
                         'included into *outArrays* list in your transform.')
                 return
@@ -973,8 +974,8 @@ class NodeWidget(qt.QWidget):
                 if hasattr(transformWidget, 'extraPlot'):
                     transformWidget.extraPlot()
         except Exception as e:
-            if csi.DEBUG_LEVEL > 0:
-                print('extraPlot in {0} failed: {1}'.format(self.node.name, e))
+            syslogger.info(
+                'extraPlot in {0} failed: {1}'.format(self.node.name, e))
 
         # if self.wasNeverPlotted and node.plotDimension == 1:
         #     self.plot.resetZoom()
@@ -995,12 +996,12 @@ class NodeWidget(qt.QWidget):
                     curve.setData(x, y)
                     curve.setZValue(z)
             except Exception as e:
-                print('plotting in {0} failed for ({1}, len={2}) vs '
-                      '({3}, len={4}): {5}'
-                      .format(node.name, fitAttrName, len(y), xAttrName,
-                              len(x), e))
+                syslogger.error('plotting in {0} failed for ({1}, len={2}) vs '
+                                '({3}, len={4}): {5}'.format(
+                                    node.name, fitAttrName, len(y), xAttrName,
+                                    len(x), e))
                 tb = traceback.format_exc()
-                print(tb)
+                syslogger.error(tb)
                 return
             symbol = plotProps.get('symbol', None)
             if symbol is not None:
@@ -1380,7 +1381,7 @@ class NodeWidget(qt.QWidget):
         self.autoLoadTimer = qt.QTimer(self)
         self.autoLoadTimer.timeout.connect(self.doAutoLoad)
         self.autoLoadTimer.start(autoLoadDelay)
-        # print('activateAutoLoad', self.autoDirName, self.autoFileList)
+        syslogger.info('activateAutoLoad', self.autoDirName, self.autoFileList)
 
     def doAutoLoad(self):
         if self.autoDirName.startswith('silx:'):
@@ -1402,7 +1403,8 @@ class NodeWidget(qt.QWidget):
                        glob.glob(dirname + '*' + self.autoFileExt)]
 
         diffs = [x for x in newFileList if x not in list(self.autoFileList)]
-        print('auto', self.autoDirName, diffs, self.autoIndex, self.autoChunk)
+        syslogger.info('auto load:', self.autoDirName, diffs, self.autoIndex,
+                       self.autoChunk)
         if len(diffs) > 0:
             toLoad = [diff for i, diff in enumerate(diffs) if
                       (i+self.autoIndex) % self.autoChunk == self.autoChunk-1]

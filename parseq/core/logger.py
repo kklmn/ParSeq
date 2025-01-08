@@ -3,7 +3,10 @@ __author__ = "Konstantin Klementiev"
 __date__ = "18 Feb 2023"
 # !!! SEE CODERULES.TXT !!!
 
+import os
 import time
+import datetime
+import logging
 from functools import wraps
 try:
     import colorama
@@ -16,8 +19,19 @@ except ImportError:
     green = red = reset = ''
 
 from . import singletons as csi
+from . import config as cco
 
-longTime = 1.
+logFile = os.path.join(cco.iniDir, '{0}.log'.format(csi.pipelineName))
+syslogger = logging.getLogger('parseq')
+logging.basicConfig(filename=logFile, filemode='w', level=50-csi.DEBUG_LEVEL)
+now = datetime.datetime.now()
+syslogger.log(100, "The log file has started by ParSeq on {0}".format(
+              now.strftime('%Y-%m-%d %H:%M:%S')))
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+syslogger.addHandler(console)
+
+longExecutionTime = 0.5  # s
 
 
 def logger(minLevel=1, printClass=False, attrs=None):
@@ -37,15 +51,16 @@ def logger(minLevel=1, printClass=False, attrs=None):
                             out += f", {attr}={getattr(args[iarg], attr)}"
                         except Exception as e:
                             out += f", {e}"
-                print(f"enter {out}")
+                syslogger.log(csi.DEBUG_LEVEL, f"enter {out}")
                 tstart = time.time()
             res = func(*args, **kwargs)
             if csi.DEBUG_LEVEL > minLevel:
                 dt = time.time() - tstart
-                mark = green if dt < longTime else red
-                print(f"exit {out} in {mark}{dt:.6f}{reset}s")
+                mark = green if dt < longExecutionTime else red
+                syslogger.log(csi.DEBUG_LEVEL,
+                              f"{out} has taken {mark}{dt:.6f}{reset}s")
                 if 'worker' in out:
-                    print()
+                    syslogger.log(csi.DEBUG_LEVEL, "")
             return res
         return wrapper
     return decorate

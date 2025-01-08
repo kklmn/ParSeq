@@ -12,6 +12,7 @@ from scipy.linalg import eigh
 from functools import partial
 import re
 
+from ..core.logger import syslogger
 from ..utils import ft as uft
 from ..utils.constants import eV2revA
 from .basefit import Fit, DataProxy
@@ -69,7 +70,7 @@ class EXAFSFit(Fit):
                     cls.auxItems[aux[0]] = [ampFunc, phFunc]
                 except Exception:
                     res = 'cannot parse feff file: {0}'.format(aux[0])
-                    print(res)
+                    syslogger.error(res)
                     # cls.auxItems[aux[0]] = None
                     return res
 
@@ -187,7 +188,9 @@ class EXAFSFit(Fit):
                     others = []
                     if not cls.can_interpret_tie_str(tieStr, fitVars, allData,
                                                      others=others):
-                        raise ValueError(f'wrong tie expression for {k}')
+                        raise ValueError(
+                            f'wrong tie expression for {k}:\n'
+                            f'  tieStr = {tieStr}\n  fitVars = {fitVars}')
                     if others:
                         otherFits.extend(others)
                     tie[k] = v['value'] if tieStr.startswith('fix') else tieStr
@@ -405,7 +408,7 @@ class EXAFSFit(Fit):
             eval(tieStr[1:])
             return fit
         except Exception as e:
-            print('tie expression cannot be parsed', e)
+            syslogger.error('tie expression cannot be parsed:\n'+str(e))
 
     @classmethod
     def get_chi2(cls, xw, p, fitStruct, getR=False):

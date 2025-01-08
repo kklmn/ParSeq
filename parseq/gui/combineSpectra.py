@@ -82,7 +82,6 @@ class CombineSpectraWidget(PropWidget):
         return group
 
     def doStopHere(self, checked):
-        # print(csi.selectedItems)
         for it in csi.selectedItems:
             it.terminalNodeName = self.node.name if checked else None
             it.colorTag = 0

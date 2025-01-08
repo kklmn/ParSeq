@@ -10,6 +10,7 @@ from silx.gui import qt
 from ..core import singletons as csi
 from ..core import commons as cco
 from ..core import config
+from ..core.logger import syslogger
 from .propWidget import QLineEditSelectRB, PropWidget
 from . import gcommons as gco
 # from . import propsOfData as gpd
@@ -375,7 +376,7 @@ class ColumnFormatWidget(PropWidget):
             if isinstance(params, str):
                 params = eval(params)
         except Exception as e:
-            print(sectionl, params, e)
+            syslogger.error('{0} {1}:\n{2}'.format(sectionl, params, e))
             return
         for edit, pStr in zip(edits, params):
             edit.setText(str(pStr))

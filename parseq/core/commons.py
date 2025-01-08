@@ -4,6 +4,7 @@ __date__ = "19 Dec 2024"
 # !!! SEE CODERULES.TXT !!!
 
 import itertools
+from .logger import syslogger
 
 MAX_HEADER_LINES = 256
 MIME_TYPE_DATA = 'parseq-data-model-items'
@@ -295,7 +296,7 @@ def get_header(fname, readkwargs, searchAllLines=False):
                         line.startswith('#'):
                     header.append(line)
     except FileNotFoundError as e:
-        print('core.commons.get_header():', e)
+        syslogger.error('core.commons.get_header() ended with error:\n'+str(e))
     return header
 
 

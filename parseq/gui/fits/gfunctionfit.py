@@ -9,6 +9,7 @@ import ast
 import numpy as np
 
 from ...core import singletons as csi
+from ...core.logger import syslogger
 from ...gui import gcommons as gco
 from . import gbasefit as gbf
 
@@ -396,7 +397,8 @@ class FunctionFitWidget(gbf.FitWidget):
                 del fitVars[k]
             self.fitModel.setParams(fitVars)
         except Exception as err:
-            print('Error: ', err)
+            syslogger.error(
+                'Error in FunctionFitWidget.parseFormula:\n'+str(err))
             self.formulaEdit.setStyleSheet(
                 "QLineEdit {background-color: "+gbf.BAD_BKGND+";}")
 

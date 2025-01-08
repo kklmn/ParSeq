@@ -20,6 +20,7 @@ from silx.gui import qt
 
 # # path to ParSeq:
 # import sys; sys.path.append('..')  # analysis:ignore
+from ..core.logger import syslogger
 from ..core import config
 from ..core import singletons as csi
 from ..core import commons as cco
@@ -371,8 +372,7 @@ class MainWindowParSeq(qt.QMainWindow):
         if not shouldBuildHelp:
             return
 
-        if csi.DEBUG_LEVEL > -1:
-            print('building help...')
+        syslogger.log(100, 'building help...')
         sphinxThreadH = qt.QThread(self)
         sphinxWorkerH = gww.SphinxWorker()
         sphinxWorkerH.moveToThread(sphinxThreadH)
@@ -382,8 +382,7 @@ class MainWindowParSeq(qt.QMainWindow):
         sphinxThreadH.start()
 
     def _on_help_ready(self):
-        if csi.DEBUG_LEVEL > -1:
-            print('help ready')
+        syslogger.log(100, 'help ready')
 
     def makeDocPages(self):
         shouldBuild = False
@@ -422,7 +421,7 @@ class MainWindowParSeq(qt.QMainWindow):
                     node.widget.helpFile = fname
                     node.widget.help.load(qt.QUrl(html))
             except Exception as e:
-                print('Cannot build doc pages with error:\n{0}'.format(e))
+                syslogger.log(100, 'Cannot build doc pages:\n{0}'.format(e))
                 continue
 
             if shouldBuild:
@@ -440,8 +439,7 @@ class MainWindowParSeq(qt.QMainWindow):
             dst = osp.join(gww.DOCDIR, '_images')
             shutil.copytree(impath, dst, dirs_exist_ok=True)
 
-        if csi.DEBUG_LEVEL > -1:
-            print('building docs...')
+        syslogger.log(100, 'building docs...')
         sphinxThreadD = qt.QThread(self)
         sphinxWorkerD = gww.SphinxWorker()
         sphinxWorkerD.moveToThread(sphinxThreadD)
@@ -451,8 +449,8 @@ class MainWindowParSeq(qt.QMainWindow):
         sphinxThreadD.start()
 
     def _on_docs_ready(self, shouldReport=True):
-        if shouldReport and csi.DEBUG_LEVEL > -1:
-            print('docs ready')
+        if shouldReport:
+            syslogger.log(100, 'docs ready')
         for name, node in csi.nodes.items():
             if node.widget is None:
                 continue

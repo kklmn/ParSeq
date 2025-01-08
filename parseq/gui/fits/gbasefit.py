@@ -17,6 +17,7 @@ import numpy as np
 from functools import partial
 from silx.gui import qt, icons
 from ...core import singletons as csi
+from ...core.logger import syslogger
 from ...gui.roi import AutoRangeWidget
 
 GOOD_BKGND = '#90ee90'
@@ -218,7 +219,7 @@ class FitWidget(qt.QWidget):
                 x = getattr(spectrum, self.worker.dataAttrs['x'])
                 self.rangeWidget.defaultRange = [x.min(), x.max()]
         except Exception as e:
-            print(e)
+            syslogger.error(str(e))
             return
 
         if isinstance(self.rangeWidget, (list, tuple)):

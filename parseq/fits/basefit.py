@@ -32,7 +32,7 @@ import threading
 import errno
 
 from ..core import singletons as csi
-from ..core.logger import logger
+from ..core.logger import logger, syslogger
 from ..core.config import configFits
 
 
@@ -160,10 +160,9 @@ class Fit:
 
     def _run_multi_worker(self, workers, workedItems, args):
         wt = workers[0].workerType
-        if csi.DEBUG_LEVEL > 1:
-            print('run "{0}" in {1} {2}{3} for {4}'.format(
-                self.name, len(workers), wt, '' if len(workers) == 1 else 's',
-                [d.alias for d in workedItems]))
+        syslogger.info('run "{0}" in {1} {2}{3} for {4}'.format(
+            self.name, len(workers), wt, '' if len(workers) == 1 else 's',
+            [d.alias for d in workedItems]))
         if self.sendSignals:
             csi.mainWindow.beforeDataTransformSignal.emit(workedItems)
 
@@ -207,8 +206,7 @@ class Fit:
         data.transfortm_t0 = time.time()
         if self.sendSignals:
             csi.mainWindow.beforeDataTransformSignal.emit([data])
-        if csi.DEBUG_LEVEL > 1:
-            print('run "{0}" for {1}'.format(self.name, data.alias))
+        syslogger.info('run "{0}" for {1}'.format(self.name, data.alias))
         try:
             argVals = [data]
             if 'allData' in args:
@@ -404,11 +402,11 @@ class GenericProcessOrThread(object):
                 #     setattr(item, key, None)
                 res[key] = getattr(item, key)
             except AttributeError as e:
-                print('Error in put_in_data():')
-                print('{0} for spectrum {1}'.format(e, item.alias))
+                syslogger.error(
+                    'Error in put_in_data() for spectrum {0}:\n{1}'.format(
+                        item.alias, e))
                 # raise e
                 return False
-                # res[key] = None
         self.inDataQueue.put(res)
         return True
 
@@ -485,9 +483,6 @@ class GenericProcessOrThread(object):
             tb = traceback.format_exc()
             errorMsg += "".join(tb[:-1])  # remove last empty line
             self.put_error(errorMsg)
-            # if csi.DEBUG_LEVEL > 20:
-            # if True:
-            #     print(errorMsg)
         finally:
             self.put_out_data(data)
             np.seterr(all='warn')

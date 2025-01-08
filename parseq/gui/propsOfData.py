@@ -7,6 +7,7 @@ __date__ = "1 Feb 2022"
 
 from ..core import singletons as csi
 from ..core import commons as cco
+from ..core.logger import syslogger
 
 
 def getCommonPropInSelectedItems(prop, outLevel=10):
@@ -16,15 +17,15 @@ def getCommonPropInSelectedItems(prop, outLevel=10):
             for it in csi.selectedItems:
                 test = cco.getDotAttr(it, prop, True)
                 if test[1] not in test[0]:  # attr in container
-                    print("unknown parameter in data's transformParams: {0}"
-                          .format(test[1]))
+                    syslogger.error(
+                        "unknown parameter in data's transformParams: {0}"
+                        .format(test[1]))
     try:
         if values.count(values[0]) == len(values):  # equal in selectedItems
             return values[0]
     except (AttributeError, TypeError, IndexError, ValueError) as e:
-        if csi.DEBUG_LEVEL > 30:
-            print('getCommonPropInSelectedItems', prop, e,
-                  [it.alias for it in csi.selectedItems])
+        syslogger.error('getCommonPropInSelectedItems {0} {1} {2}'.format(
+            prop, e, [it.alias for it in csi.selectedItems]))
 
 
 def setRButtonGroupFromData(rButtons, prop):

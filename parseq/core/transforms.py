@@ -36,7 +36,7 @@ import errno
 
 from . import singletons as csi
 from . import commons as cco
-from .logger import logger
+from .logger import logger, syslogger
 from .config import configTransforms
 
 # class Param(object):
@@ -215,10 +215,9 @@ class Transform(object):
 
     @logger(minLevel=20, attrs=[(0, 'name')])
     def _run_multi_worker(self, workers, workedItems, args):
-        time0 = time.time()
         wt = workers[0].workerType
-        if csi.DEBUG_LEVEL > 1:
-            print('run "{0}" in {1} {2}{3}'.format(
+        syslogger.info(
+            'run "{0}" in {1} {2}{3}'.format(
                 self.name, len(workers), wt, '' if len(workers) == 1 else 's'))
         if self.sendSignals:
             csi.mainWindow.beforeDataTransformSignal.emit(workedItems)
@@ -270,8 +269,7 @@ class Transform(object):
         data.transfortm_t0 = time.time()
         if self.sendSignals:
             csi.mainWindow.beforeDataTransformSignal.emit([data])
-        if csi.DEBUG_LEVEL > 1:
-            print('run "{0}" for {1}'.format(self.name, data.alias))
+        syslogger.info('run "{0}" for {1}'.format(self.name, data.alias))
         try:
             argVals = [data]
             if 'allData' in args:
@@ -302,9 +300,7 @@ class Transform(object):
             errorMsg += "\nwith the followith traceback:\n"
             tb = traceback.format_exc()
             errorMsg += "".join(tb[:-1])  # remove last empty line
-            # if csi.DEBUG_LEVEL > 20:
-            if True:
-                print(errorMsg)
+            syslogger.error(errorMsg)
             data.error = errorMsg
         if res is None:
             data.state[self.toNode.name] = cco.DATA_STATE_BAD
@@ -362,12 +358,10 @@ class Transform(object):
             #         data.state[self.fromNode.name] == cco.DATA_STATE_BAD):
             if data.state[self.fromNode.name] == cco.DATA_STATE_BAD:
                 data.state[self.toNode.name] = cco.DATA_STATE_BAD
-                if csi.DEBUG_LEVEL > 1:
-                    print('bad data at', self.fromNode.name, data.alias)
+                syslogger.error('bad data at', self.fromNode.name, data.alias)
                 continue
             elif data.state[self.fromNode.name] == cco.DATA_STATE_NOTFOUND:
-                if csi.DEBUG_LEVEL > 20:
-                    print('data not found', data.alias)
+                syslogger.error('data not found', data.alias)
                 continue
 
             if data.transformNames == 'each':
@@ -377,8 +371,8 @@ class Transform(object):
                             data.originNodeName, data.terminalNodeName)):
                     if data.dataType != cco.DATA_COMBINATION:
                         data.state[self.toNode.name] = cco.DATA_STATE_UNDEFINED
-                    if csi.DEBUG_LEVEL > 0:
-                        print(data.alias, 'not between "{0}" and "{1}"'.format(
+                    syslogger.info(
+                        data.alias, 'not between "{0}" and "{1}"'.format(
                             self.fromNode.name, self.toNode.name))
                     continue
                 # if not data.state[self.fromNode.name] == cco.DATA_STATE_GOOD:
@@ -387,8 +381,8 @@ class Transform(object):
                 if self.name not in data.transformNames:
                     if data.dataType != cco.DATA_COMBINATION:
                         data.state[self.toNode.name] = cco.DATA_STATE_UNDEFINED
-                    if csi.DEBUG_LEVEL > 20:
-                        print(data.alias, 'not between "{0}" and "{1}"'.format(
+                    syslogger.info(
+                        data.alias, 'not between "{0}" and "{1}"'.format(
                             self.fromNode.name, self.toNode.name))
                     continue
             else:
@@ -525,9 +519,9 @@ class GenericProcessOrThread(object):
                 #     setattr(item, key, None)
                 res[key] = getattr(item, key)
             except AttributeError as e:
-                if csi.DEBUG_LEVEL > 1:
-                    print('Error in put_in_data():')
-                    print('{0} for spectrum {1}'.format(e, item.alias))
+                syslogger.error(
+                    'Error in put_in_data() for spectrum {0}:\n{1}'.format(
+                        item.alias, e))
                 # raise e
                 return False
                 # res[key] = None
@@ -617,9 +611,7 @@ class GenericProcessOrThread(object):
             tb = traceback.format_exc()
             errorMsg += "".join(tb[:-1])  # remove last empty line
             self.put_error(errorMsg)
-            # if csi.DEBUG_LEVEL > 20:
-            if True:
-                print(errorMsg)
+            syslogger.error(errorMsg)
         finally:
             self.put_out_data(data)
             np.seterr(all='warn')

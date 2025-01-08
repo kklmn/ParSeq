@@ -81,6 +81,7 @@ from silx.gui.colors import rgba
 
 from . import gcommons as gco
 from ..core import singletons as csi
+from ..core.logger import syslogger
 from .propWidget import PropWidget
 
 HEADERS = 'kind', 'label', 'use', 'geometry'
@@ -134,7 +135,8 @@ class CorrectionDelete(HorizontalRangeROI):
             kw = dict(lim=eval(strLim))
             self.setCorrection(**kw)
         except Exception as e:
-            print("Error in `CorrectionDelete.setFromTxt()`: " + str(e))
+            syslogger.error(
+                "Error in `CorrectionDelete.setFromTxt()`:\n" + str(e))
             return False
         return True
 
@@ -208,7 +210,8 @@ class CorrectionScale(HorizontalRangeROI):
             kw = dict(lim=eval(strLim), scale=eval(strScale))
             self.setCorrection(**kw)
         except Exception as e:
-            print("Error in `CorrectionScale.setFromTxt()`: " + str(e))
+            syslogger.error(
+                "Error in `CorrectionScale.setFromTxt()`:\n" + str(e))
             return False
         return True
 
@@ -291,7 +294,7 @@ class CorrectionSpline(HorizontalRangeROI):
                 self.__shape.setPoints(np.column_stack((xs, ys)))
             except ValueError:
                 self.__shape.setPoints([[0., 0.]])
-                # print('Error in `setSpline()`: {0}'.format(e))
+                # syslogger.error('Error in `setSpline()`: {0}'.format(e))
                 pass
 
     def _editingUpdated(self):
@@ -356,7 +359,8 @@ class CorrectionSpline(HorizontalRangeROI):
                 kw['knots'].append(list(eval(row)))
             self.setCorrection(**kw)
         except Exception as e:
-            print("Error in `CorrectionSpline.setFromTxt()`: " + str(e))
+            syslogger.error(
+                "Error in `CorrectionSpline.setFromTxt()`:\n" + str(e))
             return False
         return True
 
@@ -445,7 +449,8 @@ class CorrectionStep(HorizontalRangeROI):
             kw = dict(left=eval(strLeft), right=list(eval(strRight)))
             self.setCorrection(**kw)
         except Exception as e:
-            print("Error in `CorrectionStep.setFromTxt()`: " + str(e))
+            syslogger.error(
+                "Error in `CorrectionStep.setFromTxt()`:\n" + str(e))
             return False
         return True
 
@@ -507,7 +512,8 @@ class CorrectionSpikes(HorizontalRangeROI):
                     kw['cutoff'] = 'auto'
             self.setCorrection(**kw)
         except Exception as e:
-            print("Error in `CorrectionSpikes.setFromTxt()`: " + str(e))
+            syslogger.error(
+                "Error in `CorrectionSpikes.setFromTxt()`:\n" + str(e))
             return False
         return True
 
@@ -640,7 +646,7 @@ class CorrectionManager(RegionOfInterestManager):
             roi.setLineWidth(0.5)
             roi.setLineStyle('-')
         except AttributeError as e:
-            print(e)
+            syslogger.error(str(e))
             pass
         # roi.setSymbolSize(5)
         roi.setSelectable(True)
@@ -661,7 +667,7 @@ class CorrectionManager(RegionOfInterestManager):
                             intMenu = roi.createMenuForInteractionMode(menu)
                             menu.addMenu(intMenu)
                         except Exception as e:
-                            print(e)
+                            syslogger.error(str(e))
 
                 removeAction = qt.QAction(menu)
                 removeAction.setText("Remove %s" % roi.getName())

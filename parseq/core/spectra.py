@@ -37,7 +37,7 @@ from . import singletons as csi
 from . import commons as cco
 from . import config
 from .correction import calc_correction
-from .logger import logger
+from .logger import logger, syslogger
 from ..utils.format import format_memory_size
 
 DEFAULT_COLOR_AUTO_UPDATE = False
@@ -772,8 +772,9 @@ class Spectrum(TreeItem):
                 if self.state[fromNode.name] == cco.DATA_STATE_GOOD:
                     shapes = self.check_shape()
                     if isinstance(shapes, dict):
-                        print('Incompatible data shapes in {0}:\n{1}'.format(
-                            fromNode.name, shapes))
+                        syslogger.warning(
+                            'Incompatible data shapes in {0}:\n{1}'.format(
+                                fromNode.name, shapes))
                         self.state[self.originNodeName] = cco.DATA_STATE_BAD
                         self.badShapes = shapes
                         self.colorTag = 3
@@ -807,8 +808,9 @@ class Spectrum(TreeItem):
             elif self.state[fromNode.name] == cco.DATA_STATE_GOOD:
                 shapes = self.check_shape()
                 if isinstance(shapes, dict):
-                    print('Incompatible data shapes in {0}:\n{1}'.format(
-                        fromNode.name, shapes))
+                    syslogger.warning(
+                        'Incompatible data shapes in {0}:\n{1}'.format(
+                            fromNode.name, shapes))
                     self.state[self.originNodeName] = cco.DATA_STATE_BAD
                     self.badShapes = shapes
                     self.colorTag = 3
@@ -1069,8 +1071,9 @@ class Spectrum(TreeItem):
                         self.childItems.pop()
                     else:
                         self.childItems.pop(insertAt)
-                    print('local file {0} not found, will load {1}'.format(
-                        name, nameFull))
+                    syslogger.warning(
+                        'local file {0} not found, will load {1}'.format(
+                            name, nameFull))
                     kwargs['dataFormat'] = dataFormatFull
                     return Spectrum(nameFull, self, insertAt, **kwargs)
                 else:
@@ -1140,7 +1143,7 @@ class Spectrum(TreeItem):
                         mdres = mdres.decode("utf-8")
                     header.append("<b>{0}</b>: {1}<br>".format(md, mdres))
                 except (ValueError, KeyError, OSError) as e:
-                    print('No metadata: {0}'.format(e))
+                    syslogger.warning('No metadata: {0}'.format(e))
         else:
             raise TypeError('wrong datafile type')
 
@@ -1224,7 +1227,7 @@ class Spectrum(TreeItem):
                 if lengthCheck and role == 'x':
                     if isinstance(lengthCheck, (int, float)):
                         if arr.max() - arr.min() < lengthCheck:
-                            # print('too short')
+                            syslogger.warning('data too short')
                             self.state[fromNode.name] = \
                                 cco.DATA_STATE_MARKED_FOR_DELETION
                             return
@@ -1241,7 +1244,7 @@ class Spectrum(TreeItem):
                                 fromNode.get_prop(sortArrayName, 'qLabel'),
                                 '' if count == 1 else 's',
                                 's' if count == 1 else 've')
-                    print(errorTxt)
+                    syslogger.log(100, errorTxt)
                     header.append(errorTxt+'\n')
 
                 for aName in fromNode.arrays:
@@ -1251,7 +1254,7 @@ class Spectrum(TreeItem):
                         setattr(self, setName, arrt[sortIndices])
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
         except (ValueError, OSError, IndexError) as e:
-            print('Error in read_file(): {0}'.format(e))
+            syslogger.error('Error in read_file(): {0}'.format(e))
             self.state = dict((n, cco.DATA_STATE_NOTFOUND) for n in csi.nodes)
             return
 
@@ -1378,7 +1381,7 @@ class Spectrum(TreeItem):
                     continue
                 arr *= cFactor
             except Exception as e:
-                print(e, aName)
+                syslogger.error(e, aName)
                 setattr(self, setName, None)
 
         if secondPassNeeded:
@@ -1390,7 +1393,7 @@ class Spectrum(TreeItem):
                 try:
                     setattr(self, setName, arr[where])
                 except Exception as e:
-                    print(aName, e)
+                    syslogger.error(aName, e)
                     setattr(self, setName, None)
 
     @logger(minLevel=50, attrs=[(0, 'alias')])
@@ -1545,17 +1548,17 @@ class Spectrum(TreeItem):
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
         except AssertionError:
             self.state[fromNode.name] = cco.DATA_STATE_MATHERROR
-            msg = '\nThe conbined arrays have different lengths. '\
+            msg = 'The conbined arrays have different lengths. '\
                 'Use "interpolate".'
             self.meta['text'] += msg
-            if csi.DEBUG_LEVEL > -1:
-                print('calc_combined', self.alias, msg)
+            syslogger.error('calc_combined of {0} ended with error:\n{1}'
+                            .format(self.alias, msg))
         except AttributeError as e:
             self.state[fromNode.name] = cco.DATA_STATE_BAD
             msg = str(e)
             self.meta['text'] += msg
-            if csi.DEBUG_LEVEL > -1:
-                print('calc_combined', self.alias, msg)
+            syslogger.error('calc_combined of {0} ended with error:\n{1}'
+                            .format(self.alias, msg))
 
     @logger(minLevel=50, attrs=[(0, 'alias')])
     def branch_data(self):
@@ -1579,8 +1582,8 @@ class Spectrum(TreeItem):
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
 
         except Exception as e:
-            print('Exception in "branch_data()" for "{0}":'.format(
-                self.alias), e)
+            syslogger.error('branch_data of {0} ended with error:\n{1}'
+                            .format(self.alias, e))
             self.state[fromNode.name] = cco.DATA_STATE_BAD
 
     @logger(minLevel=50, attrs=[(0, 'alias')])
@@ -1595,7 +1598,8 @@ class Spectrum(TreeItem):
                     setattr(self, setName, arr)
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
         except Exception as e:
-            print('Exception in "create_data":', e)
+            syslogger.error('create_data of {0} ended with error:\n{1}'
+                            .format(self.alias, e))
             self.state[fromNode.name] = cco.DATA_STATE_BAD
 
     def save_transform_params(self):

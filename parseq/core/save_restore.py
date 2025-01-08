@@ -18,6 +18,7 @@ from ..core import config
 from ..core import singletons as csi
 from ..core import spectra as csp
 from ..core import transforms as ctr
+from ..core.logger import syslogger
 from ..gui import gcommons as gco
 from ..version import __versioninfo__, __version__, __date__
 
@@ -34,7 +35,7 @@ def load_project(fname, qMessageBox=None, restore_perspective=None):
             configProject.read_file(f)
     except Exception as e:
         if qMessageBox is None:
-            print("Invalid project file {0}\n{1}".format(fname, e))
+            syslogger.error("Invalid project file {0}\n{1}".format(fname, e))
         else:
             qMessageBox.critical(
                 None, "Cannot load project",
@@ -45,7 +46,7 @@ def load_project(fname, qMessageBox=None, restore_perspective=None):
         restore_perspective(configProject)
     dataTree = config.get(configProject, 'Root', 'tree', [])
     if not dataTree:
-        print("No valid data tree specified in this project file")
+        syslogger.error("No valid data tree specified in this project file")
         return
     root = csi.dataRootItem
     colorPolicyName = config.get(configProject, 'Root', 'colorPolicy',
@@ -366,7 +367,7 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                                            compression=com)
                     grp.create_dataset('transformParams',
                                        data=str(it.transformParams))
-                # print('data keys:', dataGrp.keys())
+                # syslogger.info('data keys:', dataGrp.keys())
                 for plot in h5plots:
                     grp = plotsGrp.create_group(plot[0], track_order=True)
                     grp.create_dataset('ndim', data=plot[1])
@@ -374,7 +375,7 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                     grp.create_dataset('plots', data=str(plot[3]))
         except Exception as e:
             if qMessageBox is None:
-                print("Cannot write file {0}".format(fname))
+                syslogger.error("Cannot write file {0}".format(fname))
             else:
                 qMessageBox.critical(
                     None, "Cannot write file {0}".format(fname), str(e))
@@ -396,7 +397,7 @@ def _script(lines, sname):
 
 def save_script(fname, plots, h5plots, lib='mpl'):
     if len(plots) == len(h5plots) == 0:
-        print("no plots selected")
+        syslogger.error("no plots selected")
         return
     if fname.endswith('.pspj'):
         fname = fname.replace('.pspj', '')
