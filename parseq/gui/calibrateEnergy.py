@@ -68,7 +68,9 @@ class CalibrationModel(qt.QAbstractTableModel):
             except (IndexError, TypeError):
                 return '---'
         elif role == qt.Qt.ToolTipRole:
-            if column == 3:  # fwhm
+            if column == 4:  # fwhm
+                if len(xrt.crystals) == 0:
+                    return 'unavailable because xrt was not found'
                 return '(eV)'
 
     def setData(self, index, value, role=qt.Qt.EditRole):
