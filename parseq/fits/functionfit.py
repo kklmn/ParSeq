@@ -138,10 +138,12 @@ class FunctionFit(Fit):
             return True
         if tieStr[0] not in '=<>':
             return False
-        for k, v in fitVars.items():
-            locals()[k] = v['value']
+
+        _locals = {k: v['value'] for k, v in fitVars.items()}
         try:
-            eval(tieStr[1:])
+            # keyword `locals` is an error in Py<3.13,
+            # using just `_locals` (without globals()) does not work
+            eval(tieStr[1:], {}, _locals)
             return True
         except Exception:
             return False
@@ -151,21 +153,24 @@ class FunctionFit(Fit):
                          fcounter={}):
         if fcounter:
             fcounter['nfev'] += 1
-        res = 0.
-        for key, param in zip(keys, params):
-            locals()[key] = param
+        _locals = dict(zip(keys, params))
+        _locals['x'] = x
         for key, param in tie.items():
             if isinstance(param, str):
-                val = eval(param[1:])
+                # keyword `locals` is an error in Py<3.13,
+                # using just `_locals` (without globals()) does not work
+                val = eval(param[1:], {}, _locals)
                 if (param[0] == '=' or
-                    (param[0] == '<' and locals()[key] > val) or
-                        (param[0] == '>' and locals()[key] < val)):
-                    locals()[key] = val
+                    (param[0] == '<' and _locals[key] > val) or
+                        (param[0] == '>' and _locals[key] < val)):
+                    _locals[key] = val
                     tieRes[key] = val
             else:
-                locals()[key] = param
+                _locals[key] = param
                 tieRes[key] = param
         try:
-            return eval(formula)
+            # keyword `locals` is an error in Py<3.13,
+            # using just `_locals` (without globals()) does not work
+            return eval(formula, {}, _locals)
         except (NameError, TypeError) as err:
             return str(err)

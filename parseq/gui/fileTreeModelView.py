@@ -461,6 +461,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 keys = [k[1:-1] if k.startswith(('"', "'")) else k
                         for k in keys]
             d = {}
+            _locals = dict(d=d)
             if kind == 'h5':
                 for k in keys:
                     if k.startswith("silx:"):
@@ -482,10 +483,12 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                         kn = int(k)
                     d[k] = treeObj[kn]
                     d[kn] = d[k]
-                    locals()[k] = k
+                    _locals[k] = k
                 shape = 2,
             try:
-                eval(colStrD)
+                # keyword `locals` is an error in Py<3.13,
+                # using just `_locals` (without globals()) does not work
+                eval(colStrD, {}, _locals)
                 out.append((colStr, colStrD, keys, shape))
             except:  # noqa
                 return

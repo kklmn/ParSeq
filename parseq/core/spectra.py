@@ -1254,7 +1254,7 @@ class Spectrum(TreeItem):
                         setattr(self, setName, arrt[sortIndices])
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
         except (ValueError, OSError, IndexError) as e:
-            syslogger.error('Error in read_file(): {0}'.format(e))
+            syslogger.critical('Error in read_file(): {0}'.format(e))
             self.state = dict((n, cco.DATA_STATE_NOTFOUND) for n in csi.nodes)
             return
 
@@ -1319,6 +1319,7 @@ class Spectrum(TreeItem):
             # remove outer quotes:
             keys = [k[1:-1] if k.startswith(('"', "'")) else k for k in keys]
         d = {}
+        _locals = dict(d=d)
         if treeObj is None:  # is Hdf5Item
             for k in keys:
                 if k.startswith("silx:"):
@@ -1336,8 +1337,10 @@ class Spectrum(TreeItem):
                     kn = int(k)
                 d[k] = treeObj[kn]
                 d[kn] = d[k]
-                locals()[k] = k
-        return eval(colStr)
+                _locals[k] = k
+        # keyword  `locals` is an error in Py<3.13,
+        # using just `_locals` (without globals()) does not work
+        return eval(colStr, {}, _locals)
 
     def convert_units(self, conversionFactors):
         if not conversionFactors:
@@ -1381,7 +1384,8 @@ class Spectrum(TreeItem):
                     continue
                 arr *= cFactor
             except Exception as e:
-                syslogger.error(e, aName)
+                syslogger.error('Error in convert_units for {0}:\n{1}'.format(
+                    aName, e))
                 setattr(self, setName, None)
 
         if secondPassNeeded:
@@ -1393,7 +1397,9 @@ class Spectrum(TreeItem):
                 try:
                     setattr(self, setName, arr[where])
                 except Exception as e:
-                    syslogger.error(aName, e)
+                    syslogger.error(
+                        'Error in convert_units for {0}:\n{1}'.format(
+                            aName, e))
                     setattr(self, setName, None)
 
     @logger(minLevel=50, attrs=[(0, 'alias')])

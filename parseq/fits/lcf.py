@@ -258,7 +258,7 @@ class LCF(Fit):
                           dEr if isinstance(dEr, float) else 0.)
         else:
             _s = [0] * (len(refs)+1)  # is 1-based
-        locals()[kd] = _s
+        dx = _s  # analysis:ignore
 
         assert len(refs) == len(w[1:]) == len(_s[1:])
         kdt = kd + 'tie'

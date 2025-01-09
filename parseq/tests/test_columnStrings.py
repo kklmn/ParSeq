@@ -24,15 +24,18 @@ def test(colStr, isColumn=True):
         # remove outer quotes:
         keys = [k[1:-1] if k.startswith(('"', "'")) else k for k in keys]
     d = {}
+    _locals = dict(d=d)
     for k in keys:
         d[k] = np.ones(3)
         if isColumn:
             if "col" not in k.lower():
                 k_ = int(k)
                 d[k_] = d[k]
-        locals()[k] = k
+        _locals[k] = k
     print(d, colStr)
-    res = eval(colStr)
+    # keyword `locals` is an error in Py<3.13,
+    # using just `_locals` (without globals()) does not work
+    res = eval(colStr, {}, _locals)
     print(res, type(res))
 
 

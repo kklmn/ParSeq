@@ -358,10 +358,11 @@ class Transform(object):
             #         data.state[self.fromNode.name] == cco.DATA_STATE_BAD):
             if data.state[self.fromNode.name] == cco.DATA_STATE_BAD:
                 data.state[self.toNode.name] = cco.DATA_STATE_BAD
-                syslogger.error('bad data at', self.fromNode.name, data.alias)
+                syslogger.error('bad data {0} at {1}'.format(
+                    data.alias, self.fromNode.name))
                 continue
             elif data.state[self.fromNode.name] == cco.DATA_STATE_NOTFOUND:
-                syslogger.error('data not found', data.alias)
+                syslogger.error('data {0} not found'.format(data.alias))
                 continue
 
             if data.transformNames == 'each':

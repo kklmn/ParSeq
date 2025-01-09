@@ -255,12 +255,14 @@ class EXAFSFit(Fit):
             else:
                 wherer = None
                 ftDict = None
-                if dtparams['bftWindowKind'] == 'none':
-                    Deltar = dtparams['rmax']
+                if 'ftWindowKind' in dtparams:  # not in test mock transforms
+                    if dtparams['bftWindowKind'] == 'none':
+                        Deltar = dtparams['rmax']
+                    else:
+                        rmin, rmax = dtparams['bftWindowRange']
+                        Deltar = rmax - rmin
                 else:
-                    rmin, rmax = dtparams['bftWindowRange']
-                    Deltar = rmax - rmin
-
+                    Deltar = 8.
             Nind = 2*Deltak*Deltar/np.pi + 2
         except (RuntimeError, ValueError) as e:
             return str(e)
@@ -477,16 +479,19 @@ class EXAFSFit(Fit):
         if tieStr[0] not in '=<>':
             return False
         keys, vals, _ = cls.merge_shells(fitVars)
-        for key, val in zip(keys, vals):
-            locals()[key] = val
+        _locals = dict(zip(keys, vals))
 
         if 'fit[' in tieStr:
             fit = cls.get_other_fits(tieStr, allData)
             if fit is None:
                 return False
+            _locals['fit'] = fit
             others.extend(list(fit.keys()))
+
         try:
-            eval(tieStr[1:])
+            # keyword `locals` is an error in Py<3.13,
+            # using just `_locals` (without globals()) does not work
+            eval(tieStr[1:], {}, _locals)
             return True
         except Exception:
             return False
@@ -497,6 +502,7 @@ class EXAFSFit(Fit):
             fcounter['nfev'] += 1
         fit = {}
         fitKeys = []
+        _locals = dict(fit=fit)
         for ifs, fs in enumerate(fitStruct):
             dp = DataProxy()
             # this loop is needed for tying to fixed params:
@@ -504,13 +510,13 @@ class EXAFSFit(Fit):
                 for key, val in zip(fs['keys'], fs['vals']):
                     setattr(dp, key, val)
                     if ifs == 0:
-                        locals()[key] = val  # needed to evaluate tie str
+                        _locals[key] = val  # needed to evaluate tie str
             ind = fs['indexVaried']
             for key in fs['varied']:
                 val = vals[ind[key]]
                 setattr(dp, key, val)
                 if ifs == 0:
-                    locals()[key] = val  # needed to evaluate tie str
+                    _locals[key] = val  # needed to evaluate tie str
                     fitKeys.append(key)
                 else:
                     fitKeys.append('.'.join((fs['data'].alias, key)))
@@ -522,18 +528,20 @@ class EXAFSFit(Fit):
             dp = fit[fs['data'].alias]
             for key, param in fs['tie'].items():
                 if isinstance(param, str):
-                    tval = eval(param[1:])
+                    # keyword `locals` is an error in Py<3.13,
+                    # using just `_locals` (without globals()) does not work
+                    tval = eval(param[1:], {}, _locals)
                     if (param[0] == '=' or
-                        (param[0] == '<' and locals()[key] > tval) or
-                            (param[0] == '>' and locals()[key] < tval)):
+                        (param[0] == '<' and _locals[key] > tval) or
+                            (param[0] == '>' and _locals[key] < tval)):
                         setattr(dp, key, tval)
                         # if ifs == 0:
-                        #     locals()[key] = tval
+                        #     _locals[key] = tval
                         fs['tieRes'][key] = tval
                 else:
                     setattr(dp, key, param)
                     # if ifs == 0:
-                    #     locals()[key] = param
+                    #     _locals[key] = param
                     fs['tieRes'][key] = param
 
         resultArrays = []
@@ -546,6 +554,7 @@ class EXAFSFit(Fit):
                 k = fs['x']
             else:
                 k = x
+            # _locals['k'] = k
 
             kw = fs['kw']
             dp = fit[fs['data'].alias]
@@ -555,8 +564,8 @@ class EXAFSFit(Fit):
                     if not aux or (aux[6] == 0):
                         continue
                     ish = str(ishell+1)
-                    # r, n = locals()['r'+ish], locals()['n'+ish]
-                    # s, e = locals()['s'+ish], locals()['e'+ish]
+                    # r, n = _locals['r'+ish], _locals['n'+ish]
+                    # s, e = _locals['s'+ish], _locals['e'+ish]
                     r, n, s, e = [getattr(dp, a+ish) for a in 'rnse']
                     k2 = k**2 + e*eV2revA
                     shiftk = np.sign(k2)*np.abs(k2)**0.5 - k
@@ -565,7 +574,7 @@ class EXAFSFit(Fit):
                     sinarg = 2*r*kshifted + phFunc(kshifted)
                     dw = np.exp(-2*s*k2)
                     res += np.sin(sinarg)*n*(r**-2)*ampFunc(kshifted)*dw
-                # s02 = locals()['s0']
+                # s02 = _locals['s0']
                 s02 = getattr(dp, 's0')
                 res *= s02 * k**(kw - 1)
 
