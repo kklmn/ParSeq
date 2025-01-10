@@ -24,6 +24,7 @@ from . import config as cco
 logFile = os.path.join(cco.iniDir, '{0}.log'.format(csi.pipelineName))
 syslogger = logging.getLogger('parseq')
 logging.basicConfig(filename=logFile, filemode='w', level=50-csi.DEBUG_LEVEL)
+logging.raiseExceptions = False
 now = datetime.datetime.now()
 syslogger.log(100, "The log file has started by ParSeq on {0}".format(
               now.strftime('%Y-%m-%d %H:%M:%S')))
