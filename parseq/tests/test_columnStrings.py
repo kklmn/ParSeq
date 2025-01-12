@@ -24,7 +24,7 @@ def test(colStr, isColumn=True):
         # remove outer quotes:
         keys = [k[1:-1] if k.startswith(('"', "'")) else k for k in keys]
     d = {}
-    _locals = dict(d=d)
+    _locals = dict(d=d, np=np)
     for k in keys:
         d[k] = np.ones(3)
         if isColumn:

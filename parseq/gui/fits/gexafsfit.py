@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "24 Nov 2023"
+__date__ = "12 Jan 2025"
 # !!! SEE CODERULES.TXT !!!
 
 import os.path as osp
@@ -27,6 +27,7 @@ class EXAFSFitModel(qt.QAbstractTableModel):
     ERRORS = 'errorA', 'errorB'  # , 'errorC'
     colERRORS = 5, 6  # , 7
     INFERROR = 1e2
+    MAXMETAVARS = 3
 
     def __init__(self, worker):
         super().__init__()
@@ -39,12 +40,21 @@ class EXAFSFitModel(qt.QAbstractTableModel):
     def columnCount(self, parent=qt.QModelIndex()):
         return len(self.HEADERS)
 
+    def isMeta(self, index):
+        row = index.row()
+        ish, key = self.keys[row]
+        if ish == len(self.params)-1:  # s0 and metavariables
+            if key != 's0':
+                return True
+
     def flags(self, index):
         res = qt.Qt.NoItemFlags
         if not index.isValid():
             return res
         if index.column() == 0:  # p name
             res = qt.Qt.ItemIsEnabled
+            if self.isMeta(index):
+                res |= qt.Qt.ItemIsEditable
         elif index.column() in (1, 2, 4):  # value, step, lim
             res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
         elif index.column() == 3:  # tie
@@ -73,7 +83,11 @@ class EXAFSFitModel(qt.QAbstractTableModel):
                     return 'distance variance (Å²), {0}{1}'.format(key, ish+1)
                 elif key.startswith('e'):
                     return 'E\u2080 shift (eV), {0}{1}'.format(key, ish+1)
-                return key
+                if self.isMeta(index):
+                    if role == qt.Qt.DisplayRole:
+                        return 'metavariable, {0}'.format(key)
+                    elif role == qt.Qt.EditRole:
+                        return key
             elif column == 1:  # value
                 fmt = gco.getFormatStr(pv['step']*0.1)
                 return fmt.format(pv['value'])
@@ -107,7 +121,11 @@ class EXAFSFitModel(qt.QAbstractTableModel):
         elif role == qt.Qt.ToolTipRole:
             fmtLonger = gco.getFormatStr(pv['step']*0.001)
             if column == 0:
-                return 'displayed as "variable description, variable name"'
+                res = 'Displayed as "variable description, variable name"'
+                if self.isMeta(index):
+                    res += '.\nMust not start with "r", "n", "s" or "e".'
+                    res += '.\nRemember to tie it to an EXAFS variable.'
+                return res
             elif column == 1:
                 return fmtLonger.format(pv['value'])
             elif column in self.colERRORS:
@@ -152,7 +170,18 @@ class EXAFSFitModel(qt.QAbstractTableModel):
         ish, key = self.keys[row]
         pv = self.params[ish][key]  # dict(value, step, tie, lim, error)
         if role == qt.Qt.EditRole:
-            if column == 1:
+            if column == 0:
+                if self.isMeta(index):
+                    if not value.isidentifier():
+                        return False
+                    if value.startswith(("r", "n", "s", "e", "s0")):
+                        return False
+                    newKey = value
+                    self.params[ish][newKey] = self.params[ish].pop(key)
+                    self.keys[row] = ish, newKey
+                else:
+                    return False
+            elif column == 1:
                 pv['value'] = float(value)
             elif column == 2:  # step
                 pv['step'] = float(value)
@@ -222,23 +251,33 @@ class EXAFSFitModel(qt.QAbstractTableModel):
             self.keys = []
         else:
             self.params = params  # list of shell dicts
-            self.keys = [(ishell, key) for (ishell, shell) in
+            self.keys = [[ishell, key] for (ishell, shell) in
                          enumerate(self.params) for key in shell]
         self.endResetModel()
         if emit:
             self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
-    # def getShells(self):
-    #     shells = dict()
-    #     for param in self.params:
-    #         m = re.search(r'\d+$', param)
-    #         if m:
-    #             shellNo = int(m.group())
-    #             if shellNo in shells:
-    #                 shells[shellNo].append(param)
-    #             else:
-    #                 shells[shellNo] = [param]
-    #     return list(dict(sorted(shells.items())).values())
+    def addMetaVar(self):
+        if len(self.keys) == 0:
+            return
+        if len(self.params[-1]) > self.MAXMETAVARS:  # +1 for 's0'
+            return
+        self.beginResetModel()
+        tryName = 'meta'
+        while tryName in self.params[-1]:
+            tryName += '_a'
+        self.params[-1][tryName] = dict(self.worker.defaultMetaParams)
+        last = len(self.params) - 1
+        self.keys.append([last, tryName])
+        self.endResetModel()
+        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+
+    def deleteMetaVar(self, row, ish, key):
+        self.beginResetModel()
+        self.params[ish].pop(key)
+        del self.keys[row]
+        self.endResetModel()
+        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
 
 class EXAFSFitTableView(qt.QTableView):
@@ -279,13 +318,9 @@ class EXAFSFitTableView(qt.QTableView):
         kw = dict(alignment=qt.Qt.AlignHCenter | qt.Qt.AlignVCenter)
         self.setItemDelegateForColumn(1, gco.DoubleSpinBoxDelegate(self, **kw))
 
-        if rows > 2:
-            height = int(horHeaders.height()*csi.screenFactor) + \
-                rows*verHeaders.sectionSize(0) + 1
-            self.setMinimumHeight(height)
-        else:
-            height = 2*int(horHeaders.height()*csi.screenFactor) - 2
-            self.setFixedHeight(height)
+        height = int(horHeaders.height()*csi.screenFactor) + \
+            rows*verHeaders.sectionSize(0) + 1
+        self.setMinimumHeight(height)
         # self.setMinimumWidth(
         #     int(sum(self.columnWidths[:nC])*csi.screenFactor) + 30)
 
@@ -304,10 +339,11 @@ class EXAFSFitTableView(qt.QTableView):
             self.parent().parentFitWidget.corrTable.setVisible(not isVisible)
 
     def makeActions(self):
-        if csi.mainWindow is not None:
-            self.actionCopyFitParams = self._addAction(
-                "Copy fit params to picked data",
-                partial(self.startPickData, 1), "Ctrl+P")
+        if csi.mainWindow is None:
+            return
+        self.actionCopyFitParams = self._addAction(
+            "Copy fit params to picked data",
+            partial(self.startPickData, 1), "Ctrl+P")
 
     def _addAction(self, text, slot, shortcut=None):
         action = qt.QAction(text, self)
@@ -322,6 +358,16 @@ class EXAFSFitTableView(qt.QTableView):
         menu = qt.QMenu()
         if csi.mainWindow is not None and \
                 self.parent().parentFitWidget.spectrum is not None:
+            index = self.indexAt(point)
+            if self.model().isMeta(index):
+                row = index.row()
+                ish, key = self.model().keys[row]
+                action = qt.QAction(
+                    'Delete this metavariable "{0}"'.format(key), self)
+                action.triggered.connect(
+                    partial(self.model().deleteMetaVar, row, ish, key))
+                menu.addAction(action)
+                menu.addSeparator()
             menu.addAction(self.actionCopyFitParams)
         menu.exec_(self.viewport().mapToGlobal(point))
 
@@ -365,11 +411,23 @@ class EXAFSSettingsPage(BasePage):
         layout = qt.QVBoxLayout()
         # layout.setContentsMargins(0, 0, 0, 0)
 
-        self.table = EXAFSFitTableView(self, model, 1)
+        try:
+            lenParam = len(model.params[-1])
+        except Exception:
+            lenParam = 1
+        self.table = EXAFSFitTableView(self, model, lenParam)
         layout.addWidget(self.table)
-
         layout.addStretch()
         self.setLayout(layout)
+
+        addMetaButton = qt.QToolButton(self)
+        addMetaButton.setIcon(icons.getQIcon('add'))
+        tooltip = "add metavariable to use in tie expressions,"\
+            "\nmax {0} metavariables".format(model.MAXMETAVARS)
+        addMetaButton.setToolTip(tooltip)
+        addMetaButton.setStyleSheet("QToolButton{border: 0;}")  # make it small
+        addMetaButton.move(-24, 8)
+        addMetaButton.clicked.connect(model.addMetaVar)
 
 
 class EXAFSShellPage(BasePage):
@@ -510,7 +568,6 @@ class MyProxyModel(qt.QIdentityProxyModel):
 
 class LoadFEFFfileDlg(qt.QFileDialog):
     ready = qt.pyqtSignal(dict)  # path: [N, stratoms, R, ver, nHeader, use]
-
     uniqueWord = 'real[2*phc]'
     reffWord = 'nleg,'
     endHeaderWord = 'real[p]@#'
@@ -642,12 +699,12 @@ class EXAFSFitWidget(gbf.FitWidget):
         except Exception:
             pass
 
-        addButton = qt.QToolButton()
-        addButton.setIcon(icons.getQIcon('add'))
-        addButton.setToolTip("New atomic shell")
-        addButton.clicked.connect(self.addShellTab)
-        addButton.setStyleSheet("QToolButton{border: 0;}")
-        self.tabWidget.setCornerWidget(addButton, qt.Qt.TopLeftCorner)
+        addShellButton = qt.QToolButton()
+        addShellButton.setIcon(icons.getQIcon('add'))
+        addShellButton.setToolTip("New atomic shell")
+        addShellButton.clicked.connect(self.addShellTab)
+        addShellButton.setStyleSheet("QToolButton{border: 0;}")
+        self.tabWidget.setCornerWidget(addShellButton, qt.Qt.TopLeftCorner)
         layout.addWidget(self.tabWidget)
 
         self.corrModel = gbf.CorrModel(['r1', 'n1', 's1', 'e1'])
@@ -700,8 +757,17 @@ class EXAFSFitWidget(gbf.FitWidget):
                 range(self.tabWidget.count())]
         fps = self.spectrum.fitParams
         fps['exafsfit_params'] = [fps['exafsfit_params'][i] for i in inds]
-        fps['exafsfit_aux'] = [fps['exafsfit_aux'][i] for i in inds[:-1]]
+        try:
+            fps['exafsfit_aux'] = [fps['exafsfit_aux'][i] for i in inds[:-1]]
+        except IndexError:
+            pass
         self.fitModel.setParams(fps['exafsfit_params'])
+
+        ind = self.fitModel.index(0, 0)
+        self.optionsPage.table.setIndexWidget(ind, qt.QPushButton('UUU'))
+        self.fitModel.dataChanged.emit(ind, ind)
+        w = self.optionsPage.table.indexWidget(ind)
+        print('WWWWWWWWWWWWWWWWWW', w)
 
     def updateTabs(self):
         """Tabs are atomic shells plus one tab for general parameters (Sₒ²)"""

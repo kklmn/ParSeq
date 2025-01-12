@@ -185,8 +185,10 @@ class Fit:
             if not item.beingTransformed:
                 continue
             worker.get_out_data(item)
-            item.error = worker.get_error()
             item.transfortmTimes[self.name] = time.time() - item.transfortm_t0
+            item.error = worker.get_error()
+            if item.error is not None:
+                syslogger.log(100, item.error)
 
         for worker, item in zip(workers, workedItems):
             if 'progress' in args and self.sendSignals:
@@ -238,6 +240,7 @@ class Fit:
             errorMsg += "".join(tb[:-1])  # remove last empty line
             # if csi.DEBUG_LEVEL > 20:
             data.error = errorMsg
+            syslogger.log(100, errorMsg)
         data.beingTransformed = False
         data.transfortmTimes[self.name] = \
             time.time() - data.transfortm_t0

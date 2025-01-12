@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "30 May 2023"
+__date__ = "12 Jan 2025"
 # !!! SEE CODERULES.TXT !!!
 
 from functools import partial
@@ -56,6 +56,9 @@ class FunctionFit(Fit):
         keys = list(fitVars.keys())
         res = cls.evaluate_formula(x, *vals, formula=formula, keys=keys)
         if isinstance(res, str):
+            print('formula=', formula)
+            print('keys=', keys)
+            print(res)
             fit = np.zeros_like(x)
         else:
             fit = np.array(res)
@@ -143,7 +146,7 @@ class FunctionFit(Fit):
         try:
             # keyword `locals` is an error in Py<3.13,
             # using just `_locals` (without globals()) does not work
-            eval(tieStr[1:], {}, _locals)
+            eval(tieStr[1:], globals(), _locals)
             return True
         except Exception:
             return False
@@ -171,6 +174,6 @@ class FunctionFit(Fit):
         try:
             # keyword `locals` is an error in Py<3.13,
             # using just `_locals` (without globals()) does not work
-            return eval(formula, {}, _locals)
+            return eval(formula, globals(), _locals)
         except (NameError, TypeError) as err:
             return str(err)

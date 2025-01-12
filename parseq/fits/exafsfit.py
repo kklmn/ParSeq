@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "5 Nov 2023"
+__date__ = "12 Jan 2025"
 # !!! SEE CODERULES.TXT !!!
 
 import numpy as np
@@ -27,7 +27,8 @@ class EXAFSFit(Fit):
              n=dict(value=6, step=0.1),
              s=dict(value=0.006, step=0.001, lim=[0., 0.1]),
              e=dict(value=0, step=0.1, lim=[-15., 15.])),
-        dict(s0=dict(value=1.0, step=0.01, tie='fixed', lim=[0.5, 1.]))]
+        dict(s0=dict(value=1.0, step=0.01, tie='fixed', lim=[0.5, 1.]),)]
+    defaultMetaParams = dict(value=2.0, step=0.01, lim=[0.1, 10.])
     auxItems = {}  # here amps and phases will be stored as {path: (k, a, ph)}
 
     defaultResult = dict(R=1., mesg='', ier=None, info={}, nparam=0, Nind=0)
@@ -43,6 +44,7 @@ class EXAFSFit(Fit):
                'aux': 'exafsfit_aux'}
 
     nfft = 8192
+    allowMetaParams = True
 
     @classmethod
     def make_aux(cls, data):
@@ -84,9 +86,17 @@ class EXAFSFit(Fit):
                 keys.append(key)
                 vals.append(shell[p]['value'])
                 fitDict[key] = shell[p]
-        keys.append('s0')
-        vals.append(fitVars[-1]['s0']['value'])
-        fitDict['s0'] = fitVars[-1]['s0']
+
+        if cls.allowMetaParams:
+            for p, val in fitVars[-1].items():
+                keys.append(p)
+                vals.append(val['value'])
+                fitDict[p] = val
+        else:
+            keys.append('s0')
+            vals.append(fitVars[-1]['s0']['value'])
+            fitDict['s0'] = fitVars[-1]['s0']
+
         return keys, vals, fitDict
 
     @classmethod

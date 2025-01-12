@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "6 May 2023"
+__date__ = "12 Jan 2025"
 # !!! SEE CODERULES.TXT !!!
 
 import copy
@@ -11,7 +11,7 @@ from ...fits.lcf import LCF
 from ...gui import gcommons as gco
 from . import gbasefit as gbf
 
-from silx.gui import qt
+from silx.gui import qt, icons
 
 
 class LCFModel(qt.QAbstractTableModel):
@@ -23,6 +23,7 @@ class LCFModel(qt.QAbstractTableModel):
     HEADERS = ['ref spectra', 'w', 'w [min, max, δ]', 'w tie', 'w±',
                'Δ{0}', 'Δ{0} [min, max, δ]', 'Δ{0} tie', 'Δ{0}±']
     xName, xUnit = 'E', 'eV'
+    MAXMETAVARS = 3
 
     def __init__(self, worker):
         super().__init__()
@@ -39,17 +40,39 @@ class LCFModel(qt.QAbstractTableModel):
         else:
             return len(self.HEADERS)-4
 
+    def isMeta(self, index):
+        row = index.row()
+        ref = self.params[row]
+        if 'isMeta' in ref:
+            return True
+
     def flags(self, index):
         if not index.isValid():
             return qt.Qt.NoItemFlags
         if index.column() == 0:
-            res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsUserCheckable
-        elif index.column() in (1, 2, 5, 6):  # w, wBounds, dx, dxBounds
+            if self.isMeta(index):
+                res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
+            else:
+                res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsUserCheckable
+        elif index.column() in (1, 2):  # w, wBounds
             res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable | \
                 qt.Qt.ItemIsSelectable
-        elif index.column() in (3, 7):  # wtie, dEtie
+        elif index.column() in (3,):  # wtie
             res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
-        elif index.column() in (4, 8):  # wError, dEError
+        elif index.column() in (4,):  # wError
+            res = qt.Qt.NoItemFlags
+        elif index.column() in (5, 6):  # dx, dxBounds
+            if self.isMeta(index):
+                res = qt.Qt.NoItemFlags
+            else:
+                res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable | \
+                    qt.Qt.ItemIsSelectable
+        elif index.column() in (7,):  # dEtie
+            if self.isMeta(index):
+                res = qt.Qt.NoItemFlags
+            else:
+                res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
+        elif index.column() in (8,):  # dEError
             res = qt.Qt.NoItemFlags
         return res
 
@@ -62,20 +85,33 @@ class LCFModel(qt.QAbstractTableModel):
         ref = self.params[row]
         if role in (qt.Qt.DisplayRole, qt.Qt.EditRole):
             if column == 0:  # name
+                if self.isMeta(index):
+                    if role == qt.Qt.DisplayRole:
+                        return 'metavariable "{0}"'.format(ref['name'])
+                    elif role == qt.Qt.EditRole:
+                        return ref['name']
                 return ref['name']
             key = 'w' if column in [1, 2, 3, 4] else 'dx'
             keyb = key + 'Bounds'
             lim = ref[keyb]
             fmt = gco.getFormatStr(lim[2])
             if column in (1, 5):  # w, ΔE
+                if self.isMeta(index) and column == 5:
+                    return
                 return fmt.format(ref[key])
             elif column in (2, 6):  # w-bounds, dE-bounds
+                if self.isMeta(index) and column == 6:
+                    return
                 return '[{0}, {1}, {2}]'.format(*[fmt.format(s) for s in lim])
             elif column in (3, 7):  # wtie, dEtie
+                if self.isMeta(index) and column == 7:
+                    return
                 keyt = key + 'tie'
                 if keyt in ref:
                     return ref[keyt].replace('dx', 'd{0}'.format(self.xName))
             elif column in (4, 8):  # w-error, ΔE-error
+                if self.isMeta(index) and column == 8:
+                    return
                 keye = key + 'Error'
                 if keye in ref and ref['use']:
                     return fmt.format(ref[keye])
@@ -83,13 +119,19 @@ class LCFModel(qt.QAbstractTableModel):
                     return '---'
         elif role == qt.Qt.CheckStateRole:
             if column == 0:
-                return qt.Qt.Checked if ref['use'] else qt.Qt.Unchecked
+                if not self.isMeta(index):
+                    return qt.Qt.Checked if ref['use'] else qt.Qt.Unchecked
         elif role == qt.Qt.TextAlignmentRole:
             if column == 0:
                 return qt.Qt.AlignLeft | qt.Qt.AlignVCenter
             else:
                 return qt.Qt.AlignHCenter | qt.Qt.AlignVCenter
         elif role == qt.Qt.ToolTipRole:
+            if column == 0:
+                if self.isMeta(index):
+                    res = 'This is a metavariable.'\
+                        '\nRemember to tie it to a fit variable.'
+                    return res
             if column in [1, 4, 5, 8]:
                 key = 'w' if column in [1, 4] else 'dx'
                 keyb = key + 'Bounds'
@@ -131,7 +173,14 @@ class LCFModel(qt.QAbstractTableModel):
             column, row = index.column(), index.row()
             ref = self.params[row]
             key = 'w' if column in [1, 2, 3, 4] else 'dx'
-            if column in (1, 5):  # w, ΔE
+            if column == 0:
+                if not value.isidentifier():
+                    return False
+                if self.isMeta(index):
+                    ref['name'] = value
+                else:
+                    return False
+            elif column in (1, 5):  # w, ΔE
                 ref[key] = float(value)
             elif column in (2, 6):  # wBounds, dEBounds
                 try:
@@ -214,12 +263,33 @@ class LCFModel(qt.QAbstractTableModel):
         if emit:
             self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
 
-    def appendRef(self, name):
+    def countMeta(self):
+        res = 0
         for entry in self.params:
-            if entry['name'] == name:
+            if 'isMeta' in entry:
+                res += 1
+        return res
+
+    def appendRef(self, name, isMeta=False):
+        if isMeta:
+            if self.countMeta() >= self.MAXMETAVARS:
                 return
+            while True:
+                for entry in self.params:
+                    if entry['name'] == name:
+                        name += '_a'
+                        break
+                else:
+                    break
+        else:
+            for entry in self.params:
+                if entry['name'] == name:
+                    return
+
         self.beginResetModel()
         entry = dict(LCF.defaultEntry)
+        if isMeta:
+            entry['isMeta'] = True  # important is its presence, not its value
         entry['name'] = name
         self.params.append(entry)
         self.endResetModel()
@@ -360,6 +430,12 @@ class LCFTableView(qt.QTableView):
             self.actionAddRefSpectra = self._addAction(
                 "Add ref spectra from data tree",
                 partial(self.startPickData, 2), "Ctrl++")
+        self.actionAddMetaVar = self._addAction(
+            "Add metavariable to use in tie expressions",
+            partial(self.addRefSpectrum, 'meta', True))
+        tooltip = "add metavariable to use in tie expressions,"\
+            "\nmax {0} metavariables".format(self.model().MAXMETAVARS)
+        self.actionAddMetaVar.setToolTip(tooltip)  # doesn't work anyway
         self.actionMoveUp = self._addAction(
             "Move up", partial(self.moveItem, +1), "Ctrl+Up")
         self.actionMoveDown = self._addAction(
@@ -391,7 +467,8 @@ class LCFTableView(qt.QTableView):
                 refAction = self._addAction(i, partial(self.addRefSpectrum, i))
                 refAction.setEnabled(i not in refNamesLoaded)
                 refMenu.addAction(refAction)
-
+        menu.addAction(self.actionAddMetaVar)
+        menu.addSeparator()
         menu.addAction(self.actionMoveUp)
         self.actionMoveUp.setEnabled(len(csi.allLoadedItems) > 1)
         menu.addAction(self.actionMoveDown)
@@ -405,8 +482,8 @@ class LCFTableView(qt.QTableView):
         self.pickReason = pickReason
         self.model().worker.node.widget.preparePickData(self)
 
-    def addRefSpectrum(self, name):
-        newRow = self.model().appendRef(name)
+    def addRefSpectrum(self, name, isMeta=False):
+        newRow = self.model().appendRef(name, isMeta)
         if newRow is None:
             return
         newInd = self.model().index(newRow, 0)
@@ -468,7 +545,7 @@ class LCFWidget(gbf.FitWidget):
 
     def makeFit(self):
         """Here, all tie formulas and off-bounds are ignored."""
-        if not self.fitModel.params:
+        if (not self.fitModel.params) or self.spectrum is None:
             return
         cs = self.spectrum
         self.worker.make_model_curve(cs, allData=csi.allLoadedItems)

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "16 May 2023"
+__date__ = "12 Jan 2025"
 # !!! SEE CODERULES.TXT !!!
 
 # import os.path as osp
@@ -14,7 +14,7 @@ from .basefit import Fit
 
 class LCF(Fit):
     name = 'LCF'
-    xVary = True
+    xVary = False
     defaultEntry = dict(
         name='', use=True, w=0.1, wBounds=[0., 1., 0.01],
         # if xVary is True, these two are needed:
@@ -31,6 +31,8 @@ class LCF(Fit):
 
     @classmethod
     def make_model_curve(cls, data, allData):
+        if data is None:
+            return
         dfparams = data.fitParams
         lcf = dfparams['lcf_params']
         if len(lcf) == 1 and len(lcf[0]['name']) == 0:  # default no-fit state
@@ -48,21 +50,27 @@ class LCF(Fit):
                 if not v['use']:
                     continue
                 k = v['name']
-                for sp in allData:
-                    if sp.alias == k:
-                        break
+                if 'isMeta' in v:
+                    refs[k] = dict(w=len(args), isMeta=True)
                 else:
-                    raise ValueError(
-                        'No reference spectrum {0} found'.format(k))
-                xref = getattr(sp, cls.allDataAttrs['x'])
-                yref = getattr(sp, cls.allDataAttrs['y'])
-                refs[k] = dict(x=xref, y=yref, w=len(args))
+                    for sp in allData:
+                        if sp.alias == k:
+                            break
+                    else:
+                        raise ValueError(
+                            'No reference spectrum {0} found'.format(k))
+                    xref = getattr(sp, cls.allDataAttrs['x'])
+                    yref = getattr(sp, cls.allDataAttrs['y'])
+                    refs[k] = dict(x=xref, y=yref, w=len(args))
                 args.append(v['w'])
             if cls.xVary:
                 for v in lcf:
                     if not v['use']:
                         continue
                     k = v['name']
+                    if 'isMeta' in v:
+                        refs[k]['dx'] = None
+                        continue
                     refs[k]['dx'] = len(args)
                     args.append(v['dx'])
 
@@ -94,15 +102,18 @@ class LCF(Fit):
                 if not v['use']:
                     continue
                 k = v['name']
-                for sp in allData:
-                    if sp.alias == k:
-                        break
+                if 'isMeta' in v:
+                    refs[k] = dict(isMeta=True)
                 else:
-                    raise ValueError(
-                        'No reference spectrum {0} found'.format(k))
-                xref = getattr(sp, cls.allDataAttrs['x'])
-                yref = getattr(sp, cls.allDataAttrs['y'])
-                refs[k] = dict(x=xref, y=yref)
+                    for sp in allData:
+                        if sp.alias == k:
+                            break
+                    else:
+                        raise ValueError(
+                            'No reference spectrum {0} found'.format(k))
+                    xref = getattr(sp, cls.allDataAttrs['x'])
+                    yref = getattr(sp, cls.allDataAttrs['y'])
+                    refs[k] = dict(x=xref, y=yref)
 
                 wantVary = True
                 if 'wtie' in v:
@@ -133,6 +144,9 @@ class LCF(Fit):
                     if not v['use']:
                         continue
                     k = v['name']
+                    if 'isMeta' in v:
+                        refs[k][kd] = None
+                        continue
                     wantVary = True
                     if kdt in v:
                         tieStr = v[kdt]
@@ -219,14 +233,18 @@ class LCF(Fit):
         if tieStr[0] not in '=<>':
             return False
         w = [0]  # w list indexing is 1-based
+        _locals = dict(w=w)
         if cls.xVary:
             dx = [0]  # dE list indexing is 1-based
+            _locals['dx'] = dx
         for ref in lcf:
             w.append(ref['w'])
             if cls.xVary:
                 dx.append(ref['dx'])
+            if 'isMeta' in ref:
+                _locals[ref['name']] = ref['w']
         try:
-            eval(tieStr[1:])
+            eval(tieStr[1:], {}, _locals)
             return True
         except Exception:
             return False
@@ -245,10 +263,14 @@ class LCF(Fit):
         if fcounter:
             fcounter['nfev'] += 1
         w = [0]  # w list indexing is 1-based for tie formulae
-        for ref in refs.values():
+        _locals = dict(w=w)
+        for k, ref in refs.items():
             wr = ref['w']
-            w.append(params[wr] if isinstance(wr, int) else
-                     wr if isinstance(wr, float) else 0.)
+            val = params[wr] if isinstance(wr, int) else \
+                wr if isinstance(wr, float) else 0.
+            w.append(val)
+            if 'isMeta' in ref:
+                _locals[k] = val
         kd = 'dx'
         if cls.xVary:
             _s = [0]  # is 1-based
@@ -259,16 +281,16 @@ class LCF(Fit):
         else:
             _s = [0] * (len(refs)+1)  # is 1-based
         dx = _s  # analysis:ignore
+        _locals['dx'] = dx
 
         assert len(refs) == len(w[1:]) == len(_s[1:])
         kdt = kd + 'tie'
         res = 0.
         for (k, ref), wi, sh in zip(refs.items(), w[1:], _s[1:]):
-            xref, yref = ref['x'], ref['y']
             if 'wtie' in ref:
                 wtie = ref['wtie']
                 if wtie[0] in '=<>':
-                    val = eval(wtie[1:])
+                    val = eval(wtie[1:], {}, _locals)
                     if (wtie[0] == '=' or (wtie[0] == '<' and wi > val) or
                             (wtie[0] == '>' and wi < val)):
                         wi = val
@@ -277,13 +299,15 @@ class LCF(Fit):
                 if kdt in ref:
                     dtie = ref[kdt]
                     if dtie[0] in '=<>':
-                        val = eval(dtie[1:])
+                        val = eval(dtie[1:], {}, _locals)
                         if (dtie[0] == '=' or (dtie[0] == '<' and sh > val) or
                                 (dtie[0] == '>' and sh < val)):
                             sh = val
                             ref['shres'] = val
-            f = interpolate.interp1d(
-                xref+sh, yref, kind='linear', copy=False,
-                fill_value='extrapolate', assume_sorted=True)
-            res += wi * f(x)
+            if 'isMeta' not in ref:
+                xref, yref = ref['x'], ref['y']
+                f = interpolate.interp1d(
+                    xref+sh, yref, kind='linear', copy=False,
+                    fill_value='extrapolate', assume_sorted=True)
+                res += wi * f(x)
         return res

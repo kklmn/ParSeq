@@ -1319,7 +1319,7 @@ class Spectrum(TreeItem):
             # remove outer quotes:
             keys = [k[1:-1] if k.startswith(('"', "'")) else k for k in keys]
         d = {}
-        _locals = dict(d=d)
+        _locals = dict(d=d, np=np)
         if treeObj is None:  # is Hdf5Item
             for k in keys:
                 if k.startswith("silx:"):

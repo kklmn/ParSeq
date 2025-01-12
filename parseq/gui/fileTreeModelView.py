@@ -461,7 +461,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 keys = [k[1:-1] if k.startswith(('"', "'")) else k
                         for k in keys]
             d = {}
-            _locals = dict(d=d)
+            _locals = dict(d=d, np=np)
             if kind == 'h5':
                 for k in keys:
                     if k.startswith("silx:"):
