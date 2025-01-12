@@ -897,7 +897,8 @@ class NodeWidget(qt.QWidget):
             if nPlottedItems == 0:
                 self.plot.clearCurves()
                 return
-            csi.mainWindow.afterTransformSignal.emit(self)
+            if csi.mainWindow is not None:
+                csi.mainWindow.afterTransformSignal.emit(self)
             self.plotLeftYLabel = self._makeYLabel(
                 leftAxisColumns, leftAxisUnits)
             self.plot.setGraphYLabel(label=self.plotLeftYLabel, axis='left')
@@ -936,7 +937,8 @@ class NodeWidget(qt.QWidget):
             self.plot.addImage(image, colormap=colors.Colormap(COLORMAP),
                                origin=(xOrigin, yOrigin),
                                scale=(xScale, yScale), z=-100)
-            csi.mainWindow.afterTransformSignal.emit(self)
+            if csi.mainWindow is not None:
+                csi.mainWindow.afterTransformSignal.emit(self)
         elif node.plotDimension == 3:
             self.plot._plot.clearCurves()
             # if needClear:
@@ -964,7 +966,8 @@ class NodeWidget(qt.QWidget):
             if item:
                 calibrations = [self.getCalibration(item, ax) for ax in 'xyz']
                 self.plot.setStack(stack, calibrations=calibrations)
-                csi.mainWindow.afterTransformSignal.emit(self)
+                if csi.mainWindow is not None:
+                    csi.mainWindow.afterTransformSignal.emit(self)
 
         if keepExtent:
             self._restorePlotState()
