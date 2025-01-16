@@ -53,16 +53,19 @@ class CorrModel(qt.QAbstractTableModel):
             txt = '{0} ∩ {1}\n{2:#.4g}'.format(
                 self.names[row], self.names[column], corr)
             if not (-1-1e-8 < corr < 1+1e-8):
-                txt += '\nA value not within [0, 1] means no'
-                txt += '\nχ² minimum in particular variables.'
+                txt += '\nA value not within [-1, 1] means'
+                txt += '\nno χ² minimum in particular variables.'
                 txt += '\nTry to change the fit range.'
             return txt
         elif role == qt.Qt.BackgroundRole:
             corr = self.corr[row, column]
-            if corr > 0:
-                return qt.QColor(int(corr * 255), 0, 0)
+            if -1-1e-8 < corr < 1+1e-8:
+                if corr > 0:
+                    return qt.QColor(int(corr * 255), 0, 0)
+                else:
+                    return qt.QColor(0, 0, int(-corr * 255))
             else:
-                return qt.QColor(0, 0, int(-corr * 255))
+                return qt.QColor(255, 255, 255)
 
     def headerData(self, section, orientation, role):
         if role == qt.Qt.DisplayRole:
