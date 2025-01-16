@@ -42,7 +42,10 @@ class EXAFSFitModel(qt.QAbstractTableModel):
 
     def isMeta(self, index):
         row = index.row()
-        ish, key = self.keys[row]
+        try:
+            ish, key = self.keys[row]
+        except IndexError:
+            return
         if ish == len(self.params)-1:  # s0 and metavariables
             if key != 's0':
                 return True
@@ -480,6 +483,11 @@ class EXAFSShellPage(BasePage):
 
         cs = self.parentFitWidget.spectrum
         dfparams = cs.fitParams
+        shells = dfparams['exafsfit_params']
+        if not shells:
+            self.parentFitWidget.addShellTab()
+            return
+
         auxs = dfparams['exafsfit_aux']
         try:
             if auxs:
@@ -516,8 +524,11 @@ class EXAFSShellPage(BasePage):
         self.parentFitWidget.updateTabs()
 
         shells = dfparams['exafsfit_params']
+        if self.ishell > len(shells)-1:
+            return
         r = feffStruct[3]
         n = feffStruct[1]
+        # return [deg, pathStr, reff, feffVersion, nHeader, 1]
         shells[self.ishell]['r']['value'] = r
         shells[self.ishell]['r']['lim'] = [r*0.5, r*2]
         shells[self.ishell]['n']['value'] = n
@@ -525,7 +536,7 @@ class EXAFSShellPage(BasePage):
         for ish, (shell, aux) in enumerate(zip(shells, auxs)):
             if shell is shells[self.ishell]:
                 continue
-            if aux[2] == feffStruct[1]:
+            if aux[2] == feffStruct[2]:
                 shells[self.ishell]['e']['value'] = shell['e']['value']
                 shells[self.ishell]['e']['tie'] = '=e{0}'.format(ish+1)
                 break
@@ -762,12 +773,6 @@ class EXAFSFitWidget(gbf.FitWidget):
         except IndexError:
             pass
         self.fitModel.setParams(fps['exafsfit_params'])
-
-        ind = self.fitModel.index(0, 0)
-        self.optionsPage.table.setIndexWidget(ind, qt.QPushButton('UUU'))
-        self.fitModel.dataChanged.emit(ind, ind)
-        w = self.optionsPage.table.indexWidget(ind)
-        print('WWWWWWWWWWWWWWWWWW', w)
 
     def updateTabs(self):
         """Tabs are atomic shells plus one tab for general parameters (Sₒ²)"""
