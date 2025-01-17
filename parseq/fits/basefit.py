@@ -235,7 +235,7 @@ class Fit:
                 timer.cancel()
             errorMsg = 'failed "{0}" fit for data: {1}'.format(
                 self.name, data.alias)
-            errorMsg += "\nwith the followith traceback:\n"
+            errorMsg += "\nwith the following traceback:\n"
             tb = traceback.format_exc()
             errorMsg += "".join(tb[:-1])  # remove last empty line
             # if csi.DEBUG_LEVEL > 20:
@@ -482,7 +482,7 @@ class GenericProcessOrThread(object):
         except Exception:
             errorMsg = 'Failed "{0}" fit for data: {1}'.format(
                 self.fitName, data.alias)
-            errorMsg += "\nwith the followith traceback:\n"
+            errorMsg += "\nwith the following traceback:\n"
             tb = traceback.format_exc()
             errorMsg += "".join(tb[:-1])  # remove last empty line
             self.put_error(errorMsg)

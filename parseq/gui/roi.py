@@ -1086,23 +1086,26 @@ class AutoRangeWidget(BaseRangeWidget):
         self.panel.setTitle(caption)
         # self.panel is by default uncheckable
         self.panel.toggled.connect(self.toggled)
-        layoutP = qt.QHBoxLayout()
-        layoutP.setContentsMargins(10, 0, 0, 0)
+        self.panelLayout = qt.QVBoxLayout()
+        self.panelLayout.setContentsMargins(10, 0, 0, 0)
+        self.rangeLayout = qt.QHBoxLayout()
+        self.rangeLayout.setContentsMargins(0, 0, 0, 0)
         self.rbAuto = qt.QRadioButton('auto', self.panel)
         self.rbAuto.clicked.connect(self.setAutoRange)
-        layoutP.addWidget(self.rbAuto)
+        self.rangeLayout.addWidget(self.rbAuto)
         self.rbCustom = qt.QRadioButton('custom', self.panel)
         self.rbCustom.setStyleSheet("QRadioButton{color: " + color + ";}")
         self.rbCustom.clicked.connect(self.setCustomRange)
-        layoutP.addWidget(self.rbCustom)
+        self.rangeLayout.addWidget(self.rbCustom)
         self.editCustom = qt.QLineEdit()
         self.editCustom.setStyleSheet("QLineEdit{color: " + color + ";}")
         if not callable(self.defaultRange):
             self.editSetText(self.defaultRange)
-        layoutP.addWidget(self.editCustom)
+        self.rangeLayout.addWidget(self.editCustom)
         if tooltip:
             self.editCustom.setToolTip(tooltip)
-        self.panel.setLayout(layoutP)
+        self.panelLayout.addLayout(self.rangeLayout)
+        self.panel.setLayout(self.panelLayout)
         layout.addWidget(self.panel)
         self.setLayout(layout)
 
@@ -1137,6 +1140,8 @@ class AutoRangeWidget(BaseRangeWidget):
             self.rbAuto.setChecked(isDefault)
             self.rbCustom.setChecked(not isDefault)
 
+            if self.roi is None:
+                return
             self.roi.blockSignals(True)
             self.roi.setVisible(use and not isDefault)
             self.roi.blockSignals(False)

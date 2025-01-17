@@ -297,10 +297,10 @@ class Transform(object):
             res = None
             errorMsg = 'failed "{0}" transform for data: {1}'.format(
                 self.name, data.alias)
-            errorMsg += "\nwith the followith traceback:\n"
+            errorMsg += "\nwith the following traceback:\n"
             tb = traceback.format_exc()
             errorMsg += "".join(tb[:-1])  # remove last empty line
-            syslogger.error(errorMsg)
+            syslogger.log(100, errorMsg)
             data.error = errorMsg
         if res is None:
             data.state[self.toNode.name] = cco.DATA_STATE_BAD
@@ -608,11 +608,11 @@ class GenericProcessOrThread(object):
             self.put_results(None)
             errorMsg = 'Failed "{0}" transform for data: {1}'.format(
                 self.transformName, data.alias)
-            errorMsg += "\nwith the followith traceback:\n"
+            errorMsg += "\nwith the following traceback:\n"
             tb = traceback.format_exc()
             errorMsg += "".join(tb[:-1])  # remove last empty line
             self.put_error(errorMsg)
-            syslogger.error(errorMsg)
+            syslogger.log(100, errorMsg)
         finally:
             self.put_out_data(data)
             np.seterr(all='warn')

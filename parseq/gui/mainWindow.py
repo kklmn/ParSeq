@@ -467,9 +467,11 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def setTabIcons(self):
         cc = qt.QColor(INACTIVE_TAB_COLOR)
-        for itab, (dock, _, _) in enumerate(self.docks.values()):
+        for itab, (dock, node, _) in enumerate(self.docks.values()):
             self.setTabIcon(itab, dock)
             self.tabWidget.setTabTextColor(itab, cc)
+            # if hasattr(node, "description"):
+            #     self.tabWidget.setTabToolTip(itab, node.description)  # no effect
 
     def setTabIcon(self, itab, dock, state=0):
         icon = dock.dimIconBusy if state == 1 else dock.dimIcon
