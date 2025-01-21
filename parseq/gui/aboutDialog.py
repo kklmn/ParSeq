@@ -408,7 +408,7 @@ class AboutDialog(qt.QDialog):
     def makeWebView(self):
         self.webView = gww.QWebView(self)
         self.webView.page().setLinkDelegationPolicy(2)
-        self.webView.setMinimumWidth(560)
+        self.webView.setMinimumWidth(580)
         self.webView.setMinimumHeight(
             480 + 30*len(csi.nodes) + 15*len(projFiles) +
             len(csi.appDescription)//4)
