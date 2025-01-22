@@ -1361,6 +1361,13 @@ class Spectrum(TreeItem):
                         mn, mx = eval(cFactor[3:])
                         where = ((mn < arr) if mn is not None else True) & \
                             ((arr < mx) if mx is not None else True)
+                        if where.sum() == 0:
+                            secondPassNeeded = False
+                            errMsg = 'The conversion expression "{0}" results'\
+                                ' in zero-length arrays!'.format(cFactor)
+                            errMsg += '\nSo it is ignored. '
+                            errMsg += 'Remove it from your conversions!'
+                            syslogger.log(100, errMsg)
                     elif cFactor.startswith('transpose'):
                         axes = eval(cFactor[9:])
                         setattr(self, setName, arr.transpose(*axes))
