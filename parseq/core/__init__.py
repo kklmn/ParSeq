@@ -292,6 +292,12 @@ in the data tree. The caught error is displayed in the tooltip of that data
 tree item where it names the transformation, the data item and the involved
 python module. The error can be copied to clipboard.
 
+Additionally, errors are written to the pipeline log file. The log file is
+located in the user's home directory in ".parseq" subfolder. Note, the log file
+is limited to one program session; it renewed at the next program start. The
+logging level depends on the verbosity settings set by the command-line
+options.
+
 Command-line interface and start options
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
