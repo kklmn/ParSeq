@@ -53,6 +53,14 @@ class Plot1D(splot.PlotWindow):
         # elif ddict['event'] == "limitsChanged":
         #     print(ddict['ydata'])
 
+    def addCurve(self, *args, **kwargs):
+        lockwargs = dict(kwargs)
+        symbolsize = lockwargs.pop('symbolsize', None)
+        curve = super().addCurve(*args, **lockwargs)
+        if symbolsize is not None:
+            curve.setSymbolSize(symbolsize)
+        return curve
+
     def activateCurve(self, label):
         alias = os.path.splitext(label)[0]
         for item in csi.allLoadedItems:

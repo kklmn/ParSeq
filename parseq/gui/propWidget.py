@@ -78,6 +78,7 @@ class PropWidget(qt.QWidget):
     # this dict is designed to hold widget-related properties, not data-related
     # ones (the latter are stored in data.transformParams).
     properties = dict()
+    extraLines = []
     plotParams = {}
     LOCATION = 'transform'  # 'transform' or 'correction'
 
@@ -269,6 +270,8 @@ class PropWidget(qt.QWidget):
             syslogger.info(f'values = {values}')
 
         if len(tNames) == 0:
+            return
+        if props is None:
             return
 
         for tName in tNames:
@@ -521,10 +524,8 @@ class PropWidget(qt.QWidget):
             'transformNames', [tr.name for tr in self.node.transformsIn])
         if isinstance(transformNames, str):
             transformNames = [transformNames]
-        # if 'correction_' in prop:
-        #     if len(transformNames) == 0:
-        #         transformNames = [tr.name for tr in self.node.transformsOut]
-        #         print(self.node.name, prop, transformNames)
+        if ('correction_' in prop) and (len(transformNames) == 0):
+            transformNames = [tr.name for tr in self.node.transformsOut]
 
         if not isinstance(widgets, (list, tuple)):
             widgets = [widgets]

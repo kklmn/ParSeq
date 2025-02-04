@@ -122,6 +122,55 @@ class CheckBoxDelegate(qt.QItemDelegate):
         return super().editorEvent(event, model, option, index)
 
 
+class MultiCheckBoxDelegate(qt.QItemDelegate):
+    """
+    The standard checkbox (of items with Qt.ItemIsUserCheckable) without text
+    draws an empty focus rectangle on the right of the checkbox. This delegate
+    draws only a centered check box.
+    """
+
+    def __init__(self, parent=None):
+        self.defWidth = qt.QApplication.style().pixelMetric(
+            qt.QStyle.PM_IndicatorWidth)
+        self.defHeight = qt.QApplication.style().pixelMetric(
+            qt.QStyle.PM_IndicatorHeight)
+        self.margins = [1, 1, 1, 1]  # left, top, right, bottom
+        super().__init__(parent)
+
+    def paint(self, painter, option, index):
+        arrays = index.data()
+        excludeArrays = index.data(qt.Qt.CheckStateRole)
+        for i, arrayName in enumerate(arrays):
+            left = option.rect.left() + self.margins[0]
+            top = option.rect.top() + self.margins[1]*(i+1) +\
+                (self.defHeight + self.margins[3])*i
+            rect = qt.QRect(left, top, self.defWidth, self.defHeight)
+            checkState = qt.Qt.Unchecked if arrayName in excludeArrays else \
+                qt.Qt.Checked
+            self.drawCheck(painter, option, rect, checkState)
+            left2 = left + self.margins[2] + self.defWidth
+            rect2 = qt.QRect(left2, top, option.rect.right()-left2,
+                             self.defHeight)
+            self.drawDisplay(painter, option, rect2, arrayName)
+
+    def editorEvent(self, event, model, option, index):
+        if event.type() == qt.QEvent.MouseButtonRelease:
+            table = self.parent()
+            prevHeight = table.horizontalHeader().height()
+            prevRows = index.row()
+            for i in range(prevRows):
+                prevHeight += table.rowHeight(i)
+            y = table.mapFromGlobal(qt.QCursor.pos()).y() - prevHeight
+            i = y // (self.defHeight + self.margins[1] + self.margins[3])
+            arrays = index.data()
+            if not (0 <= i < len(arrays)):
+                return False
+            key = arrays[i]
+            model.setData(index, key, qt.Qt.CheckStateRole)
+            return True
+        return super().editorEvent(event, model, option, index)
+
+
 class MultiLineEditDelegate(qt.QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         edit = qt.QTextEdit(parent)

@@ -5,25 +5,17 @@ __date__ = "27 Aug 2022"
 
 import os, sys; sys.path.append('../..')  # analysis:ignore
 import parseq.core.singletons as csi
-import parseq.core.spectra as csp
+# import parseq.core.spectra as csp
 
 
 def test_TreeItem(withGUI):
     from parseq.core.spectra import TreeItem
-    csi.dataRootItem = TreeItem('root')
-    rootItem = csi.dataRootItem
-
-    testdata = [
-            ['z', 'AA?group AA', ['a1', 'b1', ['BB?BBBB', ['c', 'a2']], 'b2']],
-            ['d1', 'd2', 'd3', 'e1'],
-            ['e2']*3,
-            ['CC', ['f', 'g', 'h']],
-            ['i', 'j', 'k'],
-            'xx', 'yy', 'zz']
-#    testdata = ['AA?group AA', ['a1', 'b1', ['BB?BBBB', ['c', 'a2']], 'b2']]
-#    testdata = []
 
     if withGUI:
+        from parseq.tests import testapp
+        testapp.make_pipeline(withGUI)
+        testapp.load_test_data()
+
         from silx.gui import qt
         from parseq.gui.dataTreeModelView import DataTreeView
         MyTreeView = DataTreeView
@@ -37,12 +29,23 @@ def test_TreeItem(withGUI):
 
         view.setWindowTitle("Simple Tree Model")
 
-        items = csi.model.importData(testdata)
-        # items = csi.model.rootItem.insert_data(testdata)
-
         view.show()
         app.exec_()
     else:
+        testdata = [
+                ['z', 'AA?group AA', ['a1', 'b1',
+                                      ['BB?BBBB', ['c', 'a2']], 'b2']],
+                ['d1', 'd2', 'd3', 'e1'],
+                ['e2']*3,
+                ['CC', ['f', 'g', 'h']],
+                ['i', 'j', 'k'],
+                'xx', 'yy', 'zz']
+        # testdata = ['AA?group AA', ['a1', 'b1',
+        #                             ['BB?BBBB', ['c', 'a2']], 'b2']]
+        # testdata = []
+
+        csi.dataRootItem = TreeItem('root')
+        rootItem = csi.dataRootItem
         items = rootItem.insert_data(testdata)
         print(repr(rootItem.childItems))
 
@@ -85,5 +88,4 @@ def test_Spectrum(withGUI):  # with convenience functions
 if __name__ == '__main__':
     # test_TreeItem(withGUI=False)
     # test_TreeItem(withGUI=True)
-
     test_Spectrum(withGUI=True)

@@ -92,7 +92,7 @@ class Node(object):
     """
 
     properties = ('qLabel', 'qUnit', 'raw', 'role', 'plotLabel', 'plotUnit',
-                  'plotParams', 'ndim')
+                  'plotParams', 'ndim', 'abscissa')
     defaultPlotParams = {'symbolsize': 2, 'linewidth': 1.3, 'linestyle': '-'}
 
     def __init__(self, widgetClasses=[]):
@@ -230,6 +230,8 @@ class Node(object):
                 prop, dict(self.defaultPlotParams))
         elif prop == 'ndim':
             return self.arrays[arrayName].get(prop, 0)
+        elif prop == 'abscissa':
+            return self.arrays[arrayName].get(prop, None)
 
     def get_arrays_prop(self, prop, arrays=[], role=''):
         """Get the property *prop* of several arrays, returned as a list. All

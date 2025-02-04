@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "28 Aug 2022"
+__date__ = "22 Jan 2025"
 # !!! SEE CODERULES.TXT !!!
 
 import re
@@ -8,6 +8,7 @@ import sys
 import os
 import os.path as osp
 import shutil
+import glob
 from silx.gui import qt
 
 from xml.sax.saxutils import escape
@@ -15,7 +16,7 @@ from docutils.utils import SystemMessage
 from sphinx.application import Sphinx
 from sphinx.errors import SphinxError
 try:
-    import sphinxcontrib.jquery  # to check if it exists
+    import sphinxcontrib.jquery  # to check if it exists, analysis:ignore
 except ImportError as e:
     print('do "pip install sphinxcontrib-jquery"')
     raise e
@@ -33,13 +34,18 @@ COREDIR = osp.join(PARSEQDIR, 'core')
 GLOBDIR = osp.dirname(osp.abspath(PARSEQDIR))
 
 DOCDIR = osp.expanduser(osp.join('~', '.parseq', 'doc'))
-HELPDIR = osp.expanduser(osp.join('~', '.parseq', 'help-ParSeq'))
-HELPFILE = osp.join(HELPDIR, '_build', 'index.html')
+MAINHELPDIR = osp.expanduser(osp.join('~', '.parseq', 'help-ParSeq'))
+MAINHELPFILE = osp.join(MAINHELPDIR, '_build', 'index.html')
+PIPEHELPDIR = osp.expanduser(
+    osp.join('~', '.parseq', 'help-{0}'.format(csi.pipelineName)))
+PIPEHELPFILE = osp.join(PIPEHELPDIR, '_build', 'index.html')
 
 
 def make_context(task, name='', argspec='', note=''):
-    if task == 'help':
-        BASEDIR = HELPDIR
+    if task == 'main':
+        BASEDIR = MAINHELPDIR
+    elif task == 'pipe':
+        BASEDIR = PIPEHELPDIR
     elif task == 'docs':
         BASEDIR = DOCDIR
     else:
@@ -59,7 +65,7 @@ def make_context(task, name='', argspec='', note=''):
     return context
 
 
-@logger(minLevel=20)
+# @logger(minLevel=20)
 def sphinxify(task, context, wantMessages=False):
     # Add a class to several characters on the argspec. This way we can
     # highlight them using css, in a similar way to what IPython does.
@@ -72,11 +78,19 @@ def sphinxify(task, context, wantMessages=False):
     context['argspec'] = argspec
     confoverrides = {'html_context': context}
 
-    if task == 'help':
-        srcdir = HELPDIR
-        confdir = HELPDIR
-        outdir = osp.join(HELPDIR, '_build')
-        doctreedir = osp.join(HELPDIR, 'doctrees')
+    if task == 'main':
+        srcdir = MAINHELPDIR
+        confdir = MAINHELPDIR
+        outdir = osp.join(MAINHELPDIR, '_build')
+        doctreedir = osp.join(MAINHELPDIR, 'doctrees')
+        confoverrides['extensions'] = [
+            'sphinx.ext.autodoc', 'sphinx.ext.mathjax', 'sphinxcontrib.jquery',
+            'animation']
+    elif task == 'pipe':
+        srcdir = PIPEHELPDIR
+        confdir = PIPEHELPDIR
+        outdir = osp.join(PIPEHELPDIR, '_build')
+        doctreedir = osp.join(PIPEHELPDIR, 'doctrees')
         confoverrides['extensions'] = [
             'sphinx.ext.autodoc', 'sphinx.ext.mathjax', 'sphinxcontrib.jquery',
             'animation']
@@ -101,7 +115,7 @@ def sphinxify(task, context, wantMessages=False):
         print(e)
         raise e
 #        output = ("It was not possible to generate rich text help for this "
-#                  "object.</br>Please see it in plain text.")
+#                  "object.</br
 
 
 if 'pyqt4' in qt.BINDING.lower():
@@ -195,12 +209,13 @@ except AttributeError:
 class SphinxWorker(qt.QObject):
     html_ready = qt.pyqtSignal()
 
-    def prepareHelp(self, argspec="", note=""):
+    def prepareMain(self, argspec="", note=""):
         try:
-            shutil.rmtree(HELPDIR)
+            shutil.rmtree(MAINHELPDIR)
         except FileNotFoundError:
             pass
-        shutil.copytree(CONFDIR, HELPDIR, dirs_exist_ok=True)
+        shutil.copytree(CONFDIR, MAINHELPDIR, dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns('conf_doc*.py',))
         shutil.copy2(osp.join(PARSEQDIR, 'version.py'),
                      osp.join(osp.dirname(DOCDIR), 'version.py'))
         # insert abs path to parseq into conf.py:
@@ -209,10 +224,41 @@ class SphinxWorker(qt.QObject):
         data = data.replace(
             "sys.path.insert(0, '../..')",
             "sys.path.insert(0, r'" + GLOBDIR + "')")
-        with open(osp.join(HELPDIR, 'conf.py'), 'w') as f:
+        with open(osp.join(MAINHELPDIR, 'conf.py'), 'w') as f:
             f.write(data)
 
-        outdir = osp.join(HELPDIR, '_build')
+        outdir = osp.join(MAINHELPDIR, '_build')
+        if not osp.exists(outdir):
+            os.makedirs(outdir)
+        self.argspec = argspec
+        self.note = note
+
+    def preparePipe(self, argspec="", note=""):
+        try:
+            shutil.rmtree(PIPEHELPDIR)
+        except FileNotFoundError:
+            pass
+
+        dirsToCopy = '_images', '_static', '_templates', '_themes', 'exts'
+        for dc in dirsToCopy:
+            dst = osp.join(PIPEHELPDIR, dc)
+            dpath = osp.join(csi.appPath, 'doc', dc)
+            if not osp.exists(dpath):
+                dpath = osp.join(CONFDIR, dc)
+            shutil.copytree(dpath, dst, dirs_exist_ok=True)
+
+        dpath = osp.join(csi.appPath, 'doc', 'conf.py')
+        if not osp.exists(dpath):
+            dpath = osp.join(CONFDIR, 'conf.py')
+        shutil.copy2(dpath, osp.join(PIPEHELPDIR, 'conf.py'))
+
+        for file in glob.glob(osp.join(csi.appPath, 'doc', '*.rst')):
+            shutil.copy2(file, PIPEHELPDIR)
+        if not osp.exists(osp.join(PIPEHELPDIR, 'index.rst')):
+            dpath = osp.join(CONFDIR, 'indexrst.mock')
+            shutil.copy2(dpath, osp.join(PIPEHELPDIR, 'index.rst'))
+
+        outdir = osp.join(PIPEHELPDIR, '_build')
         if not osp.exists(outdir):
             os.makedirs(outdir)
         self.argspec = argspec

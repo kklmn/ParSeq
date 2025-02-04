@@ -826,24 +826,32 @@ class NodeWidget(qt.QWidget):
                         continue
                     curveLabel = item.alias + '.' + yN
                     curve = self.plot.getCurve(curveLabel)
-                    plotProps = dict(item.plotProps[node.name][yN])
+                    try:
+                        plotProps = dict(item.plotProps[node.name][yN])
+                    except Exception:
+                        plotProps = dict()
                     symbolsize = plotProps.pop('symbolsize', 2)
                     z = 1 if item in csi.selectedItems else 0
+                    # extra x:
+                    if 'abscissa' in node.arrays[yN]:
+                        x0 = getattr(item, node.arrays[yN]['abscissa'])
+                    else:
+                        x0 = x
                     try:
                         for transformWidget in self.transformWidgets:
                             if hasattr(transformWidget, 'extraPlotTransform'):
-                                x, y = transformWidget.extraPlotTransform(
-                                    item, node.plotXArray, x, yN, y)
+                                x0, y = transformWidget.extraPlotTransform(
+                                    item, node.plotXArray, x0, yN, y)
                         if curve is None:
                             self.plot.addCurve(
-                                x, y, legend=curveLabel, color=item.color, z=z,
-                                **plotProps)
+                                x0, y, legend=curveLabel, color=item.color,
+                                z=z, **plotProps)
                         else:
-                            curve.setData(x, y)
+                            curve.setData(x0, y)
                             curve.setZValue(z)
                     except (Exception, AssertionError) as e:
                         try:
-                            length = len(x)
+                            length = len(x0)
                         except Exception:
                             length = 'unknown'
                         syslogger.error(

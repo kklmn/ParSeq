@@ -371,22 +371,29 @@ class TreeItem(object):
                 items.append(item)
         elif isinstance(data, str):
             item = self.insert_item(data, insertAt, **kwargs)
-            if item.state[item.originNodeName] == \
-                    cco.DATA_STATE_MARKED_FOR_DELETION:
-                item.remove_from_parent()
-            else:
-                if item not in items:  # inclusion check that keeps the order
+            try:  # no state in tests
+                if item.state[item.originNodeName] == \
+                        cco.DATA_STATE_MARKED_FOR_DELETION:
+                    item.remove_from_parent()
+                else:
+                    if item not in items:  # inclusion check that keeps order
+                        items.append(item)
+            except AttributeError:
+                if item not in items:  # inclusion check that keeps order
                     items.append(item)
         elif isinstance(data, (list, tuple)):
             si = self
             for subdata in data:
                 if isinstance(subdata, str):
                     si = self.insert_item(subdata, insertAt, **kwargs)
-                    if si.state[si.originNodeName] == \
-                            cco.DATA_STATE_MARKED_FOR_DELETION:
-                        si.remove_from_parent()
-                        subItems = []
-                    else:
+                    try:  # no state in tests
+                        if si.state[si.originNodeName] == \
+                                cco.DATA_STATE_MARKED_FOR_DELETION:
+                            si.remove_from_parent()
+                            subItems = []
+                        else:
+                            subItems = [si]
+                    except AttributeError:
                         subItems = [si]
                 elif isinstance(subdata, (list, tuple)):
                     if si in items:
@@ -684,18 +691,23 @@ class Spectrum(TreeItem):
         for node in csi.nodes.values():
             self.plotProps[node.name] = {}
             if node.plotDimension == 1:
-                # items = csi.selectedItems
-                items = csi.allLoadedItems
+                items = csi.selectedItems
+                # items = csi.allLoadedItems
                 if len(items) > 0:
                     if hasattr(items[0], 'plotProps'):
                         self.plotProps[node.name] = dict(
                             items[0].plotProps[node.name])
                     else:
-                        self.init_default_plot_props(node)
+                        self.plotProps[node.name] = \
+                            self.init_default_plot_props(node)
                 else:
-                    self.init_default_plot_props(node)
+                    self.plotProps[node.name] = \
+                        self.init_default_plot_props(node)
 
     def init_default_plot_props(self, node):
+        res = {}
+        if node.plotDimension > 1:
+            return res
         for ind, yName in enumerate(node.plotYArrays):
             plotParams = {}
             plotParams['yaxis'] = \
@@ -708,7 +720,8 @@ class Spectrum(TreeItem):
                 else:
                     pv = v
                 plotParams[k] = pv
-            self.plotProps[node.name][yName] = plotParams
+            res[yName] = plotParams
+        return res
 
     def get_state(self, nodeName):
         if self.error is not None:
@@ -772,7 +785,8 @@ class Spectrum(TreeItem):
                 if self.state[fromNode.name] == cco.DATA_STATE_GOOD:
                     shapes = self.check_shape()
                     if isinstance(shapes, dict):
-                        syslogger.warning(
+                        syslogger.log(
+                            100,
                             'Incompatible data shapes in {0}:\n{1}'.format(
                                 fromNode.name, shapes))
                         self.state[self.originNodeName] = cco.DATA_STATE_BAD
@@ -808,7 +822,8 @@ class Spectrum(TreeItem):
             elif self.state[fromNode.name] == cco.DATA_STATE_GOOD:
                 shapes = self.check_shape()
                 if isinstance(shapes, dict):
-                    syslogger.warning(
+                    syslogger.log(
+                        100,
                         'Incompatible data shapes in {0}:\n{1}'.format(
                             fromNode.name, shapes))
                     self.state[self.originNodeName] = cco.DATA_STATE_BAD
@@ -964,6 +979,23 @@ class Spectrum(TreeItem):
                     res[key] = config.get(configData, name, key, default=val)
             return res
 
+        def getPlotParams(configData):
+            if 'plotProps' in configData[name]:
+                resConf = config.get(configData, name, 'plotProps')
+            else:
+                resConf = {}
+            res = {}
+            for node in csi.nodes.values():
+                res[node.name] = self.init_default_plot_props(node)
+                if node.name not in resConf:
+                    continue
+                for cN in res[node.name]:
+                    try:
+                        res[node.name][cN] = resConf[node.name][cN]
+                    except KeyError:
+                        pass
+            return res
+
         nameFull = None
         if 'configData' in kwargs:  # ini file
             configData = kwargs['configData']
@@ -981,9 +1013,7 @@ class Spectrum(TreeItem):
                     if 'colorIndividual' in configData[name]:
                         tmp['colorIndividual'] = config.get(
                             configData, name, 'colorIndividual')
-                    if 'plotProps' in configData[name]:
-                        tmp['plotProps'] = config.get(
-                            configData, name, 'plotProps')
+                    tmp['plotProps'] = getPlotParams(configData)
                     tmp['transformParams'] = getTransformParams(configData)
                     tmp['fitParams'] = getFitParams(configData)
                     nameRel = tmp.pop('madeOf_relative')
@@ -1436,8 +1466,9 @@ class Spectrum(TreeItem):
             #     fromNode.get_arrays_prop('raw', role='0D')
 
             dNames = fromNode.get_arrays_prop('key')
+            xtraNames = [n for n in fromNode.get_arrays_prop('abscissa') if n]
             xNames = fromNode.get_arrays_prop('key', role='x') +\
-                fromNode.get_arrays_prop('key', role='0D')
+                fromNode.get_arrays_prop('key', role='0D') + xtraNames
             dims = fromNode.get_arrays_prop('ndim')
 
             if not combineInterpolate:
@@ -1446,9 +1477,14 @@ class Spectrum(TreeItem):
                 for dName, dim in zip(dNames, dims):
                     if 1 <= dim <= 3:
                         for data in madeOf:
-                            if getattr(data, dName) is None:  # optional
+                            yd = getattr(data, dName)
+                            if yd is None:  # optional
                                 continue
-                            sh = getattr(data, dName).shape
+                            sh = yd.shape
+                            if 'abscissa' in fromNode.arrays[dName]:
+                                xtraName = fromNode.arrays[dName]['abscissa']
+                                assert getattr(data, xtraName).shape == sh
+                                continue
                             if shapes[dim] is None:
                                 shapes[dim] = sh
                             else:
@@ -1459,14 +1495,11 @@ class Spectrum(TreeItem):
                     data.combinesTo.append(self)
 
             ns = len(madeOf)
-            # x and 0D as average over all contributing spectra:
-
+            it0 = madeOf[0]
             if combineInterpolate:
-                it = madeOf[0]
                 for arrayName in xNames:
-                    setattr(self, arrayName, np.array(getattr(it, arrayName)))
-                x0 = getattr(it, xNames[0])
-            else:
+                    setattr(self, arrayName, np.array(getattr(it0, arrayName)))
+            else:  # x and 0D as average over all contributing spectra
                 for arrayName in xNames:
                     sumx = 0
                     for data in madeOf:
@@ -1477,13 +1510,19 @@ class Spectrum(TreeItem):
             for arrayName, dim in zip(dNames, dims):
                 if arrayName in xNames:
                     continue
+                if combineInterpolate:
+                    if 'abscissa' in fromNode.arrays[arrayName]:
+                        xName = fromNode.arrays[arrayName]['abscissa']
+                    else:
+                        xName = xNames[0]
+                    x0 = getattr(it0, xName)
                 if what in (cco.COMBINE_AVE, cco.COMBINE_SUM, cco.COMBINE_RMS,
                             cco.COMBINE_PCA, cco.COMBINE_TT):
                     arrays = []
                     for data in madeOf:
                         arr = getattr(data, arrayName)
                         if combineInterpolate and arr is not None:
-                            x = getattr(data, xNames[0])
+                            x = getattr(data, xName)
                             interp = interp1d(x, arr, fill_value="extrapolate",
                                               assume_sorted=True)
                             arrays.append(interp(x0))
@@ -1561,17 +1600,23 @@ class Spectrum(TreeItem):
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
         except AssertionError:
             self.state[fromNode.name] = cco.DATA_STATE_MATHERROR
-            msg = 'The conbined arrays have different lengths. '\
-                'Use "interpolate".'
+            msg = 'The array {0} differs in length from the others. '\
+                'Use "interpolate".'.format(dName)
             self.meta['text'] += msg
-            syslogger.error('calc_combined of {0} ended with error:\n{1}'
-                            .format(self.alias, msg))
+            syslogger.log(100, 'calc_combined of {0} ended with error:\n{1}'
+                          .format(self.alias, msg))
         except AttributeError as e:
             self.state[fromNode.name] = cco.DATA_STATE_BAD
             msg = str(e)
             self.meta['text'] += msg
-            syslogger.error('calc_combined of {0} ended with error:\n{1}'
-                            .format(self.alias, msg))
+            syslogger.log(100, 'calc_combined of {0} ended with error:\n{1}'
+                          .format(self.alias, msg))
+        except ValueError as e:
+            self.state[fromNode.name] = cco.DATA_STATE_BAD
+            msg = str(e)
+            self.meta['text'] += msg
+            syslogger.log(100, 'calc_combined of {0} ended with error:\n{1}'
+                          .format(self.alias, msg))
 
     @logger(minLevel=50, attrs=[(0, 'alias')])
     def branch_data(self):
@@ -1866,17 +1911,25 @@ class Spectrum(TreeItem):
                 # xkey = xkeys[0]
                 xkey = node.get_prop(xkeys[0], prop)
                 try:
-                    x = getattr(self, xkey)
+                    x0 = getattr(self, xkey)
                 except AttributeError:
                     continue
-                shapeBefore = x.shape
 
                 corrKeys = []
                 datainds = None
+                excludeArrays = correction.get('excludeArrays', [])
                 for k, arr in node.arrays.items():
                     key = node.get_prop(k, prop)
                     if key == xkey:
                         continue
+                    if key in excludeArrays:
+                        continue
+                    if 'abscissa' in arr:
+                        x = getattr(self, arr['abscissa'])
+                    else:
+                        x = x0
+                    shapeBefore = x.shape
+
                     try:
                         y = getattr(self, key)
                     except AttributeError:

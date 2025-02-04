@@ -84,8 +84,8 @@ from ..core import singletons as csi
 from ..core.logger import syslogger
 from .propWidget import PropWidget
 
-HEADERS = 'kind', 'label', 'use', 'geometry'
-columnWidths = 36, 40, 28, 136
+HEADERS = 'kind', 'label', 'use', 'geometry', 'apply to'
+columnWidths = 36, 40, 28, 136, 60
 
 __iconDir__ = osp.join(osp.dirname(__file__), '_images')
 ICON_SIZE = 32  # or 24
@@ -121,7 +121,10 @@ class CorrectionDelete(HorizontalRangeROI):
         self.setRange(lim[0], lim[1])
 
     def getCorrection(self):
-        return dict(name=self.getName(), kind=self.KIND, lim=self.getRange())
+        res = dict(name=self.getName(), kind=self.KIND, lim=self.getRange())
+        if hasattr(self, 'excludeArrays') and self.excludeArrays:
+            res['excludeArrays'] = self.excludeArrays
+        return res
 
     def __str__(self):
         rng = self.getRange()
@@ -192,8 +195,11 @@ class CorrectionScale(HorizontalRangeROI):
         self.setScale(scale)
 
     def getCorrection(self):
-        return dict(name=self.getName(), kind=self.KIND,
-                    lim=self.getRange(), scale=self.getScale())
+        res = dict(name=self.getName(), kind=self.KIND,
+                   lim=self.getRange(), scale=self.getScale())
+        if hasattr(self, 'excludeArrays') and self.excludeArrays:
+            res['excludeArrays'] = self.excludeArrays
+        return res
 
     def __str__(self):
         prX = self.parent().precisionX
@@ -332,8 +338,11 @@ class CorrectionSpline(HorizontalRangeROI):
         self.setSpline()
 
     def getCorrection(self):
-        return dict(name=self.getName(), kind=self.KIND,
-                    lim=self.getRange(), knots=self.getKnots())
+        res = dict(name=self.getName(), kind=self.KIND,
+                   lim=self.getRange(), knots=self.getKnots())
+        if hasattr(self, 'excludeArrays') and self.excludeArrays:
+            res['excludeArrays'] = self.excludeArrays
+        return res
 
     def __str__(self):
         rng = self.getRange()
@@ -430,8 +439,11 @@ class CorrectionStep(HorizontalRangeROI):
         return x, y
 
     def getCorrection(self):
-        return dict(name=self.getName(), kind=self.KIND,
-                    left=self.getRange()[0], right=self.getRight())
+        res = dict(name=self.getName(), kind=self.KIND,
+                   left=self.getRange()[0], right=self.getRight())
+        if hasattr(self, 'excludeArrays') and self.excludeArrays:
+            res['excludeArrays'] = self.excludeArrays
+        return res
 
     def __str__(self):
         prX = self.parent().precisionX
@@ -473,8 +485,11 @@ class CorrectionSpikes(HorizontalRangeROI):
         self._cutoff = cutoff
 
     def getCorrection(self):
-        return dict(name=self.getName(), kind=self.KIND, lim=self.getRange(),
-                    cutoff=self._cutoff)
+        res = dict(name=self.getName(), kind=self.KIND, lim=self.getRange(),
+                   cutoff=self._cutoff)
+        if hasattr(self, 'excludeArrays') and self.excludeArrays:
+            res['excludeArrays'] = self.excludeArrays
+        return res
 
     def __str__(self):
         rng = self.getRange()
@@ -683,9 +698,10 @@ class CorrectionManager(RegionOfInterestManager):
 
 
 class CorrectionModel(qt.QAbstractTableModel):
-    def __init__(self, roiManager=None):
+    def __init__(self, roiManager=None, arrays=[]):
         super().__init__()
         self.setRoiManager(roiManager)
+        self.arrays = arrays
         roiManager.sigRoiAdded.connect(self.reset)
 
     def setRoiManager(self, roiManager=None):
@@ -703,8 +719,8 @@ class CorrectionModel(qt.QAbstractTableModel):
     def rowCount(self, parent=qt.QModelIndex()):
         return len(self.roiManager.getRois())
 
-    def columnCount(self, parent):
-        return len(HEADERS)
+    def columnCount(self, parent=qt.QModelIndex()):
+        return len(HEADERS) if (len(self.arrays) > 1) else (len(HEADERS)-1)
 
     def headerData(self, section, orientation, role):
         if orientation != qt.Qt.Horizontal:
@@ -743,9 +759,15 @@ class CorrectionModel(qt.QAbstractTableModel):
                 return roi.getName()
             elif column == 3:  # geometry
                 return str(roi)
+            elif column == 4:  # arrays
+                return self.arrays
         elif role == qt.Qt.CheckStateRole:
             if column == 2:  # use
                 return qt.Qt.Checked if roi.isVisible() else qt.Qt.Unchecked
+            elif column == 4:  # arrays
+                if not hasattr(roi, 'excludeArrays'):
+                    roi.excludeArrays = []
+                return roi.excludeArrays
         elif role == qt.Qt.DecorationRole:
             if column == 0 and hasattr(roi, "ICON"):  # kind
                 iconName = roi.ICON
@@ -765,9 +787,9 @@ class CorrectionModel(qt.QAbstractTableModel):
         rois = self.roiManager.getRois()
         if len(rois) == 0:
             return
+        column, row = index.column(), index.row()
+        roi = rois[row]
         if role == qt.Qt.EditRole:
-            column, row = index.column(), index.row()
-            roi = rois[row]
             if column == 1:  # label
                 roi.setName(value)
                 return True
@@ -776,10 +798,15 @@ class CorrectionModel(qt.QAbstractTableModel):
             else:
                 return False
         elif role == qt.Qt.CheckStateRole:
-            row = index.row()
-            roi = rois[row]
-            roi.setVisible(bool(value))
-            return True
+            if column == 2:  # use
+                roi.setVisible(bool(value))
+                return True
+            elif column == 4:  # arrays
+                if value in roi.excludeArrays:
+                    roi.excludeArrays.remove(value)
+                else:
+                    roi.excludeArrays.append(value)
+                return True
         return False
 
 
@@ -830,9 +857,9 @@ class CorrectionToolBar(qt.QToolBar):
 class CorrectionTable(qt.QTableView):
     sigCorrectionChanged = qt.pyqtSignal()
 
-    def __init__(self, parent, roiManager):
+    def __init__(self, parent, roiManager, arrays=[]):
         super().__init__(parent)
-        self.roiModel = CorrectionModel(roiManager)
+        self.roiModel = CorrectionModel(roiManager, arrays)
         self.setModel(self.roiModel)
         self.setIconSize(qt.QSize(ICON_SIZE, ICON_SIZE))
 
@@ -853,16 +880,20 @@ class CorrectionTable(qt.QTableView):
 
         if 'pyqt4' in qt.BINDING.lower():
             horHeaders.setMovable(False)
-            for i in range(len(HEADERS)):
+            for i in range(self.roiModel.columnCount()):
                 horHeaders.setResizeMode(i, qt.QHeaderView.Interactive)
             horHeaders.setResizeMode(3, qt.QHeaderView.Stretch)
+            if self.roiModel.columnCount() > 4:
+                horHeaders.setResizeMode(4, qt.QHeaderView.Stretch)
             horHeaders.setClickable(True)
             verHeaders.setResizeMode(qt.QHeaderView.ResizeToContents)
         else:
             horHeaders.setSectionsMovable(False)
-            for i in range(len(HEADERS)):
+            for i in range(self.roiModel.columnCount()):
                 horHeaders.setSectionResizeMode(i, qt.QHeaderView.Interactive)
             horHeaders.setSectionResizeMode(3, qt.QHeaderView.Stretch)
+            if self.roiModel.columnCount() > 4:
+                horHeaders.setSectionResizeMode(4, qt.QHeaderView.Stretch)
             horHeaders.setSectionsClickable(True)
             verHeaders.setSectionResizeMode(qt.QHeaderView.ResizeToContents)
         horHeaders.setStretchLastSection(False)
@@ -880,8 +911,9 @@ class CorrectionTable(qt.QTableView):
 
         self.setItemDelegateForColumn(2, gco.CheckBoxDelegate(self))
         self.setItemDelegateForColumn(3, gco.MultiLineEditDelegate(self))
-
-        for i in range(len(HEADERS)):
+        if self.roiModel.columnCount() > 4:
+            self.setItemDelegateForColumn(4, gco.MultiCheckBoxDelegate(self))
+        for i in range(self.roiModel.columnCount()):
             self.setColumnWidth(i, int(columnWidths[i]*csi.screenFactor))
         self.setMinimumWidth(int(sum(columnWidths)*csi.screenFactor) + 2)
         self.setMinimumHeight(int(horHeaders.height()*4*csi.screenFactor))
@@ -988,6 +1020,7 @@ class CorrectionTable(qt.QTableView):
                 name = roid.pop('name', '')
                 roid.pop('use', True)
                 roid.pop('ndim', 1)
+                excludeArrays = roid.pop('excludeArrays', [])
                 if 'lim' not in roid and 'range' in roid:  # compatibility
                     roid['lim'] = roid.pop('range')
                 # model.reset()
@@ -1011,6 +1044,7 @@ class CorrectionTable(qt.QTableView):
                     roi.setName(name)
                 roi.setVisible(True)
                 roi.setCorrection(**roid)
+                roi.excludeArrays = excludeArrays
                 model.roiManager.addRoi(roi)
             if len(roiDicts) > 0:
                 model.roiManager.setCurrentRoi(roi)
@@ -1020,10 +1054,12 @@ class CorrectionTable(qt.QTableView):
                 name = roid.pop('name', '')
                 use = roid.pop('use', True)
                 roid.pop('ndim')
+                excludeArrays = roid.pop('excludeArrays', [])
                 if name:
                     roi.setName(name)
                 roi.setVisible(bool(use))
                 roi.setCorrection(**roid)
+                roi.excludeArrays = excludeArrays
 
         model.reset()
         model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
@@ -1079,7 +1115,11 @@ class Correction1DWidget(PropWidget):
         layoutP.addWidget(self.precisionYSB)
         layout.addLayout(layoutP)
 
-        self.table = CorrectionTable(self, self.roiManager)
+        try:
+            arrays = node.plotYArrays
+        except Exception:
+            arrays = []
+        self.table = CorrectionTable(self, self.roiManager, arrays)
         layout.addWidget(self.table, 1)
 
         self.acceptButton = qt.QPushButton('Accept Corrections')

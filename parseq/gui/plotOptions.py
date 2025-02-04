@@ -215,7 +215,7 @@ class QColorLoop(qt.QPushButton):
 
 
 class LineProps(qt.QDialog):
-    def __init__(self, parent, node, activeTab=0):
+    def __init__(self, parent, node, activeKey=None):
         super().__init__(parent)
         self.setWindowTitle("Line properties")
 
@@ -265,12 +265,21 @@ class LineProps(qt.QDialog):
         if node.widget is not None:
             for trw in node.widget.transformWidgets:
                 self.extraPlotParams.update(trw.plotParams)
-        for yN in labels + list(self.extraPlotParams.keys()):
+        try:
+            activeLabel = node.get_prop(activeKey, 'qLabel') \
+                if activeKey is not None else ''
+        except KeyError:
+            activeLabel = ''
+        activeTabInd = None
+        for iyN, yN in enumerate(labels + list(self.extraPlotParams.keys())):
             tab = self.makeTab()
             self.tabWidget.addTab(tab, yN)
             self.tabs.append(tab)
+            if yN == activeLabel:
+                activeTabInd = iyN
 
-        self.tabWidget.setCurrentIndex(activeTab)
+        if activeTabInd is not None:
+            self.tabWidget.setCurrentIndex(activeTabInd)
 
         mainLayout = qt.QVBoxLayout()
         mainLayout.addWidget(nSpectraLabel)

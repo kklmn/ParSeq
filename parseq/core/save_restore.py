@@ -121,7 +121,8 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
             if not saveNode:
                 continue
             if node.plotDimension == 1:
-                header = [node.plotXArray] + [y for y in node.plotYArrays]
+                header = [node.plotXArray] + [y for y in node.plotYArrays if
+                                              not node.get_prop(y, 'abscissa')]
             else:
                 continue
 
@@ -132,7 +133,12 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                     x = getattr(it, node.plotXArray)
                 except AttributeError:
                     continue
-                for aN in node.arrays:
+                for aN, aDict in node.arrays.items():
+                    role = node.get_prop(aN, 'role')
+                    if role == '0D':
+                        continue
+                    if 'abscissa' in aDict:
+                        continue
                     d = getattr(it, aN)
                     for trWidget in node.widget.transformWidgets:
                         if ((aN in node.plotYArrays) and
@@ -167,7 +173,9 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
 
                 curves[sname] = [it.alias, it.color, headerAll, plotPropsAll]
 
-                for iG, aG in enumerate(node.auxArrays):
+                extrasToSave = [(aDict['abscissa'], aN) for aN, aDict
+                                in node.arrays.items() if 'abscissa' in aDict]
+                for iG, aG in enumerate(node.auxArrays + extrasToSave):
                     dataAux, headerAux = [], []
                     for yN in aG:
                         try:
@@ -177,8 +185,12 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                         headerAux.append(yN)
                     if len(dataAux) == 0:
                         continue
-                    sname = u'{0}-{1}-{2}-aux{3}'.format(
-                            iNode+1, nname, dname, iG)
+                    if iG < len(node.auxArrays):
+                        suff = 'aux{0}'.format(iG)
+                    else:
+                        suff = '{0}'.format(aG[1])
+                    sname = u'{0}-{1}-{2}-{3}'.format(
+                        iNode+1, nname, dname, suff)
                     if 'txt' in saveTypes:
                         np.savetxt(sname+'.txt', np.column_stack(dataAux),
                                    fmt='%.12g', header=' '.join(headerAux))
@@ -205,7 +217,8 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
             if not saveNode:
                 continue
             if node.plotDimension == 1:
-                header = [node.plotXArray] + [y for y in node.plotYArrays]
+                header = [node.plotXArray] + [y for y in node.plotYArrays if
+                                              not node.get_prop(y, 'abscissa')]
             elif node.plotDimension == 2:
                 header = node.plot2DArray
             elif node.plotDimension == 3:
@@ -218,7 +231,9 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                         x = getattr(it, node.plotXArray)
                     except AttributeError:
                         continue
-                for aN in node.arrays:
+                for aN, aDict in node.arrays.items():
+                    if 'abscissa' in aDict:
+                        continue
                     d = getattr(it, aN)
                     for trWidget in node.widget.transformWidgets:
                         if (node.plotDimension == 1 and
@@ -227,7 +242,11 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                             x, d = trWidget.extraPlotTransform(
                                 it, node.plotXArray, x, aN, d)
                     dataToSave[it][aN] = d.tolist() if d is not None else None
-                for aN in [j for i in node.auxArrays for j in i]:
+
+                extrasToSave = [(aDict['abscissa'], aN) for aN, aDict
+                                in node.arrays.items() if 'abscissa' in aDict]
+                for aN in [j for i in (node.auxArrays + extrasToSave)
+                           for j in i]:
                     try:
                         d = getattr(it, aN)
                     except AttributeError:
@@ -248,9 +267,9 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                             continue
 
                 curves[sname] = [it.alias, it.color, headerAll, plotPropsAll]
-                if node.auxArrays:
+                if node.auxArrays + extrasToSave:
                     headerAux = []
-                    for aG in node.auxArrays:
+                    for aG in (node.auxArrays + extrasToSave):
                         for yN in aG:
                             if not hasattr(it, yN):
                                 break
@@ -287,7 +306,8 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
             if not saveNode:
                 continue
             if node.plotDimension == 1:
-                header = [node.plotXArray] + [y for y in node.plotYArrays]
+                header = [node.plotXArray] + [y for y in node.plotYArrays if
+                                              not node.get_prop(y, 'abscissa')]
             elif node.plotDimension == 2:
                 header = node.plot2DArray
             elif node.plotDimension == 3:
@@ -300,7 +320,9 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                         x = getattr(it, node.plotXArray)
                     except AttributeError:
                         continue
-                for aN in node.arrays:
+                for aN, aDict in node.arrays.items():
+                    if 'abscissa' in aDict:
+                        continue
                     try:
                         y = getattr(it, aN)
                         for trWidget in node.widget.transformWidgets:
@@ -313,7 +335,10 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                     except AttributeError:
                         continue
 
-                for aN in [j for i in node.auxArrays for j in i]:
+                extrasToSave = [(aDict['abscissa'], aN) for aN, aDict
+                                in node.arrays.items() if 'abscissa' in aDict]
+                for aN in [j for i in (node.auxArrays + extrasToSave)
+                           for j in i]:
                     try:
                         dataToSave[it][aN] = getattr(it, aN)
                     except AttributeError:
@@ -333,9 +358,9 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                             continue
 
                 curves[sname] = [it.alias, it.color, headerAll, plotPropsAll]
-                if node.auxArrays:
+                if node.auxArrays + extrasToSave:
                     headerAux = []
-                    for aG in node.auxArrays:
+                    for aG in (node.auxArrays + extrasToSave):
                         for yN in aG:
                             if not hasattr(it, yN):
                                 break

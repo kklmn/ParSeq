@@ -18,14 +18,24 @@ def line(xs, ys):
 
 
 def fwhm(x, y):
+    # simple implementation, quantized by dx:
+    def simple():
+        topHalf = np.where(y >= 0.5*np.max(y))[0]
+        if len(topHalf) == 0:
+            return 0
+        return np.abs(x[topHalf[0]] - x[topHalf[-1]])
+
+    # a better implementation, weakly dependent on dx size
     try:
         if x[0] > x[-1]:
             x, y = x[::-1], y[::-1]
         spline = UnivariateSpline(x, y - y.max()*0.5, s=0)
         roots = spline.roots()
+        if len(roots) > 2:
+            return simple()
         return max(roots) - min(roots)
     except ValueError:
-        return
+        return simple()
 
 
 def smooth_convolve(y, npoints):

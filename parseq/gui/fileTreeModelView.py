@@ -794,8 +794,11 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             for filt in self.transformNode.excludeFilters:
                 if not filt:
                     continue
-                if re.search(filt.replace('*', '+'), fileName):
-                    return qt.QModelIndex()
+                try:
+                    if re.search(filt.replace('*', '+'), fileName):
+                        return qt.QModelIndex()
+                except Exception:
+                    continue
         return indexFS
 
     def reloadHdf5(self, index):
@@ -1417,6 +1420,8 @@ class FileTreeView(qt.QTreeView):
                 indexHead = model.reloadHdf5(ind)
             except PermissionError as e:
                 syslogger.error(str(e))
+                return
+            if indexHead is None:
                 return
             self.setCurrentIndex(indexHead)
             self.setExpanded(indexHead, True)

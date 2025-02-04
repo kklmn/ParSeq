@@ -424,6 +424,11 @@ class Transform(object):
             csi.mainWindow.afterTransformSignal.emit(self.fromNode.widget)
             csi.mainWindow.beforeTransformSignal.emit(self.toNode.widget)
 
+        # do pre-corrections only for originNode:
+        for data in dataItems:
+            if data.originNodeName == self.fromNode.name:
+                data.make_corrections(self.fromNode)
+
     # @staticmethod
     # def run_main(data):
     @classmethod
@@ -701,7 +706,8 @@ def connect_combined(items, parentItem):
     """Used at project loading to connect combined data to underlying data."""
     toBeUpdated = []
     for item in items:
-        if isinstance(item.madeOf, (list, tuple)):  # combined
+        if (hasattr(item, 'madeOf') and  # instance of Spectrum
+                isinstance(item.madeOf, (list, tuple))):  # combined
             newMadeOf = []
             for itemName in item.madeOf:
                 if isinstance(itemName, str):
@@ -722,8 +728,11 @@ def connect_combined(items, parentItem):
 
 def run_transforms(items, parentItem, runParallel=True):
     topItems = [it for it in items if it in parentItem.childItems]
-    bottomItems = [it for it in items if it not in parentItem.childItems
-                   and (not isinstance(it.madeOf, (dict, list, tuple)))]
+    try:
+        bottomItems = [it for it in items if it not in parentItem.childItems
+                       and (not isinstance(it.madeOf, (dict, list, tuple)))]
+    except AttributeError:  # can happen in tests
+        bottomItems = [it for it in items if it not in parentItem.childItems]
     # dependentItems = [it for it in items if it not in parentItem.childItems
     #                   and isinstance(it.madeOf, (dict, list, tuple))]
 
