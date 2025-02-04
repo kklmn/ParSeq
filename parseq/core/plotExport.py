@@ -172,7 +172,10 @@ def read2D(saveType, fname, props):
     if saveType.endswith(('json', 'pickle', 'h5')):
         data, h5file = readFile(saveType, fname)
         # slicing is needed to create an ndarray from HDF5 object
-        z = data[props[2]][:]
+        try:
+            z = data[props[2][0]][:]
+        except KeyError:
+            return
         maps.append(z)
         if h5file is not None:
             h5file.close()
@@ -184,6 +187,10 @@ def plot2Dmpl(nodeData):
     savedColumns = nodeData[4]
     for fname, props in savedColumns.items():
         maps = read2D(saveType, fname, props)
+        if maps is not None:
+            break
+    else:
+        return
 
     # applied only to one 2D map:
     fig = plt.figure()
@@ -204,6 +211,10 @@ def plot2Dsilx(nodeData):
     savedColumns = nodeData[4]
     for fname, props in savedColumns.items():
         maps = read2D(saveType, fname, props)
+        if maps is not None:
+            break
+    else:
+        return
 
     # applied only to one 2D map:
     plot = Plot2D()
@@ -224,7 +235,10 @@ def read3D(saveType, fname, props):
     if saveType.endswith(('json', 'pickle', 'h5')):
         data, h5file = readFile(saveType, fname)
         # slicing is needed to create an ndarray from HDF5 object
-        v = data[props[2]][:]
+        try:
+            v = data[props[2][0]][:]
+        except KeyError:
+            return
         maps.append(v)
         if h5file is not None:
             h5file.close()
@@ -238,6 +252,10 @@ def plot3Dmpl(nodeData, level=0.4):
     savedColumns = nodeData[4]
     for fname, props in savedColumns.items():
         maps = read3D(saveType, fname, props)
+        if maps is not None:
+            break
+    else:
+        return
 
     # applied only to one (first) 3D map:
     fig = plt.figure()
@@ -273,6 +291,10 @@ def plot3Dsilx(nodeData):
     savedColumns = nodeData[4]
     for fname, props in savedColumns.items():
         maps = read3D(saveType, fname, props)
+        if maps is not None:
+            break
+    else:
+        return
 
     # applied only to one (first) 3D map:
     v = maps[0]

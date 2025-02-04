@@ -139,7 +139,10 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                         continue
                     if 'abscissa' in aDict:
                         continue
-                    d = getattr(it, aN)
+                    try:
+                        d = getattr(it, aN)
+                    except AttributeError:
+                        continue
                     for trWidget in node.widget.transformWidgets:
                         if ((aN in node.plotYArrays) and
                                 hasattr(trWidget, 'extraPlotTransform')):
@@ -220,9 +223,9 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                 header = [node.plotXArray] + [y for y in node.plotYArrays if
                                               not node.get_prop(y, 'abscissa')]
             elif node.plotDimension == 2:
-                header = node.plot2DArray
+                header = [node.plot2DArray]
             elif node.plotDimension == 3:
-                header = node.plot3DArray
+                header = [node.plot3DArray]
 
             curves = {}
             for it, sname in zip(csi.selectedItems, snames):
@@ -234,7 +237,10 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                 for aN, aDict in node.arrays.items():
                     if 'abscissa' in aDict:
                         continue
-                    d = getattr(it, aN)
+                    try:
+                        d = getattr(it, aN)
+                    except AttributeError:
+                        continue
                     for trWidget in node.widget.transformWidgets:
                         if (node.plotDimension == 1 and
                             (aN in node.plotYArrays) and
@@ -309,9 +315,9 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                 header = [node.plotXArray] + [y for y in node.plotYArrays if
                                               not node.get_prop(y, 'abscissa')]
             elif node.plotDimension == 2:
-                header = node.plot2DArray
+                header = [node.plot2DArray]
             elif node.plotDimension == 3:
-                header = node.plot3DArray
+                header = [node.plot3DArray]
 
             curves = {}
             for it, sname in zip(csi.selectedItems, snames):
@@ -394,7 +400,8 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                                        data=str(it.transformParams))
                 # syslogger.info('data keys:', dataGrp.keys())
                 for plot in h5plots:
-                    grp = plotsGrp.create_group(plot[0], track_order=True)
+                    gname = plot[0].translate(chars2removeMap)
+                    grp = plotsGrp.create_group(gname, track_order=True)
                     grp.create_dataset('ndim', data=plot[1])
                     grp.create_dataset('axes', data=str(plot[2]))
                     grp.create_dataset('plots', data=str(plot[3]))
