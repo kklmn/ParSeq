@@ -64,11 +64,12 @@ def load_project(fname, qMessageBox=None, restore_perspective=None):
     # cwd = os.getcwd()
     os.chdir(os.path.dirname(fname))
     if csi.model is not None:
-        csi.model.importData(dataTree, configData=configProject)
+        items = csi.model.importData(dataTree, configData=configProject)
     else:
         items = root.insert_data(dataTree, configData=configProject)
         ctr.connect_combined(items, root)
         ctr.run_transforms(items, root)
+    root.init_colors(items)
     # os.chdir(cwd)  # don't! This breaks file list update by data selection
 
 

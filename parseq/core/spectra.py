@@ -443,9 +443,11 @@ class TreeItem(object):
             if self.colorPolicy == gco.COLOR_POLICY_INDIVIDUAL:
                 item.color = gco.getColorName(self.color)
             elif self.colorPolicy == gco.COLOR_POLICY_LOOP1:
-                item.color = gco.colorCycle1[item.row() % len(gco.colorCycle1)]
+                # item.color = gco.colorCycle1[item.row() % len(gco.colorCycle1)]
+                item.color = gco.colorCycle1[i % len(gco.colorCycle1)]
             elif self.colorPolicy == gco.COLOR_POLICY_LOOP2:
-                item.color = gco.colorCycle2[item.row() % len(gco.colorCycle2)]
+                # item.color = gco.colorCycle2[item.row() % len(gco.colorCycle2)]
+                item.color = gco.colorCycle2[i % len(gco.colorCycle2)]
             elif self.colorPolicy == gco.COLOR_POLICY_GRADIENT:
                 item.color = colors[i].name()  # in the format "#RRGGBB"
             else:
