@@ -934,8 +934,9 @@ class NodeWidget(qt.QWidget):
                 image = getattr(item, self.node.plot2DArray)
             except AttributeError as e:
                 if not self.wasNeverPlotted:
-                    syslogger.error(e)
-                    syslogger.error(
+                    syslogger.log(100, e)
+                    syslogger.log(
+                        100,
                         'If you use multiprocessing, check that this array is '
                         'included into *outArrays* list in your transform.')
                 return

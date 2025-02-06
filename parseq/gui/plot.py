@@ -100,7 +100,8 @@ class Plot1D(splot.PlotWindow):
         menu.exec(globalPosition)
 
 
-class Plot2D(splot.Plot2D):
+# class Plot2D(splot.Plot2D):
+class Plot2D(splot.ImageView):
     pass
 
 
