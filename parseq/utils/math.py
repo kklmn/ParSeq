@@ -33,9 +33,7 @@ def fwhm(x, y):
         # spline = UnivariateSpline(x, y - y.max()*0.5, s=0)
         # roots = spline.roots()
         spline = make_interp_spline(x, y - y.max()*0.5)
-        roots = PPoly.from_spline(spline).roots()
-        if len(roots) > 2:
-            return simple()
+        roots = PPoly.from_spline(spline, False).roots()
         return max(roots) - min(roots)
     except ValueError:
         return simple()
