@@ -4,7 +4,8 @@ __date__ = "6 Apr 2021"
 # !!! SEE CODERULES.TXT !!!
 
 import numpy as np
-from scipy.interpolate import UnivariateSpline
+# from scipy.interpolate import UnivariateSpline
+from scipy.interpolate import make_interp_spline, PPoly
 from scipy.signal import savgol_filter
 
 
@@ -29,8 +30,10 @@ def fwhm(x, y):
     try:
         if x[0] > x[-1]:
             x, y = x[::-1], y[::-1]
-        spline = UnivariateSpline(x, y - y.max()*0.5, s=0)
-        roots = spline.roots()
+        # spline = UnivariateSpline(x, y - y.max()*0.5, s=0)
+        # roots = spline.roots()
+        spline = make_interp_spline(x, y - y.max()*0.5)
+        roots = PPoly.from_spline(spline).roots()
         if len(roots) > 2:
             return simple()
         return max(roots) - min(roots)
