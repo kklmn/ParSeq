@@ -165,9 +165,7 @@ class MainWindowParSeq(qt.QMainWindow):
 
         self.initTabs()
 
-        self.makeMainPages()  # of ParSeq
-        # self.makePipePages()  # of pipeline
-        self.makeDocPages()  # of pipeline
+        self.makeMainPages()  # 'main'; when ready, it starts 'pipe' and 'docs'
 
         # self.settings = qt.QSettings('parseq.ini', qt.QSettings.IniFormat)
         self.setWindowIcon(qt.QIcon(osp.join(self.iconDir, 'parseq.ico')))
@@ -261,14 +259,14 @@ class MainWindowParSeq(qt.QMainWindow):
         helpIcon = qt.QIcon(osp.join(self.iconDir, "icon-help.png"))
         helpAction = qt.QAction(helpIcon, "Help… Ctrl+?", self)
         helpAction.setShortcut('Ctrl+?')
-        helpAction.triggered.connect(self.slotHelp)
+        helpAction.triggered.connect(partial(self.slotHelp, self.pipeHelpFile))
         tmenu = qt.QMenu()
         subAction = qt.QAction(helpIcon, 'Help for pipeline {0}'.format(
             csi.pipelineName), self)
-        subAction.triggered.connect(self.slotHelp)
+        subAction.triggered.connect(partial(self.slotHelp, self.pipeHelpFile))
         tmenu.addAction(subAction)
         subAction = qt.QAction(helpIcon, 'Help for ParSeq', self)
-        subAction.triggered.connect(self.slotHelp)
+        subAction.triggered.connect(partial(self.slotHelp, self.mainHelpFile))
         tmenu.addAction(subAction)
         helpAction.setMenu(tmenu)
 
@@ -372,14 +370,15 @@ class MainWindowParSeq(qt.QMainWindow):
             shouldBuildHelp = True
         else:
             latest = []
-            for files in [glob.glob(osp.join(gww.CONFDIR, '*')),
-                          glob.glob(osp.join(gww.GUIDIR, '*.py')),
-                          glob.glob(osp.join(gww.COREDIR, '*.py'))]:
-                latest.append(max(files, key=osp.getmtime))
+            for fnames in [glob.glob(osp.join(gww.CONFDIR, '*')),
+                           glob.glob(osp.join(gww.GUIDIR, '*.py')),
+                           glob.glob(osp.join(gww.COREDIR, '*.py'))]:
+                latest.append(max(fnames, key=osp.getmtime))
             tSource = max(map(osp.getmtime, latest))
             tDoc = osp.getmtime(self.mainHelpFile)
             shouldBuildHelp = tSource > tDoc  # source newer than doc
         if not shouldBuildHelp:
+            self._on_help_ready('main', True)
             return
 
         syslogger.log(100, 'building main help...')
@@ -396,13 +395,14 @@ class MainWindowParSeq(qt.QMainWindow):
             shouldBuildHelp = True
         else:
             latest = []
-            for files in [glob.glob(osp.join(csi.appPath, 'doc', '*')),
-                          glob.glob(osp.join(csi.appPath, '*.py'))]:
-                latest.append(max(files, key=osp.getmtime))
+            for fnames in [glob.glob(osp.join(csi.appPath, 'doc', '*')),
+                           glob.glob(osp.join(csi.appPath, '*.py'))]:
+                latest.append(max(fnames, key=osp.getmtime))
             tSource = max(map(osp.getmtime, latest))
             tDoc = osp.getmtime(self.pipeHelpFile)
             shouldBuildHelp = tSource > tDoc  # source newer than doc
         if not shouldBuildHelp:
+            self._on_help_ready('pipe', True)
             return
 
         syslogger.log(100, 'building pipe help...')
@@ -413,9 +413,6 @@ class MainWindowParSeq(qt.QMainWindow):
         sphinxWorkerH.html_ready.connect(partial(self._on_help_ready, 'pipe'))
         sphinxWorkerH.preparePipe()
         sphinxThreadH.start()
-
-    def _on_help_ready(self, what=''):
-        syslogger.log(100, '{0} help ready'.format(what))
 
     def makeDocPages(self):
         shouldBuild = False
@@ -477,26 +474,33 @@ class MainWindowParSeq(qt.QMainWindow):
         sphinxWorkerD = gww.SphinxWorker()
         sphinxWorkerD.moveToThread(sphinxThreadD)
         sphinxThreadD.started.connect(partial(sphinxWorkerD.render, 'docs'))
-        sphinxWorkerD.html_ready.connect(self._on_docs_ready)
+        sphinxWorkerD.html_ready.connect(partial(self._on_help_ready, 'docs'))
         sphinxWorkerD.prepareDocs(rawTexts, rawTextNames)
         sphinxThreadD.start()
 
-    def _on_docs_ready(self, shouldReport=True):
-        if shouldReport:
-            syslogger.log(100, 'docs ready')
-        for name, node in csi.nodes.items():
-            if node.widget is None:
-                continue
-            if node.widget.help is None:
-                continue
-            dName = '{0}-{1}'.format(csi.pipelineName, name).replace(' ', '_')
-            fname = osp.join(gww.DOCDIR, dName) + '.html'
-            if not osp.exists(fname):
-                continue
-            html = 'file:///' + fname
-            html = re.sub('\\\\', '/', html)
-            node.widget.helpFile = fname
-            node.widget.help.load(qt.QUrl(html))
+    def _on_help_ready(self, what='', silent=False):
+        if not silent:
+            syslogger.log(100, '{0} help ready'.format(what))
+
+        if what == 'main':
+            self.makePipePages()
+        elif what == 'pipe':
+            self.makeDocPages()
+        elif what == 'docs':
+            for name, node in csi.nodes.items():
+                if node.widget is None:
+                    continue
+                if node.widget.help is None:
+                    continue
+                dName = '{0}-{1}'.format(csi.pipelineName, name)\
+                    .replace(' ', '_')
+                fname = osp.join(gww.DOCDIR, dName) + '.html'
+                if not osp.exists(fname):
+                    continue
+                html = 'file:///' + fname
+                html = re.sub('\\\\', '/', html)
+                node.widget.helpFile = fname
+                node.widget.help.load(qt.QUrl(html))
 
     def setTabIcons(self):
         cc = qt.QColor(INACTIVE_TAB_COLOR)
@@ -663,10 +667,10 @@ class MainWindowParSeq(qt.QMainWindow):
         lineDialog = gab.AboutDialog(self)
         lineDialog.exec_()
 
-    def slotHelp(self):
-        if not osp.exists(self.mainHelpFile):
+    def slotHelp(self, what):
+        if not osp.exists(what):
             return
-        webbrowser.open_new_tab(self.mainHelpFile)
+        webbrowser.open_new_tab(what)
 
     def slotSaveProject(self):
         dlg = SaveProjectDlg(self)

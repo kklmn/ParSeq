@@ -3,7 +3,13 @@
 Version history
 ---------------
 
-Current GitHub code (modified 8 Dec 2024):
+Current GitHub code (modified 6 Feb 2025):
+    - Enable node arrays with an extra abscissa.
+
+    - Add glitch detection.
+
+    - Add metavariables to fits.
+
     - Enable several transformation widgets per node, with the idea to get a
       widget in the 'corrections' splitter.
 

@@ -1,0 +1,16 @@
+A dummy documentation page
+--------------------------
+
+To make real documetation pages for your analysis pipeline, do the following:
+
+1. Create a reStructuredText file `index.rst` in the pipeline's doc directory.
+   Typically, this file starts with a top level description and has a table of
+   contents (provided by the `.. toctree::` directive). If only .rst files are
+   provided, the documentation will be styled similarly to the main ParSeq
+   documentation.
+
+2. If a custom HTML theme is wanted, the user defines their own `conf.py` and
+   directories '_images', '_static', '_templates', '_themes' and possibly
+   'exts' in the pipeline's doc directory. The easiest way to make them is to
+   run `sphinx-quickstart`. To check that the documentation builds correctly,
+   one can run the ``make.bat html`` command.

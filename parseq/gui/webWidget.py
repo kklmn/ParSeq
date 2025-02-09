@@ -24,6 +24,7 @@ import codecs
 
 from ..core import singletons as csi
 from ..core.logger import logger
+from ..gui.aboutDialog import makeGraphPipeline
 
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu"
 
@@ -209,6 +210,15 @@ except AttributeError:
 class SphinxWorker(qt.QObject):
     html_ready = qt.pyqtSignal()
 
+    def copyIcons(self, dest):
+        for ico in ['1', '2', '3', 'n']:
+            fname = 'icon-item-{0}dim-32.png'.format(ico)
+            shutil.copy2(osp.join(GUIDIR, '_images', fname),
+                         osp.join(dest, '_images'))
+        fname = 'icon-fit-32.png'
+        shutil.copy2(osp.join(GUIDIR, '_images', fname),
+                     osp.join(dest, '_images'))
+
     def prepareMain(self, argspec="", note=""):
         try:
             shutil.rmtree(MAINHELPDIR)
@@ -216,16 +226,15 @@ class SphinxWorker(qt.QObject):
             pass
         shutil.copytree(CONFDIR, MAINHELPDIR, dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns('conf_doc*.py',))
-        shutil.copy2(osp.join(PARSEQDIR, 'version.py'),
-                     osp.join(osp.dirname(DOCDIR), 'version.py'))
+        shutil.copy2(osp.join(PARSEQDIR, 'version.py'), osp.dirname(DOCDIR))
         # insert abs path to parseq into conf.py:
         with open(osp.join(CONFDIR, 'conf.py'), 'r') as f:
-            data = f.read()
-        data = data.replace(
+            txt = f.read()
+        txt = txt.replace(
             "sys.path.insert(0, '../..')",
             "sys.path.insert(0, r'" + GLOBDIR + "')")
         with open(osp.join(MAINHELPDIR, 'conf.py'), 'w') as f:
-            f.write(data)
+            f.write(txt)
 
         outdir = osp.join(MAINHELPDIR, '_build')
         if not osp.exists(outdir):
@@ -248,19 +257,57 @@ class SphinxWorker(qt.QObject):
             shutil.copytree(dpath, dst, dirs_exist_ok=True)
 
         dpath = osp.join(csi.appPath, 'doc', 'conf.py')
-        if not osp.exists(dpath):
+        if osp.exists(dpath):
+            shutil.copy2(dpath, osp.join(PIPEHELPDIR, 'conf.py'))
+        else:  # from main ParSeq
             dpath = osp.join(CONFDIR, 'conf.py')
-        shutil.copy2(dpath, osp.join(PIPEHELPDIR, 'conf.py'))
+            confPy = osp.join(PIPEHELPDIR, 'conf.py')
+            shutil.copy2(dpath, confPy)
 
-        for file in glob.glob(osp.join(csi.appPath, 'doc', '*.rst')):
-            shutil.copy2(file, PIPEHELPDIR)
+            # edit it:
+            with open(confPy, 'r') as f:
+                lines = [line.rstrip('\n') for line in f.readlines()]
+            for iline, line in enumerate(lines):
+                if line.startswith("sys.path.insert(0, '../..')"):
+                    lines[iline] = "sys.path.insert(0, r'{0}')".format(GLOBDIR)
+                elif line.startswith("html_favicon"):
+                    iconPath = osp.split(csi.appIconPath)
+                    lines[iline] = 'html_favicon = "_images/{0}"'.format(
+                        iconPath[-1])
+                elif line.startswith("html_logo"):
+                    if hasattr(csi, 'appBigIconPath'):
+                        iconPath = osp.split(csi.appBigIconPath)
+                        lines[iline] = 'html_logo = "_images/{0}"'.format(
+                            iconPath[-1])
+                elif line.startswith("version"):
+                    lines[iline] = 'version = "{0}"'.format(csi.appVersion)
+                elif line.startswith("release"):
+                    lines[iline] = 'release = "{0}"'.format(csi.appVersion)
+                elif "html_title" in line[:25]:
+                    lines[iline] = 'html_title = "ParSeq-{0} documentation"'\
+                        .format(csi.pipelineName)
+            with open(confPy, 'w') as f:
+                f.write('\n'.join(lines))
+
+        for fname in glob.glob(osp.join(csi.appPath, 'doc', '*.rst')):
+            shutil.copy2(fname, PIPEHELPDIR)
         if not osp.exists(osp.join(PIPEHELPDIR, 'index.rst')):
-            dpath = osp.join(CONFDIR, 'indexrst.mock')
-            shutil.copy2(dpath, osp.join(PIPEHELPDIR, 'index.rst'))
+            shutil.copy2(osp.join(CONFDIR, 'indexrst.mock'),
+                         osp.join(PIPEHELPDIR, 'index.rst'))
+        flowChart = makeGraphPipeline()
+        txtFlowChart = u""".. raw:: html\n\n   {0}""".format(flowChart)
+        rstFlowChart = osp.join(PIPEHELPDIR, 'graph.rst')
+        with open(rstFlowChart, 'w', encoding='utf-8') as f:
+            f.write(txtFlowChart)
 
         outdir = osp.join(PIPEHELPDIR, '_build')
         if not osp.exists(outdir):
             os.makedirs(outdir)
+        # images for the pipeline graph:
+        imdir = osp.join(outdir, '_images')
+        if not osp.exists(imdir):
+            os.makedirs(imdir)
+        self.copyIcons(outdir)
         self.argspec = argspec
         self.note = note
 
@@ -278,14 +325,7 @@ class SphinxWorker(qt.QObject):
 
         shutil.copytree(osp.join(CONFDIR, '_images'),
                         osp.join(DOCDIR, '_images'), dirs_exist_ok=True)
-        for ico in ['1', '2', '3', 'n']:
-            fname = 'icon-item-{0}dim-32.png'.format(ico)
-            shutil.copy2(osp.join(GUIDIR, '_images', fname),
-                         osp.join(DOCDIR, '_images', fname))
-
-        fname = 'icon-fit-32.png'
-        shutil.copy2(osp.join(GUIDIR, '_images', fname),
-                     osp.join(DOCDIR, '_images', fname))
+        self.copyIcons(DOCDIR)
         shutil.copytree(osp.join(CONFDIR, '_themes'),
                         osp.join(DOCDIR, '_themes'), dirs_exist_ok=True)
         shutil.copy2(osp.join(CONFDIR, 'conf_doc.py'),

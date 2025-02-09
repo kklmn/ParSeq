@@ -12,3 +12,7 @@
 {% if theme_collapsiblesidebar|tobool %}
 {% set script_files = script_files + ['_static/sidebar.js'] %}
 {% endif %}
+
+{% block extrahead %}
+    <script type="text/javascript" src="_static/utils.js"></script>
+{% endblock %}

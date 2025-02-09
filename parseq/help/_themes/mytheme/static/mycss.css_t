@@ -251,3 +251,87 @@ div.code-block-caption {
     color: #222;
     border: 1px solid #C6C9CB;
 }
+
+.pipeline {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 5px;
+}
+
+.pipeline-rank {
+    display: flex;
+    flex-direction: row;
+    padding: 5px;
+}
+
+.pipeline-transforms {
+    display: grid;
+    grid-auto-columns: 1fr;
+    grid-auto-flow: column;
+    padding: 2px;
+}
+
+.pipeline-node {
+    padding: 7px;
+    margin: 0px;
+    margin-left: 10px;
+    width: auto;
+    height: 24px;
+    border-radius: 11px;
+    background: #eef;
+    box-shadow: 1px 2px 3px #aac, inset 0px 0px 7px rgba(0,0,50,1);
+    text-align: center;
+    line-height: 95%;
+
+    /* center a div insie another div*/
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pipeline-fit {
+    padding: 2px;
+    margin: 0 auto;
+    width: auto;
+/*    height: 16px; */
+    border-radius: 7px;
+    background: #ded;
+    box-shadow: 1px 2px 3px #caa, inset 0px 0px 3px rgba(0,0,0,1);
+    vertical-align: middle;
+    text-align: center;
+    position: relative;
+}
+
+.pipeline-tr {
+    padding: 5px;
+    margin: 0px;
+    margin-left: 10px;
+    width: auto;
+    height: 12px;
+    line-height: 12px;
+}
+
+.pipeline-tr:nth-of-type(odd) {
+    text-align: right;
+}
+
+.pipeline-tr:nth-of-type(even) {
+    text-align: left;
+}
+
+svg {    
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    margin: auto;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+svg .shadow {
+    stroke-width: 3;
+    stroke-linecap: round;
+    fill: none;
+}
