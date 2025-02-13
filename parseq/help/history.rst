@@ -4,6 +4,8 @@ Version history
 ---------------
 
 Current GitHub code (modified 6 Feb 2025):
+    - Enable custom node icons.
+
     - Enable node arrays with an extra abscissa.
 
     - Add glitch detection.

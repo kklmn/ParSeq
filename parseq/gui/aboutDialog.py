@@ -185,17 +185,24 @@ def makeGraphPipeline():
         transforms = []
         icons = []
         fits = {}
-        fitIcon = 'icon-fit-32'
+        fitIcon = 'icon-fit-32.png'
         for name, node in csi.nodes.items():
             if len(node.upstreamNodes) == i:
                 nodes.append(name)
-                if node.plotDimension is None:
-                    iName = None
-                elif node.plotDimension < 4:
-                    iName = 'icon-item-{0}dim-32'.format(
-                        node.plotDimension)
+                hasUserIcon = False
+                if hasattr(node, 'icon'):
+                    iconPath = osp.join(csi.appPath, node.icon)
+                    hasUserIcon = osp.exists(iconPath)
+                if hasUserIcon:
+                    iName = osp.split(node.icon)[1]
                 else:
-                    iName = 'icon-item-ndim-32'
+                    if node.plotDimension is None:
+                        iName = None
+                    elif node.plotDimension < 4:
+                        iName = 'icon-item-{0}dim-32.png'.format(
+                            node.plotDimension)
+                    else:
+                        iName = 'icon-item-ndim-32.png'
                 icons.append(iName)
                 for tr in node.transformsOut:
                     trEntry = [tr.name, tr.fromNode.name, tr.toNode.name,
@@ -263,12 +270,12 @@ def makeGraphPipeline():
         for name, iName in zip(names, icons):
             name_ = "_".join(name.split())
             iconTxt = '' if iName is None else \
-                '<img src="_images/{0}.png" height="20" />'.format(iName)
+                '<img src="_images/{0}" height="24" />'.format(iName)
             flowChart += u"""\n
                 <div id="pn_{0}" class="pipeline-node">{1} {2}""".format(
                 name_, iconTxt, name)
             if name in fits:
-                ficonTxt = '<img src="_images/{0}.png" height="20" />'\
+                ficonTxt = '<img src="_images/{0}" height="20" />'\
                     .format(fitIcon)
                 for fit in fits[name]:
                     fitName = fit[0]
@@ -408,7 +415,7 @@ class AboutDialog(qt.QDialog):
     def makeWebView(self):
         self.webView = gww.QWebView(self)
         self.webView.page().setLinkDelegationPolicy(2)
-        self.webView.setMinimumWidth(580)
+        self.webView.setMinimumWidth(620)
         self.webView.setMinimumHeight(
             480 + 30*len(csi.nodes) + 15*len(projFiles) +
             len(csi.appDescription)//4)

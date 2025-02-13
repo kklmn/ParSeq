@@ -89,6 +89,11 @@ class Node(object):
         that the 1st element in a group is an x array and the others are y
         arrays. This grouping is respected only for the export of 1D data.
 
+    *icon*: path
+        If given, specifies a path to an image file relative to the pipeline
+        directory. This image will be an icon in the node tab. If not given,
+        a generic icon for the given data dimension will be used.
+
     """
 
     properties = ('qLabel', 'qUnit', 'raw', 'role', 'plotLabel', 'plotUnit',

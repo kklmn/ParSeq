@@ -272,8 +272,7 @@ class MainWindowParSeq(qt.QMainWindow):
 
         self.toolbar = self.addToolBar("Toolbar")
         # iconSize = int(32 * csi.screenFactor)
-        iconSize = 32
-        self.toolbar.setIconSize(qt.QSize(iconSize, iconSize))
+        self.toolbar.setIconSize(qt.QSize(ICON_SIZE, ICON_SIZE))
         self.toolbar.addAction(self.loadAction)
         self.toolbar.addAction(self.saveAction)
         self.toolbar.addSeparator()
@@ -307,11 +306,22 @@ class MainWindowParSeq(qt.QMainWindow):
                 dock.dimIcon = qt.QIcon()
                 dock.dimIconBusy = qt.QIcon()
             elif node.plotDimension < 4:
-                dim = node.plotDimension if node.plotDimension < 4 else 'n'
-                name = 'icon-item-{0}dim-{1}.png'.format(dim, ICON_SIZE)
-                dock.dimIcon = qt.QIcon(osp.join(self.iconDir, name))
-                name = 'icon-item-{0}dim-busy-{1}.png'.format(dim, ICON_SIZE)
-                dock.dimIconBusy = qt.QIcon(osp.join(self.iconDir, name))
+                hasUserIcon = False
+                if hasattr(node, 'icon'):
+                    iconPath = osp.join(csi.appPath, node.icon)
+                    hasUserIcon = osp.exists(iconPath)
+                if not hasUserIcon:
+                    dim = node.plotDimension if node.plotDimension < 4 else 'n'
+                    name = 'icon-item-{0}dim-{1}.png'.format(dim, ICON_SIZE)
+                    iconPath = osp.join(self.iconDir, name)
+                pixNorm = qt.QPixmap(iconPath)
+                dock.dimIcon = qt.QIcon(pixNorm)
+                pixBusy = qt.QPixmap(pixNorm)
+                painter = qt.QPainter(pixBusy)
+                painter.setCompositionMode(qt.QPainter.CompositionMode_SourceIn)
+                painter.fillRect(pixBusy.rect(), gco.BUSY_COLOR_ICON)
+                painter.end()
+                dock.dimIconBusy = qt.QIcon(pixBusy)
 
             if i == 0:
                 dock0, node0, tabName0 = dock, nodeWidget, tabName
@@ -362,6 +372,8 @@ class MainWindowParSeq(qt.QMainWindow):
         elif self.tabPos in [qt.QTabWidget.West, qt.QTabWidget.East]:
             pS = "padding-top: 10; padding-bottom: 10;};"
         self.tabWidget.setStyleSheet("QTabBar::tab:selected {font:bold; " + pS)
+        iconSize = int(ICON_SIZE*0.85)
+        self.tabWidget.setIconSize(qt.QSize(iconSize, iconSize))
 
         self.setTabIcons()
 

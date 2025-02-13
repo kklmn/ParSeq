@@ -210,7 +210,7 @@ except AttributeError:
 class SphinxWorker(qt.QObject):
     html_ready = qt.pyqtSignal()
 
-    def copyIcons(self, dest):
+    def copyNodeIcons(self, dest):
         for ico in ['1', '2', '3', 'n']:
             fname = 'icon-item-{0}dim-32.png'.format(ico)
             shutil.copy2(osp.join(GUIDIR, '_images', fname),
@@ -218,6 +218,13 @@ class SphinxWorker(qt.QObject):
         fname = 'icon-fit-32.png'
         shutil.copy2(osp.join(GUIDIR, '_images', fname),
                      osp.join(dest, '_images'))
+
+        for node in csi.nodes.values():
+            if hasattr(node, 'icon'):
+                iconPath = osp.join(csi.appPath, node.icon)
+                hasUserIcon = osp.exists(iconPath)
+                if hasUserIcon:
+                    shutil.copy2(iconPath, osp.join(dest, '_images'))
 
     def prepareMain(self, argspec="", note=""):
         try:
@@ -307,7 +314,7 @@ class SphinxWorker(qt.QObject):
         imdir = osp.join(outdir, '_images')
         if not osp.exists(imdir):
             os.makedirs(imdir)
-        self.copyIcons(outdir)
+        self.copyNodeIcons(outdir)
         self.argspec = argspec
         self.note = note
 
@@ -325,7 +332,7 @@ class SphinxWorker(qt.QObject):
 
         shutil.copytree(osp.join(CONFDIR, '_images'),
                         osp.join(DOCDIR, '_images'), dirs_exist_ok=True)
-        self.copyIcons(DOCDIR)
+        self.copyNodeIcons(DOCDIR)
         shutil.copytree(osp.join(CONFDIR, '_themes'),
                         osp.join(DOCDIR, '_themes'), dirs_exist_ok=True)
         shutil.copy2(osp.join(CONFDIR, 'conf_doc.py'),
