@@ -272,7 +272,7 @@ def makeGraphPipeline():
             iconTxt = '' if iName is None else \
                 '<img src="_images/{0}" height="24" />'.format(iName)
             flowChart += u"""\n
-                <div id="pn_{0}" class="pipeline-node">{1} {2}""".format(
+                <div id="pn_{0}" class="pipeline-node">{1}&nbsp{2}""".format(
                 name_, iconTxt, name)
             if name in fits:
                 ficonTxt = '<img src="_images/{0}" height="20" />'\
@@ -281,7 +281,7 @@ def makeGraphPipeline():
                     fitName = fit[0]
                     thr_pr = makeThreadProcessStr(fit[1], fit[2])
                     flowChart += u"""&nbsp <span id="fn_{0}"
-                        class="pipeline-fit">{1} {2} {3}&nbsp</span>"""\
+                        class="pipeline-fit">{1}&nbsp{2} {3}&nbsp</span>"""\
                             .format(name_, ficonTxt, fitName, thr_pr)
             flowChart += "</div>"
         flowChart += """\n      </div>"""  # class="pipeline-rank"
