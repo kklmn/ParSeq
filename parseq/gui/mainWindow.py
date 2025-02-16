@@ -268,6 +268,11 @@ class MainWindowParSeq(qt.QMainWindow):
         subAction = qt.QAction(helpIcon, 'Help for ParSeq', self)
         subAction.triggered.connect(partial(self.slotHelp, self.mainHelpFile))
         tmenu.addAction(subAction)
+        iconReload = self.style().standardIcon(qt.QStyle.SP_BrowserReload)
+        subAction = qt.QAction(iconReload, 'Rebuild documentation', self)
+        subAction.triggered.connect(self.slotHelpRebuild)
+        tmenu.addSeparator()
+        tmenu.addAction(subAction)
         helpAction.setMenu(tmenu)
 
         self.toolbar = self.addToolBar("Toolbar")
@@ -377,20 +382,23 @@ class MainWindowParSeq(qt.QMainWindow):
 
         self.setTabIcons()
 
-    def makeMainPages(self):
-        if not osp.exists(self.mainHelpFile):
-            shouldBuildHelp = True
+    def makeMainPages(self, forceBuild=False):
+        if not forceBuild:
+            if not osp.exists(self.mainHelpFile):
+                shouldBuildHelp = True
+            else:
+                latest = []
+                for fnames in [glob.glob(osp.join(gww.CONFDIR, '*')),
+                               glob.glob(osp.join(gww.GUIDIR, '*.py')),
+                               glob.glob(osp.join(gww.COREDIR, '*.py'))]:
+                    latest.append(max(fnames, key=osp.getmtime))
+                tSource = max(map(osp.getmtime, latest))
+                tDoc = osp.getmtime(self.mainHelpFile)
+                shouldBuildHelp = tSource > tDoc  # source newer than doc
         else:
-            latest = []
-            for fnames in [glob.glob(osp.join(gww.CONFDIR, '*')),
-                           glob.glob(osp.join(gww.GUIDIR, '*.py')),
-                           glob.glob(osp.join(gww.COREDIR, '*.py'))]:
-                latest.append(max(fnames, key=osp.getmtime))
-            tSource = max(map(osp.getmtime, latest))
-            tDoc = osp.getmtime(self.mainHelpFile)
-            shouldBuildHelp = tSource > tDoc  # source newer than doc
+            shouldBuildHelp = True
         if not shouldBuildHelp:
-            self._on_help_ready('main', True)
+            self._on_help_ready('main', forceBuild, True)
             return
 
         syslogger.log(100, 'building main help...')
@@ -398,23 +406,27 @@ class MainWindowParSeq(qt.QMainWindow):
         sphinxWorkerH = gww.SphinxWorker()
         sphinxWorkerH.moveToThread(sphinxThreadH)
         sphinxThreadH.started.connect(partial(sphinxWorkerH.render, 'main'))
-        sphinxWorkerH.html_ready.connect(partial(self._on_help_ready, 'main'))
+        sphinxWorkerH.html_ready.connect(
+            partial(self._on_help_ready, 'main', forceBuild))
         sphinxWorkerH.prepareMain()
         sphinxThreadH.start()
 
-    def makePipePages(self):
-        if not osp.exists(self.pipeHelpFile):
-            shouldBuildHelp = True
+    def makePipePages(self, forceBuild=False):
+        if not forceBuild:
+            if not osp.exists(self.pipeHelpFile):
+                shouldBuildHelp = True
+            else:
+                latest = []
+                for fnames in [glob.glob(osp.join(csi.appPath, 'doc', '*')),
+                               glob.glob(osp.join(csi.appPath, '*.py'))]:
+                    latest.append(max(fnames, key=osp.getmtime))
+                tSource = max(map(osp.getmtime, latest))
+                tDoc = osp.getmtime(self.pipeHelpFile)
+                shouldBuildHelp = tSource > tDoc  # source newer than doc
         else:
-            latest = []
-            for fnames in [glob.glob(osp.join(csi.appPath, 'doc', '*')),
-                           glob.glob(osp.join(csi.appPath, '*.py'))]:
-                latest.append(max(fnames, key=osp.getmtime))
-            tSource = max(map(osp.getmtime, latest))
-            tDoc = osp.getmtime(self.pipeHelpFile)
-            shouldBuildHelp = tSource > tDoc  # source newer than doc
+            shouldBuildHelp = True
         if not shouldBuildHelp:
-            self._on_help_ready('pipe', True)
+            self._on_help_ready('pipe', forceBuild, True)
             return
 
         syslogger.log(100, 'building pipe help...')
@@ -422,18 +434,22 @@ class MainWindowParSeq(qt.QMainWindow):
         sphinxWorkerH = gww.SphinxWorker()
         sphinxWorkerH.moveToThread(sphinxThreadH)
         sphinxThreadH.started.connect(partial(sphinxWorkerH.render, 'pipe'))
-        sphinxWorkerH.html_ready.connect(partial(self._on_help_ready, 'pipe'))
+        sphinxWorkerH.html_ready.connect(
+            partial(self._on_help_ready, 'pipe', forceBuild))
         sphinxWorkerH.preparePipe()
         sphinxThreadH.start()
 
-    def makeDocPages(self):
-        shouldBuild = False
-        for tabName in gab.tabNames:
-            docName = tabName.replace(' ', '_')
-            fname = osp.join(gww.DOCDIR, docName+'.html')
-            if not osp.exists(fname):
-                shouldBuild = True
-                break
+    def makeDocPages(self, forceBuild=False):
+        if not forceBuild:
+            shouldBuild = False
+            for tabName in gab.tabNames:
+                docName = tabName.replace(' ', '_')
+                fname = osp.join(gww.DOCDIR, docName+'.html')
+                if not osp.exists(fname):
+                    shouldBuild = True
+                    break
+        else:
+            shouldBuild = True
 
         if shouldBuild:
             rawTexts = [gab.makeTextMain(), gab.makeTextPipeline()]
@@ -486,18 +502,19 @@ class MainWindowParSeq(qt.QMainWindow):
         sphinxWorkerD = gww.SphinxWorker()
         sphinxWorkerD.moveToThread(sphinxThreadD)
         sphinxThreadD.started.connect(partial(sphinxWorkerD.render, 'docs'))
-        sphinxWorkerD.html_ready.connect(partial(self._on_help_ready, 'docs'))
+        sphinxWorkerD.html_ready.connect(
+            partial(self._on_help_ready, 'docs', forceBuild))
         sphinxWorkerD.prepareDocs(rawTexts, rawTextNames)
         sphinxThreadD.start()
 
-    def _on_help_ready(self, what='', silent=False):
+    def _on_help_ready(self, what='', forceBuild=False, silent=False):
         if not silent:
             syslogger.log(100, '{0} help ready'.format(what))
 
         if what == 'main':
-            self.makePipePages()
+            self.makePipePages(forceBuild)
         elif what == 'pipe':
-            self.makeDocPages()
+            self.makeDocPages(forceBuild)
         elif what == 'docs':
             for name, node in csi.nodes.items():
                 if node.widget is None:
@@ -683,6 +700,9 @@ class MainWindowParSeq(qt.QMainWindow):
         if not osp.exists(what):
             return
         webbrowser.open_new_tab(what)
+
+    def slotHelpRebuild(self):
+        self.makeMainPages(True)  # 'main'; then it starts 'pipe' and 'docs'
 
     def slotSaveProject(self):
         dlg = SaveProjectDlg(self)
