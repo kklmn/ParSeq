@@ -9,6 +9,8 @@ import os
 import os.path as osp
 import shutil
 import glob
+import multiprocessing
+
 from silx.gui import qt
 
 from xml.sax.saxutils import escape
@@ -24,7 +26,9 @@ import codecs
 
 from ..core import singletons as csi
 from ..core.logger import logger
-from ..gui.aboutDialog import makeGraphPipeline
+from . import gcommons as gco
+
+nC = multiprocessing.cpu_count()
 
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu"
 
@@ -39,7 +43,186 @@ MAINHELPDIR = osp.expanduser(osp.join('~', '.parseq', 'help-ParSeq'))
 MAINHELPFILE = osp.join(MAINHELPDIR, '_build', 'index.html')
 PIPEHELPDIR = osp.expanduser(
     osp.join('~', '.parseq', 'help-{0}'.format(csi.pipelineName)))
-PIPEHELPFILE = osp.join(PIPEHELPDIR, '_build', 'index.html')
+PIPEOUTDIR = osp.join(PIPEHELPDIR, '_build')
+PIPEHELPFILE = osp.join(PIPEOUTDIR, 'index.html')
+
+
+def makeThreadProcessStr(nThreads, nProcesses):
+    if isinstance(nThreads, str):
+        nThreads = max(nC//2, 1) if nThreads.startswith('h') else nC
+    if isinstance(nProcesses, str):
+        nProcesses = max(nC//2, 1) if nProcesses.startswith('h') else nC
+
+    res = ''
+    if nProcesses > 1:
+        res = ' ({0} processes)'.format(nProcesses)
+    elif nThreads > 1:
+        res = ' ({0} threads)'.format(nThreads)
+    return res
+
+
+def makeGraphPipeline(addLinks=False):
+    ranks = {}
+    for i in range(len(csi.nodes)):
+        nodes, icons, refs = [], [], []
+        transforms = []
+        fits = {}
+        fitIcon = 'icon-fit-32.png'
+        for name, node in csi.nodes.items():
+            if len(node.upstreamNodes) == i:
+                nodes.append(name)
+                hasUserIcon = False
+                if hasattr(node, 'icon'):
+                    iconPath = osp.join(csi.appPath, node.icon)
+                    hasUserIcon = osp.exists(iconPath)
+                if hasUserIcon:
+                    iName = osp.split(node.icon)[1]
+                else:
+                    if node.plotDimension is None:
+                        iName = None
+                    elif node.plotDimension < 4:
+                        iName = 'icon-item-{0}dim-32.png'.format(
+                            node.plotDimension)
+                    else:
+                        iName = 'icon-item-ndim-32.png'
+                icons.append(iName)
+                ref = node.ref if hasattr(node, 'ref') else None
+                refs.append(ref)
+
+                for tr in node.transformsOut:
+                    trRef = tr.ref if hasattr(tr, "ref") else None
+                    trEntry = [tr.name, tr.fromNode.name, tr.toNode.name,
+                               tr.nThreads, tr.nProcesses, trRef]
+                    transforms.append(trEntry)
+                for fit in csi.fits.values():
+                    if fit.node is node:
+                        fitRef = fit.ref if hasattr(fit, "ref") else None
+                        fitEntry = [fit.name, fit.nThreads, fit.nProcesses,
+                                    fitRef]
+                        if name in fits:
+                            fits[name].append(fitEntry)
+                        else:
+                            fits[name] = [fitEntry]
+
+        ranks[i] = dict(nodes=nodes, icons=icons, refs=refs,
+                        transforms=transforms, fits=fits)
+
+    # ranks = {  # a fake test pipeline
+    #     0: {'nodes': ['aaaaa', 'bbbbbbbbb'],
+    #         'transforms': [['tr ac jhvcqwvedvsd', 'aaaaa', 'cccc'],
+    #                        ['tr bc jhvpyvv', 'bbbbbbbbb', 'cccc'],
+    #                        ['tr bb j', 'bbbbbbbbb', 'bbbbbbbbb']],
+    #         'icons': ['icon-item-ndim', 'icon-item-ndim']},
+    #     1: {'nodes': ['cccc'],
+    #         'transforms': [['tr cd lkjblbh', 'cccc', 'dd']],
+    #         'icons': ['icon-item-3dim']},
+    #     2: {'nodes': ['dd'],
+    #         'transforms': [['tr de sfsfJKBLV', 'dd', 'eeeee'],
+    #                        ['tr df kkklklnlo', 'dd', 'fffffffff']],
+    #         'icons': ['icon-item-2dim']},
+    #     3: {'nodes': ['eeeee', 'fffffffff'],
+    #         'transforms': [['tr eg hjblvh', 'eeeee', 'ggggg'],
+    #                        ['tr fg íj[aaa', 'fffffffff', 'ggggg']],
+    #         'icons': ['icon-item-1dim', 'icon-item-1dim']},
+    #     4: {'nodes': ['ggggg'], 'transforms': [],
+    #         'icons': ['icon-item-1dim']}}
+
+    flowChart = """\n
+    <div class="pipeline">
+    <svg><defs>"""
+    for i in range(len(gco.colorCycle1)):
+        flowChart += """\n
+    <filter id="flt{0}" filterUnits="userSpaceOnUse" id="shadow" x="-2" y="1">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" result="blur">
+      </feGaussianBlur>
+      <feOffset in="blur" dx="1.5" dy="0" result="shadow"></feOffset>
+      <feFlood flood-color="{1}99" result="color" />
+      <feComposite in="color" in2="shadow" operator="in" />
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <marker id="arrow{0}" markerWidth="12" markerHeight="8"
+    refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <polyline points="1 1, 9 4, 1 7" class="shadow" stroke={1} />
+    </marker>""".format(i, gco.colorCycle1[i])
+    flowChart += """\n
+    </defs></svg>"""
+
+    iline = 0
+    for irank, (rank, rankDict) in enumerate(ranks.items()):
+        names = rankDict['nodes']
+        icons = rankDict['icons']
+        fits = rankDict['fits']
+        refs = rankDict['refs']
+        if not names:
+            continue
+        flowChart += """\n      <div class="pipeline-rank">"""
+        for name, iconName, ref in zip(names, icons, refs):
+            name_ = "_".join(name.split())
+            iconTxt = '' if iconName is None else \
+                '<img src="_images/{0}" height="24" />'.format(iconName)
+            if addLinks and ref:
+                fref = osp.join(PIPEOUTDIR, ref)
+                txt = '<a href={0}>{1}</a>'.format(fref, name)
+            else:
+                txt = name
+            flowChart += u"""\n
+                <div id="pn_{0}" class="pipeline-node">{1}&nbsp{2}""".format(
+                name_, iconTxt, txt)
+            if name in fits:
+                ficonTxt = '<img src="_images/{0}" height="20" />'\
+                    .format(fitIcon)
+                for fit in fits[name]:
+                    if addLinks and fit[3]:
+                        fref = osp.join(PIPEOUTDIR, fit[3])
+                        fitName = '<a href={0}>{1}</a>'.format(fref, fit[0])
+                    else:
+                        fitName = fit[0]
+                    thr_pr = makeThreadProcessStr(fit[1], fit[2])
+                    flowChart += u"""&nbsp <span id="fn_{0}"
+                        class="pipeline-fit">{1}&nbsp{2} {3}&nbsp</span>"""\
+                            .format(name_, ficonTxt, fitName, thr_pr)
+            flowChart += "</div>"
+        flowChart += """\n      </div>"""  # class="pipeline-rank"
+
+        transforms = rankDict['transforms']
+        if not transforms:
+            continue
+        flowChart += """\n      <div class="pipeline-transforms">"""
+        if len(transforms) % 2 == 1:
+            flowChart += u"""\n        <div class="pipeline-tr" ></div>"""
+        for transform in transforms:
+            iline_ = iline % len(gco.colorCycle1)
+            color = gco.colorCycle1[iline_]
+            colorStr = \
+                'style="color: {0}; text-shadow: 1px 1.5px 3px {0}99;"'\
+                .format(color)
+            if addLinks and transform[5]:
+                fref = osp.join(PIPEOUTDIR, transform[5])
+                txt = '<a href={0}>{1}</a>'.format(fref, transform[0])
+            else:
+                txt = transform[0]
+            thr_pr = makeThreadProcessStr(transform[3], transform[4])
+            flowChart += u"""\n        <div class="pipeline-tr" {1}>
+            {0}{2}</div>""".format(txt, colorStr, thr_pr)
+            name1_ = "_".join(transform[1].split())
+            name2_ = "_".join(transform[2].split())
+            colorStr = """style="stroke: {0}; """\
+                """marker-end: url(#arrow{1}); filter: url(#flt{1})" """\
+                .format(color, iline % len(gco.colorCycle1))
+            if name1_ == name2_:
+                flowChart += u"""\n
+        <svg><path id="arc_{0}" node=pn_{1} class="shadow" {2} />
+        </svg>""".format(iline, name1_, colorStr)
+            else:
+                flowChart += u"""\n
+        <svg><line id="line_{0}" node1=pn_{1} node2=pn_{2} class="shadow"
+        transform="translate(0, 0)"
+        {3} /></svg>""".format(iline, name1_, name2_, colorStr)
+            iline += 1
+        flowChart += """\n      </div>"""  # class="pipeline-rank"
+    flowChart += u"""\n
+    </div>"""  # </div class="pipeline">
+    return flowChart
 
 
 def make_context(task, name='', argspec='', note=''):
@@ -90,7 +273,7 @@ def sphinxify(task, context, wantMessages=False):
     elif task == 'pipe':
         srcdir = PIPEHELPDIR
         confdir = PIPEHELPDIR
-        outdir = osp.join(PIPEHELPDIR, '_build')
+        outdir = PIPEOUTDIR
         doctreedir = osp.join(PIPEHELPDIR, 'doctrees')
         confoverrides['extensions'] = [
             'sphinx.ext.autodoc', 'sphinx.ext.mathjax', 'sphinxcontrib.jquery',
@@ -301,13 +484,13 @@ class SphinxWorker(qt.QObject):
         if not osp.exists(osp.join(PIPEHELPDIR, 'index.rst')):
             shutil.copy2(osp.join(CONFDIR, 'indexrst.mock'),
                          osp.join(PIPEHELPDIR, 'index.rst'))
-        flowChart = makeGraphPipeline()
+        flowChart = makeGraphPipeline(True)
         txtFlowChart = u""".. raw:: html\n\n   {0}""".format(flowChart)
         rstFlowChart = osp.join(PIPEHELPDIR, 'graph.rst')
         with open(rstFlowChart, 'w', encoding='utf-8') as f:
             f.write(txtFlowChart)
 
-        outdir = osp.join(PIPEHELPDIR, '_build')
+        outdir = PIPEOUTDIR
         if not osp.exists(outdir):
             os.makedirs(outdir)
         # images for the pipeline graph:

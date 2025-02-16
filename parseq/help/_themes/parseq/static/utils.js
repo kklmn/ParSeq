@@ -6,7 +6,7 @@
 $(document).ready(function () {
     // Remove anchor header links.
     // They're used by Sphinx to create crossrefs, so we don't need them
-    $('a.headerlink').remove();
+    // $('a.headerlink').remove();
     
     // If the first child in the docstring div is a section, change its class
     // to title. This means that the docstring has a real title and we need

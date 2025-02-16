@@ -4,29 +4,13 @@
 //----------------------------------------------------------------------------
 
 $(document).ready(function () {
-    // Remove anchor header links.
-    // They're used by Sphinx to create crossrefs, so we don't need them
-    $('a.headerlink').remove();
-    
-    // If the first child in the docstring div is a section, change its class
-    // to title. This means that the docstring has a real title and we need
-    // to use it.
-    // This is really useful to show module docstrings.
-    var first_doc_child = $('div.docstring').children(':first-child');
-    if( first_doc_child.is('div.section') && $('div.title').length == 0 ) {
-        first_doc_child.removeClass('section').addClass('title');
-    };
-    
-    // Change docstring headers from h1 to h3
-    // It can only be an h1 and that's the page title
-    // Taken from http://forum.jquery.com/topic/how-to-replace-h1-h2
-    $('div.docstring').find('div.section h1').replaceWith(function () {
-        return '<h3>' + $(this).text() + '</h3>';
-    });
-
     redrawConnectors()
-
 });
+
+window.onresize = resize;
+function resize() {
+    redrawConnectors()
+}
 
 function redrawConnectors() {
     $('[id^=line_]').each(function() {
@@ -34,10 +18,17 @@ function redrawConnectors() {
       div2 = document.getElementById(this.getAttribute("node2"));
       var rect1 = div1.getBoundingClientRect();
       var rect2 = div2.getBoundingClientRect();
-      this.setAttribute("x1", (rect1.left+rect1.right)*0.5+window.scrollX);
-      this.setAttribute("y1", rect1.bottom+1+window.scrollY);
-      this.setAttribute("x2", (rect2.left+rect2.right)*0.5+window.scrollX);
-      this.setAttribute("y2", rect2.top-1+window.scrollY);
+      var x1 = (rect1.left+rect1.right)*0.5+window.scrollX;
+      var y1 = rect1.bottom+1+window.scrollY;
+      var x2 = (rect2.left+rect2.right)*0.5+window.scrollX;
+      var y2 = rect2.top-1+window.scrollY;
+      this.setAttribute("x1", x1);
+      this.setAttribute("y1", y1);
+      this.setAttribute("x2", x2);
+      this.setAttribute("y2", y2);
+      // this.setAttribute("viewBox",
+      //                   (x1-20).toString() + " " + (y1-20).toString() + " " +
+      //                   (x2+20).toString() + " " + (y2+20).toString());
     });
     $('[id^=arc_]').each(function() {
       div1 = document.getElementById(this.getAttribute("node"));
@@ -48,9 +39,4 @@ function redrawConnectors() {
                         " " + (rr.bottom+window.scrollY).toString() +
                         "m 10 0 c 5 15 15 15 20 0");
     });
-}
-
-window.onresize = resize;
-function resize() {
-    redrawConnectors()
 }
