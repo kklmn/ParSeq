@@ -285,11 +285,11 @@ def sphinxify(task, context, wantMessages=False):
         doctreedir = osp.join(DOCDIR, 'doctrees')
         confoverrides['extensions'] = [
             'sphinx.ext.mathjax', 'sphinxcontrib.jquery']
+        os.chdir(DOCDIR)
     else:
         raise ValueError('unspecified task')
 
     status, warning = [sys.stderr]*2 if wantMessages else [None]*2
-    # os.chdir(srcdir)
     sphinx_app = Sphinx(srcdir, confdir, outdir, doctreedir, 'html',
                         confoverrides, status=status, warning=warning,
                         freshenv=True, warningiserror=False, tags=None)
