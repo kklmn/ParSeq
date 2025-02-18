@@ -38,11 +38,12 @@ PARSEQDIR = osp.dirname(osp.abspath(GUIDIR))
 COREDIR = osp.join(PARSEQDIR, 'core')
 GLOBDIR = osp.dirname(osp.abspath(PARSEQDIR))
 
-DOCDIR = osp.expanduser(osp.join('~', '.parseq', 'doc'))
-MAINHELPDIR = osp.expanduser(osp.join('~', '.parseq', 'help-ParSeq'))
+DOCHEAD = '.parseq'  # Ubuntu's browsers may fail to open htmls in hidden dirs
+DOCDIR = osp.expanduser(osp.join('~', DOCHEAD, 'doc'))
+MAINHELPDIR = osp.expanduser(osp.join('~', DOCHEAD, 'help-ParSeq'))
 MAINHELPFILE = osp.join(MAINHELPDIR, '_build', 'index.html')
 PIPEHELPDIR = osp.expanduser(
-    osp.join('~', '.parseq', 'help-{0}'.format(csi.pipelineName)))
+    osp.join('~', DOCHEAD, 'help-{0}'.format(csi.pipelineName)))
 PIPEOUTDIR = osp.join(PIPEHELPDIR, '_build')
 PIPEHELPFILE = osp.join(PIPEOUTDIR, 'index.html')
 
