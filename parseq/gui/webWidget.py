@@ -38,7 +38,9 @@ PARSEQDIR = osp.dirname(osp.abspath(GUIDIR))
 COREDIR = osp.join(PARSEQDIR, 'core')
 GLOBDIR = osp.dirname(osp.abspath(PARSEQDIR))
 
-DOCHEAD = '.parseq'  # Ubuntu's browsers may fail to open htmls in hidden dirs
+# Ubuntu's web browsers may fail to open htmls in hidden dirs. If so, remove
+# the leading dot here (or completely rename).
+DOCHEAD = '.parseq'
 DOCDIR = osp.expanduser(osp.join('~', DOCHEAD, 'doc'))
 MAINHELPDIR = osp.expanduser(osp.join('~', DOCHEAD, 'help-ParSeq'))
 MAINHELPFILE = osp.join(MAINHELPDIR, '_build', 'index.html')

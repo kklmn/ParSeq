@@ -831,6 +831,14 @@ class NodeWidget(qt.QWidget):
                     except Exception:
                         plotProps = dict()
                     symbolsize = plotProps.pop('symbolsize', 2)
+                    hidden = plotProps.pop('hidden', False)
+                    if hidden:
+                        if curve is not None:
+                            curve.setVisible(False)
+                        continue
+                    else:
+                        if curve is not None:
+                            curve.setVisible(True)
                     z = 1 if item in csi.selectedItems else 0
                     # extra x:
                     if 'abscissa' in node.arrays[yN]:
@@ -843,7 +851,7 @@ class NodeWidget(qt.QWidget):
                                 x0, y = transformWidget.extraPlotTransform(
                                     item, node.plotXArray, x0, yN, y)
                         if curve is None:
-                            self.plot.addCurve(
+                            curve = self.plot.addCurve(
                                 x0, y, legend=curveLabel, color=item.color,
                                 z=z, **plotProps)
                         else:

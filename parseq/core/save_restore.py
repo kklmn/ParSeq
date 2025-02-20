@@ -168,11 +168,14 @@ def save_data(fname, saveNodes, saveTypes, qMessageBox=None):
                 nname = nodeName.translate(chars2removeMap)
                 dname = it.alias.translate(chars2removeMap)
                 sname = u'{0}-{1}-{2}'.format(iNode+1, nname, dname)
+                # for iid, d in enumerate(dataToSave):
+                #     print(node.name, iid, d.shape)
+                dataToSaveSt = np.column_stack(dataToSave)
                 if 'txt' in saveTypes:
-                    np.savetxt(sname+'.txt', np.column_stack(dataToSave),
+                    np.savetxt(sname+'.txt', dataToSaveSt,
                                fmt='%.12g', header=' '.join(headerAll))
                 if 'txt.gz' in saveTypes:
-                    np.savetxt(sname+'.txt.gz', np.column_stack(dataToSave),
+                    np.savetxt(sname+'.txt.gz', dataToSaveSt,
                                fmt='%.12g', header=' '.join(headerAll))
 
                 curves[sname] = [it.alias, it.color, headerAll, plotPropsAll]

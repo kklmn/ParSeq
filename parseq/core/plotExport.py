@@ -96,6 +96,9 @@ def plot1Dmpl(nodeData):
                     kw = {}
                     clr = 'gray'
                 yaxis = kw.pop('yaxis', 'left')
+                hidden = kw.pop('hidden', False)
+                if hidden:
+                    continue
                 if 'symbolsize' in kw:
                     ms = kw.pop('symbolsize')
                     kw['markersize'] = ms
@@ -148,6 +151,9 @@ def plot1Dsilx(nodeData):
                 except KeyError:
                     kw = {'yaxis': 'left'}
                     clr = 'gray'
+                hidden = kw.pop('hidden', False)
+                if hidden:
+                    continue
                 symbolsize = kw.pop('symbolsize', 2)
                 symbol = kw.get('symbol', None)
                 lbl = props[0]

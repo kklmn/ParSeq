@@ -749,8 +749,9 @@ def run_transforms(items, parentItem, runParallel=True):
             if (csi.tasker is not None) and len(itemsByOrigin) == 1 and \
                     runParallel:
                 # with a threaded transform
+                widget = tr.widget if hasattr(tr, 'widget') else None
                 csi.tasker.prepare(
-                    tr, runDownstream=True, dataItems=its, starter=tr.widget)
+                    tr, runDownstream=True, dataItems=its, starter=widget)
                 csi.tasker.thread().start()
             else:
                 # if len(itemsByOrigin) > 1, the transforms cannot be
