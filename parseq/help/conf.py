@@ -65,6 +65,7 @@ rst_prolog = """
 .. role:: red
 .. role:: bigger
 .. role:: underline
+.. role:: param
 
 .. |br| raw:: html
 

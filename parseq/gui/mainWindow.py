@@ -270,7 +270,12 @@ class MainWindowParSeq(qt.QMainWindow):
         tmenu.addAction(subAction)
         iconReload = self.style().standardIcon(qt.QStyle.SP_BrowserReload)
         subAction = qt.QAction(iconReload, 'Rebuild documentation', self)
+        subAction.setToolTip(
+            'it rebuilds:\n-ParSeq help pages,\n-{0}-pipeline help pages,'
+            '\n-doc pages (About and transformation widgets)'.format(
+                csi.pipelineName))
         subAction.triggered.connect(self.slotHelpRebuild)
+        subAction.hovered.connect(self.slotHelpHover)
         tmenu.addSeparator()
         tmenu.addAction(subAction)
         helpAction.setMenu(tmenu)
@@ -489,6 +494,7 @@ class MainWindowParSeq(qt.QMainWindow):
                 continue
 
         if len(rawTexts) == 0:
+            self._on_help_ready('docs', forceBuild, True)
             return
 
         # copy images
@@ -507,8 +513,10 @@ class MainWindowParSeq(qt.QMainWindow):
         sphinxWorkerD.prepareDocs(rawTexts, rawTextNames)
         sphinxThreadD.start()
 
-    def _on_help_ready(self, what='', forceBuild=False, silent=False):
-        if not silent:
+    def _on_help_ready(self, what='', forceBuild=False, skipped=False):
+        if skipped:
+            syslogger.log(100, 'no updates for {0} help'.format(what))
+        else:
             syslogger.log(100, '{0} help ready'.format(what))
 
         if what == 'main':
@@ -703,6 +711,10 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def slotHelpRebuild(self):
         self.makeMainPages(True)  # 'main'; then it starts 'pipe' and 'docs'
+
+    def slotHelpHover(self):
+        act = self.sender()
+        qt.QToolTip.showText(qt.QCursor.pos(), act.toolTip())
 
     def slotSaveProject(self):
         dlg = SaveProjectDlg(self)

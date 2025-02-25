@@ -513,7 +513,7 @@ class PropWidget(qt.QWidget):
         The transforms to run after the given widgets have changed. Defaults to
         the names in `self.node.transformsIn`.
 
-        *dataItems* a list of data items
+        *dataItems* list of data items
         None (the transformation parameter will be applied to selected items)
         or 'all' (applied to all items).
         """

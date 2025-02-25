@@ -252,6 +252,29 @@ def make_context(task, name='', argspec='', note=''):
     return context
 
 
+class SphinxProcess(multiprocessing.Process):
+    def __init__(self, srcdir, confdir, outdir, doctreedir, confoverrides,
+                 status, warning):
+        self.srcdir, self.confdir, self.outdir, self.doctreedir, \
+            self.confoverrides, self.status, self.warning = \
+            (srcdir, confdir, outdir, doctreedir, confoverrides, status,
+             warning)
+        multiprocessing.Process.__init__(self)
+
+    def run(self):
+        sys.path.append(csi.parseqPath)  # to find parseq in multiprocessing
+        try:
+            self.sphinx_app = Sphinx(
+                self.srcdir, self.confdir, self.outdir, self.doctreedir,
+                'html', self.confoverrides, status=self.status,
+                warning=self.warning,
+                freshenv=True, warningiserror=False, tags=None)
+            self.sphinx_app.build()
+        except (SystemMessage, SphinxError) as e:
+            print(e)
+            raise e
+
+
 # @logger(minLevel=20)
 def sphinxify(task, context, wantMessages=False):
     # Add a class to several characters on the argspec. This way we can
@@ -293,16 +316,18 @@ def sphinxify(task, context, wantMessages=False):
         raise ValueError('unspecified task')
 
     status, warning = [sys.stderr]*2 if wantMessages else [None]*2
-    sphinx_app = Sphinx(srcdir, confdir, outdir, doctreedir, 'html',
-                        confoverrides, status=status, warning=warning,
-                        freshenv=True, warningiserror=False, tags=None)
-    try:
-        sphinx_app.build()
-    except (SystemMessage, SphinxError) as e:
-        print(e)
-        raise e
-#        output = ("It was not possible to generate rich text help for this "
-#                  "object.</br
+    # sphinx_app = Sphinx(srcdir, confdir, outdir, doctreedir, 'html',
+    #                     confoverrides, status=status, warning=warning,
+    #                     freshenv=True, warningiserror=False, tags=None)
+    # try:
+    #     sphinx_app.build()
+    # except (SystemMessage, SphinxError) as e:
+    #     print(e)
+    #     raise e
+    worker = SphinxProcess(srcdir, confdir, outdir, doctreedir, confoverrides,
+                           status, warning)
+    worker.start()
+    worker.join(60.)
 
 
 if 'pyqt4' in qt.BINDING.lower():
