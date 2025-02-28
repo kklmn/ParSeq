@@ -41,13 +41,18 @@ GLOBDIR = osp.dirname(osp.abspath(PARSEQDIR))
 # Ubuntu's web browsers may fail to open htmls in hidden dirs. If so, remove
 # the leading dot here (or completely rename).
 DOCHEAD = '.parseq'
-DOCDIR = osp.expanduser(osp.join('~', DOCHEAD, 'doc'))
+
 MAINHELPDIR = osp.expanduser(osp.join('~', DOCHEAD, 'help-ParSeq'))
-MAINHELPFILE = osp.join(MAINHELPDIR, '_build', 'index.html')
+MAINOUTDIR = osp.join(MAINHELPDIR, '_build')
+MAINHELPFILE = osp.join(MAINOUTDIR, 'index.html')
+
 PIPEHELPDIR = osp.expanduser(
     osp.join('~', DOCHEAD, 'help-{0}'.format(csi.pipelineName)))
 PIPEOUTDIR = osp.join(PIPEHELPDIR, '_build')
 PIPEHELPFILE = osp.join(PIPEOUTDIR, 'index.html')
+
+DOCDIR = osp.expanduser(osp.join('~', DOCHEAD, 'doc'))
+DOCOUTDIR = osp.join(DOCDIR, '_build')
 
 
 def makeThreadProcessStr(nThreads, nProcesses):
@@ -254,20 +259,19 @@ def make_context(task, name='', argspec='', note=''):
 
 class SphinxProcess(multiprocessing.Process):
     def __init__(self, srcdir, confdir, outdir, doctreedir, confoverrides,
-                 status, warning):
+                 wantMessages):
         self.srcdir, self.confdir, self.outdir, self.doctreedir, \
-            self.confoverrides, self.status, self.warning = \
-            (srcdir, confdir, outdir, doctreedir, confoverrides, status,
-             warning)
+            self.confoverrides, self.wantMessages = \
+            srcdir, confdir, outdir, doctreedir, confoverrides, wantMessages
         multiprocessing.Process.__init__(self)
 
     def run(self):
+        status, warning = [sys.stderr]*2 if self.wantMessages else [None]*2
         sys.path.append(csi.parseqPath)  # to find parseq in multiprocessing
         try:
             self.sphinx_app = Sphinx(
                 self.srcdir, self.confdir, self.outdir, self.doctreedir,
-                'html', self.confoverrides, status=self.status,
-                warning=self.warning,
+                'html', self.confoverrides, status=status, warning=warning,
                 freshenv=True, warningiserror=False, tags=None)
             self.sphinx_app.build()
         except (SystemMessage, SphinxError) as e:
@@ -276,7 +280,7 @@ class SphinxProcess(multiprocessing.Process):
 
 
 # @logger(minLevel=20)
-def sphinxify(task, context, wantMessages=False):
+def sphinxify(task, context, wantMessages=True):
     # Add a class to several characters on the argspec. This way we can
     # highlight them using css, in a similar way to what IPython does.
     # NOTE: Before doing this, we escape common html chars so that they
@@ -291,43 +295,45 @@ def sphinxify(task, context, wantMessages=False):
     if task == 'main':
         srcdir = MAINHELPDIR
         confdir = MAINHELPDIR
-        outdir = osp.join(MAINHELPDIR, '_build')
+        outdir = MAINOUTDIR
         doctreedir = osp.join(MAINHELPDIR, 'doctrees')
-        confoverrides['extensions'] = [
-            'sphinx.ext.autodoc', 'sphinx.ext.mathjax', 'sphinxcontrib.jquery',
-            'animation']
+        # confoverrides['extensions'] = [
+        #     'sphinx.ext.autodoc', 'sphinx.ext.mathjax',
+        #     'sphinxcontrib.jquery', 'animation']
     elif task == 'pipe':
         srcdir = PIPEHELPDIR
         confdir = PIPEHELPDIR
         outdir = PIPEOUTDIR
         doctreedir = osp.join(PIPEHELPDIR, 'doctrees')
-        confoverrides['extensions'] = [
-            'sphinx.ext.autodoc', 'sphinx.ext.mathjax', 'sphinxcontrib.jquery',
-            'animation']
+        # confoverrides['extensions'] = [
+        #     'sphinx.ext.autodoc', 'sphinx.ext.mathjax',
+        #     'sphinxcontrib.jquery', 'animation']
     elif task == 'docs':
-        srcdir = osp.join(DOCDIR, '_sources')
+        srcdir = DOCDIR
         confdir = DOCDIR
-        outdir = DOCDIR
+        outdir = DOCOUTDIR
         doctreedir = osp.join(DOCDIR, 'doctrees')
-        confoverrides['extensions'] = [
-            'sphinx.ext.mathjax', 'sphinxcontrib.jquery']
-        os.chdir(DOCDIR)
+        # confoverrides['extensions'] = [
+        #     'sphinx.ext.mathjax', 'sphinxcontrib.jquery']
     else:
         raise ValueError('unspecified task')
 
-    status, warning = [sys.stderr]*2 if wantMessages else [None]*2
-    # sphinx_app = Sphinx(srcdir, confdir, outdir, doctreedir, 'html',
-    #                     confoverrides, status=status, warning=warning,
-    #                     freshenv=True, warningiserror=False, tags=None)
-    # try:
-    #     sphinx_app.build()
-    # except (SystemMessage, SphinxError) as e:
-    #     print(e)
-    #     raise e
-    worker = SphinxProcess(srcdir, confdir, outdir, doctreedir, confoverrides,
-                           status, warning)
-    worker.start()
-    worker.join(60.)
+    wantInAnotherProcess = True
+    if wantInAnotherProcess:
+        worker = SphinxProcess(srcdir, confdir, outdir, doctreedir,
+                               confoverrides, wantMessages)
+        worker.start()
+        worker.join(60.)
+    else:
+        status, warning = [sys.stderr]*2 if wantMessages else [None]*2
+        sphinx_app = Sphinx(srcdir, confdir, outdir, doctreedir, 'html',
+                            confoverrides, status=status, warning=warning,
+                            freshenv=True, warningiserror=False, tags=None)
+        try:
+            sphinx_app.build()
+        except (SystemMessage, SphinxError) as e:
+            print(e)
+            raise e
 
 
 if 'pyqt4' in qt.BINDING.lower():
@@ -422,25 +428,24 @@ class SphinxWorker(qt.QObject):
     html_ready = qt.pyqtSignal()
 
     def copyNodeIcons(self, dest):
+        destim = osp.join(dest, '_images')
         for ico in ['1', '2', '3', 'n']:
             fname = 'icon-item-{0}dim-32.png'.format(ico)
-            shutil.copy2(osp.join(GUIDIR, '_images', fname),
-                         osp.join(dest, '_images'))
+            shutil.copy2(osp.join(GUIDIR, '_images', fname), destim)
         fname = 'icon-fit-32.png'
-        shutil.copy2(osp.join(GUIDIR, '_images', fname),
-                     osp.join(dest, '_images'))
+        shutil.copy2(osp.join(GUIDIR, '_images', fname), destim)
 
         for node in csi.nodes.values():
             if hasattr(node, 'icon'):
                 iconPath = osp.join(csi.appPath, node.icon)
                 hasUserIcon = osp.exists(iconPath)
                 if hasUserIcon:
-                    shutil.copy2(iconPath, osp.join(dest, '_images'))
+                    shutil.copy2(iconPath, destim)
 
     def prepareMain(self, argspec="", note=""):
         try:
             shutil.rmtree(MAINHELPDIR)
-        except FileNotFoundError:
+        except (FileNotFoundError, PermissionError):
             pass
         shutil.copytree(CONFDIR, MAINHELPDIR, dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns('conf_doc*.py',))
@@ -454,33 +459,33 @@ class SphinxWorker(qt.QObject):
         with open(osp.join(MAINHELPDIR, 'conf.py'), 'w') as f:
             f.write(txt)
 
-        outdir = osp.join(MAINHELPDIR, '_build')
-        if not osp.exists(outdir):
-            os.makedirs(outdir)
+        if not osp.exists(MAINOUTDIR):
+            os.makedirs(MAINOUTDIR)
+
         self.argspec = argspec
         self.note = note
 
     def preparePipe(self, argspec="", note=""):
         try:
             shutil.rmtree(PIPEHELPDIR)
-        except FileNotFoundError:
+        except (FileNotFoundError, PermissionError):
             pass
 
         dirsToCopy = '_images', '_static', '_templates', '_themes', 'exts'
         for dc in dirsToCopy:
-            dst = osp.join(PIPEHELPDIR, dc)
-            dpath = osp.join(csi.appPath, 'doc', dc)
-            if not osp.exists(dpath):
-                dpath = osp.join(CONFDIR, dc)
-            shutil.copytree(dpath, dst, dirs_exist_ok=True)
+            spath = osp.join(csi.appPath, 'doc', dc)
+            if not osp.exists(spath):
+                spath = osp.join(CONFDIR, dc)
+            dpath = osp.join(PIPEHELPDIR, dc)
+            shutil.copytree(spath, dpath, dirs_exist_ok=True)
 
-        dpath = osp.join(csi.appPath, 'doc', 'conf.py')
-        if osp.exists(dpath):
-            shutil.copy2(dpath, osp.join(PIPEHELPDIR, 'conf.py'))
+        spath = osp.join(csi.appPath, 'doc', 'conf.py')
+        if osp.exists(spath):
+            shutil.copy2(spath, osp.join(PIPEHELPDIR, 'conf.py'))
         else:  # from main ParSeq
-            dpath = osp.join(CONFDIR, 'conf.py')
+            spath = osp.join(CONFDIR, 'conf.py')
             confPy = osp.join(PIPEHELPDIR, 'conf.py')
-            shutil.copy2(dpath, confPy)
+            shutil.copy2(spath, confPy)
 
             # edit it:
             with open(confPy, 'r') as f:
@@ -518,38 +523,49 @@ class SphinxWorker(qt.QObject):
         with open(rstFlowChart, 'w', encoding='utf-8') as f:
             f.write(txtFlowChart)
 
-        outdir = PIPEOUTDIR
-        if not osp.exists(outdir):
-            os.makedirs(outdir)
+        if not osp.exists(PIPEOUTDIR):
+            os.makedirs(PIPEOUTDIR)
         # images for the pipeline graph:
-        imdir = osp.join(outdir, '_images')
+        imdir = osp.join(PIPEOUTDIR, '_images')
         if not osp.exists(imdir):
             os.makedirs(imdir)
-        self.copyNodeIcons(outdir)
+        self.copyNodeIcons(PIPEOUTDIR)
+
         self.argspec = argspec
         self.note = note
 
     def prepareDocs(self, docs, docNames, argspec="", note=""):
-        # try:
-        #     shutil.rmtree(DOCDIR)
-        # except FileNotFoundError:
-        #     pass
+        try:
+            shutil.rmtree(DOCDIR)
+        except (FileNotFoundError, PermissionError):
+            pass
 
-        # copy images
-        impath = osp.join(csi.appPath, 'doc', '_images')
-        if osp.exists(impath):
-            dst = osp.join(DOCDIR, '_images')
-            shutil.copytree(impath, dst, dirs_exist_ok=True)
+        dc = '_images'
+        spath = osp.join(CONFDIR, dc)
+        dpath = osp.join(DOCDIR, dc)
+        shutil.copytree(spath, dpath, dirs_exist_ok=True)
 
-        shutil.copytree(osp.join(CONFDIR, '_images'),
-                        osp.join(DOCDIR, '_images'), dirs_exist_ok=True)
-        self.copyNodeIcons(DOCDIR)
-        shutil.copytree(osp.join(CONFDIR, '_themes'),
-                        osp.join(DOCDIR, '_themes'), dirs_exist_ok=True)
-        shutil.copy2(osp.join(CONFDIR, 'conf_doc.py'),
-                     osp.join(DOCDIR, 'conf.py'))
+        dirsToCopy = '_images', '_static', '_templates', '_themes', 'exts'
+        takeMaster = 0, 1, 1, 1, 1  # get from ParSeq if 1
+        for dc, cond in zip(dirsToCopy, takeMaster):
+            spath = osp.join(csi.appPath, 'doc', dc)
+            if not osp.exists(spath):
+                if cond:
+                    spath = osp.join(CONFDIR, dc)
+                else:
+                    continue
+            dpath = osp.join(DOCDIR, dc)
+            shutil.copytree(spath, dpath, dirs_exist_ok=True)
 
-        srcdir = osp.join(DOCDIR, '_sources')
+        with open(osp.join(CONFDIR, 'conf_doc.py'), 'r') as f:
+            txt = f.read()
+        txt = txt.replace(
+            "sys.path.insert(0, '../..')",
+            "sys.path.insert(0, r'" + GLOBDIR + "')")
+        with open(osp.join(DOCDIR, 'conf.py'), 'w') as f:
+            f.write(txt)
+
+        srcdir = DOCDIR
         if not osp.exists(srcdir):
             os.makedirs(srcdir)
 
@@ -557,21 +573,36 @@ class SphinxWorker(qt.QObject):
             docName = docName.replace(' ', '_')
             fname = osp.join(srcdir, '{0}.rst'.format(docName))
             with codecs.open(fname, 'w', encoding='utf-8') as f:
-                f.write(".. title:: {0}\n".format(docName))
+                # the title:
+                # f.write("{0}\n".format(docName))
+                # f.write("{0}\n\n".format('-'*len(docName)))
+                f.write(".. title:: {0}\n\n".format(docName))  # in browser tab
                 f.write(doc)
 
         fname = osp.join(srcdir, 'content.rst')
         with codecs.open(fname, 'w', encoding='utf-8') as f:
-            f.write(".. toctree::\n   :maxdepth: 3\n\n")
+            f.write("Content\n")
+            f.write("=======\n\n")
+            f.write(".. toctree::\n   :maxdepth: 3\n   :hidden:\n\n")
             for docName in docNames:
                 docName = docName.replace(' ', '_')
                 f.write("   {0}.rst\n".format(docName))
+
+        if not osp.exists(DOCOUTDIR):
+            os.makedirs(DOCOUTDIR)
+        # images for the pipeline graph:
+        imdir = osp.join(DOCOUTDIR, '_images')
+        if not osp.exists(imdir):
+            os.makedirs(imdir)
+        self.copyNodeIcons(DOCOUTDIR)
+        shutil.copy2(osp.join(GUIDIR, '_images', 'parseq.ico'), imdir)
 
         self.argspec = argspec
         self.note = note
 
     def render(self, task='docs'):
         cnx = make_context(task, name='', argspec=self.argspec, note=self.note)
-        sphinxify(task, cnx)
+        wantMessages = csi.DEBUG_LEVEL > 0
+        sphinxify(task, cnx, wantMessages)
         self.thread().terminate()
         self.html_ready.emit()

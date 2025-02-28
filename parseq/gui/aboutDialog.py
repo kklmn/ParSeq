@@ -254,6 +254,7 @@ class AboutDialog(qt.QDialog):
         self.webView = gww.QWebView(self)
         self.webView.page().setLinkDelegationPolicy(2)
         self.webView.setMinimumWidth(620)
+        # self.webView.setMinimumHeight(620)
         self.webView.setMinimumHeight(
             480 + 30*len(csi.nodes) + 15*len(projFiles) +
             len(csi.appDescription)//4)
@@ -265,7 +266,7 @@ class AboutDialog(qt.QDialog):
 
     def changePage(self, itab):
         docName = tabNames[itab].replace(' ', '_')
-        html = 'file:///' + osp.join(gww.DOCDIR, docName+'.html')
+        html = 'file:///' + osp.join(gww.DOCOUTDIR, docName+'.html')
         html = re.sub('\\\\', '/', html)
         self.webView.load(qt.QUrl(html))
 

@@ -332,3 +332,20 @@ svg .shadow {
     stroke-linecap: round;
     fill: none;
 }
+
+.red {
+    color:red;
+}
+
+.bigger {
+    color:green;
+    font-size: 125%;
+}
+
+.underline {
+  text-decoration: underline;
+}
+
+.param {
+  font-family: Courier New;
+}

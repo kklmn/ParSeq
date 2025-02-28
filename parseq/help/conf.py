@@ -53,7 +53,8 @@ sys.path.append(os.path.abspath('exts'))
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 # extensions = ['sphinx.ext.autodoc', 'sphinx.ext.pngmath']
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax', 'animation']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax',
+              'sphinxcontrib.jquery', 'sphinx_tabs.tabs', 'animation']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -150,7 +151,7 @@ html_theme_options = {
 toc_object_entries = False
 
 # Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = ["./_themes"]
+html_theme_path = ['_themes']
 # html_theme_path = [csp.get_theme_dir()]
 
 # The name for this set of Sphinx documents.  If None, it defaults to

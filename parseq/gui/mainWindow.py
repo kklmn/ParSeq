@@ -38,6 +38,7 @@ from . import webWidget as gww
 mainWindowWidth, mainWindowHeight = 1600, 768
 ICON_SIZE = 32
 INACTIVE_TAB_COLOR = '#aa8085'
+chars2removeMap = {ord(c): '_' for c in '/*? '}
 
 
 class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
@@ -448,8 +449,8 @@ class MainWindowParSeq(qt.QMainWindow):
         if not forceBuild:
             shouldBuild = False
             for tabName in gab.tabNames:
-                docName = tabName.replace(' ', '_')
-                fname = osp.join(gww.DOCDIR, docName+'.html')
+                docName = tabName.translate(chars2removeMap)
+                fname = osp.join(gww.DOCOUTDIR, docName+'.html')
                 if not osp.exists(fname):
                     shouldBuild = True
                     break
@@ -471,11 +472,12 @@ class MainWindowParSeq(qt.QMainWindow):
             if not widgetClass.__doc__:
                 continue
 
-            dName = '{0}-{1}'.format(csi.pipelineName, name).replace(' ', '_')
+            dName = '{0}-{1}'.format(csi.pipelineName, name).translate(
+                chars2removeMap)
             shouldBuild = True
             try:
                 tSource = osp.getmtime(inspect.getfile(widgetClass))
-                fname = osp.join(gww.DOCDIR, dName) + '.html'
+                fname = osp.join(gww.DOCOUTDIR, dName) + '.html'
                 if osp.exists(fname):
                     tDoc = osp.getmtime(fname)
                     shouldBuild = tSource > tDoc  # source newer than doc
@@ -497,12 +499,6 @@ class MainWindowParSeq(qt.QMainWindow):
             self._on_help_ready('docs', forceBuild, True)
             return
 
-        # copy images
-        impath = osp.join(csi.appPath, 'doc', '_images')
-        if osp.exists(impath):
-            dst = osp.join(gww.DOCDIR, '_images')
-            shutil.copytree(impath, dst, dirs_exist_ok=True)
-
         syslogger.log(100, 'building docs...')
         sphinxThreadD = qt.QThread(self)
         sphinxWorkerD = gww.SphinxWorker()
@@ -515,7 +511,8 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def _on_help_ready(self, what='', forceBuild=False, skipped=False):
         if skipped:
-            syslogger.log(100, 'no updates for {0} help'.format(what))
+            syslogger.log(100, 'no updates for {0}{1}'.format(
+                what, '' if what == 'docs' else 'help'))
         else:
             syslogger.log(100, '{0} help ready'.format(what))
 
@@ -531,7 +528,7 @@ class MainWindowParSeq(qt.QMainWindow):
                     continue
                 dName = '{0}-{1}'.format(csi.pipelineName, name)\
                     .replace(' ', '_')
-                fname = osp.join(gww.DOCDIR, dName) + '.html'
+                fname = osp.join(gww.DOCOUTDIR, dName) + '.html'
                 if not osp.exists(fname):
                     continue
                 html = 'file:///' + fname
