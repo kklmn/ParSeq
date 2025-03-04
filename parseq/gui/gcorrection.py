@@ -915,7 +915,8 @@ class CorrectionTable(qt.QTableView):
             self.setItemDelegateForColumn(4, gco.MultiCheckBoxDelegate(self))
         for i in range(self.roiModel.columnCount()):
             self.setColumnWidth(i, int(columnWidths[i]*csi.screenFactor))
-        self.setMinimumWidth(int(sum(columnWidths)*csi.screenFactor) + 2)
+        self.setMinimumWidth(int(sum(
+            columnWidths[:self.roiModel.columnCount()])*csi.screenFactor) + 2)
         self.setMinimumHeight(int(horHeaders.height()*4*csi.screenFactor))
 
         roiManager.sigCurrentRoiChanged.connect(self.currentRoiChanged)

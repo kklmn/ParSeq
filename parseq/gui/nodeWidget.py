@@ -1304,10 +1304,12 @@ class NodeWidget(qt.QWidget):
             if dataType != data.dataType:
                 dataType = None
                 break
-        if (dataType == cco.DATA_COMBINATION and
-            not self.node.is_between_nodes(
-                data.originNodeName, data.terminalNodeName,
-                node1in=False)):
+        # if (dataType == cco.DATA_COMBINATION and
+        #     not self.node.is_between_nodes(
+        #         data.originNodeName, data.terminalNodeName,
+        #         node1in=False)):
+        if not self.node.is_between_nodes(
+                data.originNodeName, data.terminalNodeName, node1in=True):
             for transformWidget in self.transformWidgets:
                 transformWidget.setEnabled(False)
         else:

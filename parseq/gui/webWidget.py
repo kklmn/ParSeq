@@ -29,6 +29,7 @@ from ..core.logger import logger
 from . import gcommons as gco
 
 nC = multiprocessing.cpu_count()
+wantShinxInAnotherProcess = True
 
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu"
 
@@ -45,6 +46,7 @@ DOCHEAD = '.parseq'
 MAINHELPDIR = osp.expanduser(osp.join('~', DOCHEAD, 'help-ParSeq'))
 MAINOUTDIR = osp.join(MAINHELPDIR, '_build')
 MAINHELPFILE = osp.join(MAINOUTDIR, 'index.html')
+MAINHELPCORR = osp.join(MAINOUTDIR, 'corrections.html')
 
 PIPEHELPDIR = osp.expanduser(
     osp.join('~', DOCHEAD, 'help-{0}'.format(csi.pipelineName)))
@@ -318,8 +320,7 @@ def sphinxify(task, context, wantMessages=True):
     else:
         raise ValueError('unspecified task')
 
-    wantInAnotherProcess = True
-    if wantInAnotherProcess:
+    if wantShinxInAnotherProcess:
         worker = SphinxProcess(srcdir, confdir, outdir, doctreedir,
                                confoverrides, wantMessages)
         worker.start()
@@ -534,7 +535,7 @@ class SphinxWorker(qt.QObject):
         self.argspec = argspec
         self.note = note
 
-    def prepareDocs(self, docs, docNames, argspec="", note=""):
+    def prepareDocs(self, docs, docNames, extraDocs=[], argspec="", note=""):
         try:
             shutil.rmtree(DOCDIR)
         except (FileNotFoundError, PermissionError):
@@ -581,12 +582,19 @@ class SphinxWorker(qt.QObject):
 
         fname = osp.join(srcdir, 'content.rst')
         with codecs.open(fname, 'w', encoding='utf-8') as f:
+            f.write("\n")
             f.write("Content\n")
             f.write("=======\n\n")
             f.write(".. toctree::\n   :maxdepth: 3\n   :hidden:\n\n")
             for docName in docNames:
                 docName = docName.replace(' ', '_')
                 f.write("   {0}.rst\n".format(docName))
+            for extraDoc in extraDocs:  # extra rst files
+                f.write("   {0}\n".format(extraDoc))
+
+        for extraDoc in extraDocs:
+            fname = osp.join(csi.appPath, 'doc', extraDoc)
+            shutil.copy2(fname, DOCDIR)
 
         if not osp.exists(DOCOUTDIR):
             os.makedirs(DOCOUTDIR)

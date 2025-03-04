@@ -463,6 +463,7 @@ class MainWindowParSeq(qt.QMainWindow):
         else:
             rawTexts, rawTextNames = [], []
 
+        extras = []  # extra rst files, needed for internal links
         for i, (name, node) in enumerate(csi.nodes.items()):
             if node.widget is None:
                 continue
@@ -471,6 +472,11 @@ class MainWindowParSeq(qt.QMainWindow):
             widgetClass = node.widgetClasses[0]
             if not widgetClass.__doc__:
                 continue
+
+            if hasattr(widgetClass, 'extraDocs'):
+                for extraDoc in widgetClass.extraDocs:
+                    if extraDoc not in extras:
+                        extras.append(extraDoc)
 
             dName = '{0}-{1}'.format(csi.pipelineName, name).translate(
                 chars2removeMap)
@@ -506,15 +512,15 @@ class MainWindowParSeq(qt.QMainWindow):
         sphinxThreadD.started.connect(partial(sphinxWorkerD.render, 'docs'))
         sphinxWorkerD.html_ready.connect(
             partial(self._on_help_ready, 'docs', forceBuild))
-        sphinxWorkerD.prepareDocs(rawTexts, rawTextNames)
+        sphinxWorkerD.prepareDocs(rawTexts, rawTextNames, extras)
         sphinxThreadD.start()
 
     def _on_help_ready(self, what='', forceBuild=False, skipped=False):
+        widewhat = '{0}{1}'.format(what, '' if what == 'docs' else ' help')
         if skipped:
-            syslogger.log(100, 'no updates for {0}{1}'.format(
-                what, '' if what == 'docs' else 'help'))
+            syslogger.log(100, 'no updates for {0}'.format(widewhat))
         else:
-            syslogger.log(100, '{0} help ready'.format(what))
+            syslogger.log(100, '{0} ready'.format(widewhat))
 
         if what == 'main':
             self.makePipePages(forceBuild)

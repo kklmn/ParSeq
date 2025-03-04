@@ -219,6 +219,7 @@ class LineProps(qt.QDialog):
         super().__init__(parent)
         self.setWindowTitle("Line properties")
 
+
         self.isGroupSelected = False
         self.isTopGroupSelected = False
         for topItem in csi.selectedTopItems:
@@ -595,10 +596,9 @@ class LineProps(qt.QDialog):
             colorn = gco.getColorName(self.color)
             if parentItem:
                 parentItem.color = colorn
-            else:
-                for item in csi.selectedItems:
-                    item.colorIndividual = colorn
-                    item.color = colorn
+            for item in csi.selectedItems:
+                item.colorIndividual = colorn
+                item.color = colorn
         elif policy == gco.COLOR_POLICY_LOOP1:
             if parentItem:
                 for item in parentItem.childItems:
