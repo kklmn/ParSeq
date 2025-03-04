@@ -635,7 +635,8 @@ class Spectrum(TreeItem):
                 'runDownstream',
                 csi.dataRootItem.kwargs.get('runDownstream', False))
             if csi.withGUI:
-                self.color = kwargs.pop('color', 'k')
+                self.colorIndividual = kwargs.pop('color', '#ff00ff')
+                self.color = self.colorIndividual
                 self.init_plot_props()
                 plotProps = kwargs.pop('plotProps', {})
                 if plotProps:
@@ -1558,8 +1559,13 @@ class Spectrum(TreeItem):
                         if doeigh:
                             DTD = np.dot(D.T, D)
                             DTD /= np.diag(DTD).sum()
-                            kweigh = dict(eigvals=(nN-nPCA, nN-1))
-                            w, v = spl.eigh(DTD, **kweigh)
+                            eigvals = nN-nPCA, nN-1
+                            try:
+                                kweigh = dict(eigvals=eigvals)
+                                w, v = spl.eigh(DTD, **kweigh)
+                            except TypeError:  # the kw 'eigvals' is gone
+                                kweigh = dict(subset_by_index=(nN-nPCA, nN-1))
+                                w, v = spl.eigh(DTD, **kweigh)
                             # rec = np.dot(np.dot(v, np.diag(w)), v.T)
                             # print("diff DTD--decomposed(DTD) = {0}".format(
                             #     np.abs(DTD-rec).sum()))
