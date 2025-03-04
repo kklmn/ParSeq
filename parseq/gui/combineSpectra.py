@@ -173,12 +173,12 @@ class CombineSpectraWidget(PropWidget):
                 grPCA.init_colors(grPCA.childItems)
                 if idata == 0:
                     ctr.run_transforms(newItems[0:1], grPCA, runParallel=False)
-                    for idata, data in enumerate(madeOf):
-                        data.skip_eigh = True
+                    for kdata in madeOf:
+                        kdata.skip_eigh = True
                     ctr.run_transforms(newItems[1:], grPCA, runParallel=False)
                 else:
                     ctr.run_transforms(newItems, grPCA, runParallel=False)
-            for idata, data in enumerate(madeOf):
+            for data in madeOf:
                 del data.skip_eigh
         else:
             last = csi.selectedItems[-1]

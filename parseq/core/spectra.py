@@ -635,8 +635,7 @@ class Spectrum(TreeItem):
                 'runDownstream',
                 csi.dataRootItem.kwargs.get('runDownstream', False))
             if csi.withGUI:
-                self.colorIndividual = kwargs.pop('color', '#ff00ff')
-                self.color = self.colorIndividual
+                self.color = kwargs.pop('color', '#ff00ff')
                 self.init_plot_props()
                 plotProps = kwargs.pop('plotProps', {})
                 if plotProps:
@@ -1463,29 +1462,30 @@ class Spectrum(TreeItem):
             assert isinstance(madeOf, (list, tuple))
             fromNode = csi.nodes[self.originNodeName]
 
-            # if no 'raw' present, returns arrayName itself:
-            # dNames = fromNode.get_arrays_prop('raw')
-            # xNames = fromNode.get_arrays_prop('raw', role='x') +\
-            #     fromNode.get_arrays_prop('raw', role='0D')
-
-            dNames = fromNode.get_arrays_prop('key')
             xtraNames = [n for n in fromNode.get_arrays_prop('abscissa') if n]
-            xNames = fromNode.get_arrays_prop('key', role='x') +\
-                fromNode.get_arrays_prop('key', role='0D') + xtraNames
+
+            kNames = fromNode.get_arrays_prop('key')
+            dNames = fromNode.get_arrays_prop('raw')  # 'key' if no 'raw'
+            xNames = fromNode.get_arrays_prop('raw', role='x') +\
+                fromNode.get_arrays_prop('raw', role='0D') + xtraNames
+
+            # xNames = fromNode.get_arrays_prop('key', role='x') +\
+            #     fromNode.get_arrays_prop('key', role='0D') + xtraNames
+
             dims = fromNode.get_arrays_prop('ndim')
 
             if not combineInterpolate:
                 # check equal shape of data to combine:
                 shapes = [None]*4
-                for dName, dim in zip(dNames, dims):
+                for kName, dName, dim in zip(kNames, dNames, dims):
                     if 1 <= dim <= 3:
                         for data in madeOf:
                             yd = getattr(data, dName)
                             if yd is None:  # optional
                                 continue
                             sh = yd.shape
-                            if 'abscissa' in fromNode.arrays[dName]:
-                                xtraName = fromNode.arrays[dName]['abscissa']
+                            if 'abscissa' in fromNode.arrays[kName]:
+                                xtraName = fromNode.arrays[kName]['abscissa']
                                 assert getattr(data, xtraName).shape == sh
                                 continue
                             if shapes[dim] is None:
@@ -1500,22 +1500,22 @@ class Spectrum(TreeItem):
             ns = len(madeOf)
             it0 = madeOf[0]
             if combineInterpolate:
-                for arrayName in xNames:
-                    setattr(self, arrayName, np.array(getattr(it0, arrayName)))
+                for xName in xNames:
+                    setattr(self, xName, np.array(getattr(it0, xName)))
             else:  # x and 0D as average over all contributing spectra
-                for arrayName in xNames:
+                for xName in xNames:
                     sumx = 0
                     for data in madeOf:
-                        sumx += np.array(getattr(data, arrayName))
-                    setattr(self, arrayName, sumx/ns)
+                        sumx += np.array(getattr(data, xName))
+                    setattr(self, xName, sumx/ns)
 
             dimArray = None
-            for arrayName, dim in zip(dNames, dims):
-                if arrayName in xNames:
+            for kName, dName, dim in zip(kNames, dNames, dims):
+                if dName in xNames:
                     continue
                 if combineInterpolate:
-                    if 'abscissa' in fromNode.arrays[arrayName]:
-                        xName = fromNode.arrays[arrayName]['abscissa']
+                    if 'abscissa' in fromNode.arrays[kName]:
+                        xName = fromNode.arrays[kName]['abscissa']
                     else:
                         xName = xNames[0]
                     x0 = getattr(it0, xName)
@@ -1523,7 +1523,7 @@ class Spectrum(TreeItem):
                             cco.COMBINE_PCA, cco.COMBINE_TT):
                     arrays = []
                     for data in madeOf:
-                        arr = getattr(data, arrayName)
+                        arr = getattr(data, dName)
                         if combineInterpolate and arr is not None:
                             x = getattr(data, xName)
                             interp = interp1d(x, arr, fill_value="extrapolate",
@@ -1533,7 +1533,7 @@ class Spectrum(TreeItem):
                             arrays.append(arr)
                     ns = sum(1 for arr in arrays if arr is not None)
                     if ns == 0:  # arrayName is optional, all arrays are None
-                        setattr(self, arrayName, None)
+                        setattr(self, dName, None)
                         continue
                     s = sum(arr for arr in arrays if arr is not None)
 
@@ -1600,7 +1600,7 @@ class Spectrum(TreeItem):
                         madeOf[-1].wPCA = [i/norm for i in w]
                 else:
                     raise ValueError("unknown data combination")
-                setattr(self, arrayName, v)
+                setattr(self, dName, v)
                 if dim == fromNode.plotDimension:
                     dimArray = v
 

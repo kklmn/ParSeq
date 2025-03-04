@@ -228,10 +228,10 @@ Its performance figures are displayed at the bottom of each fit widget.
 Cross-data combinations
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Data of equal shapes can be combined to produce joint secondary data: average,
-sum, rms deviation and PCA components (to appear in a next release). The
-current implementation asserts equal shapes and averages the abscissas of the
-contributing data. Interpolation options will be added in later releases.
+Data items in each transformation node can be combined to produce joint
+secondary data: average, sum, rms deviation and PCA components and Target
+Transformation. If the abscissas of the involved datasets are different,
+an interpolation is offered.
 
 Whenever the contributing data have been modified in an upstream
 transformation, the combined data will also update.
