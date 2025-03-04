@@ -277,6 +277,11 @@ div.note {
     border: 1px solid #ccc;
 }
 
+div.tip {
+    background-color: #ded;
+    border: 1px solid #bcb;
+}
+
 div.seealso {
     background-color: #ffc;
     border: 1px solid #ff6;

@@ -45,6 +45,8 @@ sys.path.insert(0, '../..')
 sys.path.append(os.path.abspath('exts'))
 # autodoc_mock_imports = ["PyQt5.QtWebKitWidgets"]
 
+import parseq.gui.webWidget as pgww
+
 # -- General configuration ----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -62,6 +64,9 @@ templates_path = ['_templates']
 # The suffix of source filenames.
 source_suffix = '.rst'
 
+helpCorr = "parseq.readthedocs.io/corrections.html" if on_rtd else \
+    pgww.MAINHELPCORR
+
 rst_prolog = """
 .. role:: red
 .. role:: bigger
@@ -72,7 +77,12 @@ rst_prolog = """
 
       <br>
 
-"""
+.. |corrections| raw:: html
+
+   <a class="reference external" href="{0}">the general data correction
+   capabilities of ParSeq</a>
+
+""".format(helpCorr)
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
