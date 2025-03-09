@@ -64,6 +64,12 @@ class AnimationDirective(Directive):
 
             defwidthzoom, defheightzoom = im.size
             scale = self.options.get('scale', None)
+            scalezoom = self.options.get('scalezoom', None)
+            if scalezoom:
+                scalezoom /= 100.
+                defwidthzoom, defheightzoom = \
+                    defwidthzoom*scalezoom, defheightzoom*scalezoom
+
             if scale:
                 scale /= 100.
                 defwidth, defheight = defwidthzoom*scale, defheightzoom*scale

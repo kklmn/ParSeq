@@ -66,6 +66,8 @@ source_suffix = '.rst'
 
 helpCorr = "parseq.readthedocs.io/corrections.html" if on_rtd else \
     pgww.MAINHELPCORR
+helpForm = "parseq.readthedocs.io/howto.html#file-tree-views-and-file-formats"\
+    if on_rtd else pgww.MAINHELPFORM
 
 rst_prolog = """
 .. role:: red
@@ -82,7 +84,12 @@ rst_prolog = """
    <a class="reference external" href="{0}">the general data correction
    capabilities of ParSeq</a>
 
-""".format(helpCorr)
+.. |formats| raw:: html
+
+   <a class="reference external" href="{1}">the general data format definitions
+   of ParSeq</a>
+
+""".format(helpCorr, helpForm)
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
@@ -228,3 +235,5 @@ html_static_path = ['_static']
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'ParSeqDoc'
+
+html_scaled_image_link = False

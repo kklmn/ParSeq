@@ -26,6 +26,16 @@ section {
     text-align: justify;
 }
 
+div.clearer {
+    clear: both;
+}
+
+div.section::after {
+    display: block;
+    content: '';
+    clear: left;
+}
+
 div.documentwrapper {
     float: left;
     width: 100%;
@@ -353,4 +363,8 @@ svg .shadow {
 
 .param {
   font-family: Courier New;
+}
+
+img {
+  padding: 2px;
 }
