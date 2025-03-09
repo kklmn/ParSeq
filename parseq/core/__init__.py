@@ -132,11 +132,19 @@ data format fields in the data format widget are defined and valid.
 ParSeq works with two file types: column text files and hdf5 files.
 
 For column files, the format definitions are expressions of variables `Col0`,
-`Col1` etc, e.g. as `Col3+Col4`. The expressions may include numpy functions:
-`np.log(Col6/Col7)`. The file header can optionally be defined by the number of
-header lines, by the leading comment character or a key word present in the
-last header line. The whole header will serve as metadata for the corresponding
-data item.
+`Col1` etc, e.g. as `Col3+Col4`. Simple expressions, like `Col0`, can be
+reduced to the corresponding index integer, here just `0`. The expressions may
+include numpy functions: `np.log(Col6/Col7)`.
+
+The file header can optionally be defined by the number of header lines, by the
+leading comment character or a key word present in the last header line. The
+whole header will serve as metadata for the corresponding data item.
+
+Sometimes, column data files have a variable sequence of columns depending on
+the used instruments. ParSeq can automatically handle such cases if the
+pipeline provides a node method `auto_format()` that searches the column file
+header for a data description line and returns the wished column indices. An
+example can be found in the pipeline ParSeq-XAS in its module `XAS_nodes.py`.
 
 For hdf5 files, the format definitions are relative hdf5 paths or expressions
 of a data dictionary `d`, whose keys are relative hdf5 paths:
@@ -326,6 +334,14 @@ and displayed in a help panel close to the transformation widget.
 
 The main application help files are also built at the start up time if ParSeq
 file have been modified.
+
+If the produced html files look unexpectedly, the troubleshooting should start
+with an elevated verbosity level, e.g. by `python XAS_start.py -v 10`, to see
+the output from Sphinx. Next, open the html file in an external browser and use
+its page inspect function to discover image paths, css styles etc.
+
+The help system can be rebuilt by the user via the top menu command
+"Rebuild documentation".
 
 About dialog
 ~~~~~~~~~~~~
