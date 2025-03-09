@@ -12,7 +12,8 @@ from .basefit import Fit
 
 def gau(x, m, s):
     "gau(x, m, s): normalized Gaussian function, m=center, s=sigma"
-    return 1 / (s*(2*np.pi)**0.5) * np.exp(-(x - m)**2 / (2 * s**2))
+    with np.errstate(under='ignore'):
+        return 1 / (s*(2*np.pi)**0.5) * np.exp(-(x - m)**2 / (2 * s**2))
 
 
 def lor(x, m, s):
@@ -174,6 +175,7 @@ class FunctionFit(Fit):
         try:
             # keyword `locals` is an error in Py<3.13,
             # using just `_locals` (without globals()) does not work
-            return eval(formula, globals(), _locals)
+            with np.errstate(under='ignore'):
+                return eval(formula, globals(), _locals)
         except (NameError, TypeError) as err:
             return str(err)
