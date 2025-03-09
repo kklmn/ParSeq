@@ -681,6 +681,10 @@ class MyTabBar(qt.QTabBar):
 
 
 class EXAFSFitWidget(gbf.FitWidget):
+    """
+    Inside `EXAFSFitWidget`.
+    """
+
     def __init__(self, parent, worker, plot):
         super().__init__(parent, worker, plot)
         self.spectrum = None

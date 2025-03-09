@@ -527,6 +527,53 @@ class LCFTableView(qt.QTableView):
 
 
 class LCFWidget(gbf.FitWidget):
+    """
+    .. imagezoom:: _images/LCF-plot.png
+       :align: right
+       :alt: &ensp;A collection of reference Cu K XANES spectra and two test
+             mixtures.
+
+    .. imagezoom:: _images/LCF-fit.png
+       :align: right
+       :alt: &ensp;A Linear Combination Fit of a test mixture. Notice the two
+             ways of fixing fitting parameters, here the ΔE parameter.
+
+    Consider the supplied project file `saved/Cu-LCF.pspj`.
+
+    In this example, 16 reference Cu K XANES spectra can be used as a basis set
+    for of a linear combination fit (LCF). Two physical mixtures -- mix1 and
+    mix2 -- were prepared for testing the fits.
+
+    There are two ways of adding reference spectra to the fit: from a list of
+    spectra in the popup menu and from the data tree after the popup menu
+    command "Add ref spectra".
+
+    Each reference spectrum contributes with *two* fitting variables: weight
+    *w* and energy shift *ΔE*. The need for *ΔE*, its range and interpretation
+    remain on the user's side. One good reason for having free *ΔE*'s is a
+    mixed source of reference spectra, when their energy calibration may vary.
+
+    The weights *w* should have their range within the interval [0, 1]. In the
+    fit table, there is a third value -- δ -- that defines the view format and
+    also sets a step for the spin box editor of the initial *w* value. The
+    final values of the fitting parameters and their errors can be viewed with
+    a higher precision by cell tooltips.
+
+    A fit variable can be fixed in three ways: by defining (a) a tie expression
+    "fixed", (b) a tie expression "=0.5" (or any other fixed value) and (c) the
+    [*min*, *max*] interval with min≥max, then *min* is the used fixed value.
+
+    Tie expressions may also interconnect the *w* variables. For this purpose,
+    they are given an integer index in brackets. Examine the tooltips of the
+    table headers. Additionally, *metavariables* can be defined by the user to
+    appear in tie expressions.
+
+    The complete fit description can be copied from one data item to other data
+    items. The export of all fits is done by project saving. The project file
+    is a text file of the ini-file structure; it also includes all fit
+    settings.
+    """
+
     def __init__(self, parent, worker, plot):
         super().__init__(parent, worker, plot)
         self.spectrum = None

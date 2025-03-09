@@ -335,6 +335,20 @@ class FunctionFitTableView(qt.QTableView):
 
 
 class FunctionFitWidget(gbf.FitWidget):
+    """
+    .. imagezoom:: _images/func-fit.png
+       :align: center
+       :alt: &ensp;A Function Fit example.
+
+    The formula operates numpy functions as attributes of `np`, e.g.
+    `np.exp(x)`. Additionally, these functions are defined:
+
+    gau(x, m, s): normalized Gaussian function, m=center, s=sigma
+
+    lor(x, m, s): normalized Lorentzian function, m=center, s=HWHM
+
+    """
+
     def __init__(self, parent, worker, plot):
         super().__init__(parent, worker, plot)
         self.spectrum = None
