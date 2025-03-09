@@ -183,7 +183,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
     resetRootPath = qt.pyqtSignal(qt.QModelIndex)
     requestSaveExpand = qt.pyqtSignal()
     requestRestoreExpand = qt.pyqtSignal()
-    pathReady = qt.pyqtSignal(str)
+    pathReady = qt.pyqtSignal(list)  # [path, delay(ms)]
 
     def __init__(self, transformNode=None, parent=None):
         super().__init__(parent)
@@ -364,7 +364,9 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         # print('loading', path, self.rowCount(parent))
 
         countHdf5 = 0
-        self.beginInsertRows(parent, 0, -1)
+        # self.beginInsertRows(parent, 0, -1)
+        self.beginResetModel()
+
         for row in range(self.rowCount(parent)):
             indexFS = self.index(row, 0, parent)
             if not indexFS.isValid():
@@ -405,16 +407,19 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 else:
                     self.nodesNoHead.append(intId)
 
-        self.endInsertRows()
-        # if countHdf5 > 0:
-        #     self.layoutChanged.emit()
+        self.endResetModel()
+        # self.endInsertRows()
+        if countHdf5 > 0:
+            self.layoutChanged.emit()
         if csi.mainWindow and countHdf5 > 0:
             stat = "loaded {0} hdf5's".format(countHdf5)
             csi.mainWindow.displayStatusMessage(stat, duration=time.time()-t0)
 
         if self.pendingPath:
             if self.pendingPath[0].lower() == path.lower():
-                self.pathReady.emit(self.pendingPath[1])
+                self.pathReady.emit([self.pendingPath[1], 2500])
+        else:
+            self.pathReady.emit([path, 50])
 
     def interpretArrayFormula(self, dataStr, treeObj, kind):
         """Returnes a list of (expr, d[xx]-styled-expr, data-keys, shape).
@@ -488,7 +493,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             try:
                 # keyword `locals` is an error in Py<3.13,
                 # using just `_locals` (without globals()) does not work
-                eval(colStrD, {}, _locals)
+                eval(colStrD, globals(), _locals)
                 out.append((colStr, colStrD, keys, shape))
             except:  # noqa
                 return
@@ -1266,7 +1271,32 @@ class FileTreeView(qt.QTreeView):
             menu.addSeparator()
             menu.addAction(self.actionTestModel)
 
+        if hasattr(self.transformNode, 'auto_format'):
+            menu.addSeparator()
+            action = qt.QAction('Define auto format', menu)
+            action.triggered.connect(partial(self.autoFormat))
+            menu.addAction(action)
+
         menu.exec_(self.viewport().mapToGlobal(point))
+
+    def autoFormat(self):
+        sIndexes = self.selectionModel().selectedRows()
+        lenSelectedIndexes = len(sIndexes)
+        if lenSelectedIndexes != 1:
+            return
+        model, ind = self.getSourceModel(sIndexes[0])
+        nodeType = model.nodeType(ind)
+        if nodeType == NODE_FS:
+            fname = model.filePath(ind)
+            if qt.QFileInfo(fname).isDir():
+                return
+            formats = self.transformNode.auto_format(fname, ftype='column')
+            try:
+                if formats:
+                    cf = self.transformNode.widget.columnFormat
+                    cf.setDataFormat(formats)
+            except Exception:
+                pass
 
     def getSavedFormats(self):
         cf = self.transformNode.widget.columnFormat
@@ -1639,10 +1669,11 @@ class FileTreeView(qt.QTreeView):
                 self.scrollTo(ind, qt.QAbstractItemView.PositionAtCenter)
                 self.setCurrentIndex(ind)
 
-    def _gotoIsReady(self, path, delay=2500):  # ms
+    def _gotoIsReady(self, pathDelay):
         """The delay can be as short as 500 ms for a stand alone treeView. In
         a bigger GUI it needs to be longer, otherwise it doesn't scroll to the
         path."""
+        path, delay = pathDelay
         scrollTimer = qt.QTimer(self)
         scrollTimer.setSingleShot(True)
         scrollTimer.timeout.connect(partial(self.gotoWhenReady, path, False))

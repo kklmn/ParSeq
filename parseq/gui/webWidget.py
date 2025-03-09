@@ -47,6 +47,8 @@ MAINHELPDIR = osp.expanduser(osp.join('~', DOCHEAD, 'help-ParSeq'))
 MAINOUTDIR = osp.join(MAINHELPDIR, '_build')
 MAINHELPFILE = osp.join(MAINOUTDIR, 'index.html')
 MAINHELPCORR = osp.join(MAINOUTDIR, 'corrections.html')
+MAINHELPFORM = osp.join(
+    MAINOUTDIR, 'howto.html#file-tree-views-and-file-formats')
 
 PIPEHELPDIR = osp.expanduser(
     osp.join('~', DOCHEAD, 'help-{0}'.format(csi.pipelineName)))

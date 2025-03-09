@@ -150,7 +150,7 @@ class QPreviewPanel(qt.QWidget):
         layout.addStretch()
 
         self.setLayout(layout)
-        self.setMinimumWidth(400)
+        self.setMinimumWidth(300)
 
     def resizeEvent(self, ev):
         self.updatePreview()
@@ -214,7 +214,7 @@ class LoadProjectDlg(qt.QFileDialog):
         self.previewPanel = QPreviewPanel(self)
         self.splitter.addWidget(self.previewPanel)
 
-        self.setMinimumSize(1200, 500)
+        self.setMinimumSize(1000, 500)
 
     def updatePreview(self, path):
         if path.endswith('.pspj'):
