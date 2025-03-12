@@ -308,6 +308,7 @@ div.code-block-caption {
     background: #ded;
     box-shadow: 1px 2px 3px #caa, inset 0px 0px 3px rgba(0,0,0,1);
     display: flex;
+    align-items: center;
 }
 
 .pipeline-tr {
@@ -317,6 +318,7 @@ div.code-block-caption {
     width: auto;
     height: 12px;
     line-height: 12px;
+    z-index: 50;
 }
 
 .pipeline-tr:nth-of-type(odd) {

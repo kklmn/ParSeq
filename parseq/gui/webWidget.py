@@ -510,8 +510,8 @@ class SphinxWorker(qt.QObject):
                 elif line.startswith("release"):
                     lines[iline] = 'release = "{0}"'.format(csi.appVersion)
                 elif "html_title" in line[:25]:
-                    lines[iline] = 'html_title = "ParSeq-{0} documentation"'\
-                        .format(csi.pipelineName)
+                    lines[iline] = 'html_title = " v{0}"'.format(
+                        csi.appVersion)
             with open(confPy, 'w') as f:
                 f.write('\n'.join(lines))
 

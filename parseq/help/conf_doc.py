@@ -28,6 +28,10 @@ rst_prolog = """
 
       <br>
 
+.. |ParSeq framework| raw:: html
+
+   the ParSeq framework
+
 """
 
 toc_object_entries = False

@@ -541,8 +541,8 @@ class LCFWidget(gbf.FitWidget):
     Consider the supplied project file `saved/Cu-LCF.pspj`.
 
     In this example, 16 reference Cu K XANES spectra can be used as a basis set
-    for of a linear combination fit (LCF). Two physical mixtures -- mix1 and
-    mix2 -- were prepared for testing the fits.
+    of the linear combination fit (LCF). Two physical mixtures -- mix1 and mix2
+    -- were prepared for testing the fits.
 
     There are two ways of adding reference spectra to the fit: from a list of
     spectra in the popup menu and from the data tree after the popup menu
@@ -551,7 +551,7 @@ class LCFWidget(gbf.FitWidget):
     Each reference spectrum contributes with *two* fitting variables: weight
     *w* and energy shift *ΔE*. The need for *ΔE*, its range and interpretation
     remain on the user's side. One good reason for having free *ΔE*'s is a
-    mixed source of reference spectra, when their energy calibration may vary.
+    possible energy variation when the spectra come from different sources.
 
     The weights *w* should have their range within the interval [0, 1]. In the
     fit table, there is a third value -- δ -- that defines the view format and

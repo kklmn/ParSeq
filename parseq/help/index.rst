@@ -17,6 +17,7 @@ User's Guide
    widgets.rst
    fits.rst
 
+   cite.rst
    license.rst
 
 .. Indices and tables

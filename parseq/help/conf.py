@@ -64,6 +64,7 @@ templates_path = ['_templates']
 # The suffix of source filenames.
 source_suffix = '.rst'
 
+helpParSeq = "parseq.readthedocs.io" if on_rtd else pgww.MAINHELPFILE
 helpCorr = "parseq.readthedocs.io/corrections.html" if on_rtd else \
     pgww.MAINHELPCORR
 helpForm = "parseq.readthedocs.io/howto.html#file-tree-views-and-file-formats"\
@@ -79,17 +80,21 @@ rst_prolog = """
 
       <br>
 
+.. |ParSeq framework| raw:: html
+
+   <a class="reference external" href="{0}">the ParSeq framework</a>
+
 .. |corrections| raw:: html
 
-   <a class="reference external" href="{0}">the general data correction
+   <a class="reference external" href="{1}">the general data correction
    capabilities of ParSeq</a>
 
 .. |formats| raw:: html
 
-   <a class="reference external" href="{1}">the general data format definitions
+   <a class="reference external" href="{2}">the general data format definitions
    of ParSeq</a>
 
-""".format(helpCorr, helpForm)
+""".format(helpParSeq, helpCorr, helpForm)
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
@@ -173,7 +178,7 @@ html_theme_path = ['_themes']
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-# html_title = None
+html_title = f"v{release}"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 # html_short_title = None

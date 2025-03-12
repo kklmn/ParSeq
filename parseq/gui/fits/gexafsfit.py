@@ -682,7 +682,89 @@ class MyTabBar(qt.QTabBar):
 
 class EXAFSFitWidget(gbf.FitWidget):
     """
-    Inside `EXAFSFitWidget`.
+    .. imagezoom:: _images/exafs-fit.gif
+       :align: right
+       :alt: &ensp;An EXAFS Fit example with a single coordination shell.
+
+    Consider the supplied project file `saved/Cu.pspj`. In the BFT tab, press
+    the "EXAFS fit" button under the plot, select the first data item and hide
+    the others (press the eye header of the data tree). Press "Start fitting"
+    to get the fit curve.
+
+    The first tab of the fit widget represents the first coordination shell
+    (here, a single shell in the fit). The last tab contains the factor S₀²
+    together with user metavariables.
+
+    Hover the mouse cursor over the table headers to get the description of the
+    corresponding column.
+
+    .. imagezoom:: _images/exafs-fit-corr.png
+       :align: left
+       :alt: &ensp;The correlation matrix of a single shell fit.
+
+    The last two columns contain fitting errors: calculated (a) without pair
+    correlations and (b) with taking account of all pair correlations. The
+    latter should always be preferred but it may fail if the χ² function does
+    not reach a true minimum. In such problematic cases, the table of pair
+    correlation coefficients can be useful. It becomes visible by clicking on
+    the error column headers. The problematic variables should be constrained
+    or fixed.
+
+    .. imagezoom:: _images/exafs-fit-ampph.png
+       :align: left
+       :alt: &ensp;The FEFF-file selection dialog.
+
+    .. |icoAP| image:: _images/math-phase-color.png
+       :height: 14px
+
+    Each coordination shell requires a FEFF file -- a file with scattering
+    amplitudes and phases, so called ``feffNNNN.dat`` calculated by FEFF
+    program (the `ff2chi` module, set its PRINT level to 3). Use the button
+    |icoAP| to invoke the FEFF-file selection dialog. The dialog will search
+    the current directory for ``feffNNNN.dat`` files and select by green color
+    those belonging to single scattering paths. The preview panel displays the
+    top part of the selected file, with the summary in green bold at the top.
+    When a file is confirmed, its *deg* (degeneracy) and *reff* (*r* effective)
+    parameters are set as initial values for *n* and *r* parameters of the fit
+    shell.
+
+    .. tip::
+
+       It is possible to select multiple ``feffNNNN.dat`` files at once. This
+       selection will create multiple coordination shells.
+
+    .. note::
+
+       Multiple-scattering paths are treated similarly to single-scattering
+       ones. The user should apply suitable tie expressions on coordination
+       numbers and possibly distances.
+
+    The fit operates four shell fitting parameters per shell: 'r1', 'n1', 's1',
+    'e1', 'r2' and so on. Additionally, the global amplitude factor S₀² is
+    represented by the variable 's0'. These variable names can be used in tie
+    expressions. Examples of valid tie expressions: "fixed", "=n1*0.5",
+    ">4.4-r1" (e.g. for 'r2' parameter, with the meaning r1+r2 > 4.4 Å).
+
+    .. note::
+
+       The E₀ shift parameters 'e' of different atomic shells should not differ
+       much. How much is allowed depends on the calculations of the atomic
+       potentials embedded into the calculation cluster. If the potentials were
+       calculated self-consistently, this difference should be zero. Regardless
+       of self-consistency, atomic shells of the same chemical element should
+       have an equal shift.
+
+    .. imagezoom:: _images/exafs-fit-tie.png
+       :align: right
+       :alt: &ensp;An example of a joint fit of two EXAFS spectra.
+
+    Tie expressions can refer to fits of other data items. Consider the project
+    file `saved/CeRu2.pspj` where the same interatomic distance is sensed from
+    two absorption edges. The tie expression "=fit['CE0074'].r1" equalizes the
+    distance "r2" to the distance "r1" of the data item 'CE0074' (this is its
+    alias). This tie expression joins the two otherwise independent fits into
+    a bigger fitting problem. Explore its correlation matrix to discover the
+    involved fitting parameters.
     """
 
     def __init__(self, parent, worker, plot):

@@ -400,6 +400,7 @@ div.viewcode-block:target {
     width: auto;
     height: 12px;
     line-height: 12px;
+    z-index: 50;
 }
 
 .pipeline-tr:nth-of-type(odd) {
