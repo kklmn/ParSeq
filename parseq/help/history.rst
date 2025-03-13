@@ -3,7 +3,10 @@
 Version history
 ---------------
 
-Current GitHub code (modified 6 Feb 2025):
+Current GitHub code (modified 13 Mar 2025):
+    -
+
+2025.3.0 (13 Mar 2025):
     - Enable custom node icons.
 
     - Enable node arrays with an extra abscissa.
