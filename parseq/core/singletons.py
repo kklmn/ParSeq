@@ -27,6 +27,7 @@ appDescription = None
 appAuthor = None
 appLicense = None
 appVersion = None
+rtdPath = None
 # end defined by the app
 
 nodes = OrderedDict()
