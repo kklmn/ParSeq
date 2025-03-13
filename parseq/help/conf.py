@@ -45,7 +45,8 @@ sys.path.insert(0, '../..')
 sys.path.append(os.path.abspath('exts'))
 # autodoc_mock_imports = ["PyQt5.QtWebKitWidgets"]
 
-import parseq.gui.webWidget as pgww
+if not on_rtd:
+    import parseq.gui.webWidget as pgww
 
 # -- General configuration ----------------------------------------------------
 
