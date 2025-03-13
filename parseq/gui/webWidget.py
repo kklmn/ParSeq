@@ -67,9 +67,9 @@ def makeThreadProcessStr(nThreads, nProcesses):
 
     res = ''
     if nProcesses > 1:
-        res = ' ({0} processes)'.format(nProcesses)
+        res = '&nbsp({0} processes)'.format(nProcesses)
     elif nThreads > 1:
-        res = ' ({0} threads)'.format(nThreads)
+        res = '&nbsp({0} threads)'.format(nThreads)
     return res
 
 
@@ -191,7 +191,7 @@ def makeGraphPipeline(addLinks=False):
                         fitName = fit[0]
                     thr_pr = makeThreadProcessStr(fit[1], fit[2])
                     flowChart += u"""&nbsp <span id="fn_{0}"
-                        class="pipeline-fit">{1}&nbsp{2} {3}&nbsp</span>"""\
+                        class="pipeline-fit">{1} &nbsp{2} {3}&nbsp</span>"""\
                             .format(name_, ficonTxt, fitName, thr_pr)
             flowChart += "</div>"
         flowChart += """\n      </div>"""  # class="pipeline-rank"
