@@ -536,11 +536,14 @@ class SphinxWorker(qt.QObject):
         with open(rstFlowChart, 'w', encoding='utf-8') as f:
             f.write(txtFlowChart)
 
-        flowChart = makeGraphPipeline(True, True)  # for rtd
-        txtFlowChart = u""".. raw:: html\n\n   {0}""".format(flowChart)
-        rstFlowChart = osp.join(csi.appPath, 'doc', 'graph.rst')
-        with open(rstFlowChart, 'w', encoding='utf-8') as f:
-            f.write(txtFlowChart)
+        try:
+            flowChart = makeGraphPipeline(True, True)  # for rtd
+            txtFlowChart = u""".. raw:: html\n\n   {0}""".format(flowChart)
+            rstFlowChart = osp.join(csi.appPath, 'doc', 'graph.rst')
+            with open(rstFlowChart, 'w', encoding='utf-8') as f:
+                f.write(txtFlowChart)
+        except PermissionError:
+            pass
 
         if not osp.exists(PIPEOUTDIR):
             os.makedirs(PIPEOUTDIR)
