@@ -46,12 +46,12 @@ class LCF(Fit):
         refs, args = {}, []
         lcfProps = dict(cls.defaultResult)
         try:
-            for v in lcf:
+            for iv, v in enumerate(lcf):
                 if not v['use']:
                     continue
                 k = v['name']
                 if 'isMeta' in v:
-                    refs[k] = dict(w=len(args), isMeta=True)
+                    refs[k] = dict(w=[len(args), iv], isMeta=True)
                 else:
                     for sp in allData:
                         if sp.alias == k:
@@ -61,23 +61,24 @@ class LCF(Fit):
                             'No reference spectrum {0} found'.format(k))
                     xref = getattr(sp, cls.allDataAttrs['x'])
                     yref = getattr(sp, cls.allDataAttrs['y'])
-                    refs[k] = dict(x=xref, y=yref, w=len(args))
+                    refs[k] = dict(x=xref, y=yref, w=[len(args), iv])
                 args.append(v['w'])
             if cls.xVary:
-                for v in lcf:
+                for iv, v in enumerate(lcf):
                     if not v['use']:
                         continue
                     k = v['name']
                     if 'isMeta' in v:
                         refs[k]['dx'] = None
                         continue
-                    refs[k]['dx'] = len(args)
+                    refs[k]['dx'] = [len(args), iv]
                     args.append(v['dx'])
 
             if len(refs) == 0:
                 fit = np.zeros_like(x)
             else:
-                fit = cls.linear_combination(x, *args, refs=refs)
+                fit = cls.linear_combination(x, *args, refs=refs,
+                                             lenlcf=len(lcf))
             lcfProps['R'] = ((y - fit)**2).sum() / (y**2).sum()
         except (RuntimeError, ValueError, KeyError) as err:
             print('Error: ', err)
@@ -98,7 +99,7 @@ class LCF(Fit):
         args, mins, maxs = [], [], []
         argNames = []  # for diagnostics
         try:
-            for v in lcf:
+            for iv, v in enumerate(lcf):
                 if not v['use']:
                     continue
                 k = v['name']
@@ -120,8 +121,8 @@ class LCF(Fit):
                     tieStr = v['wtie']
                     if not cls.can_interpret_LCF_tie_str(tieStr, lcf):
                         raise ValueError('wrong tie expr for w[{0}]'.format(k))
-                    refs[k]['w'] = v['w'] if tieStr.startswith('fix') else \
-                        tieStr
+                    refs[k]['w'] = [v['w'], iv] if tieStr.startswith('fix') \
+                        else tieStr
                     refs[k]['wtie'] = tieStr
                     # if tieStr[0] in '<>' then w is both tied and varied
                     if tieStr[0] not in '<>':
@@ -129,18 +130,18 @@ class LCF(Fit):
                 if wantVary:
                     wMin, wMax = v['wBounds'][:2]
                     if wMin < wMax:
-                        refs[k]['w'] = len(args)
+                        refs[k]['w'] = [len(args), iv]
                         args.append(v['w'])
                         argNames.append(k)
                         mins.append(wMin)
                         maxs.append(wMax)
                     else:
-                        refs[k]['w'] = float(wMin)
+                        refs[k]['w'] = [float(wMin), iv]
                         v['w'] = wMin
             if cls.xVary:
                 kd = 'dx'
                 kdt = kd + 'tie'
-                for v in lcf:
+                for iv, v in enumerate(lcf):
                     if not v['use']:
                         continue
                     k = v['name']
@@ -153,8 +154,8 @@ class LCF(Fit):
                         if not cls.can_interpret_LCF_tie_str(tieStr, lcf):
                             raise ValueError(
                                 'wrong tie expr for {0}[{1}]'.format(kd, k))
-                        refs[k][kd] = v[kd] if tieStr.startswith('fix') else \
-                            tieStr
+                        refs[k][kd] = [v[kd], iv] if tieStr.startswith('fix') \
+                            else tieStr
                         refs[k][kdt] = tieStr
                         # if tieStr[0] in '<>' then dE is both tied and varied
                         if tieStr[0] not in '<>':
@@ -162,13 +163,13 @@ class LCF(Fit):
                     if wantVary:
                         dEMin, dEMax = v[kd+'Bounds'][:2]
                         if dEMin < dEMax:
-                            refs[k][kd] = len(args)
+                            refs[k][kd] = [len(args), iv]
                             args.append(v[kd])
                             argNames.append('dE_'+k)
                             mins.append(dEMin)
                             maxs.append(dEMax)
                         else:
-                            refs[k][kd] = float(dEMin)
+                            refs[k][kd] = [float(dEMin), iv]
                             v[kd] = dEMin
 
             where = (xRange[0] <= x) & (x <= xRange[1]) \
@@ -177,12 +178,13 @@ class LCF(Fit):
             locy = y[where]
             fcounter = {'nfev': 0}
             wopt, pcov, info, mesg, ier = curve_fit(partial(
-                cls.linear_combination, refs=refs, fcounter=fcounter),
+                cls.linear_combination, refs=refs, lenlcf=len(lcf),
+                fcounter=fcounter),
                 locx, locy, p0=args, bounds=(mins, maxs), full_output=True)
             # info2 = {'nfev': info['nfev']}
             info2 = fcounter
             lcfProps = dict(mesg=mesg, ier=ier, info=info2, nparam=len(wopt))
-            fit = cls.linear_combination(x, *wopt, refs=refs)
+            fit = cls.linear_combination(x, *wopt, refs=refs, lenlcf=len(lcf))
             lcfProps['R'] = ((locy - fit[where])**2).sum() / (locy**2).sum()
 
             werr = np.sqrt(np.diag(pcov))
@@ -191,12 +193,13 @@ class LCF(Fit):
                     continue
                 ref = refs[v['name']]
                 indw = ref['w']
-                if isinstance(indw, int):
-                    v['w'] = wopt[indw]
-                    v['wError'] = werr[indw]
-                elif isinstance(indw, float):  # fixed
-                    if 'wError' in v:
-                        del v['wError']
+                if isinstance(indw, list):
+                    if isinstance(indw[0], int):
+                        v['w'] = wopt[indw[0]]
+                        v['wError'] = werr[indw[0]]
+                    elif isinstance(indw[0], float):  # fixed
+                        if 'wError' in v:
+                            del v['wError']
                 if 'wres' in ref:
                     v['w'] = ref['wres']
                     if 'wError' in v:
@@ -207,12 +210,13 @@ class LCF(Fit):
                         continue
                     ref = refs[v['name']]
                     inddE = ref[kd]
-                    if isinstance(inddE, int):
-                        v[kd] = wopt[inddE]
-                        v[kd+'Error'] = werr[inddE]
-                    elif isinstance(inddE, float):  # fixed
-                        if kd+'Error' in v:
-                            del v[kd+'Error']
+                    if isinstance(inddE, list):
+                        if isinstance(inddE[0], int):
+                            v[kd] = wopt[inddE[0]]
+                            v[kd+'Error'] = werr[inddE[0]]
+                        elif isinstance(inddE[0], float):  # fixed
+                            if kd+'Error' in v:
+                                del v[kd+'Error']
                     if 'shres' in ref:
                         v[kd] = ref['shres']
                         if kd+'Error' in v:
@@ -250,7 +254,7 @@ class LCF(Fit):
             return False
 
     @classmethod
-    def linear_combination(cls, x, *params, refs, fcounter={}):
+    def linear_combination(cls, x, *params, refs, lenlcf, fcounter={}):
         """
         *x* : array of energy of the fitted spectrum,
 
@@ -262,31 +266,45 @@ class LCF(Fit):
 
         if fcounter:
             fcounter['nfev'] += 1
-        w = [0]  # w list indexing is 1-based for tie formulae
+
+        w = [0] * (lenlcf+1)  # w list indexing is 1-based for tie formulae
         _locals = dict(w=w)
-        for k, ref in refs.items():
+        _w = []
+        for iref, (k, ref) in enumerate(refs.items()):
             wr = ref['w']
-            val = params[wr] if isinstance(wr, int) else \
-                wr if isinstance(wr, float) else 0.
-            w.append(val)
+            val = 0.
+            if isinstance(wr, list):
+                if isinstance(wr[0], int):
+                    val = params[wr[0]]
+                elif isinstance(wr[0], float):
+                    val = wr[0]
+                w[wr[1]+1] = val
+            _w.append(val)
             if 'isMeta' in ref:
                 _locals[k] = val
         kd = 'dx'
+        dx = [0] * (lenlcf+1)  # is 1-based
+        _dx = []
         if cls.xVary:
-            _s = [0]  # is 1-based
             for ref in refs.values():
                 dEr = ref[kd]
-                _s.append(params[dEr] if isinstance(dEr, int) else
-                          dEr if isinstance(dEr, float) else 0.)
-        else:
-            _s = [0] * (len(refs)+1)  # is 1-based
-        dx = _s  # analysis:ignore
+                val = 0.
+                if isinstance(dEr, list):
+                    if isinstance(dEr[0], int):
+                        val = params[dEr[0]]
+                    elif isinstance(dEr[0], float):
+                        val = dEr[0]
+                    dx[dEr[1]+1] = val
+                _dx.append(val)
         _locals['dx'] = dx
 
-        assert len(refs) == len(w[1:]) == len(_s[1:])
+        assert len(refs) == len(_w)
+        if cls.xVary:
+            assert len(refs) == len(_dx)
+
         kdt = kd + 'tie'
         res = 0.
-        for (k, ref), wi, sh in zip(refs.items(), w[1:], _s[1:]):
+        for (k, ref), wi, sh in zip(refs.items(), _w, _dx):
             if 'wtie' in ref:
                 wtie = ref['wtie']
                 if wtie[0] in '=<>':
