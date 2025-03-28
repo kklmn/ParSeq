@@ -3,8 +3,13 @@
 Version history
 ---------------
 
-Current GitHub code (modified 13 Mar 2025):
+Current GitHub code (modified 28 Mar 2025):
     -
+
+2025.3.1 (28 Mar 2025):
+    - Bug fixes in doc builds.
+
+    - Improve tie expressions in LCF.
 
 2025.3.0 (13 Mar 2025):
     - Enable custom node icons.
@@ -37,7 +42,7 @@ Current GitHub code (modified 13 Mar 2025):
 
     - Update the main help pages.
 
-2023.5.0 (May 2023): 
+2023.5.0 (May 2023):
     - Add curve fitting facilities. Implemented 2 general fitting routines:
       linear combination fit and function fit.
 
