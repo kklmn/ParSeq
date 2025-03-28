@@ -21,7 +21,7 @@ class AnimationDirective(Directive):
     required_arguments = 0
     optional_arguments = 0
     final_argument_whitespace = True
-    option_spec = {'alt': directives.unchanged,
+    option_spec = {'alt': directives.unchanged,  # starts with "&ensp;" !!!
                    # for loc:
                    # "upper-left-corner", "lower-left-corner",
                    # "upper-right-corner", "lower-right-corner"
