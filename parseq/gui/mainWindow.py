@@ -302,7 +302,7 @@ class MainWindowParSeq(qt.QMainWindow):
         self.docks = {}  # nodeWidget: (dock, node, tabName)
         self.setDockNestingEnabled(True)
         for i, (name, node) in enumerate(csi.nodes.items()):
-            tabName = u'{0} \u2013 {1}'.format(i+1, name)
+            tabName = u'  {0} \u2013 {1}  '.format(i+1, name)
             dock = QDockWidgetNoClose(tabName, self)
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
@@ -378,11 +378,12 @@ class MainWindowParSeq(qt.QMainWindow):
             if tab.tabText(0) == tabName0:
                 self.tabWidget = tab
                 break
-        if self.tabPos in [qt.QTabWidget.North, qt.QTabWidget.South]:
-            pS = "padding-left: 10; padding-right: 10;};"
-        elif self.tabPos in [qt.QTabWidget.West, qt.QTabWidget.East]:
-            pS = "padding-top: 10; padding-bottom: 10;};"
-        self.tabWidget.setStyleSheet("QTabBar::tab:selected {font:bold; " + pS)
+        # if self.tabPos in [qt.QTabWidget.North, qt.QTabWidget.South]:
+        #     pS = "padding-left: 5; padding-right: 5;}"
+        # elif self.tabPos in [qt.QTabWidget.West, qt.QTabWidget.East]:
+        #     pS = "padding-top: 5; padding-bottom: 5;}"
+        self.tabWidget.setStyleSheet(
+            "QTabBar::tab:selected {font-weight: 900;}")
         iconSize = int(ICON_SIZE*0.85)
         self.tabWidget.setIconSize(qt.QSize(iconSize, iconSize))
 
