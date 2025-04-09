@@ -364,8 +364,8 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         # print('loading', path, self.rowCount(parent))
 
         countHdf5 = 0
-        # self.beginInsertRows(parent, 0, -1)
-        self.beginResetModel()
+        self.beginInsertRows(parent, 0, -1)
+        # self.beginResetModel()
 
         for row in range(self.rowCount(parent)):
             indexFS = self.index(row, 0, parent)
@@ -407,8 +407,8 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 else:
                     self.nodesNoHead.append(intId)
 
-        self.endResetModel()
-        # self.endInsertRows()
+        # self.endResetModel()
+        self.endInsertRows()
         if countHdf5 > 0:
             self.layoutChanged.emit()
         if csi.mainWindow and countHdf5 > 0:
