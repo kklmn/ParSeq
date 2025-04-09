@@ -1716,7 +1716,10 @@ class Spectrum(TreeItem):
                     if end is not None:
                         madeOf += item.madeOf[end:]
                     config.put(configProject, item.alias, 'madeOf', madeOf)
-                    relpath = osp.relpath(path, dirname).replace('\\', '/')
+                    try:
+                        relpath = osp.relpath(path, dirname).replace('\\', '/')
+                    except ValueError:  # path, dirname are on different mounts
+                        relpath = path.replace('\\', '/')
                     madeOfRel = item.madeOf[:start] + relpath
                     if end is not None:
                         madeOfRel += item.madeOf[end:]
@@ -1771,7 +1774,11 @@ class Spectrum(TreeItem):
                         start = 5
                         end = ds.find('::') if '::' in ds else None
                         path = ds[start:end]
-                        relpath = osp.relpath(path, dirname).replace('\\', '/')
+                        try:
+                            relpath = osp.relpath(path, dirname).replace(
+                                '\\', '/')
+                        except ValueError:  # are on different mounts
+                            relpath = path.replace('\\', '/')
                         madeOfRel = ds[:start] + relpath + ds[end:]
                         dataSourceRel[ids] = madeOfRel
                 dataFormat = cleanJSON(json.dumps(dataFormatRel))
