@@ -375,7 +375,11 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             intId = indexFS.internalId()
             if intId not in self.nodesHead and intId not in self.nodesNoHead:
                 fileInfo = self.fileInfo(indexFS)
-                fname = fileInfo.filePath()
+                try:
+                    fname = fileInfo.filePath()
+                except Exception:
+                    self.nodesNoHead.append(intId)
+                    continue
 
                 # if (not isinstance(self.proxyModel, qt.QSortFilterProxyModel)
                 #         and hasattr(self.transformNode, 'excludeFilters')):

@@ -10,7 +10,6 @@ from functools import partial
 # import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 import textwrap
 import re
-import shutil
 import psutil
 import glob
 import inspect
@@ -545,11 +544,14 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def setTabIcons(self):
         cc = qt.QColor(INACTIVE_TAB_COLOR)
-        for itab, (dock, node, _) in enumerate(self.docks.values()):
+        for dock, node, tabName in self.docks.values():
+            for itab in range(self.tabWidget.count()):
+                if self.tabWidget.tabText(itab) == tabName:
+                    break
+            else:
+                continue
             self.setTabIcon(itab, dock)
             self.tabWidget.setTabTextColor(itab, cc)
-            # if hasattr(node, "description"):
-            #     self.tabWidget.setTabToolTip(itab, node.description)  # no effect
 
     def setTabIcon(self, itab, dock, state=0):
         icon = dock.dimIconBusy if state == 1 else dock.dimIcon
