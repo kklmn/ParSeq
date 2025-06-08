@@ -110,4 +110,12 @@ Hosting and contact
 The ParSeq project is hosted on `GitHub <https://github.com/kklmn/ParSeq>`_.
 Please use the project's Issues tab to get help or report an issue.
 
+Citing ParSeq
+-------------
+
+Please cite ParSeq as: `K Klementiev, "ParSeq: Python software for comparative
+data analysis pipelines", J. Phys.: Conf. Ser. 3010 (2025) 012126;
+doi:10.1088/1742-6596/3010/1/012126
+<https://doi.org/10.1088/1742-6596/3010/1/012126>`_.
+
 """
