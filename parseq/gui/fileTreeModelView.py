@@ -20,7 +20,7 @@ import numpy as np
 import warnings
 
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"  # to work with external links
-os.environ["QT_FILESYSTEMMODEL_WATCH_FILES"] = '1'  # potentially heavy load!!
+os.environ["QT_FILESYSTEMMODEL_WATCH_FILES"] = '0'  # potentially heavy load!!
 # import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
 
 import silx
@@ -377,7 +377,8 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 fileInfo = self.fileInfo(indexFS)
                 try:
                     fname = fileInfo.filePath()
-                except Exception:
+                except Exception as e:
+                    print('Error in fileInfo.filePath():\n', e)
                     self.nodesNoHead.append(intId)
                     continue
 
@@ -399,13 +400,14 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                     try:
                         # self.beginInsertRows(indexFS, 0, 0)
                         # self.insertRow(0, indexFS)
+                        # self.h5Model.appendFile(fname)  # slower, not always
+                        self.h5Model.insertFileAsync(fname)  # faster?
                         self.nodesHead.append(intId)
-                        self.h5Model.appendFile(fname)  # slower, not always
-                        # don't use, it breaks the model:
-                        # self.h5Model.insertFileAsync(fname)  # faster?
                         countHdf5 += 1
                         # self.endInsertRows()
                     except Exception as e:
+                        print('Error in h5Model.insertFileAsync():\n', e)
+                        syslogger.error('Error in h5Model.insertFileAsync():')
                         syslogger.error(str(e))
                         self.nodesNoHead.append(intId)
                 else:
