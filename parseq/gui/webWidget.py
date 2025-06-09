@@ -455,10 +455,11 @@ class SphinxWorker(qt.QObject):
                     shutil.copy2(iconPath, destim)
 
     def prepareMain(self, argspec="", note=""):
-        try:
-            shutil.rmtree(MAINHELPDIR)
-        except (FileNotFoundError, PermissionError):
-            pass
+        # try:
+        #     shutil.rmtree(MAINHELPDIR)
+        # except (FileNotFoundError, PermissionError):
+        #     pass
+
         shutil.copytree(CONFDIR, MAINHELPDIR, dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns('conf_doc*.py',))
         shutil.copy2(osp.join(PARSEQDIR, 'version.py'), osp.dirname(DOCDIR))
@@ -478,10 +479,10 @@ class SphinxWorker(qt.QObject):
         self.note = note
 
     def preparePipe(self, argspec="", note=""):
-        try:
-            shutil.rmtree(PIPEHELPDIR)
-        except (FileNotFoundError, PermissionError):
-            pass
+        # try:
+        #     shutil.rmtree(PIPEHELPDIR)
+        # except (FileNotFoundError, PermissionError):
+        #     pass
 
         dirsToCopy = '_images', '_static', '_templates', '_themes', 'exts'
         for dc in dirsToCopy:
@@ -557,10 +558,10 @@ class SphinxWorker(qt.QObject):
         self.note = note
 
     def prepareDocs(self, docs, docNames, extraDocs=[], argspec="", note=""):
-        try:
-            shutil.rmtree(DOCDIR)
-        except (FileNotFoundError, PermissionError):
-            pass
+        # try:
+        #     shutil.rmtree(DOCDIR)
+        # except (FileNotFoundError, PermissionError):
+        #     pass
 
         dc = '_images'
         spath = osp.join(CONFDIR, dc)
