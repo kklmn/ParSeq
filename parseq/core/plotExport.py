@@ -84,14 +84,15 @@ def plot1Dmpl(nodeData):
             continue
         if len(props) > 3:
             yprops = props[3]
-            clr = props[1]  # same color as in ParSeq wanted
-            # clr = colors[icurve]  # custom color wanted
+            clr0 = props[1]  # same color as in ParSeq wanted
+            # clr0 = colors[icurve]  # custom color wanted
 
         for curve in curves:
             x, ys, headers = curve
             for y, header in zip(ys, headers):
                 try:
                     kw = dict(yprops[header])
+                    clr = clr0
                 except KeyError:
                     kw = {}
                     clr = 'gray'
@@ -141,13 +142,14 @@ def plot1Dsilx(nodeData):
             continue
         if len(props) > 3:
             yprops = props[3]
-            clr = props[1]
+            clr0 = props[1]
 
         for curve in curves:
             x, ys, headers = curve
             for y, header in zip(ys, headers):
                 try:
                     kw = dict(yprops[header])
+                    clr = clr0
                 except KeyError:
                     kw = {'yaxis': 'left'}
                     clr = 'gray'
