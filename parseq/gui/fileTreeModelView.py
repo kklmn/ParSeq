@@ -5,7 +5,7 @@ extended by the hdf5 model from silx (silx.gui.hdf5.Hdf5TreeModel), so that
 hdf5 containers can be viewed in the same tree.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "2 Mar 2023"
+__date__ = "26 Aug 2025"
 # !!! SEE CODERULES.TXT !!!
 
 
@@ -364,9 +364,6 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         # print('loading', path, self.rowCount(parent))
 
         countHdf5 = 0
-        self.beginInsertRows(parent, 0, -1)
-        # self.beginResetModel()
-
         for row in range(self.rowCount(parent)):
             indexFS = self.index(row, 0, parent)
             if not indexFS.isValid():
@@ -382,39 +379,42 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                     self.nodesNoHead.append(intId)
                     continue
 
-                # if (not isinstance(self.proxyModel, qt.QSortFilterProxyModel)
-                #         and hasattr(self.transformNode, 'excludeFilters')):
-                #     excluded = False
-                #     for filt in self.transformNode.excludeFilters:
-                #         if not filt:
-                #             continue
-                #         if re.search(filt.replace('*', '+'), fname):
-                #             excluded = True
-                #             break
-                #     if excluded:
-                #         self.nodesNoHead.append(intId)
-                #         continue
+                if (not isinstance(self.proxyModel, qt.QSortFilterProxyModel)
+                        and hasattr(self.transformNode, 'excludeFilters')):
+                    excluded = False
+                    for filt in self.transformNode.excludeFilters:
+                        filtNoStar = filt.replace('*', '')
+                        if filtNoStar in fname:
+                            excluded = True
+                            break
+                    if excluded:
+                        self.nodesNoHead.append(intId)
+                        continue
 
                 ext = fileInfo.suffix()
                 if ext in NEXUS_HDF5_EXT:
                     try:
-                        # self.beginInsertRows(indexFS, 0, 0)
-                        # self.insertRow(0, indexFS)
-                        # self.h5Model.appendFile(fname)  # slower, not always
-                        self.h5Model.insertFileAsync(fname)  # faster?
+                        self.beginInsertRows(indexFS, 0, -1)
+
+                        # so far, async doesn't work: it fails on corrupt h5s:
+                        # self.h5Model.insertFileAsync(fname)  # in another Py
+                        # therefore, it has to be synchronous:
+                        self.h5Model.insertFile(fname)  # blocks the main gui
+
                         self.nodesHead.append(intId)
                         countHdf5 += 1
-                        # self.endInsertRows()
+                        self.endInsertRows()
                     except Exception as e:
-                        print('Error in h5Model.insertFileAsync():\n', e)
-                        syslogger.error('Error in h5Model.insertFileAsync():')
+                        self.endInsertRows()
+                        print('Error in h5Model.insertFile():\n', e)
+                        print(fname)
+                        syslogger.error('Error in h5Model.insertFile():')
                         syslogger.error(str(e))
+                        syslogger.error(fname)
                         self.nodesNoHead.append(intId)
                 else:
                     self.nodesNoHead.append(intId)
 
-        # self.endResetModel()
-        self.endInsertRows()
         if countHdf5 > 0:
             self.layoutChanged.emit()
         if csi.mainWindow and countHdf5 > 0:
@@ -803,13 +803,9 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             fileInfo = self.fileInfo(indexFS)
             fileName = fileInfo.fileName()
             for filt in self.transformNode.excludeFilters:
-                if not filt:
-                    continue
-                try:
-                    if re.search(filt.replace('*', '+'), fileName):
-                        return qt.QModelIndex()
-                except Exception:
-                    continue
+                filtNoStar = filt.replace('*', '')
+                if filtNoStar in fileName:
+                    return qt.QModelIndex()
         return indexFS
 
     def reloadHdf5(self, index):
@@ -859,6 +855,11 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 super().fetchMore(headIndexFS)
             return headIndexFS if fallbackToHead else qt.QModelIndex()
         indexH5 = self.h5Model.indexFromPath(headIndexH5, fnameH5sub)
+        if indexH5 is headIndexH5:
+            return headIndexFS
+        if not indexH5.isValid():
+            return qt.QModelIndex()
+
         if returnH5:
             return indexH5
         indexFS = self.mapFromH5(indexH5)
