@@ -3,6 +3,9 @@ __author__ = "Konstantin Klementiev"
 __date__ = "29 Sep 2022"
 # !!! SEE CODERULES.TXT !!!
 
+import os
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"  # to work with external links
+
 import os.path as osp
 from collections import deque, OrderedDict
 # import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
