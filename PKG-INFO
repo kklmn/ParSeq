@@ -1,6 +1,6 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: parseq
-Version: 2025.3.1
+Version: 2025.8.0
 Summary: ParSeq is a python software library for Parallel execution of Sequential data analysis.
 Home-page: http://parseq.readthedocs.io
 Author: Konstantin Klementiev
@@ -37,6 +37,19 @@ Requires-Dist: distro
 Requires-Dist: colorama
 Requires-Dist: sphinx_tabs
 Requires-Dist: xafsmass>=1.6.0
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: license
+Dynamic: license-file
+Dynamic: platform
+Dynamic: project-url
+Dynamic: requires-dist
+Dynamic: summary
 
 Package ParSeq is a python software library for **Par**\ allel execution of
 **Seq**\ uential data analysis. It implements a general analysis framework that
@@ -136,3 +149,11 @@ Hosting and contact
 
 The ParSeq project is hosted on `GitHub <https://github.com/kklmn/ParSeq>`_.
 Please use the project's Issues tab to get help or report an issue.
+
+Citing ParSeq
+-------------
+
+Please cite ParSeq as: `K Klementiev, "ParSeq: Python software for comparative
+data analysis pipelines", J. Phys.: Conf. Ser. 3010 (2025) 012126;
+doi:10.1088/1742-6596/3010/1/012126
+<https://doi.org/10.1088/1742-6596/3010/1/012126>`_.

@@ -3,8 +3,13 @@
 Version history
 ---------------
 
-Current GitHub code (modified 28 Mar 2025):
+Current GitHub code (modified 31 Aug 2025):
     -
+
+2025.8.0 (31 Aug 2025):
+    - Add workaround for corrupt h5 files: stop using h5Model.insertFileAsync().
+
+    - Minor bug fixes.
 
 2025.3.1 (28 Mar 2025):
     - Bug fixes in doc builds.
