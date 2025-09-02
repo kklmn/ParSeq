@@ -14,6 +14,7 @@ import platform as pythonplatform
 import webbrowser
 
 from ..core import singletons as csi
+from ..core import config
 from . import webWidget as gww
 # path to ParSeq:
 import sys; sys.path.append(osp.join('..', '..'))  # analysis:ignore
@@ -46,7 +47,7 @@ for root, dirs, files in os.walk(path):
     for file in files:
         if file.endswith(".pspj"):
             pr = os.path.join(root, file)
-            with open(pr, 'r') as fp:
+            with open(pr, 'r', encoding=config.encoding) as fp:
                 prd = fp.read()
                 if "pipelineName = {}".format(csi.pipelineName) in prd:
                     projFiles.append(osp.relpath(pr, path).replace('\\', '/'))
