@@ -203,10 +203,14 @@ class PropWidget(qt.QWidget):
                             partial(self.gotoHDF5, hdf5Path))
 
         for w in widgetsOver:  # editingFinished is emitted before menu.exec_
+            self.extraContextMenu(menu, w)
             w.blockSignals(True)
         menu.exec_(event.globalPos())
         for w in widgetsOver:
             w.blockSignals(False)
+
+    def extraContextMenu(self, menu, widget):
+        pass
 
     def fillMenuApply(self, widgetsOver, menu):
         if len(csi.selectedItems) == 0:
