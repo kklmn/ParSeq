@@ -912,7 +912,10 @@ class PropWidget(qt.QWidget):
             elif widgetTypeIndex == 10:  # 'correction'
                 gpd.setCorrectionsFromData(widget, prop)
         self.updateStatusWidgets()
-        self.extraSetUIFromData()
+        try:
+            self.extraSetUIFromData()
+        except AttributeError:  # after data deletion
+            pass
 
     def extraSetUIFromData(self):
         pass

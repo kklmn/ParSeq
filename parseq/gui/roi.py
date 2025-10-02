@@ -296,7 +296,7 @@ class RoiModel(qt.QAbstractTableModel):
 
 
 class RoiToolBar(qt.QToolBar):
-    """A toolbar which hide itself if no actions are visible"""
+    """A toolbar that hides itself if no actions are visible"""
 
     def __init__(self, parent, roiManager, roiClassNames):
         super().__init__(parent)
