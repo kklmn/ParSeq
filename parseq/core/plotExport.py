@@ -61,6 +61,33 @@ def read1D(saveType, fname, props):
 
 
 def plot1Dmpl(nodeData):
+    from matplotlib.legend_handler import HandlerBase
+
+    class NLineObjectsHandler(HandlerBase):
+        def create_artists(self, legend, orig_handles,
+                           x0, y0, width, height, fontsize, trans):
+            return [plt.Line2D([x0, x0+width], [p*height, p*height],
+                               linestyle=handle.get_linestyle(),
+                               color=handle.get_color()) for handle, p in
+                    zip(orig_handles, self.get_line_vpos(len(orig_handles)))]
+
+        def get_line_vpos(self, n):
+            if n == 1:
+                pos = [0.5]
+            elif n == 2:
+                pos = [0.7, 0.3]
+            elif n == 3:
+                pos = [0.9, 0.5, 0.1]
+            elif n == 4:
+                pos = [0.95, 0.65, 0.35, 0.05]
+            elif n == 5:
+                pos = [0.95, 0.725, 0.5, 0.275, 0.05]
+            elif n == 6:
+                pos = [0.95, 0.77, 0.59, 0.41, 0.23, 0.05]
+            else:
+                raise ValueError('too many lines')
+            return pos
+
     saveType = nodeData[0]
     fig = plt.figure(figsize=(7, 5))
     fig.suptitle(nodeData[1] + ' ' + saveType)
@@ -77,6 +104,9 @@ def plot1Dmpl(nodeData):
 
     savedColumns = nodeData[4]
     # colors = [f'C{i%9}' for i in range(len(savedColumns))]  # custom colors
+    # labels = [f'C{i%9}' for i in range(len(savedColumns))]  # custom labels
+
+    lines = []
     for icurve, (fname, props) in enumerate(savedColumns.items()):
         try:
             curves = read1D(saveType, fname, props)
@@ -110,11 +140,12 @@ def plot1Dmpl(nodeData):
                 if len(headers) > 1:
                     lbl += '.' + header
                 ax = axl if yaxis.startswith('l') else axr
-                ax.plot(x, y, color=clr, label=lbl, **kw)
+                line, = ax.plot(x, y, color=clr, label=lbl, **kw)
+                lines.append(line)
 
     axl.legend()
     # axl.legend([(l1, l2) for l1, l2 in zip(lines[::2], lines[1::2])],
-    #           usedLabels, handler_map={tuple: NLineObjectsHandler()})
+    #            labels, handler_map={tuple: NLineObjectsHandler()})
 
     # if 'eV' in nodeData[3][0]:
     #     ax.set_xlim(5950, 6125)  # set energy limits for XANES

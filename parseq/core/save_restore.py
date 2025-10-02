@@ -473,16 +473,26 @@ def save_script(fname, plots, h5plots, lib='mpl'):
         output.extend(["    h5name = '{0}.h5'".format(basefname),
                        "    plots = getPlotsFromHDF5(h5name)"])
     elif len(h5plots) == 0:
-        output.append("    plots = {0}".format(
-            autopep8.fix_code(repr(plots), options={'aggressive': 2})))
+        try:
+            fix_code_plots = autopep8.fix_code(
+                repr(plots), options={'aggressive': 2})
+        except ModuleNotFoundError as e:
+            print(e)
+            fix_code_plots = repr(plots)
+        output.append("    plots = {0}".format(fix_code_plots))
     else:
+        try:
+            fix_code_plots = autopep8.fix_code(
+                repr(plots), options={'aggressive': 2})
+        except ModuleNotFoundError as e:
+            print(e)
+            fix_code_plots = repr(plots)
         output.extend([
             "    # you can get plot definitions from the h5 file:",
             "    # h5name = '{0}.h5'".format(basefname),
             "    # plots = getPlotsFromHDF5(h5name)", "",
             "    # ...or from the `plots` list:",
-            "    plots = {0}".format(
-                autopep8.fix_code(repr(plots), options={'aggressive': 2}))
+            "    plots = {0}".format(fix_code_plots)
             ])
 
     if lib == 'mpl':
