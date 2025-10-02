@@ -48,7 +48,10 @@ def test2():
     # path = 'silx:C:/ParSeq/parseq_XES_scan/data/20201112.h5::/entry10170'
     # path = 'silx:C:/ParSeq/parseq_XES_scan/data/20201112.h5::/entry10170/measurement'
     # path = 'c:/_MaxIV/Balder data/20240213-Mo-XES/20240213.h5'
+    # path = 'silx:data/hdf5/20240213s.h5::/entry29270/instrument'
     path = 'silx:data/hdf5/20240213s.h5::/entry29270/instrument'
+    # path = 'silx:T:/balder/20241639/2025050808/raw/scan-56348_sardana.h5::/entry56348/measurement'
+    # path = 'silx:T:/balder/20241639/2025050808/raw/scan-56348_sardana.h5::/entry/measurement'
 
     view = FileTreeView()
     view.setMinimumSize(qt.QSize(700, 600))
