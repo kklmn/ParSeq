@@ -1376,6 +1376,12 @@ class FileTreeView(qt.QTreeView):
         with open(fname, 'r', encoding="utf-8") as f:
             lines = f.readlines()
         self.transformNode.widget.metadata.setText(''.join(lines))
+        # but = self.transformNode.widget.splitterButtons['metadata']
+        # but.clicked.emit()
+        splitter = self.transformNode.widget.splitterPlot
+        sizes = splitter.sizes()
+        sizes[-1] = 1
+        splitter.setSizes(sizes)
         # except Exception:
         #     return
 
