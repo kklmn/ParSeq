@@ -1143,6 +1143,8 @@ class AutoRangeWidget(BaseRangeWidget):
             if self.roi is None:
                 return
             self.roi.blockSignals(True)
+            if self.panel.isCheckable():
+                use = self.panel.isChecked()
             self.roi.setVisible(use and not isDefault)
             self.roi.blockSignals(False)
 
