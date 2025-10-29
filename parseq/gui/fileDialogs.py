@@ -24,7 +24,7 @@ class SaveProjectDlg(qt.QFileDialog):
         self.setFileMode(qt.QFileDialog.AnyFile)
         self.setViewMode(qt.QFileDialog.Detail)
         self.setNameFilter("ParSeq Project File (*.pspj)")
-        try:
+        try:  # hide all other files, otherwise they are greyed out
             child = self.findChild(qt.QTreeView)
             model = child.model()
             model.setNameFilterDisables(False)
@@ -57,7 +57,12 @@ class SaveProjectDlg(qt.QFileDialog):
             self.saveNodeCBs.append(nodeCB)
             layoutF.addWidget(nodeCB)
         layoutF.addStretch()
-        nodeCB.setChecked(True)
+        nsaved = config.get(config.configLoad, 'Save', 'nodes')
+        if nsaved is None:
+            nodeCB.setChecked(True)
+        else:
+            for name, nodeCB in zip(csi.nodes.keys(), self.saveNodeCBs):
+                nodeCB.setChecked(name in nsaved)
         saveDataFrom.setLayout(layoutF)
         layoutC.addWidget(saveDataFrom)
 
@@ -70,16 +75,25 @@ class SaveProjectDlg(qt.QFileDialog):
             self.saveAsCBs.append(asCB)
             layoutA.addWidget(asCB)
         layoutA.addStretch()
-        self.saveAsCBs[0].setChecked(True)
+        fsaved = config.get(config.configLoad, 'Save', 'filetypes')
+        if fsaved is None:
+            self.saveAsCBs[0].setChecked(True)
+        else:
+            for ftype, saveAsCB in zip(ftypes, self.saveAsCBs):
+                saveAsCB.setChecked(ftype in fsaved)
         saveDataAs.setLayout(layoutA)
         layoutC.addWidget(saveDataAs)
 
         layoutP = qt.QVBoxLayout()
         self.scriptCBmpl = qt.QCheckBox(
             'save a matplotlib plotting script\nfor the exported data', self)
+        msaved = config.get(config.configLoad, 'Save', 'scriptMpl')
+        self.scriptCBmpl.setChecked(msaved)
         layoutP.addWidget(self.scriptCBmpl, alignment=qt.Qt.AlignTop)
         self.scriptCBsilx = qt.QCheckBox(
             'save a silx plotting script\nfor the exported data', self)
+        ssaved = config.get(config.configLoad, 'Save', 'scriptSilx')
+        self.scriptCBsilx.setChecked(ssaved)
         layoutP.addWidget(self.scriptCBsilx, alignment=qt.Qt.AlignTop)
         layoutP.addStretch()
         layoutC.addLayout(layoutP)
@@ -101,14 +115,29 @@ class SaveProjectDlg(qt.QFileDialog):
         if not saveData:
             self.ready.emit([resFile])
             return
-        saveNodes = [node.isChecked() for node in self.saveNodeCBs]
-        asTypes = [ext for ftype, ext in zip(self.saveAsCBs, fexts)
-                   if ftype.isChecked()]
+        saveNodes = [nodeCB.isChecked() for nodeCB in self.saveNodeCBs]
+        asTypes = [ext for saveAsCB, ext in zip(self.saveAsCBs, fexts)
+                   if saveAsCB.isChecked()]
         saveScriptMpl = self.scriptCBmpl.isChecked()
         saveScriptSilx = self.scriptCBsilx.isChecked()
         self.ready.emit(
             [resFile, saveNodes, asTypes, saveScriptMpl, saveScriptSilx])
 
+        nchecked = []
+        for name, nodeCB in zip(csi.nodes.keys(), self.saveNodeCBs):
+            if nodeCB.isChecked():
+                nchecked.append(name)
+        config.put(config.configLoad, 'Save', 'nodes', '; '.join(nchecked))
+
+        fchecked = []
+        for ftype, saveAsCB in zip(ftypes, self.saveAsCBs):
+            if saveAsCB.isChecked():
+                fchecked.append(ftype)
+        config.put(config.configLoad, 'Save', 'filetypes', '; '.join(fchecked))
+
+        config.put(config.configLoad, 'Save', 'scriptMpl', str(saveScriptMpl))
+        config.put(
+            config.configLoad, 'Save', 'scriptSilx', str(saveScriptSilx))
 
 # class QTooltipProxyModel(qt.QIdentityProxyModel):
 #     def data(self, index, role=qt.Qt.DisplayRole):
@@ -211,7 +240,7 @@ class LoadProjectDlg(qt.QFileDialog):
         self.setFileMode(qt.QFileDialog.ExistingFile)
         self.setViewMode(qt.QFileDialog.Detail)
         self.setNameFilter("ParSeq Project File (*.pspj)")
-        try:
+        try:  # hide all other files, otherwise they are greyed out
             child = self.findChild(qt.QTreeView)
             model = child.model()
             model.setNameFilterDisables(False)
