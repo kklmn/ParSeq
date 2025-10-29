@@ -224,10 +224,13 @@ class AboutDialog(qt.QDialog):
 
         self.tabBar = qt.QTabBar(parent=self)
         self.tabBar.setIconSize(qt.QSize(32, 32))
-        self.tabBar.setStyleSheet(
-            "QTabBar {font: bold 10pt;}"
-            "QTabBar::tab:selected {background: white;}")
+        style = \
+            "QTabBar {font: bold 10pt;}"\
+            "QTabBar::tab {padding: 0px 10px 0px 10px; background: lightgray;}"\
+            "QTabBar::tab:hover {background: #6087cefa;}"\
+            "QTabBar::tab:selected {background: white;}"
         # "QTabBar::tab { height: 100px; width: 400px; }")
+        self.tabBar.setStyleSheet(style)
         self.iconPaths = [ICONPATHP, csi.appIconPath]
         for tabName, iconPath in zip(tabNames, self.iconPaths):
             icon = qt.QIcon(iconPath) if iconPath else qt.QIcon()

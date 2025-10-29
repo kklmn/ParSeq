@@ -7,8 +7,12 @@ import os
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"  # to work with external links
 
 import os.path as osp
+import platform as pythonplatform
 from collections import deque, OrderedDict
 # import hdf5plugin  # needed to prevent h5py's "OSError: Can't read data"
+
+locos = pythonplatform.platform(terse=True)
+onMac = 'macOS' in locos
 
 parseqPath = osp.dirname(osp.dirname(osp.dirname(__file__)))
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "3 Mar 2023"
+__date__ = "29 Oct 2025"
 # !!! SEE CODERULES.TXT !!!
 
 import os
@@ -24,6 +24,12 @@ class SaveProjectDlg(qt.QFileDialog):
         self.setFileMode(qt.QFileDialog.AnyFile)
         self.setViewMode(qt.QFileDialog.Detail)
         self.setNameFilter("ParSeq Project File (*.pspj)")
+        try:
+            child = self.findChild(qt.QTreeView)
+            model = child.model()
+            model.setNameFilterDisables(False)
+        except Exception:
+            pass
 
         selNames = [it.alias for it in csi.selectedItems]
         combinedNames = cco.combine_names(selNames)
@@ -205,6 +211,12 @@ class LoadProjectDlg(qt.QFileDialog):
         self.setFileMode(qt.QFileDialog.ExistingFile)
         self.setViewMode(qt.QFileDialog.Detail)
         self.setNameFilter("ParSeq Project File (*.pspj)")
+        try:
+            child = self.findChild(qt.QTreeView)
+            model = child.model()
+            model.setNameFilterDisables(False)
+        except Exception:
+            pass
         # self.setProxyModel(QTooltipProxyModel(self))
 
         self.currentChanged.connect(self.updatePreview)

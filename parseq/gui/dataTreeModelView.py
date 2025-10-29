@@ -16,7 +16,7 @@ The selected items can be accessed by core.singletons.selectedItems and
 core.singletons.selectedTopItems lists.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "2 Mar 2023"
+__date__ = "29 Oct 2025"
 # !!! SEE CODERULES.TXT !!!
 
 # import sys
@@ -34,9 +34,10 @@ from .plotOptions import lineStyles, lineSymbols, noSymbols, LineProps
 
 # fontSize = 12 if sys.platform == "darwin" else 9
 
-COLUMN_NAME_WIDTH = 140
-COLUMN_EYE_WIDTH = 28
-LEGEND_WIDTH = 48  # '|FT(χ)|' fits into 48
+fs = 1.5 if csi.onMac else 1
+COLUMN_NAME_WIDTH = int(140*fs)
+COLUMN_EYE_WIDTH = int(28*fs)
+LEGEND_WIDTH = int(48*fs)  # '|FT(χ)|' fits into 48
 
 GROUP_BKGND = gco.GROUP_COLOR
 BUSY_BKGND = gco.BUSY_COLOR_BGND
@@ -53,8 +54,8 @@ BKGND = {cco.DATA_STATE_GOOD: None,
 FONT_COLOR_TAG = ['black', gco.COLOR_HDF5_HEAD, gco.COLOR_FS_COLUMN_FILE,
                   gco.COLOR_UNDEFINED, gco.COLOR_ROI, gco.COLOR_COMBINED,
                   'cyan']
-LEFT_SYMBOL = u"\u25c4"  # ◄
-RIGHT_SYMBOL = u"\u25ba"  # ►
+# LEFT_SYMBOL = u"\u25c4"  # ◄
+# RIGHT_SYMBOL = u"\u25ba"  # ►
 # SELECTION_ALPHA = 0.5
 # CHECKED_SYMBOL = u"\u2611"  # ☑
 # UNCHECKED_SYMBOL = u"\u2610"  # ☐
@@ -620,6 +621,8 @@ class DataCheckDelegate(NodeDelegate):
 
 
 class LineStyleDelegate(NodeDelegate):
+    arrowSize = 6, 2
+
     def paint(self, painter, option, index):
         if csi.currentNode is not None:
             node = csi.currentNode
@@ -667,17 +670,14 @@ class LineStyleDelegate(NodeDelegate):
 
                 # line
                 linePen = qt.QPen(
-                    qt.QBrush(lineColor), lineWidth, lineStyle, qt.Qt.FlatCap)
+                    qt.QBrush(lineColor), lineWidth, lineStyle, qt.Qt.RoundCap)
                 painter.setPen(linePen)
                 linePath = qt.QPainterPath()
                 if axisY == -1:  # forbid left arrow, comment out to allow it
                     axisY = 0
-                dl = lineWidth if axisY == -1 else 0
-                dr = lineWidth if axisY == 1 else 0
-                linePath.moveTo(
-                    rect.left()+3+dl, (rect.top()+rect.bottom())*0.5)
-                linePath.lineTo(
-                    rect.right()-3-dr, (rect.top()+rect.bottom())*0.5)
+                yL = (rect.top() + rect.bottom()) * 0.5
+                linePath.moveTo(rect.left()+4, yL)
+                linePath.lineTo(rect.right()-4, yL)
                 painter.drawPath(linePath)
 
                 # > or < symbol
@@ -686,17 +686,28 @@ class LineStyleDelegate(NodeDelegate):
                 # font.setPointSize(3*round(lineWidth))
                 # painter.setFont(font)
 
-                dh = int(lineWidth+1)
-                rect.setBottom(rect.bottom()-dh)
+                # dh = int(lineWidth+1)
+                # rect.setBottom(rect.bottom()-dh)
                 if axisY == -1:
-                    painter.drawText(
-                        rect, int(qt.Qt.AlignLeft | qt.Qt.AlignVCenter),
-                        LEFT_SYMBOL)
+                    pass
+                    # painter.drawText(
+                    #     rect, int(qt.Qt.AlignLeft | qt.Qt.AlignVCenter),
+                    #     LEFT_SYMBOL)
                 elif axisY == 1:
-                    painter.drawText(
-                        rect, int(qt.Qt.AlignRight | qt.Qt.AlignVCenter),
-                        RIGHT_SYMBOL)
-                rect.setBottom(rect.bottom()+dh)
+                    linePen = qt.QPen(lineColor)
+                    linePen.setWidthF(1.8)
+                    painter.setPen(linePen)
+                    xL = rect.right() - 3
+                    dx, dy = self.arrowSize
+                    dx += lineWidth
+                    dy += lineWidth
+                    points = [qt.QPointF(x, y) for x, y in [
+                        (xL-dx, yL-dy), (xL, yL), (xL-dx, yL+dy)]]
+                    painter.drawPolygon(points, 3)
+                    # painter.drawText(
+                    #     rect, int(qt.Qt.AlignRight | qt.Qt.AlignVCenter),
+                    #     RIGHT_SYMBOL)
+                # rect.setBottom(rect.bottom()+dh)
 
             if symbol in noSymbols:
                 symbol = None
@@ -855,6 +866,8 @@ class DataTreeView(qt.QTreeView):
 
         self.setHeader(EyeHeader(node=self.node))
         horHeaders = self.header()  # QHeaderView instance
+        if csi.onMac:
+            horHeaders.setFixedHeight(30)
         if 'pyqt4' in qt.BINDING.lower():
             horHeaders.setMovable(False)
             horHeaders.setResizeMode(0, qt.QHeaderView.Stretch)

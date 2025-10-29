@@ -29,7 +29,9 @@ from ..gui.combineSpectra import CombineSpectraWidget
 from ..gui.gcorrection import Correction1DWidget
 from . import gcommons as gco
 
-SPLITTER_WIDTH, SPLITTER_BUTTON_MARGIN = 14, 6
+SPLITTER_WIDTH = 18 if sys.platform == "darwin" else 14
+SPLITTER_BUTTON_MARGIN = 6
+
 COLORMAP = 'viridis'
 
 autoLoadDelay = 3000  # msec
@@ -41,7 +43,7 @@ class QSplitterButton(qt.QPushButton):
         super().__init__(text, parent)
         self.rawText = str(text)
         self.isVertical = isVertical
-        fontSize = "10" if sys.platform == "darwin" else "8.5" \
+        fontSize = "12" if sys.platform == "darwin" else "8.5" \
             if sys.platform == "linux" else "8"
         grad = "x1: 0, y1: 1, x2: 0, y2: 0"
         bottomMargin = '-1' if isVertical else '-3'
@@ -505,7 +507,9 @@ class NodeWidget(qt.QWidget):
             self.updateFits(shouldClear=True)
 
     def handleSplitterHelpButton(self):
-        webbrowser.open_new_tab(self.helpFile)
+        path = 'file://' + osp.realpath(self.helpFile)
+        webbrowser.open_new_tab(path)
+        # webbrowser.open_new_tab(self.helpFile)
         # webbrowser.open_new_tab("https://github.com/")
 
     def setIncludeFilter(self):

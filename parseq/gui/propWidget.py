@@ -799,7 +799,7 @@ class PropWidget(qt.QWidget):
 
     def updatePropFromSpinBox(self, spinBox, dataItems, key, value):
         # spinBox = self.sender()  # doesn't work in PySide2
-        if not spinBox.hasFocus():
+        if not spinBox.hasFocus():  # unclear if this is needed
             return
         self.spinBoxProps = spinBox, dataItems, key, value
         self.spinTimer.start(spinBoxDelay)
@@ -813,21 +813,21 @@ class PropWidget(qt.QWidget):
 
     def updatePropFromCheckBox(self, checkBox, dataItems, key, value):
         # checkBox = self.sender()  # doesn't work in PySide2
-        if not checkBox.hasFocus():
-            return
+        # if not checkBox.hasFocus():  # never gets focus on Mac
+        #     return
         self.updateProp(key, value, dataItems)
 
     def updatePropFromRadioButton(self, rButton, dataItems, key, irb, value):
-        if not rButton.hasFocus():
-            return
+        # if not checkBox.hasFocus():  # never gets focus on Mac
+        #     return
         rButton.setChecked(True)
         self.updateProp(key, irb, dataItems)
 
     def updatePropFromComboBox(self, comboBox, dataItems, key, index,
                                compareWith=None, convertType=None, **kw):
         # comboBox = self.sender()  # doesn't work in PySide2
-        if not comboBox.hasFocus():
-            return
+        # if not checkBox.hasFocus():  # never gets focus on Mac
+        #     return
         if convertType is not None:
             value = convertType()
         else:
@@ -838,17 +838,17 @@ class PropWidget(qt.QWidget):
             self.updateProp(key, value, dataItems)
 
     def updatePropFromRangeWidget(self, widget, dataItems, key, value):
-        # if not widget.hasFocus():
+        # if not widget.hasFocus():  # unclear if this is needed
         #     return
         self.updateProp(key, value, dataItems)
 
     def updatePropFromStateButtons(self, widget, dataItems, key, value):
-        # if not widget.hasFocus():
+        # if not widget.hasFocus():  # unclear if this is needed
         #     return
         self.updateProp(key, value, dataItems)
 
     def updatePropFromCorrections(self, widget, dataItems, key):
-        # # if not widget.hasFocus():
+        # # if not widget.hasFocus():  # unclear if this is needed
         # #     return
         corrs = widget.getCorrections()
 

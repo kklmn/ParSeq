@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "26 Feb 2023"
+__date__ = "29 Oct 2025"
 # !!! SEE CODERULES.TXT !!!
 
 # import sys
@@ -35,9 +35,10 @@ from . import webWidget as gww
 
 # fontSize = 12 if sys.platform == "darwin" else 8.5
 mainWindowWidth, mainWindowHeight = 1600, 768
-ICON_SIZE = 32
 INACTIVE_TAB_COLOR = '#aa8085'
 chars2removeMap = {ord(c): '_' for c in '/*? '}
+
+ICON_SIZE = 32
 
 
 class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
@@ -300,8 +301,10 @@ class MainWindowParSeq(qt.QMainWindow):
         #                qt.QDockWidget.DockWidgetVerticalTitleBar)
         self.docks = {}  # nodeWidget: (dock, node, tabName)
         self.setDockNestingEnabled(True)
+        tabNames = []
         for i, (name, node) in enumerate(csi.nodes.items()):
             tabName = u'  {0} \u2013 {1}  '.format(i+1, name)
+            tabNames.append(tabName)
             dock = QDockWidgetNoClose(tabName, self)
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
@@ -381,9 +384,21 @@ class MainWindowParSeq(qt.QMainWindow):
         #     pS = "padding-left: 5; padding-right: 5;}"
         # elif self.tabPos in [qt.QTabWidget.West, qt.QTabWidget.East]:
         #     pS = "padding-top: 5; padding-bottom: 5;}"
-        self.tabWidget.setStyleSheet(
-            "QTabBar::tab:selected {font-weight: 900;}")
+
+        style = "QTabWidget>QWidget>QWidget {background: palette(window);}"\
+            "QTabBar::tab {padding: 0px 10px 0px 10px;"\
+            "margin-left: 1px; margin-right: 1px; IB} "\
+            "QTabBar::tab:hover {background: #6087cefa;}"\
+            "QTabBar::tab:selected {border-top: 3px solid lightblue; "\
+            "font-weight: 600; AB}"
+        # if csi.onMac:
+        AB = f"background: white; height: {ICON_SIZE+2};"
+        IB = f"height: {ICON_SIZE};"
+        style = style.replace("AB", AB).replace("IB", IB)
+        self.tabWidget.setStyleSheet(style)
         iconSize = int(ICON_SIZE*0.85)
+        for itab, tabName in enumerate(tabNames):
+            self.tabWidget.setTabToolTip(itab, tabName)
         self.tabWidget.setIconSize(qt.QSize(iconSize, iconSize))
 
         self.setTabIcons()
@@ -713,7 +728,8 @@ class MainWindowParSeq(qt.QMainWindow):
     def slotHelp(self, what):
         if not osp.exists(what):
             return
-        webbrowser.open_new_tab(what)
+        path = 'file://' + osp.realpath(what)
+        webbrowser.open_new_tab(path)
 
     def slotHelpRebuild(self):
         self.makeMainPages(True)  # 'main'; then it starts 'pipe' and 'docs'

@@ -343,6 +343,8 @@ class LCFModel(qt.QAbstractTableModel):
 
 class LCFTableView(qt.QTableView):
     columnWidths = [140, 55, 170, 80, 50, 55, 140, 80, 50]
+    if csi.onMac:
+        columnWidths = [int(cw*1.5) for cw in columnWidths]
 
     def __init__(self, parent, model):
         super().__init__(parent)
@@ -380,7 +382,8 @@ class LCFTableView(qt.QTableView):
             self.setItemDelegateForColumn(
                 i, gco.DoubleSpinBoxDelegate(self, **kw))
 
-        self.setMinimumHeight(horHeaders.height() * max(2, model.rowCount()+1))
+        self.setMinimumHeight(
+            (horHeaders.height()+1) * max(3, model.rowCount()+1))
         # self.setMinimumWidth(
         #     int(sum(self.columnWidths[:nC])*csi.screenFactor) + 30)
 

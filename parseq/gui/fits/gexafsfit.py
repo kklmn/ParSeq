@@ -285,6 +285,8 @@ class EXAFSFitModel(qt.QAbstractTableModel):
 
 class EXAFSFitTableView(qt.QTableView):
     columnWidths = [60, 80, 60, 80, 130, 75, 75]
+    if csi.onMac:
+        columnWidths = [int(cw*1.5) for cw in columnWidths]
 
     def __init__(self, parent, model, rows=4):
         super().__init__(parent)
@@ -778,6 +780,21 @@ class EXAFSFitWidget(gbf.FitWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self.tabWidget = qt.QTabWidget()
+        style = "QTabWidget>QWidget>QWidget {background: palette(window);}"\
+            "QTabWidget::tab-bar {alignment: left;}"\
+            "QTabBar::tab {PA}"\
+            "QTabBar::tab:selected {background: white;}"\
+            "QTabBar::tab:hover {background: #6087cefa;}"\
+            "QTabBar::tab:selected {border-top: 3px solid lightblue;AB}"
+        if csi.onMac:
+            AB = " background: white;"
+            PA = "background: lightgray; padding: 2px 4px 2px 4px;"
+        else:
+            AB = ""
+            PA = "padding: 4px 6px 4px 6px;"
+        style = style.replace("PA", PA).replace("AB", AB)
+        self.tabWidget.setStyleSheet(style)
+
         # tabBar = self.tabWidget.tabBar()
         tabBar = MyTabBar()
         tabBar.setTabsClosable(True)

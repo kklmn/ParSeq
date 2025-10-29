@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "2 Mar 2023"
+__date__ = "29 Oct 2025"
 # !!! SEE CODERULES.TXT !!!
 
 from functools import partial
@@ -23,12 +23,14 @@ class ColumnFormatWidget(PropWidget):
         self.fileType = ''  # or 'txt' or 'h5', used in format saving
 
         self.tabWidget = qt.QTabWidget(self)
-        self.tabWidget.setStyleSheet(
-            "QTabWidget>QWidget>QWidget {background: palette(window);}"
-            "QTabBar::tab {padding:4px;padding-left:6px;padding-right:6px;}"
-            "QTabBar::tab:selected {background: white;}"
-            "QTabBar::tab:hover {background: #6087cefa;}"
-            )
+        style = "QTabWidget>QWidget>QWidget {background: palette(window);}"\
+            "QTabBar::tab {background: lightgray; padding: 2px 4px 2px 4px;}"\
+            "QTabBar::tab:hover {background: #6087cefa;}"\
+            "QTabBar::tab:selected {background: white; "\
+            "border-top: 3px solid lightblue;}"
+        # if csi.onMac:
+        # style = style.replace("PA", PA).replace("AB", AB)
+        self.tabWidget.setStyleSheet(style)
 
         self.headerTab = self.makeHeaderTab()
         self.tabWidget.addTab(self.headerTab, 'header')

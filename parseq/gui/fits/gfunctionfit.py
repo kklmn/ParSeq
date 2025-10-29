@@ -221,6 +221,8 @@ class FunctionFitModel(qt.QAbstractTableModel):
 
 class FunctionFitTableView(qt.QTableView):
     columnWidths = [60, 80, 50, 80, 150, 55]
+    if csi.onMac:
+        columnWidths = [int(cw*1.5) for cw in columnWidths]
 
     def __init__(self, parent, model):
         super().__init__(parent)
