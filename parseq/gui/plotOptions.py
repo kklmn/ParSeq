@@ -661,10 +661,14 @@ class LineProps(qt.QDialog):
                     lineProps = item.plotProps[self.node.name][yName]
                     for prop in nprops:
                         lineProps[prop] = nprops[prop]
+                    if ('symbol' in lineProps) and ('symbol' not in nprops):
+                        lineProps.pop('symbol')
             else:
                 oprops = self.extraPlotParams[yName]
                 for prop in nprops:
                     oprops[prop] = nprops[prop]
+                if ('symbol' in oprops) and ('symbol' not in nprops):
+                    oprops.pop('symbol')
 
         if csi.model is not None:  # can be None in dialog test
             csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
