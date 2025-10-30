@@ -37,6 +37,10 @@ For running ParSeq without installation, all required dependencies must be
 installed beforehand. Look into ParSeq's `setup.py` and find those dependencies
 in the list `install_requires`, they are pip installable.
 
+::
+
+    pip install sphinxcontrib-jquery autopep8 h5py hdf5plugin silx psutil pyqtwebengine docutils distro colorama sphinx_tabs siphash24
+
 A typical pitfall in this scenario is the presence of ParSeq at multiple
 locations. To discover which ParSeq package is actually in use, start a Python
 session, import parseq and examine its `parseq.__file__`.

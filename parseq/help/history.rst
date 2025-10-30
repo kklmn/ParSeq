@@ -3,8 +3,18 @@
 Version history
 ---------------
 
-Current GitHub code (modified 31 Aug 2025):
+Current GitHub code (modified 30 Oct 2025):
     -
+
+2025.10.0 (30 Oct 2025):
+    - The functionality and look of ParSeq on macOS is revised. Check boxes and
+      radio buttons did not work. Tab widgets were of small size and with a too
+      dark background. Table headers and tree view headers were of too small.
+      All the above issues have been fixed.
+
+    - The Save project dialog now sets its check boxes from the ini file.
+
+    - Minor bug fixes and updates.
 
 2025.8.0 (31 Aug 2025):
     - Add workaround for corrupt h5 files: stop using h5Model.insertFileAsync().

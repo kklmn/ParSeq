@@ -83,7 +83,7 @@ and curve fits are exemplified by separately installed analysis packages:
 Installation
 ------------
 
-Install it by pip or conda or get ParSeq from
+Install it by pip or conda **or** get ParSeq from
 `GitHub <https://github.com/kklmn/ParSeq>`_ and use it with or without
 installation.
 See :ref:`detailed installation instructions <instructions>`.
