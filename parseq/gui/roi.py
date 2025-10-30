@@ -21,7 +21,9 @@ from ..core.logger import syslogger
 from ..utils import math as uma
 
 HEADERS = 'label', 'use', 'geometry', 'counts'
-columnWidths = 45, 32, 164, 55
+columnWidths = [45, 32, 164, 55]
+if csi.onMac:
+    columnWidths = [int(cw*1.5) for cw in columnWidths]
 
 
 class RoiManager(RegionOfInterestManager):

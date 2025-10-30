@@ -13,7 +13,9 @@ from ..core import spectra as csp
 from ..third_party import xrt
 
 HEADERS = ['ref data', 'slice', 'energy', 'DCM', 'FWHM']
-columnWidths = (80, 44, 64, 64, 54)
+columnWidths = [80, 44, 64, 64, 54]
+if csi.onMac:
+    columnWidths = [int(cw*1.5) for cw in columnWidths]
 
 
 class CalibrationModel(qt.QAbstractTableModel):

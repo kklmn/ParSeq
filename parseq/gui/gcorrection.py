@@ -85,7 +85,9 @@ from ..core.logger import syslogger
 from .propWidget import PropWidget
 
 HEADERS = 'kind', 'label', 'use', 'geometry', 'apply to'
-columnWidths = 36, 40, 28, 136, 60
+columnWidths = [36, 40, 28, 136, 60]
+if csi.onMac:
+    columnWidths = [int(cw*1.5) for cw in columnWidths]
 
 __iconDir__ = osp.join(osp.dirname(__file__), '_images')
 ICON_SIZE = 32  # or 24
