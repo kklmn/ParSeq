@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: parseq
-Version: 2025.10.0
+Version: 2025.11.0
 Summary: ParSeq is a python software library for Parallel execution of Sequential data analysis.
 Home-page: http://parseq.readthedocs.io
 Author: Konstantin Klementiev

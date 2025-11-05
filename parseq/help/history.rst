@@ -3,8 +3,11 @@
 Version history
 ---------------
 
-Current GitHub code (modified 30 Oct 2025):
+Current GitHub code (modified 5 Nov 2025):
     -
+
+2025.11.0 (5 Nov 2025):
+    - Bug fixes.
 
 2025.10.0 (30 Oct 2025):
     - The functionality and look of ParSeq on macOS have been revised. Check
