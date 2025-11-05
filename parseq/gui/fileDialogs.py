@@ -88,11 +88,15 @@ class SaveProjectDlg(qt.QFileDialog):
         self.scriptCBmpl = qt.QCheckBox(
             'save a matplotlib plotting script\nfor the exported data', self)
         msaved = config.get(config.configLoad, 'Save', 'scriptMpl')
+        if msaved is None:
+            msaved = False
         self.scriptCBmpl.setChecked(msaved)
         layoutP.addWidget(self.scriptCBmpl, alignment=qt.Qt.AlignTop)
         self.scriptCBsilx = qt.QCheckBox(
             'save a silx plotting script\nfor the exported data', self)
         ssaved = config.get(config.configLoad, 'Save', 'scriptSilx')
+        if ssaved is None:
+            ssaved = False
         self.scriptCBsilx.setChecked(ssaved)
         layoutP.addWidget(self.scriptCBsilx, alignment=qt.Qt.AlignTop)
         layoutP.addStretch()
