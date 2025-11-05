@@ -863,14 +863,15 @@ class NodeWidget(qt.QWidget):
                             curve.setZValue(z)
                     except (Exception, AssertionError) as e:
                         try:
-                            length = len(x0)
+                            lengthx = len(x0)
+                            lengthy = len(y)
                         except Exception:
-                            length = 'unknown'
+                            lengthx = lengthy = 'unknown'
                         syslogger.error(
                             'plotting in {0} failed for ({1}, len={2}) vs '
                             '({3}, len={4}):\n{5}'
-                            .format(self.node.name, yN, len(y),
-                                    node.plotXArray, length, e))
+                            .format(self.node.name, yN, lengthy,
+                                    node.plotXArray, lengthx, e))
                         tb = traceback.format_exc()
                         syslogger.error(tb)
                         continue
