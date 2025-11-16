@@ -147,7 +147,8 @@ div.sphinxsidebar .searchformwrapper {
 /* -- body styles ----------------------------------------------------------- */
 
 a {
-    color: inherit;
+    /* color: inherit; */
+    color: #005B81;
     text-decoration: none;
 }
 
@@ -333,7 +334,7 @@ div.code-block-caption {
     color: inherit;
 }
 
-svg {    
+svg {
     position: absolute;
     left: 0px;
     top: 0px;
