@@ -34,7 +34,8 @@ appDescription = None
 appAuthor = None
 appLicense = None
 appVersion = None
-rtdPath = None
+appRtdPath = None
+appHelpTab = None
 # end defined by the app
 
 nodes = OrderedDict()

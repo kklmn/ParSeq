@@ -142,6 +142,7 @@ class MainWindowParSeq(qt.QMainWindow):
     def __init__(self, parent=None, tabPos=qt.QTabWidget.West):
         super().__init__(parent)
         self.tabPos = tabPos
+        self.webView = None
         csi.screenFactor = qt.qApp.desktop().logicalDpiX() / 120.
 
         selfDir = osp.dirname(__file__)
@@ -403,6 +404,31 @@ class MainWindowParSeq(qt.QMainWindow):
 
         self.setTabIcons()
 
+        if csi.appHelpTab is not None:
+            tabName = csi.appHelpTab[0]
+            tabNames.append(tabName)
+            dock = QDockWidgetNoClose(tabName, self)
+            dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
+            dock.setFeatures(dockFeatures)
+            self.addDockWidget(qt.Qt.LeftDockWidgetArea, dock)
+            self.webView = gww.QWebView(self)
+            self.webView.page().setLinkDelegationPolicy(2)
+            self.webView.history().clear()
+            self.webView.page().history().clear()
+            html = 'file:///' + osp.join(gww.PIPEOUTDIR, csi.appHelpTab[1])
+            html = re.sub('\\\\', '/', html)
+            self.webView.load(qt.QUrl(html))
+            self.webView.setZoomFactor(1.25)
+            dock.setWidget(self.webView)
+            self.tabifyDockWidget(dock0, dock)
+            name = 'icon-help.png'
+            iconPath = osp.join(self.iconDir, name)
+            pixNorm = qt.QPixmap(iconPath)
+            icon = qt.QIcon(pixNorm)
+            self.tabWidget.setTabIcon(len(self.docks), icon)
+            dock.topLevelChanged.connect(dock.changeWindowFlags)
+            dock.raise_()
+
     def makeMainPages(self, forceBuild=False):
         if not forceBuild:
             if not osp.exists(self.mainHelpFile):
@@ -540,6 +566,8 @@ class MainWindowParSeq(qt.QMainWindow):
         if what == 'main':
             self.makePipePages(forceBuild)
         elif what == 'pipe':
+            if self.webView is not None:
+                self.webView.reload()
             self.makeDocPages(forceBuild)
         elif what == 'docs':
             for name, node in csi.nodes.items():

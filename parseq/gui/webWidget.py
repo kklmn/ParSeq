@@ -172,9 +172,9 @@ def makeGraphPipeline(addLinks=False, on_rtd=False):
             name_ = "_".join(name.split())
             iconTxt = '' if iconName is None else \
                 '<img src="_images/{0}" height="24" />'.format(iconName)
-            if addLinks and ref and csi.rtdPath:
+            if addLinks and ref and csi.appRtdPath:
                 if on_rtd:
-                    fref = osp.join(csi.rtdPath, ref)
+                    fref = osp.join(csi.appRtdPath, ref)
                 else:
                     fref = osp.join(PIPEOUTDIR, ref)
                 txt = '<a href={0}>{1}</a>'.format(fref, name)
@@ -187,9 +187,9 @@ def makeGraphPipeline(addLinks=False, on_rtd=False):
                 ficonTxt = '<img src="_images/{0}" height="20" />'\
                     .format(fitIcon)
                 for fit in fits[name]:
-                    if addLinks and fit[3] and csi.rtdPath:
+                    if addLinks and fit[3] and csi.appRtdPath:
                         if on_rtd:
-                            fref = osp.join(csi.rtdPath, fit[3])
+                            fref = osp.join(csi.appRtdPath, fit[3])
                         else:
                             fref = osp.join(PIPEOUTDIR, fit[3])
                         fitName = '<a href={0}>{1}</a>'.format(fref, fit[0])
@@ -214,9 +214,9 @@ def makeGraphPipeline(addLinks=False, on_rtd=False):
             colorStr = \
                 'style="color: {0}; text-shadow: 1px 1.5px 3px {0}99;"'\
                 .format(color)
-            if addLinks and transform[5] and csi.rtdPath:
+            if addLinks and transform[5] and csi.appRtdPath:
                 if on_rtd:
-                    fref = osp.join(csi.rtdPath, transform[5])
+                    fref = osp.join(csi.appRtdPath, transform[5])
                 else:
                     fref = osp.join(PIPEOUTDIR, transform[5])
                 txt = '<a href={0}>{1}</a>'.format(fref, transform[0])
