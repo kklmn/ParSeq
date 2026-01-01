@@ -182,6 +182,11 @@ class TreeItem(object):
                                      k, v in self.badShapes.items()])
                         elif self.state[node.name] == cco.DATA_STATE_GOOD:
                             try:
+                                if self.originNodeName is not None:
+                                    if res:
+                                        res += '\n'
+                                    res += 'this data starts at node "{0}"'\
+                                        .format(self.originNodeName)
                                 if self.terminalNodeName is not None:
                                     res += \
                                         '\nthis data terminates at node "{0}"'\
