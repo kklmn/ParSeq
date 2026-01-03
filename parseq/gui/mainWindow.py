@@ -424,9 +424,11 @@ class MainWindowParSeq(qt.QMainWindow):
             name = 'icon-help.png'
             iconPath = osp.join(self.iconDir, name)
             pixNorm = qt.QPixmap(iconPath)
-            icon = qt.QIcon(pixNorm)
-            self.tabWidget.setTabIcon(len(self.docks), icon)
+            dock.dimIcon = qt.QIcon(pixNorm)
+            dock.dimIconBusy = dock.dimIcon
+            self.tabWidget.setTabIcon(len(self.docks), dock.dimIcon)
             dock.topLevelChanged.connect(dock.changeWindowFlags)
+            self.appHelpDock = dock
             dock.raise_()
 
     def makeMainPages(self, forceBuild=False):
@@ -595,6 +597,14 @@ class MainWindowParSeq(qt.QMainWindow):
                 continue
             self.setTabIcon(itab, dock)
             self.tabWidget.setTabTextColor(itab, cc)
+        if csi.appHelpTab is not None:
+            tabName = csi.appHelpTab[0]
+            for itab in range(self.tabWidget.count()):
+                if self.tabWidget.tabText(itab) == tabName:
+                    break
+            else:
+                return
+            self.setTabIcon(itab, self.appHelpDock)
 
     def setTabIcon(self, itab, dock, state=0):
         icon = dock.dimIconBusy if state == 1 else dock.dimIcon
