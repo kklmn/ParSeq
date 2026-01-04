@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "29 Oct 2025"
+__date__ = "4 Jan 2026"
 # !!! SEE CODERULES.TXT !!!
 
 # import sys
@@ -36,6 +36,7 @@ from . import webWidget as gww
 # fontSize = 12 if sys.platform == "darwin" else 8.5
 mainWindowWidth, mainWindowHeight = 1600, 768
 INACTIVE_TAB_COLOR = '#aa8085'
+ACTIVE_TAB_BKND = '#f6fafc'
 chars2removeMap = {ord(c): '_' for c in '/*? '}
 
 ICON_SIZE = 32
@@ -132,8 +133,56 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
         self.update()
 
 
+# class BusyIconWorker(qt.QObject):
+#     BUSYICONDT = 0.100  # s
+
+#     def prepare(self, parent):
+#         self.parent = parent  # MainWindowParSeq
+#         iconPath = osp.join(parent.iconDir, 'icon-howto.png')
+#         self.busyPixmap0 = qt.QPixmap(iconPath)
+#         # size = self.parent.tabWidget.iconSize()
+#         size = self.busyPixmap0.size()
+#         self.d = size.width()*0.5, size.height()*0.5
+#         self.shouldRedraw = True
+#         self.angle = 0
+#         self.dangle = -5
+
+#     def render(self):
+#         if csi.appHelpTab is None:
+#             return
+#         while self.shouldRedraw:
+#             if self.parent.isVisible():
+#                 pixBusy = qt.QPixmap(self.busyPixmap0.size())
+#                 pixBusy.fill(qt.QColor("#000000ff"))
+#                 painter = qt.QPainter(pixBusy)
+#                 # painter.setRenderHint(qt.QPainter.SmoothPixmapTransform)
+#                 painter.translate(self.d[0], self.d[1])
+#                 painter.rotate(self.angle)
+#                 painter.translate(-self.d[0], -self.d[1])
+#                 painter.drawPixmap(0, 0, self.busyPixmap0)
+#                 painter.end()
+#                 icon = qt.QIcon(pixBusy)
+#                 # tab order is unknown:
+#                 itab = self.parent.getTabIndex(csi.appHelpTab[0])
+#                 if itab is None:
+#                     return
+#                 self.parent.tabWidget.setTabIcon(itab, icon)
+
+#             time.sleep(self.BUSYICONDT)  # waiting in a separate thread is ok
+#             self.angle += self.dangle
+
+#     def halt(self):
+#         self.shouldRedraw = False
+#         itab = self.parent.getTabIndex(csi.appHelpTab[0])
+#         if itab is None:
+#             return
+#         icon = qt.QIcon(self.busyPixmap0)
+#         self.parent.tabWidget.setTabIcon(itab, icon)
+
+
 class MainWindowParSeq(qt.QMainWindow):
     intervalCPU = 2000
+    idleCPU = 10.
     beforeTransformSignal = qt.pyqtSignal(qt.QWidget)
     afterTransformSignal = qt.pyqtSignal(qt.QWidget)
     beforeDataTransformSignal = qt.pyqtSignal(list)
@@ -143,6 +192,7 @@ class MainWindowParSeq(qt.QMainWindow):
         super().__init__(parent)
         self.tabPos = tabPos
         self.webView = None
+        self.busyIconThread = None
         csi.screenFactor = qt.qApp.desktop().logicalDpiX() / 120.
 
         selfDir = osp.dirname(__file__)
@@ -309,8 +359,10 @@ class MainWindowParSeq(qt.QMainWindow):
             dock = QDockWidgetNoClose(tabName, self)
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
-            # dock.defStyleSheet = "QDockWidget {font: bold; padding-left: 5px;}"
-            # dock.setStyleSheet(dock.defStyleSheet)
+            dock.defStyleSheet = "QDockWidget {font-weight: 800;}"\
+                "QDockWidget::title {background: "+ACTIVE_TAB_BKND+\
+                "; padding-left: 20px; padding-top: 4px;}"
+            dock.setStyleSheet(dock.defStyleSheet)
             self.addDockWidget(qt.Qt.LeftDockWidgetArea, dock)
             nodeWidget = NodeWidget(node, dock)
             # nodeWidget = None  # for testing app closure
@@ -386,18 +438,19 @@ class MainWindowParSeq(qt.QMainWindow):
         # elif self.tabPos in [qt.QTabWidget.West, qt.QTabWidget.East]:
         #     pS = "padding-top: 5; padding-bottom: 5;}"
 
-        style = "QTabWidget>QWidget>QWidget {background: palette(window);}"\
-            "QTabBar::tab {padding: 0px 10px 0px 10px;"\
+        style = "QTabWidget>QWidget>QWidget {background: palette(window);"\
+            " color: white;}"\
+            "QTabBar::tab {padding: 2px 10px -2px 10px;"\
             "margin-left: 1px; margin-right: 1px; IB} "\
             "QTabBar::tab:hover {background: #6087cefa;}"\
-            "QTabBar::tab:selected {border-top: 3px solid lightblue; "\
+            "QTabBar::tab:selected {border-top: 2px solid lightblue; "\
             "font-weight: 600; AB}"
         # if csi.onMac:
-        AB = f"background: white; height: {ICON_SIZE+2};"
+        AB = f"background: {ACTIVE_TAB_BKND}; height: {ICON_SIZE+2};"
         IB = f"height: {ICON_SIZE};"
         style = style.replace("AB", AB).replace("IB", IB)
         self.tabWidget.setStyleSheet(style)
-        iconSize = int(ICON_SIZE*0.85)
+        iconSize = int(ICON_SIZE*0.9)
         for itab, tabName in enumerate(tabNames):
             self.tabWidget.setTabToolTip(itab, tabName)
         self.tabWidget.setIconSize(qt.QSize(iconSize, iconSize))
@@ -410,6 +463,10 @@ class MainWindowParSeq(qt.QMainWindow):
             dock = QDockWidgetNoClose(tabName, self)
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
+            dock.defStyleSheet = "QDockWidget {font-weight: 800;}"\
+                "QDockWidget::title {background: "+ACTIVE_TAB_BKND+\
+                "; padding-left: 20px; padding-top: 4px;}"
+            dock.setStyleSheet(dock.defStyleSheet)
             self.addDockWidget(qt.Qt.LeftDockWidgetArea, dock)
             self.webView = gww.QWebView(self)
             self.webView.page().setLinkDelegationPolicy(2)
@@ -421,8 +478,7 @@ class MainWindowParSeq(qt.QMainWindow):
             self.webView.setZoomFactor(1.25)
             dock.setWidget(self.webView)
             self.tabifyDockWidget(dock0, dock)
-            name = 'icon-help.png'
-            iconPath = osp.join(self.iconDir, name)
+            iconPath = osp.join(self.iconDir, 'icon-howto.png')
             pixNorm = qt.QPixmap(iconPath)
             dock.dimIcon = qt.QIcon(pixNorm)
             dock.dimIconBusy = dock.dimIcon
@@ -587,22 +643,23 @@ class MainWindowParSeq(qt.QMainWindow):
                 node.widget.helpFile = fname
                 node.widget.help.load(qt.QUrl(html))
 
+    def getTabIndex(self, tabName):
+        for itab in range(self.tabWidget.count()):
+            if self.tabWidget.tabText(itab) == tabName:
+                return itab
+
     def setTabIcons(self):
         cc = qt.QColor(INACTIVE_TAB_COLOR)
         for dock, node, tabName in self.docks.values():
-            for itab in range(self.tabWidget.count()):
-                if self.tabWidget.tabText(itab) == tabName:
-                    break
-            else:
+            itab = self.getTabIndex(tabName)
+            if itab is None:
                 continue
             self.setTabIcon(itab, dock)
             self.tabWidget.setTabTextColor(itab, cc)
         if csi.appHelpTab is not None:
             tabName = csi.appHelpTab[0]
-            for itab in range(self.tabWidget.count()):
-                if self.tabWidget.tabText(itab) == tabName:
-                    break
-            else:
+            itab = self.getTabIndex(tabName)
+            if itab is None:
                 return
             self.setTabIcon(itab, self.appHelpDock)
 
@@ -829,6 +886,13 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def closeEvent(self, event):
         self.timerCPU.stop()
+        if self.busyIconThread is not None:
+            self.busyIconWorker.halt()
+            self.busyIconThread.quit()
+            self.busyIconThread.deleteLater()
+            self.busyIconThread = None
+            self.setTabIcons()
+
         self.save_perspective()
         if len(csi.selectedItems) > 0:
             csi.selectedItems[0].save_transform_params()
@@ -866,10 +930,8 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.setFloatingTabColor(state)
         else:
             color = gco.BUSY_COLOR_FGND if state == 1 else 'black'
-            for itab in range(self.tabWidget.count()):
-                if self.tabWidget.tabText(itab) == tabName:
-                    break
-            else:
+            itab = self.getTabIndex(tabName)
+            if itab is None:
                 return
             self.setTabIcon(itab, dock, state)
             cc = qt.QColor(color)
@@ -902,8 +964,30 @@ class MainWindowParSeq(qt.QMainWindow):
         self.statusBarLeft.setText(txtOut)
 
     def updateCPU(self):
-        res = psutil.virtual_memory().percent, psutil.cpu_percent()
-        self.statusBarRight.setText('mem {0:.0f}%   CPU {1:.0f}%'.format(*res))
+        mem = psutil.virtual_memory().percent
+        cpu = psutil.cpu_percent()
+        self.statusBarRight.setText(
+            'mem {0:.0f}%   CPU {1:.0f}%'.format(mem, cpu))
+
+        # if csi.appHelpTab is not None:
+        #     if cpu < self.idleCPU:  # is idle
+        #         if self.busyIconThread is None:
+        #             self.busyIconThread = qt.QThread(self)
+        #             self.busyIconWorker = BusyIconWorker()
+        #             self.busyIconWorker.moveToThread(self.busyIconThread)
+        #             self.busyIconWorker.prepare(self)
+        #             self.busyIconThread.started.connect(
+        #                 self.busyIconWorker.render)
+        #             self.busyIconThread.finished.connect(
+        #                 self.busyIconWorker.halt)
+        #             self.busyIconThread.start()
+        #     else:
+        #         if self.busyIconThread is not None:
+        #             self.busyIconWorker.halt()
+        #             self.busyIconThread.quit()
+        #             self.busyIconThread.deleteLater()
+        #             self.busyIconThread = None
+        #             self.setTabIcons()
 
     def save_perspective(self, configObject=config.configGUI):
         floating = [dock.isFloating() for dock, _, _ in self.docks.values()]
