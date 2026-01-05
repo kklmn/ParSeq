@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup
 import os.path as osp
-import codecs
 
 __dir__ = osp.abspath(osp.dirname(__file__))
 
 
 def read(pathnames):
-    with codecs.open(osp.join(__dir__, *pathnames), 'r') as fp:
+    with open(osp.join(__dir__, *pathnames), 'r') as fp:
         return fp.read()
 
 
@@ -55,7 +54,7 @@ setup(
     url='http://parseq.readthedocs.io',
     project_urls={'Source': 'https://github.com/kklmn/ParSeq'},
     platforms='OS Independent',
-    license='MIT License',
+    license='MIT',
     keywords='data-analysis pipeline framework gui synchrotron spectroscopy',
     # python_requires=,
     zip_safe=False,  # True: build zipped egg, False: unzipped
@@ -70,7 +69,7 @@ setup(
         'parseq': ['CODERULES.txt'],
         'parseq.gui': ['_images/*.*'],
         'parseq.help': [
-            '*.rst', '*.bat',
+            '*.rst', '*.bat', '*.mock',
             '_images/*.*', '_static/*.*', '_templates/*.*',
             '_themes/*/*.*', '_themes/*/*/*.*', 'exts/*.*'],
         'parseq.tests': ['*.png', 'data/*.*'],
@@ -80,13 +79,12 @@ setup(
                       'sphinx>=1.6.2', 'sphinxcontrib-jquery', 'autopep8',
                       'h5py', 'silx>=1.1.0', 'hdf5plugin', 'psutil',
                       'pyqtwebengine', 'docutils', 'distro', 'colorama',
-                      'xafsmass>=1.6.0'],
+                      'sphinx_tabs', 'xafsmass>=1.6.0'],
     classifiers=['Development Status :: 5 - Production/Stable',
                  'Intended Audience :: Science/Research',
                  'Natural Language :: English',
                  'Operating System :: OS Independent',
                  'Programming Language :: Python',
-                 'License :: OSI Approved :: MIT License',
                  'Intended Audience :: Science/Research',
                  'Topic :: Scientific/Engineering',
                  'Topic :: Software Development',

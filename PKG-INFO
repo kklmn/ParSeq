@@ -1,11 +1,11 @@
 Metadata-Version: 2.4
 Name: parseq
-Version: 2025.11.0
+Version: 2026.1.0
 Summary: ParSeq is a python software library for Parallel execution of Sequential data analysis.
 Home-page: http://parseq.readthedocs.io
 Author: Konstantin Klementiev
 Author-email: konstantin.klementiev@gmail.com
-License: MIT License
+License: MIT
 Project-URL: Source, https://github.com/kklmn/ParSeq
 Keywords: data-analysis pipeline framework gui synchrotron spectroscopy
 Platform: OS Independent
@@ -14,7 +14,6 @@ Classifier: Intended Audience :: Science/Research
 Classifier: Natural Language :: English
 Classifier: Operating System :: OS Independent
 Classifier: Programming Language :: Python
-Classifier: License :: OSI Approved :: MIT License
 Classifier: Intended Audience :: Science/Research
 Classifier: Topic :: Scientific/Engineering
 Classifier: Topic :: Software Development

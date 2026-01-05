@@ -3,7 +3,10 @@
 Version history
 ---------------
 
-Current GitHub code (modified 3 Jan 2026):
+Current GitHub code (modified 5 Jan 2026):
+    -
+
+2026.1.0 (5 Jan 2026):
     - Add a pipeline-specific "How-tos" tab to the main tabified dock widget.
 
 2025.11.0 (5 Nov 2025):
