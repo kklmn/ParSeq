@@ -1810,8 +1810,7 @@ class Spectrum(TreeItem):
             config.put(configProject, item.alias, 'plotProps',
                        str(item.plotProps))
 
-            configProject.set(
-                item.alias, ';transform params:')  # ';'=comment out
+            configProject.set(item.alias, ';transform params')  # ';'=comment
             dtparams = item.transformParams
             for key in dtparams:
                 if key in self.dontSaveParamsWhenUnused and \
@@ -1829,8 +1828,7 @@ class Spectrum(TreeItem):
                 if dtparams[fit.ioAttrs['result']] == fit.defaultResult:
                     continue
                 if noFitsSoFar:
-                    configProject.set(
-                        item.alias, ';fit params:')  # ';'=comment out
+                    configProject.set(item.alias, ';fit params')  # ';'=comment
                     noFitsSoFar = False
                 for key in fit.defaultParams:
                     if isinstance(dtparams[key], np.ndarray):
