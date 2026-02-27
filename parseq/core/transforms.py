@@ -81,8 +81,8 @@ class Transform(object):
     If both are > 1, threading is used. If *nThreads* or *nProcesses* > 1, the
     lists *inArrays* and *outArrays* must be defined to send the operational
     arrays (those used in :meth:`run_main`) over process-shared queues. The
-    value can be an integer, 'all' or 'half' which refer to the hardware limit
-    `multiprocessing.cpu_count()`.
+    value can be an integer, 'all' or 'half' or 'quarter' which refer to the
+    hardware limit `multiprocessing.cpu_count()`.
 
     *progressTimeDelta*, float, default 1.0 sec, a timeout delta to report on
     transformation progress. Only needed if :meth:`run_main` is defined with
@@ -327,10 +327,10 @@ class Transform(object):
         nC = multiprocessing.cpu_count()
         if isinstance(self.nThreads, str):
             self.nThreads = max(nC//2, 1) if self.nThreads.startswith('h')\
-                else nC
+                else max(nC//4, 1) if self.nThreads.startswith('q') else nC
         if isinstance(self.nProcesses, str):
             self.nProcesses = max(nC//2, 1) if self.nProcesses.startswith('h')\
-                else nC
+                else max(nC//4, 1) if self.nProcesses.startswith('q') else nC
 
         workerClass = None
         if len(items) > 1:
