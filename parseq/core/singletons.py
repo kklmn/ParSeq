@@ -35,7 +35,7 @@ appAuthor = None
 appLicense = None
 appVersion = None
 appRtdPath = None
-appHelpTab = None
+appHelpTab = None  # tab caption, html path
 # end defined by the app
 
 nodes = OrderedDict()
@@ -64,3 +64,4 @@ allLoadedItems = []
 
 # tasker will be created in MainWindow ParSeq init
 tasker = None
+exectimes = dict()
