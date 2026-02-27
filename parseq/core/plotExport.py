@@ -122,6 +122,8 @@ def plot1Dmpl(nodeData):
             for y, header in zip(ys, headers):
                 try:
                     kw = dict(yprops[header])
+                    if 'linestyle' in kw and kw['linestyle'] in ['', ' ']:
+                        continue
                     clr = clr0
                 except KeyError:
                     kw = {}
@@ -180,6 +182,8 @@ def plot1Dsilx(nodeData):
             for y, header in zip(ys, headers):
                 try:
                     kw = dict(yprops[header])
+                    if 'linestyle' in kw and kw['linestyle'] in ['', ' ']:
+                        continue
                     clr = clr0
                 except KeyError:
                     kw = {'yaxis': 'left'}
