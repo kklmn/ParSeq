@@ -31,7 +31,7 @@ from . import gcommons as gco
 nC = multiprocessing.cpu_count()
 wantShinxInAnotherProcess = True
 
-os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu"
+# os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu"
 
 CONFDIR = osp.join(osp.dirname(osp.dirname(osp.abspath(__file__))), 'help')
 GUIDIR = osp.dirname(osp.abspath(__file__))
