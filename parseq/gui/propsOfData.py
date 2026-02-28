@@ -34,15 +34,18 @@ def setRButtonGroupFromData(rButtons, prop):
         rButtons[common].setChecked(True)  # prop is int index
     else:
         for rb in rButtons:
+            rb.blockSignals(True)
             rb.setAutoExclusive(False)
             rb.setChecked(False)
             rb.setAutoExclusive(True)
+            rb.blockSignals(False)
 
 
 def setRButtonGroupWithEditsFromData(rButtons, edits, props):
     if not (len(rButtons) == len(edits) == len(props)):
         raise ValueError('these 3 sequences must have equal lengths')
     for rb, ed, prop in zip(rButtons, edits, props):
+        rb.blockSignals(True)
         common = getCommonPropInSelectedItems(prop)
         if common is not None:
             rb.setChecked(True)
@@ -55,14 +58,17 @@ def setRButtonGroupWithEditsFromData(rButtons, edits, props):
             rb.setChecked(False)
             rb.setAutoExclusive(True)
             ed.setText('')
+        rb.blockSignals(False)
 
 
 def setComboBoxFromData(comboBox, prop, compareWith=None, defaultIndex=-1,
                         **kw):
+    comboBox.blockSignals(True)
     common = getCommonPropInSelectedItems(prop)
     if common is not None:
         if isinstance(common, float):
             comboBox.lineEdit().setText(str(common))
+            comboBox.blockSignals(False)
             return
         ind = common if compareWith is None else compareWith.index(common)
         newInd = ind if isinstance(ind, int) else comboBox.findText(ind)
@@ -71,10 +77,11 @@ def setComboBoxFromData(comboBox, prop, compareWith=None, defaultIndex=-1,
             defaultIndex = comboBox.count() - 1
         newInd = defaultIndex
 
-    curInd = comboBox.currentIndex()
+    # curInd = comboBox.currentIndex()
     comboBox.setCurrentIndex(newInd)
-    if curInd == newInd:  # force the signal for updating gui
-        comboBox.currentIndexChanged.emit(newInd)
+    # if curInd == newInd:  # force the signal for updating gui
+    #     comboBox.currentIndexChanged.emit(newInd)
+    comboBox.blockSignals(False)
 
 
 def setRangeWidgetFromData(rWidget, prop):
@@ -93,6 +100,7 @@ def setCorrectionsFromData(corrTable, prop):
 
 
 def setCButtonFromData(cButton, prop, compareWith=None):
+    cButton.blockSignals(True)
     common = getCommonPropInSelectedItems(prop)
     if common is not None:
         if compareWith is None:
@@ -102,9 +110,11 @@ def setCButtonFromData(cButton, prop, compareWith=None):
         cButton.setChecked(cond)
     else:
         cButton.setChecked(False)
+    cButton.blockSignals(False)
 
 
 def setEditFromData(edit, prop, textFormat='', skipDefault=None, **kw):
+    edit.blockSignals(True)
     kwc = dict(outLevel=0) if 'ignoreErrors' in kw else {}
     common = getCommonPropInSelectedItems(prop, **kwc)
     hideEmpty = kw.get('hideEmpty', False)
@@ -112,6 +122,7 @@ def setEditFromData(edit, prop, textFormat='', skipDefault=None, **kw):
         edit.setVisible(common not in ['', None])
     if common is None or common == skipDefault:
         edit.setText('')
+        edit.blockSignals(False)
         return ''
     if isinstance(common, str):
         if 'styleDict' in kw:
@@ -121,38 +132,42 @@ def setEditFromData(edit, prop, textFormat='', skipDefault=None, **kw):
                     edit.setText(styleStr.format(common))
                     return common
         edit.setText(common)
+        edit.blockSignals(False)
         return common
+    if textFormat == '':
+        sf = '{0}'
+    elif 'strip' in textFormat:
+        sf = '{0:.0e}'
     else:
-        if textFormat == '':
-            sf = '{0}'
-        elif 'strip' in textFormat:
-            sf = '{0:.0e}'
-        else:
-            sf = '{0:' + textFormat + '}'
-        ss = sf.format(common)
-        if ('strip' in textFormat) or ('g' in textFormat):
-            ss = ss.lower()
-            for r in (("e-0", "e-"), ("e+0", "e+")):
-                ss = ss.replace(*r)
-        if ss.endswith("e+0") or ss.endswith("e-0"):
-            ss = ss[:-3]
-        edit.setText(ss)
-        return ss
+        sf = '{0:' + textFormat + '}'
+    ss = sf.format(common)
+    if ('strip' in textFormat) or ('g' in textFormat):
+        ss = ss.lower()
+        for r in (("e-0", "e-"), ("e+0", "e+")):
+            ss = ss.replace(*r)
+    if ss.endswith("e+0") or ss.endswith("e-0"):
+        ss = ss[:-3]
+    edit.setText(ss)
+    edit.blockSignals(False)
+    return ss
 
 
 setLabelFromData = setEditFromData
 
 
 def setSpinBoxFromData(sb, prop):
+    sb.blockSignals(True)
     common = getCommonPropInSelectedItems(prop)
     if common is None:
         sb.lineEdit().setText('')
+        sb.blockSignals(False)
         return
     if isinstance(common, str):
         sb.lineEdit().setText(common)
     else:
         sb.setValue(common)
         sb.update()
+    sb.blockSignals(False)
 
 
 def updateDataFromRButtonGroup(rButtons, prop):
@@ -220,7 +235,7 @@ def updateDataFromEdit(edit, prop, convertType=None, textReplace=None, **kw):
 
     for it in csi.selectedItems:
         itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)
-        if itValue != txt:
+        if itValue != txt and isinstance(itContainer, list):
             # cco.setDotAttr(it, prop, irb)
             itContainer[itAttr] = txt
             it.hasChanged = True
