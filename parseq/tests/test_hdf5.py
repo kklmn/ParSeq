@@ -76,8 +76,8 @@ def showInWidget(fName):
 
 
 if __name__ == '__main__':
-    write_avi('cuo_rxes_0001')
+    # write_avi('cuo_rxes_0001')
     # write_avi('cu2o_rxes_0001')
 
-    # showInWidget('cu2o_rxes_0001')
+    showInWidget('cu2o_rxes_0001')
     print("Done")

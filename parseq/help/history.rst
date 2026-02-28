@@ -3,8 +3,8 @@
 Version history
 ---------------
 
-Current GitHub code (modified 5 Jan 2026):
-    -
+Current GitHub code (modified 28 Feb 2026):
+    - Add cumulative logging to time profiling.
 
 2026.1.0 (5 Jan 2026):
     - Add a pipeline-specific "How-tos" tab to the main tabified dock widget.
