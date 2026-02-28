@@ -4,6 +4,7 @@ __date__ = "23 Nov 2024"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
+import os
 import os.path as osp
 import webbrowser
 from collections import Counter
@@ -23,11 +24,12 @@ from ..gui import fileTreeModelView as gft
 from ..gui.fileTreeModelView import FileTreeView
 from ..gui.dataTreeModelView import DataTreeView
 from ..gui.plot import Plot1D, Plot2D, Plot3D
-from ..gui.webWidget import QWebView
+from .import webWidget as gww
 from ..gui.columnFormat import ColumnFormatWidget
 from ..gui.combineSpectra import CombineSpectraWidget
 from ..gui.gcorrection import Correction1DWidget
 from . import gcommons as gco
+from .plotOptions import lineStyles, noSymbols
 
 SPLITTER_WIDTH = 18 if sys.platform == "darwin" else 14
 SPLITTER_BUTTON_MARGIN = 6
@@ -381,7 +383,7 @@ class NodeWidget(qt.QWidget):
                 layout.addWidget(widget)
 
     def fillSplitterTransform(self):
-        self.help = QWebView(self.splitterTransform)
+        self.help = gww.QWebView(self.splitterTransform)
         # self.help.setHtml('no documentation available')
         self.help.setMinimumSize(qt.QSize(50, 5))
         self.help.page().setLinkDelegationPolicy(2)
@@ -390,10 +392,14 @@ class NodeWidget(qt.QWidget):
         self.lastBrowserLink = ''
         self.help.page().linkClicked.connect(
             self.linkClicked, type=qt.Qt.UniqueConnection)
+        # self.help.loadFinished.connect(self.handleLoaded)
 
         self.splitterTransform.setCollapsible(0, False)
         self.splitterTransform.setStretchFactor(0, 0)  # don't remove
         self.splitterTransform.setStretchFactor(1, 1)
+
+    # def handleLoaded(self, ok):
+    #     print('handleLoaded', self.node.name)
 
     def makeTransformWidget(self, parent):
         # insert QScrollArea for a possibly big transformWidget
@@ -855,13 +861,20 @@ class NodeWidget(qt.QWidget):
                                 x0, y = transformWidget.extraPlotTransform(
                                     item, node.plotXArray, x0, yN, y)
                         if curve is None:
-                            curve = self.plot.addCurve(
-                                x0, y, legend=curveLabel, color=item.color,
-                                z=z, **plotProps)
+                            ls = lineStyles[plotProps.get('linestyle', '-')]
+                            lw = plotProps.get('linewidth', 1)
+                            sy = plotProps.get('symbol', None)
+                            ss = plotProps.get('symbolsize', 1)
+                            noLine = (ls == qt.Qt.NoPen or lw <= 0) and \
+                                (not sy or (sy in noSymbols) or ss <= 0)
+                            if not noLine:
+                                curve = self.plot.addCurve(
+                                    x0, y, legend=curveLabel, color=item.color,
+                                    z=z, **plotProps)
                         else:
                             curve.setData(x0, y)
                             curve.setZValue(z)
-                    except (Exception, AssertionError) as e:
+                    except (Exception, AssertionError) as err:
                         try:
                             lengthx = len(x0)
                             lengthy = len(y)
@@ -871,7 +884,7 @@ class NodeWidget(qt.QWidget):
                             'plotting in {0} failed for ({1}, len={2}) vs '
                             '({3}, len={4}):\n{5}'
                             .format(self.node.name, yN, lengthy,
-                                    node.plotXArray, lengthx, e))
+                                    node.plotXArray, lengthx, err))
                         tb = traceback.format_exc()
                         syslogger.error(tb)
                         continue
@@ -945,9 +958,9 @@ class NodeWidget(qt.QWidget):
                 return
             try:
                 image = getattr(item, self.node.plot2DArray)
-            except AttributeError as e:
+            except AttributeError as err:
                 if not self.wasNeverPlotted:
-                    syslogger.log(100, e)
+                    syslogger.log(100, err)
                     syslogger.log(
                         100,
                         'If you use multiprocessing, check that this array is '
@@ -978,9 +991,9 @@ class NodeWidget(qt.QWidget):
                 return
             try:
                 stack = getattr(item, self.node.plot3DArray) if item else None
-            except AttributeError as e:
+            except AttributeError as err:
                 if not self.wasNeverPlotted:
-                    syslogger.error(e)
+                    syslogger.error(err)
                     syslogger.error(
                         'If you use multiprocessing, check that this array is '
                         'included into *outArrays* list in your transform.')
@@ -998,9 +1011,9 @@ class NodeWidget(qt.QWidget):
             for transformWidget in self.transformWidgets:
                 if hasattr(transformWidget, 'extraPlot'):
                     transformWidget.extraPlot()
-        except Exception as e:
-            syslogger.log(
-                100, 'extraPlot in {0} failed: {1}'.format(self.node.name, e))
+        except Exception as err:
+            syslogger.log(100, 'extraPlot in {0} failed: {1}'.format(
+                self.node.name, err))
 
         # if self.wasNeverPlotted and node.plotDimension == 1:
         #     self.plot.resetZoom()
@@ -1155,7 +1168,7 @@ class NodeWidget(qt.QWidget):
             self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
 
     def updateNodeForSelectedItems(self):
-        time.sleep(0.01)  # roi counts do not update with 0 wait
+        # time.sleep(0.01)  # roi counts do not update with 0 wait
         self.updateSplittersForSelectedItems()
         fname = self.shouldUpdateFileModel()
         if fname:

@@ -4,6 +4,7 @@ __date__ = "4 Jan 2026"
 # !!! SEE CODERULES.TXT !!!
 
 # import sys
+import os
 import os.path as osp
 import time
 from functools import partial
@@ -360,7 +361,7 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
             dock.defStyleSheet = "QDockWidget {font-weight: 800;}"\
-                "QDockWidget::title {background: "+ACTIVE_TAB_BKND+\
+                "QDockWidget::title {background: " + ACTIVE_TAB_BKND + \
                 "; padding-left: 20px; padding-top: 4px;}"
             dock.setStyleSheet(dock.defStyleSheet)
             self.addDockWidget(qt.Qt.LeftDockWidgetArea, dock)
@@ -384,7 +385,8 @@ class MainWindowParSeq(qt.QMainWindow):
                 dock.dimIcon = qt.QIcon(pixNorm)
                 pixBusy = qt.QPixmap(pixNorm)
                 painter = qt.QPainter(pixBusy)
-                painter.setCompositionMode(qt.QPainter.CompositionMode_SourceIn)
+                painter.setCompositionMode(
+                    qt.QPainter.CompositionMode_SourceIn)
                 painter.fillRect(pixBusy.rect(), gco.BUSY_COLOR_ICON)
                 painter.end()
                 dock.dimIconBusy = qt.QIcon(pixBusy)
@@ -464,7 +466,7 @@ class MainWindowParSeq(qt.QMainWindow):
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
             dock.defStyleSheet = "QDockWidget {font-weight: 800;}"\
-                "QDockWidget::title {background: "+ACTIVE_TAB_BKND+\
+                "QDockWidget::title {background: " + ACTIVE_TAB_BKND + \
                 "; padding-left: 20px; padding-top: 4px;}"
             dock.setStyleSheet(dock.defStyleSheet)
             self.addDockWidget(qt.Qt.LeftDockWidgetArea, dock)
@@ -589,7 +591,7 @@ class MainWindowParSeq(qt.QMainWindow):
                     html = 'file:///' + fname
                     html = re.sub('\\\\', '/', html)
                     node.widget.helpFile = fname
-                    node.widget.help.load(qt.QUrl(html))
+                    # node.widget.help.load(qt.QUrl(html))
             except Exception as e:
                 syslogger.log(100, 'Cannot build doc pages:\n{0}'.format(e))
                 continue
