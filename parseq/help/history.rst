@@ -3,8 +3,13 @@
 Version history
 ---------------
 
-Current GitHub code (modified 28 Feb 2026):
-    - Add cumulative logging to time profiling.
+Current GitHub code (modified 1 Mar 2026):
+    - Add cumulative logging to time profiling that sums the execution times
+      of each method over all data items.
+
+    - Add name change and color change of the splitter button 'corrections'
+      that signals a used correction, which is useful because this splitter
+      is most frequently collapsed.
 
     - Fix a bug of triggering transformations after a GUI update from data.
 

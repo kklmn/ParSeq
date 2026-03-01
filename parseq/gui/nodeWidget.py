@@ -41,36 +41,48 @@ autoLoadDelay = 3000  # msec
 
 class QSplitterButton(qt.QPushButton):
     def __init__(self, text, parent, isVertical=False,
-                 margin=SPLITTER_BUTTON_MARGIN):
+                 sbmargin=SPLITTER_BUTTON_MARGIN):
         super().__init__(text, parent)
         self.rawText = str(text)
+        self.sbmargin = sbmargin
         self.isVertical = isVertical
         fontSize = "12" if sys.platform == "darwin" else "8.5" \
             if sys.platform == "linux" else "8"
         grad = "x1: 0, y1: 1, x2: 0, y2: 0"
         bottomMargin = '-1' if isVertical else '-3'
-        self.setStyleSheet("""
+        self.ss0 = """
             QPushButton {
-                font-size: """ + fontSize + """pt; color: #151575;
+                font-size: """ + fontSize + """pt; color: color1;
                 text-align: bottom; border-radius: 6px;
                 margin: 0px 0px """ + bottomMargin + """px 0px;
                 background-color: qlineargradient(
-                """ + grad + """, stop: 0 #e6e7ea, stop: 1 #cacbce);}
+                """ + grad + """, stop: 0 color2, stop: 1 color3);}
             QPushButton:disabled {color: #777777;}
-            QPushButton:pressed {
-                background-color: qlineargradient(
-                """ + grad + """, stop: 0 #cacbce, stop: 1 #e6e7ea);}
             QPushButton:hover {
                 background-color: qlineargradient(
-                """ + grad + """, stop: 0 #6087cefa, stop: 1 #7097eeff);} """)
+                """ + grad + """, stop: 0 #6087cefa, stop: 1 #7097eeff);} """
         myFont = qt.QFont()
         myFont.setPointSize(int(float(fontSize)))
-        fm = qt.QFontMetrics(myFont)
-        width = fm.width(text) + 3*margin
-        if isVertical:
+        self.fm = qt.QFontMetrics(myFont)
+        self.setHighlight()
+
+    def setHighlight(self, colors=None, names=[]):
+        if colors is None:
+            colors = dict(color1='#151575', color2='#e6e7ea', color3='#cacbce')
+        txt = self.rawText
+        if names:
+            txt += ': ' + ' + '.join(names)
+        self.setText(txt)
+        width = self.fm.width(txt) + 3*self.sbmargin
+        if self.isVertical:
             self.setFixedSize(int(SPLITTER_WIDTH*csi.screenFactor), width)
         else:
             self.setFixedSize(width, int(SPLITTER_WIDTH*csi.screenFactor))
+
+        modified = str(self.ss0)
+        for k, v in colors.items():
+            modified = modified.replace(k, v)
+        self.setStyleSheet(modified)
 
     def paintEvent(self, event):
         painter = qt.QStylePainter(self)
@@ -495,7 +507,7 @@ class NodeWidget(qt.QWidget):
         handle = splitter.handle(indHandle)
         if handle is None:
             return
-        button = QSplitterButton("open in browser", handle, margin=10)
+        button = QSplitterButton("open in browser", handle, sbmargin=10)
         button.clicked.connect(self.handleSplitterHelpButton)
         sLayout = handle.layout()
         sLayout.addWidget(button)

@@ -910,7 +910,16 @@ class PropWidget(qt.QWidget):
             elif widgetTypeIndex == 9:  # 'statebuttons'
                 gpd.setStateButtonsFromData(widget, prop)
             elif widgetTypeIndex == 10:  # 'correction'
-                gpd.setCorrectionsFromData(widget, prop)
+                common = gpd.setCorrectionsFromData(widget, prop)
+                if self.node.widget:
+                    if common:
+                        highlight = dict(color1='#751515', color2='#ffe6e7',
+                                         color3='#ffcacb')
+                        names = [corr['name'] for corr in common]
+                    else:
+                        highlight, names = None, []
+                    sbut = self.node.widget.splitterButtons['data corrections']
+                    sbut.setHighlight(highlight, names)
         self.updateStatusWidgets()
         try:
             self.extraSetUIFromData()

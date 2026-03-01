@@ -4,8 +4,8 @@ Data correction widgets
 -----------------------
 
 The correction widget is located to the right of the main plot and is hidden
-by default. Use the vertical splitter bar "data corrections" to get it visible.
-The correction widget is a table of corrections; each correction has a
+by default. Use the vertical splitter button "data corrections" to get it
+visible. The correction widget is a table of corrections; each correction has a
 corresponding plot tool. Any correction can be modified in the plot and in the
 table. If the check box "live" is selected, the modifications in the plot tools
 and in the table are immediately applied, otherwise they are applied by the
@@ -61,7 +61,7 @@ Examine the table of corrections below and also the supplied test script
 
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "22 Nov 2023"
+__date__ = "1 Mar 2026"
 # !!! SEE CODERULES.TXT !!!
 
 # import time

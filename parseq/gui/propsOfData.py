@@ -97,6 +97,7 @@ def setStateButtonsFromData(sb, prop):
 def setCorrectionsFromData(corrTable, prop):
     common = getCommonPropInSelectedItems(prop, outLevel=0)
     corrTable.setCorrections(common)
+    return common
 
 
 def setCButtonFromData(cButton, prop, compareWith=None):
@@ -111,6 +112,9 @@ def setCButtonFromData(cButton, prop, compareWith=None):
     else:
         cButton.setChecked(False)
     cButton.blockSignals(False)
+    if hasattr(cButton, 'customSignals'):  # implemented for corrections
+        for signal in cButton.customSignals:
+            signal.emit()
 
 
 def setEditFromData(edit, prop, textFormat='', skipDefault=None, **kw):
