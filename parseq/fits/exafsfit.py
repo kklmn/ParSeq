@@ -43,7 +43,7 @@ class EXAFSFit(Fit):
                'params': 'exafsfit_params', 'result': 'exafsfit_result',
                'aux': 'exafsfit_aux'}
 
-    nfft = 8192
+    nfft = uft.nfft
     allowMetaParams = True
 
     @classmethod

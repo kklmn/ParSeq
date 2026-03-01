@@ -14,7 +14,7 @@ from parseq.gui.plot import Plot1D
 
 from silx.gui import qt
 
-nfft = 8192
+nfft = 4096
 rmax = 6.2
 
 

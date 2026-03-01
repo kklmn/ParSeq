@@ -5,6 +5,9 @@ __date__ = "8 Jan 2023"
 
 import numpy as np
 
+# nfft = 8192
+nfft = 4096
+
 ft_windows = ('none', 'box', 'linear-tapered', 'cosine-tapered',
               'Gaussian-tapered')
 
