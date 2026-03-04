@@ -814,6 +814,14 @@ class NodeWidget(qt.QWidget):
         # yUnits = node.get_arrays_prop('plotUnit', yNames)
         # yLabels = node.get_arrays_prop('plotLabel', yNames)
 
+        ystep, iystep = None, 0
+        for transformWidget in self.transformWidgets:
+            try:
+                ystep = transformWidget.properties['ystep']
+                break
+            except Exception:
+                ystep = None
+
         if node.plotDimension == 1:
             if needClear:
                 self.plot.clearCurves()
@@ -872,6 +880,11 @@ class NodeWidget(qt.QWidget):
                             if hasattr(transformWidget, 'extraPlotTransform'):
                                 x0, y = transformWidget.extraPlotTransform(
                                     item, node.plotXArray, x0, yN, y)
+                        if ystep is not None:
+                            dy = ystep*iystep
+                            iystep += 1
+                        else:
+                            dy = 0
                         if curve is None:
                             ls = lineStyles[plotProps.get('linestyle', '-')]
                             lw = plotProps.get('linewidth', 1)
@@ -881,10 +894,10 @@ class NodeWidget(qt.QWidget):
                                 (not sy or (sy in noSymbols) or ss <= 0)
                             if not noLine:
                                 curve = self.plot.addCurve(
-                                    x0, y, legend=curveLabel, color=item.color,
-                                    z=z, **plotProps)
+                                    x0, y+dy, legend=curveLabel,
+                                    color=item.color, z=z, **plotProps)
                         else:
-                            curve.setData(x0, y)
+                            curve.setData(x0, y+dy)
                             curve.setZValue(z)
                     except (Exception, AssertionError) as err:
                         try:
@@ -1073,6 +1086,14 @@ class NodeWidget(qt.QWidget):
             assert len(fitSizes) == len(ifit[0].fitWidgets)
             ifit = ifit[1]
 
+        ystep, iystep = None, 0
+        for transformWidget in self.transformWidgets:
+            try:
+                ystep = transformWidget.properties['ystep']
+                break
+            except Exception:
+                ystep = None
+
         if node.plotDimension == 1:
             plotProps = fitWorker.plotParams['fit']
             residueProps = fitWorker.plotParams['residue'] if \
@@ -1090,7 +1111,12 @@ class NodeWidget(qt.QWidget):
                     fity = getattr(item, fitAttrName)
                 except AttributeError:
                     continue
-                plotOne(item, x, fity, curveLabel, dict(plotProps))
+                if ystep is not None:
+                    dy = ystep*iystep
+                    iystep += 1
+                else:
+                    dy = 0
+                plotOne(item, x, fity+dy, curveLabel, dict(plotProps))
                 # if xAttrName == 'bftk':  # keep for tests
                 #     plotOne(item, x, item.ftfitwindow, curveLabel+'Window',
                 #             dict(plotProps))

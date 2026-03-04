@@ -219,7 +219,6 @@ class LineProps(qt.QDialog):
         super().__init__(parent)
         self.setWindowTitle("Line properties")
 
-
         self.isGroupSelected = False
         self.isTopGroupSelected = False
         for topItem in csi.selectedTopItems:
@@ -263,9 +262,15 @@ class LineProps(qt.QDialog):
         self.node = node
         labels = node.get_arrays_prop('qLabel', role='y')
         self.extraPlotParams = {}
+        ystep = None
         if node.widget is not None:
             for trw in node.widget.transformWidgets:
                 self.extraPlotParams.update(trw.plotParams)
+                try:
+                    if not ystep:
+                        ystep = trw.properties['ystep']
+                except Exception:
+                    pass
         try:
             activeLabel = node.get_prop(activeKey, 'qLabel') \
                 if activeKey is not None else ''
@@ -286,6 +291,16 @@ class LineProps(qt.QDialog):
         mainLayout.addWidget(nSpectraLabel)
         mainLayout.addWidget(groupColor)
         mainLayout.addWidget(self.tabWidget)
+        if ystep is not None:
+            yShiftLabel = qt.QLabel('Vertical displacement step')
+            self.yShiftEdit = qt.QLineEdit(f'{ystep:.3f}')
+            self.yShiftEdit.setMinimumWidth(30)
+            self.yShiftEdit.setSizePolicy(
+                qt.QSizePolicy.Ignored, qt.QSizePolicy.Minimum)
+            stepLayout = qt.QHBoxLayout()
+            stepLayout.addWidget(yShiftLabel)
+            stepLayout.addWidget(self.yShiftEdit)
+            mainLayout.addLayout(stepLayout)
         buttonBox = qt.QDialogButtonBox(
             qt.QDialogButtonBox.Ok | qt.QDialogButtonBox.Cancel)
         buttonBox.accepted.connect(self.accept)  # OK button
@@ -677,6 +692,14 @@ class LineProps(qt.QDialog):
     def accept(self):
         self.setColorOptions()
         self.setLineOptions()
+        try:
+            ystep = float(self.yShiftEdit.text())
+        except Exception:
+            ystep = 0
+        if self.node.widget is not None:
+            for trw in self.node.widget.transformWidgets:
+                if 'ystep' in trw.properties:
+                    trw.properties['ystep'] = ystep
         for node in csi.nodes.values():
             try:  # self.node.widget may be None in tests
                 # self.node.widget.replot(needClear=True)
