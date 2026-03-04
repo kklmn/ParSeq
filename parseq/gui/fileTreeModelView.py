@@ -59,7 +59,8 @@ NODE_INDENTATION = 12
 
 def is_text_file(file_name):
     try:
-        with open(file_name, 'r') as check_file:  # try open file in text mode
+        # try open file in text mode
+        with open(file_name, 'r', encoding="utf-8") as check_file:
             check_file.read()
             return True
     except:  # if fails then file is non-text (binary)  # noqa
@@ -541,7 +542,8 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             cdf.pop('metadata', [])
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                arrs = np.genfromtxt(fname, unpack=True, max_rows=2, **cdf)
+                arrs = np.genfromtxt(
+                    fname, unpack=True, max_rows=2, encoding="utf-8", **cdf)
             if len(arrs) == 0:
                 return
 
@@ -559,7 +561,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                         return
                 lres.append(colEval)
         except Exception as e:
-            # print('tryLoadColDataset:', e)
+            print('tryLoadColDataset:', e)
             return
         return lres, df
 

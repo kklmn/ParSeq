@@ -1212,7 +1212,8 @@ class Spectrum(TreeItem):
             if self.dataType == cco.DATA_COLUMN_FILE:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    arrs = np.genfromtxt(madeOf, unpack=True, **df)
+                    arrs = np.genfromtxt(
+                        madeOf, unpack=True, encoding="utf-8", **df)
                 if len(arrs) == 0:
                     raise ValueError('bad data file')
 
