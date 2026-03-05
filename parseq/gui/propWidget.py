@@ -75,12 +75,13 @@ class PropWidget(qt.QWidget):
     inserting user changes into undo and redo lists.
     """
 
-    # this dict is designed to hold widget-related properties, not data-related
-    # ones (the latter are stored in data.transformParams).
+    # dict `properties` is designed to hold widget-related properties,
+    # not data-related ones (the latter are stored in data.transformParams):
     properties = dict()
+
     extraLines = []
     plotParams = {}
-    LOCATION = 'transform'  # 'transform' or 'correction'
+    LOCATION = 'transform'  # 'transform' or 'correction' splitter
 
     def __init__(self, parent=None, node=None):
         u"""*node* is the corresponding transformation node, instance of

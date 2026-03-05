@@ -3,7 +3,10 @@
 Version history
 ---------------
 
-Current GitHub code (modified 4 Mar 2026):
+Current GitHub code (modified 5 Mar 2026):
+    -
+
+2026.3.0 (5 Mar 2026):
     - Add cumulative logging to time profiling that sums the execution times
       of each method over all data items.
 
