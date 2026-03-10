@@ -7,6 +7,8 @@ from functools import partial
 import numpy as np
 from silx.gui import qt, icons
 
+from ..core import singletons as csi
+
 colorCycle1 = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
                '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # mpl
 colorCycle2 = ['#0000ff', '#00ee00', '#ff0000', '#00ffff', '#ff00ff',
@@ -450,6 +452,19 @@ class QVBoxLayoutAbove(qt.QVBoxLayout):
         self.extraWidget.setGeometry(qt.QRect(x, y, w, h))
 
 
+class QHBoxLayoutRight(qt.QHBoxLayout):
+    def addExtraWidget(self, widget):
+        """The widget must be given a parent (a group box)! """
+        self.extraWidget = widget
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        size = self.extraWidget.size()
+        w, h = size.width(), size.height()
+        x, y = rect.right()-w+1, rect.y()-h+4
+        self.extraWidget.setGeometry(qt.QRect(x, y, w, h))
+
+
 class StateButtons(qt.QFrame):
     """
     A collection of QPushButtons that define a list of active settings. The
@@ -618,3 +633,93 @@ class EDoubleSpinBox(qt.QDoubleSpinBox):
         newStr = self.textFromValue(val + steps*increment)
         self.lineEdit().setText(newStr)
         self.setValue(val + steps*increment)
+
+
+class EyeButton(qt.QPushButton):
+    EYE_PUPIL = qt.QColor('black')
+    EYE_BROW = qt.QColor('#999999')
+    irisR = 5
+    startAngle = 35*16
+    spanAngle = 110*16
+    nEyelashes = 6
+    rEyelashes = 2
+
+    def __init__(self, orientation=qt.Qt.Horizontal, parent=None, node=None):
+        super().__init__(orientation, parent)
+        self.node = node
+        self.plotDimension = 1 if node is None else self.node.plotDimension
+
+    def paintEye(self, painter, rect, color, colorb, hovered, pupilR=1.2):
+        c0 = rect.center()
+        radius0 = self.irisR*csi.screenFactor
+        x0, y0 = c0.x(), c0.y()
+        ww, hh = round(min(2.5*radius0, rect.width()//2)), round(radius0)
+        if self.isChecked():
+            painter.setBrush(colorb)
+            painter.setPen(qt.QPen(self.EYE_BROW, 1.5))
+            painter.drawChord(x0-ww, round(y0-radius0), ww*2, hh*5+1,
+                              self.startAngle, self.spanAngle)
+            painter.drawChord(x0-ww, round(y0+radius0), ww*2, -hh*5+3,
+                              -self.startAngle, -self.spanAngle)
+            painter.setPen(qt.QPen(colorb, 1.5))
+            painter.drawLine(x0-ww+4, y0, x0+ww-4, y0)
+            painter.setPen(qt.QPen(self.EYE_BROW, 1.5))
+            if hovered:
+                x = round(x0-radius0) + 2
+                dAngle = -self.spanAngle/16 / (self.nEyelashes-1)
+                painter.translate(x0, y0+radius0)
+                painter.rotate(-self.startAngle/16)
+                for i in range(self.nEyelashes):
+                    painter.drawLine(x+self.rEyelashes, 0, x, 0)
+                    painter.rotate(dAngle)
+                painter.resetTransform()
+                painter.translate(x0, y0-radius0)
+                painter.rotate(self.startAngle/16)
+                for i in range(self.nEyelashes):
+                    painter.drawLine(x+self.rEyelashes, 0, x, 0)
+                    painter.rotate(-dAngle)
+                painter.resetTransform()
+
+            painter.setBrush(color)
+            painter.setPen(color)
+            painter.drawEllipse(rect.center(), radius0, radius0)
+            color = self.EYE_PUPIL
+            painter.setBrush(color)
+            painter.setPen(color)
+            radius1 = pupilR*csi.screenFactor
+            if hovered:
+                radius1 *= 2
+            painter.drawEllipse(rect.center(), radius1, radius1)
+        else:
+            painter.setPen(qt.QPen(colorb, 1.5))
+            painter.drawLine(x0-ww+4, y0, x0+ww-4, y0)
+            painter.setPen(qt.QPen(self.EYE_BROW, 1.5))
+            if hovered:
+                y0 -= 2
+            painter.drawArc(x0-ww, round(y0+radius0), ww*2, -hh*5+3,
+                            -self.startAngle, -self.spanAngle)
+            x = round(x0-radius0) + 2
+            dAngle = -self.spanAngle/16 / (self.nEyelashes-1)
+            painter.translate(x0, y0-radius0)
+            painter.rotate(self.startAngle/16)
+            for i in range(self.nEyelashes):
+                painter.drawLine(x+self.rEyelashes, 0, x, 0)
+                painter.rotate(-dAngle)
+            painter.resetTransform()
+
+    def paintEvent(self, e):
+        opt = qt.QStyleOptionButton()
+        self.initStyleOption(opt)
+        color = qt.QColor(opt.palette.color(qt.QPalette.Text).name())
+        colorb = qt.QColor(opt.palette.color(qt.QPalette.Button).name())
+        # to see the whole button:
+        # p = qt.QStylePainter(self)
+        # opt = qt.QStyleOptionButton()
+        # self.initStyleOption(opt)
+        # p.drawControl(qt.QStyle.CE_PushButton, opt)
+        painter = qt.QPainter(self)
+        painter.save()
+        painter.setRenderHint(qt.QPainter.Antialiasing, True)
+        mouseOver = bool(opt.state & qt.QStyle.State_MouseOver)
+        self.paintEye(painter, self.rect(), color, colorb, mouseOver)
+        painter.restore()

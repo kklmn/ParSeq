@@ -1090,7 +1090,7 @@ class AutoRangeWidget(BaseRangeWidget):
         self.panel.toggled.connect(self.toggled)
         self.panelLayout = qt.QVBoxLayout()
         self.panelLayout.setContentsMargins(10, 0, 0, 0)
-        self.rangeLayout = qt.QHBoxLayout()
+        self.rangeLayout = gco.QHBoxLayoutRight()
         self.rangeLayout.setContentsMargins(0, 0, 0, 0)
         self.rbAuto = qt.QRadioButton('auto', self.panel)
         self.rbAuto.clicked.connect(self.setAutoRange)
@@ -1106,10 +1106,26 @@ class AutoRangeWidget(BaseRangeWidget):
         self.rangeLayout.addWidget(self.editCustom)
         if tooltip:
             self.editCustom.setToolTip(tooltip)
+        self.butVisible = gco.EyeButton('', self.panel)
+        self.butVisible.setToolTip('show/hide in the plot')
+        self.butVisible.setStyleSheet("QPushButton{color: " + color + ";}")
+        self.butVisible.setFixedSize(30, 22)
+        self.butVisible.setCheckable(True)
+        self.butVisible.setChecked(True)
+        self.butVisible.clicked.connect(self.setRangeVisible)
+        self.rangeLayout.addExtraWidget(self.butVisible)
+
         self.panelLayout.addLayout(self.rangeLayout)
         self.panel.setLayout(self.panelLayout)
         layout.addWidget(self.panel)
         self.setLayout(layout)
+
+    def setRangeVisible(self, checked):
+        if self.roi is None:
+            return
+        self.roi.blockSignals(True)
+        self.roi.setVisible(checked)
+        self.roi.blockSignals(False)
 
     def toggled(self, on):
         self.rangeToggled.emit(on)
@@ -1129,6 +1145,7 @@ class AutoRangeWidget(BaseRangeWidget):
         if not isinstance(ran, (tuple, list)):
             self.rbAuto.setChecked(True)
             self.rbCustom.setChecked(False)
+            self.butVisible.setVisible(False)
             return
 
         if len(ran) == 2:
@@ -1141,13 +1158,15 @@ class AutoRangeWidget(BaseRangeWidget):
             isDefault = np.allclose(ran, defRange)
             self.rbAuto.setChecked(isDefault)
             self.rbCustom.setChecked(not isDefault)
+            self.butVisible.setVisible(not isDefault)
 
             if self.roi is None:
                 return
             self.roi.blockSignals(True)
             if self.panel.isCheckable():
                 use = self.panel.isChecked()
-            self.roi.setVisible(use and not isDefault)
+            self.roi.setVisible(
+                use and not isDefault and self.butVisible.isChecked())
             self.roi.blockSignals(False)
 
     def setAutoRange(self):
@@ -1166,6 +1185,7 @@ class AutoRangeWidget(BaseRangeWidget):
         self.editSetText(defRange)
         self.rbAuto.setChecked(True)
         self.rbCustom.setChecked(False)
+        self.butVisible.setVisible(False)
 
     def setCustomRange(self):
         self.createRoi()
@@ -1174,9 +1194,10 @@ class AutoRangeWidget(BaseRangeWidget):
         if ran is None:
             return
         self.roi.blockSignals(True)
-        self.roi.setVisible(True)
+        self.roi.setVisible(self.butVisible.isChecked())
         self.rangeChanged.emit(list(ran))
         self.roi.blockSignals(False)
+        self.butVisible.setVisible(True)
 
     def acceptEdit(self):
         if self.roi is None:
