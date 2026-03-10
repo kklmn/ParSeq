@@ -1275,6 +1275,19 @@ class FileTreeView(qt.QTreeView):
                     menu.addAction(self.actionViewTextFile)
                 # except Exception:
                 #     pass
+            elif nodeType0 == NODE_HDF5:
+                if len(paths) == 1:
+                    try:
+                        indexH5 = model.mapToH5(ind)
+                        node = model.h5Model.nodeFromIndex(indexH5)
+                        if len(node.obj.shape) == 0:
+                            action = qt.QAction(
+                                f'Copy value of "{node.obj.name}"', menu)
+                            s = node.obj[()].decode('utf-8')
+                            action.triggered.connect(partial(self.copyVal, s))
+                            menu.addAction(action)
+                    except Exception as err:
+                        print("in onCustomContextMenu(): ", err)
 
         if hasattr(self, 'ModelTest'):
             menu.addSeparator()
@@ -1625,6 +1638,12 @@ class FileTreeView(qt.QTreeView):
         subpaths = self._enrtySubpaths(paths)
         cf = self.transformNode.widget.columnFormat
         cf.addMetadata(subpaths)
+
+    def copyVal(self, strToCopy):
+        inst = qt.QCoreApplication.instance()
+        cb = inst.clipboard()
+        cb.clear(mode=cb.Clipboard)
+        cb.setText(strToCopy, mode=cb.Clipboard)
 
     def startDrag(self, supportedActions):
         listSelected = self.selectedIndexes()
