@@ -4,7 +4,7 @@ Version history
 ---------------
 
 Current GitHub code (modified 5 Mar 2026):
-    -
+    - Add slices to data conversion.
 
 2026.3.0 (5 Mar 2026):
     - Add cumulative logging to time profiling that sums the execution times
