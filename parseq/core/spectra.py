@@ -1406,6 +1406,9 @@ class Spectrum(TreeItem):
                             errMsg += '\nSo it is ignored. '
                             errMsg += 'Remove it from your conversions!'
                             syslogger.log(100, errMsg)
+                    elif cFactor.startswith('slice'):
+                        sl = eval(cFactor)
+                        setattr(self, setName, arr[sl])
                     elif cFactor.startswith('transpose'):
                         axes = eval(cFactor[9:])
                         setattr(self, setName, arr.transpose(*axes))

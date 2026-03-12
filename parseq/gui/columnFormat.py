@@ -51,7 +51,9 @@ class ColumnFormatWidget(PropWidget):
             "2) a new str unit (not for abscissa),\n"
             "3) lim(min, max) (typ. for abscissa), e.g. lim(None, 9900)\n"
             "4) transpose(*axes), e.g. transpose(2, 1, 0)\n"
-            "5) leave empty (no conversion).")
+            "5) slice(s), e.g. for a 2D array: slice(20, None), slice(None)"
+            " that will be understood as [20:, :]\n"
+            "6) leave empty (no conversion).")
 
         self.metadataTab = self.makeMetadataTab()
         ind = self.tabWidget.addTab(self.metadataTab, 'metadata')
