@@ -198,7 +198,7 @@ class MainWindowParSeq(qt.QMainWindow):
 
         selfDir = osp.dirname(__file__)
         self.iconDir = osp.join(selfDir, '_images')
-        self.runIcon = qt.QIcon(osp.join(self.iconDir, 'parseq.ico'))
+        # self.runIcon = qt.QIcon(osp.join(self.iconDir, 'parseq.ico'))
         # self.emptyIcon = qt.QIcon(qt.QPixmap.fromImage(qt.QImage.fromData(
         #     b'<svg version="1.1" viewBox="0 0  32"'
         #     b' xmlns="http://www.w3.org/2000/svg"></svg>')))

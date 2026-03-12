@@ -3,6 +3,7 @@ __author__ = "Konstantin Klementiev"
 __date__ = "19 Jul 2022"
 # !!! SEE CODERULES.TXT !!!
 
+import sys
 from functools import partial
 import numpy as np
 from silx.gui import qt, icons
@@ -638,18 +639,24 @@ class EDoubleSpinBox(qt.QDoubleSpinBox):
 class EyeButton(qt.QPushButton):
     EYE_PUPIL = qt.QColor('black')
     EYE_BROW = qt.QColor('#999999')
-    irisR = 5
+    irisR = 8 if sys.platform == "darwin" else 5.5 if sys.platform == "linux" \
+        else 5
+    pupilR = 1.5 if sys.platform == "darwin" else 1.5 \
+        if sys.platform == "linux" else 1.2
+    dR = 1 if sys.platform == "darwin" else 0 if sys.platform == "linux" \
+        else 2
     startAngle = 35*16
     spanAngle = 110*16
     nEyelashes = 6
-    rEyelashes = 2
+    rEyelashes = 2 if sys.platform == "darwin" else 2 \
+        if sys.platform == "linux" else 2
 
     def __init__(self, orientation=qt.Qt.Horizontal, parent=None, node=None):
         super().__init__(orientation, parent)
         self.node = node
         self.plotDimension = 1 if node is None else self.node.plotDimension
 
-    def paintEye(self, painter, rect, color, colorb, hovered, pupilR=1.2):
+    def paintEye(self, painter, rect, color, colorb, hovered):
         c0 = rect.center()
         radius0 = self.irisR*csi.screenFactor
         x0, y0 = c0.x(), c0.y()
@@ -665,7 +672,7 @@ class EyeButton(qt.QPushButton):
             painter.drawLine(x0-ww+4, y0, x0+ww-4, y0)
             painter.setPen(qt.QPen(self.EYE_BROW, 1.5))
             if hovered:
-                x = round(x0-radius0) + 2
+                x = round(x0-radius0) + self.dR
                 dAngle = -self.spanAngle/16 / (self.nEyelashes-1)
                 painter.translate(x0, y0+radius0)
                 painter.rotate(-self.startAngle/16)
@@ -686,7 +693,7 @@ class EyeButton(qt.QPushButton):
             color = self.EYE_PUPIL
             painter.setBrush(color)
             painter.setPen(color)
-            radius1 = pupilR*csi.screenFactor
+            radius1 = self.pupilR*csi.screenFactor
             if hovered:
                 radius1 *= 2
             painter.drawEllipse(rect.center(), radius1, radius1)
@@ -698,7 +705,7 @@ class EyeButton(qt.QPushButton):
                 y0 -= 2
             painter.drawArc(x0-ww, round(y0+radius0), ww*2, -hh*5+3,
                             -self.startAngle, -self.spanAngle)
-            x = round(x0-radius0) + 2
+            x = round(x0-radius0) + self.dR
             dAngle = -self.spanAngle/16 / (self.nEyelashes-1)
             painter.translate(x0, y0-radius0)
             painter.rotate(self.startAngle/16)
