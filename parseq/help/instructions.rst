@@ -27,7 +27,7 @@ or::
 Running ParSeq without installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Because ParSeq does not build anything at the installation time, it can be used
+Because ParSeq does not build binaries at the installation time, it can be used
 *without installation*, only its source code is required. One advantage of no
 installation is a single location of ParSeq served by all, possibly many, Python
 installations; that location can even span various OS's if it is on a network
