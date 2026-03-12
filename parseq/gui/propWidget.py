@@ -772,8 +772,10 @@ class PropWidget(qt.QWidget):
         if tName:
             tr = csi.transforms[tName]
             csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-            tr.toNode.widget.replot()
-            for subnode in tr.toNode.downstreamNodes:
+            # tr.toNode.widget.replot()
+            tr.fromNode.widget.replot()
+            # for subnode in tr.toNode.downstreamNodes:
+            for subnode in tr.fromNode.downstreamNodes:
                 if subnode.widget is not None:
                     subnode.widget.replot()
         else:
