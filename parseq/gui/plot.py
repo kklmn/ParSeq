@@ -4,6 +4,8 @@ __date__ = "16 Feb 2019"
 # !!! SEE CODERULES.TXT !!!
 
 import os
+import numpy as np
+
 from silx.gui import qt
 from silx.gui import plot as splot
 from silx.gui.plot.actions.control import ZoomBackAction, CrosshairAction
@@ -101,8 +103,21 @@ class Plot1D(splot.PlotWindow):
 
 
 # class Plot2D(splot.Plot2D):
+
 class Plot2D(splot.ImageView):
-    pass
+    def __init__(self, parent=None, backend=None):
+        super().__init__(parent=parent, backend=backend)
+        self.valueChanged.connect(self._showCustomPosInfo)
+
+    def _showCustomPosInfo(self, row, column, value):
+        """Update status bar with coordinates/value from plots."""
+        if np.isnan(row):
+            msg = f"Column: {int(column)}, Sum: {value:.4g}"
+        elif np.isnan(column):
+            msg = f"Row: {int(row)}, Sum: {value:.4g}"
+        else:
+            msg = f"Position: ({int(row)}, {int(column)}), Value: {value:.4g}"
+        self.setGraphTitle(msg)
 
 
 class Plot3D(splot.StackView):
