@@ -191,13 +191,14 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def __init__(self, parent=None, tabPos=qt.QTabWidget.West):
         super().__init__(parent)
+        selfDir = osp.dirname(__file__)
+        self.iconDir = osp.join(selfDir, '_images')
+
         self.tabPos = tabPos
         self.webView = None
         self.busyIconThread = None
         csi.screenFactor = qt.qApp.desktop().logicalDpiX() / 120.
 
-        selfDir = osp.dirname(__file__)
-        self.iconDir = osp.join(selfDir, '_images')
         # self.runIcon = qt.QIcon(osp.join(self.iconDir, 'parseq.ico'))
         # self.emptyIcon = qt.QIcon(qt.QPixmap.fromImage(qt.QImage.fromData(
         #     b'<svg version="1.1" viewBox="0 0  32"'
@@ -218,11 +219,7 @@ class MainWindowParSeq(qt.QMainWindow):
 
         self.initTabs()
 
-        self.makeMainPages()  # 'main'; when ready, it starts 'pipe' and 'docs'
-
         # self.settings = qt.QSettings('parseq.ini', qt.QSettings.IniFormat)
-        self.setWindowIcon(qt.QIcon(osp.join(self.iconDir, 'parseq.ico')))
-        self.setWindowFlags(qt.Qt.Window)
 
         self.statusBar = self.statusBar()
 #        self.statusBar.setStyleSheet("QStatusBar {min-height: 20;}")
@@ -247,6 +244,13 @@ class MainWindowParSeq(qt.QMainWindow):
 
         self.restore_perspective()
         self.dataChanged()
+
+        self.makeMainPages()  # 'main'; when ready, it starts 'pipe' and 'docs'
+
+        self.setWindowFlags(qt.Qt.Window)
+        self.windowIcon = qt.QIcon(osp.join(self.iconDir, 'parseq.ico'))
+        self.setWindowIcon(self.windowIcon)
+        # qt.QCoreApplication.instance().setWindowIcon(self.windowIcon)
 
         self.timerCPU = qt.QTimer(self)
         self.timerCPU.timeout.connect(self.updateCPU)
