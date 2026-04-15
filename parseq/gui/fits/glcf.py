@@ -11,7 +11,7 @@ from ...fits.lcf import LCF
 from ...gui import gcommons as gco
 from . import gbasefit as gbf
 
-from silx.gui import qt, icons
+from silx.gui import qt
 
 
 class LCFModel(qt.QAbstractTableModel):
@@ -49,30 +49,35 @@ class LCFModel(qt.QAbstractTableModel):
     def flags(self, index):
         if not index.isValid():
             return qt.Qt.NoItemFlags
-        if index.column() == 0:
+        column, row = index.column(), index.row()
+        ref = self.params[row]
+        if column == 0:
             if self.isMeta(index):
-                res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
+                if 'pinhole' in ref['name']:
+                    res = qt.Qt.ItemIsEnabled
+                else:
+                    res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
             else:
                 res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsUserCheckable
-        elif index.column() in (1, 2):  # w, wBounds
+        elif column in (1, 2):  # w, wBounds
             res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable | \
                 qt.Qt.ItemIsSelectable
-        elif index.column() in (3,):  # wtie
+        elif column in (3,):  # wtie
             res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
-        elif index.column() in (4,):  # wError
+        elif column in (4,):  # wError
             res = qt.Qt.NoItemFlags
-        elif index.column() in (5, 6):  # dx, dxBounds
+        elif column in (5, 6):  # dx, dxBounds
             if self.isMeta(index):
                 res = qt.Qt.NoItemFlags
             else:
                 res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable | \
                     qt.Qt.ItemIsSelectable
-        elif index.column() in (7,):  # dEtie
+        elif column in (7,):  # dEtie
             if self.isMeta(index):
                 res = qt.Qt.NoItemFlags
             else:
                 res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
-        elif index.column() in (8,):  # dEError
+        elif column in (8,):  # dEError
             res = qt.Qt.NoItemFlags
         return res
 
@@ -87,6 +92,8 @@ class LCFModel(qt.QAbstractTableModel):
             if column == 0:  # name
                 if self.isMeta(index):
                     if role == qt.Qt.DisplayRole:
+                        if 'pinhole' in ref['name']:
+                            return ref['name']
                         return 'metavariable "{0}"'.format(ref['name'])
                     elif role == qt.Qt.EditRole:
                         return ref['name']
@@ -129,8 +136,12 @@ class LCFModel(qt.QAbstractTableModel):
         elif role == qt.Qt.ToolTipRole:
             if column == 0:
                 if self.isMeta(index):
-                    res = 'This is a metavariable.'\
-                        '\nRemember to tie it to a fit variable.'
+                    if 'pinhole' in ref['name']:
+                        res = 'This is a pinhole fraction\nused in pinhole '\
+                            'correction,\nsee `data corrections` panel'
+                    else:
+                        res = 'This is a metavariable.'\
+                            '\nRemember to tie it to a fit variable.'
                     return res
             if column in [1, 4, 5, 8]:
                 key = 'w' if column in [1, 4] else 'dx'
@@ -290,12 +301,13 @@ class LCFModel(qt.QAbstractTableModel):
         entry = dict(LCF.defaultEntry)
         if isMeta:
             entry['isMeta'] = True  # important is its presence, not its value
+            if 'pinhole' in name:
+                entry['wBounds'] = [0., 0.99, 0.01]
         entry['name'] = name
         self.params.append(entry)
         self.endResetModel()
         self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
-        wro = self.rowCount()-1
-        return wro
+        return self.rowCount()-1
 
     def appendRefs(self, names):
         if not isinstance(names, (list, tuple)):
@@ -342,6 +354,7 @@ class LCFModel(qt.QAbstractTableModel):
 
 
 class LCFTableView(qt.QTableView):
+    pinhole_fraction_name = 'pinhole_fraction'
     columnWidths = [140, 55, 170, 80, 50, 55, 140, 80, 50]
     if csi.onMac:
         columnWidths = [int(cw*1.5) for cw in columnWidths]
@@ -438,7 +451,15 @@ class LCFTableView(qt.QTableView):
             partial(self.addRefSpectrum, 'meta', True))
         tooltip = "add metavariable to use in tie expressions,"\
             "\nmax {0} metavariables".format(self.model().MAXMETAVARS)
-        self.actionAddMetaVar.setToolTip(tooltip)  # doesn't work anyway
+        self.actionAddMetaVar.setToolTip(tooltip)
+
+        self.actionAddPinholeCorrection = self._addAction(
+            "Add pinhole fraction as a fitting variable",
+            partial(self.addRefSpectrum, self.pinhole_fraction_name, True))
+        tooltip = "make `data corrections` pane visible"\
+            "\nto see `pinhole correction` widget"
+        self.actionAddPinholeCorrection.setToolTip(tooltip)
+
         self.actionMoveUp = self._addAction(
             "Move up", partial(self.moveItem, +1), "Ctrl+Up")
         self.actionMoveDown = self._addAction(
@@ -456,6 +477,7 @@ class LCFTableView(qt.QTableView):
 
     def onCustomContextMenu(self, point):
         menu = qt.QMenu()
+        menu.setToolTipsVisible(True)
         if csi.mainWindow is not None:
             menu.addAction(self.actionCopyFitParams)
             menu.addSeparator()
@@ -472,6 +494,15 @@ class LCFTableView(qt.QTableView):
                 refMenu.addAction(refAction)
         menu.addAction(self.actionAddMetaVar)
         menu.addSeparator()
+        menu.addAction(self.actionAddPinholeCorrection)
+        found = False
+        for entry in self.model().params:
+            if entry['name'] == self.pinhole_fraction_name:
+                found = True
+                break
+        self.actionAddPinholeCorrection.setEnabled(not found)
+        menu.addSeparator()
+
         menu.addAction(self.actionMoveUp)
         self.actionMoveUp.setEnabled(len(csi.allLoadedItems) > 1)
         menu.addAction(self.actionMoveDown)
@@ -599,6 +630,7 @@ class LCFWidget(gbf.FitWidget):
             return
         cs = self.spectrum
         self.worker.make_model_curve(cs, allData=csi.allLoadedItems)
+        self.worker.node.widget.updateCorrections()
 
         dfparams = cs.fitParams
         lcfRes = dfparams['lcf_result']

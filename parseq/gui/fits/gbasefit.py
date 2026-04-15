@@ -143,7 +143,7 @@ class FitWidget(qt.QWidget):
     Base widget for custom fit widgets. It sends fit parameters to the fit
     table model (provided by custom widgets), provides a range widget and
     reactions on it, a display widget for fit results and a start button. It
-    also send `fitReady` signal to the node widget.
+    also sends `fitReady` signal to the node widget.
     """
     fitReady = qt.pyqtSignal()
 

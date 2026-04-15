@@ -135,7 +135,7 @@ class NodeWidget(qt.QWidget):
         self.node = node
         self.helpFile = ''
         node.widget = self
-        self.correctionWidget = None
+        self.correctionWidgets = []
         self.transformWidgets = []
         self.tree = None
         self.help = None
@@ -378,20 +378,21 @@ class NodeWidget(qt.QWidget):
 
     def fillSplitterCorrection(self):
         if self.node.plotDimension == 1:
-            self.correctionWidget = Correction1DWidget(
+            widget0 = Correction1DWidget(
                 self.splitterCorrection, self.node, self.plot,
                 ['CorrectionDelete', 'CorrectionSpikes', 'CorrectionScale',
                  'CorrectionSpline', 'CorrectionSplineSubtract',
                  'CorrectionStep'])
+            self.correctionWidgets.append(widget0)
             po = qt.QSizePolicy(
                 qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
-            self.correctionWidget.setSizePolicy(po)
+            widget0.setSizePolicy(po)
             for widgetClass in self.node.widgetClasses:
                 if widgetClass.LOCATION != 'correction':
                     continue
-                layout = self.correctionWidget.layout()
+                layout = widget0.layout()
                 widget = widgetClass(self, node=self.node)
-                self.transformWidgets.append(widget)
+                self.correctionWidgets.append(widget)
                 layout.addWidget(widget)
 
     def fillSplitterTransform(self):
@@ -1337,7 +1338,7 @@ class NodeWidget(qt.QWidget):
     def updateCorrections(self):
         if len(csi.selectedItems) < 1:
             return
-        if self.node.plotDimension == 1 and self.correctionWidget is not None:
+        if self.node.plotDimension == 1 and self.correctionWidgets:
             # dataType = csi.selectedItems[0].dataType
             # for data in csi.selectedItems:
             #     if dataType != data.dataType:
@@ -1349,8 +1350,9 @@ class NodeWidget(qt.QWidget):
             #         node1in=False)):
             #     self.correctionWidget.setEnabled(False)
             # else:
-            self.correctionWidget.setEnabled(True)
-            self.correctionWidget.setUIFromData()
+            for widget in self.correctionWidgets:
+                widget.setEnabled(True)
+                widget.setUIFromData()
 
     def updateTransforms(self):
         if len(csi.selectedItems) < 1:

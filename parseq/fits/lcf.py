@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "12 Jan 2025"
+__date__ = "15 Apr 2026"
 # !!! SEE CODERULES.TXT !!!
 
 # import os.path as osp
@@ -51,7 +51,9 @@ class LCF(Fit):
                     continue
                 k = v['name']
                 if 'isMeta' in v:
-                    refs[k] = dict(w=[len(args), iv], isMeta=True)
+                    refs[k] = dict(
+                        w=[len(args), iv], isMeta=True, e_full=x,
+                        pre_edge=data.pre_edge, post_edge=data.post_edge)
                 else:
                     for sp in allData:
                         if sp.alias == k:
@@ -104,7 +106,8 @@ class LCF(Fit):
                     continue
                 k = v['name']
                 if 'isMeta' in v:
-                    refs[k] = dict(isMeta=True)
+                    refs[k] = dict(isMeta=True, pre_edge=data.pre_edge,
+                                   post_edge=data.post_edge, e_full=x)
                 else:
                     for sp in allData:
                         if sp.alias == k:
@@ -221,11 +224,11 @@ class LCF(Fit):
                         v[kd] = ref['shres']
                         if kd+'Error' in v:
                             del v[kd+'Error']
-        except (RuntimeError, ValueError, TypeError) as e:
-            # print('Error: ', e)
+        except (RuntimeError, ValueError, TypeError) as err:
+            print('Error: ', err)
             fit = np.zeros_like(x)
             lcfProps = dict(cls.defaultResult)
-            lcfProps['mesg'] = str(e)
+            lcfProps['mesg'] = str(err)
 
         setattr(data, cls.dataAttrs['fit'], fit)
         dfparams['lcf_result'] = lcfProps
@@ -328,4 +331,24 @@ class LCF(Fit):
                     xref+sh, yref, kind='linear', copy=False,
                     fill_value='extrapolate', assume_sorted=True)
                 res += wi * f(x)
+
+        if 'pinhole_fraction' in refs:
+            dd = refs['pinhole_fraction']
+            e_full = dd['e_full']
+            f_pre = interpolate.interp1d(
+                e_full, dd['pre_edge'], kind='cubic', copy=False,
+                fill_value='extrapolate', assume_sorted=True)
+            pre_edge = f_pre(x)
+            f_post = interpolate.interp1d(
+                e_full, dd['post_edge'], kind='cubic', copy=False,
+                fill_value='extrapolate', assume_sorted=True)
+            post_edge = f_post(x)
+            frac = _locals['pinhole_fraction']
+            mud_true = res*(post_edge-pre_edge) + pre_edge
+            mud_dist = -np.log((1-frac)*np.exp(-mud_true) + frac)
+            pre = -np.log((1-frac)*np.exp(-pre_edge) + frac)
+            mud_dist -= pre
+            jump = -np.log((1-frac)*np.exp(-post_edge) + frac) - pre
+            res = mud_dist / jump
+
         return res

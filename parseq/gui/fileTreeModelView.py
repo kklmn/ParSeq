@@ -560,8 +560,10 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                     if len(colEval[0][3]) < nd:
                         return
                 lres.append(colEval)
-        except Exception as e:
-            print('tryLoadColDataset:', e)
+        except Exception as err:
+            # ignoring such errors: Line #22 (got 3 columns instead of 2)
+            if "instead of" not in str(err):
+                print('tryLoadColDataset:', err)
             return
         return lres, df
 

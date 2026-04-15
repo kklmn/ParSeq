@@ -8,7 +8,7 @@ fitting parameters; they are individual per data item. Each fit in a pipeline
 requires subclassing from :class:`Fit`.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "30 May 2023"
+__date__ = "15 Apr 2026"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
@@ -45,10 +45,11 @@ class Fit:
 
     *defaultParams*: dict of default fitting parameters for new data.
 
-    *dataAttrs*: dict of keys 'x', 'y' and 'fit' that defines the input and
-    output arrays.
+    *dataAttrs*: dict of keys 'x', 'y' and 'fit' that define the input and
+    output arrays. Any other key defines an existing attribute of `data` and
+    will be added to input arrays.
 
-    *ioAttrs*: dict of keys 'range', 'params' and 'result' that defines the
+    *ioAttrs*: dict of keys 'range', 'params' and 'result' that define the
     key names in `defaultParams` for, correspondingly, fitting range (2-list),
     fitting parameters (user specific) and results (dict).
 
@@ -110,6 +111,7 @@ class Fit:
 
     @classmethod
     def erase(cls, data):
+        """Assign zeros to the fit array."""
         x = getattr(data, cls.dataAttrs['x'])
         fit = np.zeros_like(x)
         setattr(data, cls.dataAttrs['fit'], fit)
@@ -289,7 +291,9 @@ class Fit:
                     setattr(proxy, yname, getattr(data, yname))
                 allData.append(proxy)
 
-        inArrays = [self.dataAttrs['x'], self.dataAttrs['y']]
+        # inArrays = [self.dataAttrs['x'], self.dataAttrs['y']]
+        inArrays = [self.dataAttrs[key] for key in self.dataAttrs.keys()
+                    if key != 'fit']
         outArrays = [self.dataAttrs['fit']]
         for data in items:
             if workerClass is not None:  # with multipro
