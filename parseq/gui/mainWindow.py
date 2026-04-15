@@ -250,7 +250,7 @@ class MainWindowParSeq(qt.QMainWindow):
         self.setWindowFlags(qt.Qt.Window)
         self.windowIcon = qt.QIcon(osp.join(self.iconDir, 'parseq.ico'))
         self.setWindowIcon(self.windowIcon)
-        # qt.QCoreApplication.instance().setWindowIcon(self.windowIcon)
+        qt.QCoreApplication.instance().setWindowIcon(self.windowIcon)
 
         self.timerCPU = qt.QTimer(self)
         self.timerCPU.timeout.connect(self.updateCPU)

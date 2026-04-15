@@ -137,8 +137,9 @@ class LCFModel(qt.QAbstractTableModel):
             if column == 0:
                 if self.isMeta(index):
                     if 'pinhole' in ref['name']:
-                        res = 'This is a pinhole fraction\nused in pinhole '\
-                            'correction,\nsee `data corrections` panel'
+                        res = 'This is a pinhole fraction.\n'\
+                            'Alternatively, use it in pinhole correction,\n'\
+                            'see `data corrections` panel.'
                     else:
                         res = 'This is a metavariable.'\
                             '\nRemember to tie it to a fit variable.'
