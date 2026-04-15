@@ -3,8 +3,10 @@
 Version history
 ---------------
 
-Current GitHub code (modified 5 Mar 2026):
+Current GitHub code (modified 15 Apr 2026):
     - Add slices to data conversion.
+
+    - Add pinhole correction to LCF.
 
 2026.3.0 (5 Mar 2026):
     - Add cumulative logging to time profiling that sums the execution times
