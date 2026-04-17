@@ -3,21 +3,20 @@
 Version history
 ---------------
 
-Current GitHub code (modified 15 Apr 2026):
-    - Add slices to data conversion.
+Current GitHub code (modified 17 Apr 2026):
+    -
 
-    - Add pinhole correction to LCF.
+2026.4.0 (17 Apr 2026):
+    - Add slices to data conversion.
+    - Add pinhole correction to LCF of transmission XAS.
 
 2026.3.0 (5 Mar 2026):
     - Add cumulative logging to time profiling that sums the execution times
       of each method over all data items.
-
     - Add name change and color change of the splitter button 'corrections'
       that signals a used correction, which is useful because this splitter
       is most frequently collapsed.
-
     - Add optional vertical separation between curves in 1D plots.
-
     - Fix a bug of triggering transformations after a GUI update from data.
 
 2026.1.0 (5 Jan 2026):
@@ -31,38 +30,27 @@ Current GitHub code (modified 15 Apr 2026):
       boxes and radio buttons did not work. Tab widgets were of a small size
       and with a too dark background. Table headers and tree view headers were
       too small. All the above issues have been fixed.
-
     - The Save project dialog now sets its check boxes from the ini file.
-
     - Minor bug fixes and updates.
 
 2025.8.0 (31 Aug 2025):
     - Add workaround for corrupt h5 files: stop using h5Model.insertFileAsync().
-
     - Minor bug fixes.
 
 2025.3.1 (28 Mar 2025):
     - Bug fixes in doc builds.
-
     - Improve tie expressions in LCF.
 
 2025.3.0 (13 Mar 2025):
     - Enable custom node icons.
-
     - Enable node arrays with an extra abscissa.
-
     - Add glitch detection.
-
     - Add metavariables to fits.
-
     - Enable several transformation widgets per node, with the idea to get a
       widget in the 'corrections' splitter.
-
     - Add optional interpolation when making data combinations.
-
     - Add Principal Component Analysis and Target Transformation to data
       combinations.
-
     - Minor new features and minor bug fixes.
 
 2024.11.0 (23 Nov 2024):
@@ -71,10 +59,8 @@ Current GitHub code (modified 15 Apr 2026):
 
 2024.5.0 (4 May 2024):
     - Add general data corrections.
-
     - Add EXAFS fit. It features two fit intervals (k and r), constraints,
       ties to other parameters (also of another data item) and error analysis.
-
     - Update the main help pages.
 
 2023.5.0 (May 2023):

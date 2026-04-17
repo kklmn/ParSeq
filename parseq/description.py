@@ -80,13 +80,32 @@ and curve fits are exemplified by separately installed analysis packages:
 - `ParSeq-XAS <https://github.com/kklmn/ParSeq-XAS>`_
 - `ParSeq-XES-scan <https://github.com/kklmn/ParSeq-XES-scan>`_
 
-Installation
-------------
+Running without installation
+----------------------------
 
-Install it by pip or conda **or** get ParSeq from
-`GitHub <https://github.com/kklmn/ParSeq>`_ and use it with or without
-installation.
-See :ref:`detailed installation instructions <instructions>`.
+Get the zip files of ParSeq and a ParSeq pipeline from GitHub. Unzip their
+folders (`parseq` and e.g. `parseq_XES_scan`) to the same suitable directory,
+install :ref:`dependencies <instructions>` and run the pipeline starter.
+One advantage of no installation is a single location of parseq served by any
+Python installation.
+
+Running with installation
+-------------------------
+
+a) Install py `pip`: ``pip install parseq`` and e.g. ``pip install parseq-XAS``.
+b) Or install from unzipped GitHub archives: from folders with `pyproject.toml`
+   run ``python -m pip install .``.
+
+After installation, the pipeline starters are runnable from command line, e.g.
+as ``parseq-XAS``.
+
+Launch an example
+-----------------
+
+Run the `*_start.py` module of the pipeline (also available as commands if
+ParSeq and the ParSeq pipeline were installed, not just unzipped). You can try
+it with ``--help`` to explore the available options. An assumed usage pattern
+is to load a project `.pspj` file from GUI or from the starting command line.
 
 Documentation
 -------------
@@ -94,15 +113,6 @@ Documentation
 The documentation is available online on
 `Read the Docs <http://parseq.readthedocs.io>`_.
 
-Launch an example
------------------
-
-Either install ParSeq and a ParSeq pipeline application by their installers to
-the standard location or put them to any folder in their respective folders
-(``parseq`` and e.g. ``parseq_XES_scan``) and run the ``*_start.py`` module of
-the pipeline. You can try it with ``--help`` to explore the available options.
-An assumed usage pattern is to load a project ``.pspj`` file from GUI or from
-the starting command line.
 
 Hosting and contact
 -------------------

@@ -1,68 +1,63 @@
 Metadata-Version: 2.4
 Name: parseq
-Version: 2026.3.0
-Summary: ParSeq is a python software library for Parallel execution of Sequential data analysis.
-Home-page: http://parseq.readthedocs.io
-Author: Konstantin Klementiev
-Author-email: konstantin.klementiev@gmail.com
-License: MIT
-Project-URL: Source, https://github.com/kklmn/ParSeq
-Keywords: data-analysis pipeline framework gui synchrotron spectroscopy
-Platform: OS Independent
+Version: 2026.4.0
+Summary: ParSeq is a python software library for Parallel execution of Sequential data analysis
+Author-email: Konstantin Klementiev <konstantin.klementiev@gmail.com>
+License-Expression: MIT
+Project-URL: Homepage, http://parseq.readthedocs.io
+Project-URL: Repository, https://github.com/kklmn/ParSeq
+Project-URL: Issues, https://github.com/kklmn/ParSeq/issues
+Keywords: data-analysis,pipeline,framework,gui,spectroscopy
 Classifier: Development Status :: 5 - Production/Stable
 Classifier: Intended Audience :: Science/Research
 Classifier: Natural Language :: English
 Classifier: Operating System :: OS Independent
 Classifier: Programming Language :: Python
-Classifier: Intended Audience :: Science/Research
 Classifier: Topic :: Scientific/Engineering
 Classifier: Topic :: Software Development
 Classifier: Topic :: Software Development :: User Interfaces
-Description-Content-Type: text/x-rst
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: numpy>=1.8.0
-Requires-Dist: scipy>=0.17.0
+Requires-Dist: scipy>=1.17.0
 Requires-Dist: matplotlib>=2.0.0
 Requires-Dist: sphinx>=1.6.2
 Requires-Dist: sphinxcontrib-jquery
+Requires-Dist: sphinx_tabs
 Requires-Dist: autopep8
 Requires-Dist: h5py
-Requires-Dist: silx>=1.1.0
+Requires-Dist: silx>=2.2.0
 Requires-Dist: hdf5plugin
 Requires-Dist: psutil
 Requires-Dist: pyqtwebengine
 Requires-Dist: docutils
 Requires-Dist: distro
 Requires-Dist: colorama
-Requires-Dist: sphinx_tabs
 Requires-Dist: xafsmass>=1.6.0
-Dynamic: author
-Dynamic: author-email
-Dynamic: classifier
-Dynamic: description
-Dynamic: description-content-type
-Dynamic: home-page
-Dynamic: keywords
-Dynamic: license
 Dynamic: license-file
-Dynamic: platform
-Dynamic: project-url
-Dynamic: requires-dist
-Dynamic: summary
 
-Package ParSeq is a python software library for **Par**\ allel execution of
-**Seq**\ uential data analysis. It implements a general analysis framework that
-consists of transformation nodes -- intermediate stops along the data pipeline
-for data visualization, cross-data operations (e.g. taking average), providing
-user input and displaying status -- and transformations that connect the nodes.
+ParSeq
+======
 
-It provides an adjustable data tree model (supports grouping, renaming, moving
-and drag-and-drop arrangement), tunable data format definitions, plotters for
-1D, 2D and 3D data, cross-data analysis routines and flexible widget work space
-suitable for single- and multi-screen computers. It also defines a structure to
-implement particular analysis pipelines as lightweight Python packages.
+Package ParSeq is a python software library for <ins>Par</ins>allel execution
+of <ins>Seq</ins>uential data analysis. It implements a general analysis
+framework that consists of transformation nodes -- intermediate stops along the
+data pipeline to visualize data, display status and provide user input -- and
+transformations that connect the nodes. It provides an adjustable data model
+(supports grouping, renaming, moving and drag-and-drop), tunable data format
+definitions, plotters for 1D, 2D and 3D data, cross-data analysis routines and
+flexible widget work space suitable for single- and multi-screen computers. It
+also defines a structure to implement particular analysis pipelines as
+relatively lightweight Python packages.
 
 ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
+
+A screenshot of ParSeq-XAS (an EXAFS analysis pipeline) as an application
+example:
+
+<p align="center">
+  <img src="parseq/help/_images/XAS-foils.gif" width=1282 /></p>
 
 Main features
 -------------
@@ -121,38 +116,38 @@ The mechanisms for creating nodes, transformations and curve fitting solvers,
 connecting them together and creating Qt widgets for the transformations and
 and curve fits are exemplified by separately installed analysis packages:
 
-- `ParSeq-XAS <https://github.com/kklmn/ParSeq-XAS>`_
-- `ParSeq-XES-scan <https://github.com/kklmn/ParSeq-XES-scan>`_
+- [ParSeq-XES-scan](https://github.com/kklmn/ParSeq-XES-scan)
+- [ParSeq-XAS](https://github.com/kklmn/ParSeq-XAS)
 
-Installation
-------------
+Running without installation
+----------------------------
 
-Install it by pip or conda **or** get ParSeq from
-`GitHub <https://github.com/kklmn/ParSeq>`_ and use it with or without
-installation.
-The documentation is available online on
-`Read the Docs <http://parseq.readthedocs.io>`_.
+Get the zip files of ParSeq and a ParSeq pipeline from GitHub. Unzip their
+folders (`parseq` and e.g. `parseq_XES_scan`) to the same suitable directory,
+install [dependencies] (https://parseq.readthedocs.io/instructions.html)
+and run the pipeline starter. One advantage of no installation is a single
+location of parseq served by any Python installation.
+
+Running with installation
+-------------------------
+
+a) Install py `pip`: ``pip install parseq`` and e.g. ``pip install parseq-XAS``.
+b) Or install from unzipped GitHub archives: from folders with `pyproject.toml`
+   run ``python -m pip install .``
+
+After installation, the pipeline starters are runnable from command line, e.g.
+as `parseq-XAS`.
 
 Launch an example
 -----------------
 
-Either install ParSeq and a ParSeq pipeline application by their installers to
-the standard location or put them to any folder in their respective folders
-(``parseq`` and e.g. ``parseq_XES_scan``) and run the ``*_start.py`` module of
-the pipeline. You can try it with ``--help`` to explore the available options.
-An assumed usage pattern is to load a project ``.pspj`` file from GUI or from
-the starting command line.
+Run the `*_start.py` module of the pipeline (also available as commands if
+ParSeq and the ParSeq pipeline were installed, not just unzipped). You can try
+it with ``--help`` to explore the available options. An assumed usage pattern
+is to load a project `.pspj` file from GUI or from the starting command line.
 
-Hosting and contact
--------------------
-
-The ParSeq project is hosted on `GitHub <https://github.com/kklmn/ParSeq>`_.
-Please use the project's Issues tab to get help or report an issue.
-
-Citing ParSeq
+Documentation
 -------------
 
-Please cite ParSeq as: `K Klementiev, "ParSeq: Python software for comparative
-data analysis pipelines", J. Phys.: Conf. Ser. 3010 (2025) 012126;
-doi:10.1088/1742-6596/3010/1/012126
-<https://doi.org/10.1088/1742-6596/3010/1/012126>`_.
+See the documentation inside ParSeq or on https://parseq.readthedocs.io
+[![Documentation Status](https://readthedocs.org/projects/parseq/badge/?version=latest)](https://parseq.readthedocs.io)

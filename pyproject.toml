@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "parseq"
+description = 'ParSeq is a python software library for Parallel execution of Sequential data analysis'
+dynamic = ["version"]
+readme = "README.md"
+authors = [
+    {name = "Konstantin Klementiev", email = "konstantin.klementiev@gmail.com"}
+]
+keywords = ["data-analysis", "pipeline", "framework", "gui", "spectroscopy"]
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: User Interfaces",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "numpy>=1.8.0", "scipy>=1.17.0", "matplotlib>=2.0.0",
+    "sphinx>=1.6.2", "sphinxcontrib-jquery", "sphinx_tabs", "autopep8",
+    "h5py", "silx>=2.2.0", "hdf5plugin", "psutil",
+    "pyqtwebengine", "docutils", "distro", "colorama",
+    "xafsmass>=1.6.0"
+]
+
+[project.urls]
+Homepage = "http://parseq.readthedocs.io"
+Repository = "https://github.com/kklmn/ParSeq"
+Issues = "https://github.com/kklmn/ParSeq/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "parseq.version.__version__"}
+
+[tool.setuptools.packages.find]
+include = [
+    "parseq", "parseq.core", "parseq.fits", "parseq.gui", "parseq.gui.fits",
+    "parseq.help", "parseq.tests", "parseq.third_party", "parseq.utils"
+]
+
+[tool.setuptools.package-data]
+parseq = ["CODERULES.txt"]
+"parseq.gui" = ["_images/*.*"]
+"parseq.help" = [
+    "*.rst", "*.bat", "*.mock", "_images/*.*", "_static/*.*",
+    "_templates/*.*", "_themes/*/*.*", "_themes/*/*/*.*", "exts/*.*"
+]
+"parseq.tests" = ["*.png", "data/*.*"]
+"parseq.third_party" = ["data/*.*"]

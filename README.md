@@ -80,25 +80,35 @@ and curve fits are exemplified by separately installed analysis packages:
 - [ParSeq-XES-scan](https://github.com/kklmn/ParSeq-XES-scan)
 - [ParSeq-XAS](https://github.com/kklmn/ParSeq-XAS)
 
-Installation
-------------
+Running without installation
+----------------------------
 
-Install it by pip or conda or get ParSeq from [GitHub](https://github.com/kklmn/ParSeq)
-and use it with or without installation. See
-[detailed installation instructions](https://parseq.readthedocs.io/instructions.html).
+Get the zip files of ParSeq and a ParSeq pipeline from GitHub. Unzip their
+folders (`parseq` and e.g. `parseq_XES_scan`) to the same suitable directory,
+install [dependencies] (https://parseq.readthedocs.io/instructions.html)
+and run the pipeline starter. One advantage of no installation is a single
+location of parseq served by any Python installation.
+
+Running with installation
+-------------------------
+
+a) Install py `pip`: ``pip install parseq`` and e.g. ``pip install parseq-XAS``.
+b) Or install from unzipped GitHub archives: from folders with `pyproject.toml`
+   run ``python -m pip install .``
+
+After installation, the pipeline starters are runnable from command line, e.g.
+as `parseq-XAS`.
 
 Launch an example
 -----------------
 
-Either install ParSeq and a ParSeq pipeline application by their installers to
-the standard location or put them to any folder in their respective folders
-(``parseq`` and e.g. ``parseq_XES_scan``) and run the ``*_start.py`` module of
-the pipeline. You can try it with ``--help`` to explore the available options.
-An assumed usage pattern is to load a project ``.pspj`` file from GUI or from
-the starting command line.
+Run the `*_start.py` module of the pipeline (also available as commands if
+ParSeq and the ParSeq pipeline were installed, not just unzipped). You can try
+it with ``--help`` to explore the available options. An assumed usage pattern
+is to load a project `.pspj` file from GUI or from the starting command line.
 
 Documentation
 -------------
 
-See the documentation inside ParSeq or on https://parseq.readthedocs.io 
+See the documentation inside ParSeq or on https://parseq.readthedocs.io
 [![Documentation Status](https://readthedocs.org/projects/parseq/badge/?version=latest)](https://parseq.readthedocs.io)
