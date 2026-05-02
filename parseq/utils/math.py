@@ -7,6 +7,7 @@ import numpy as np
 # from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import make_interp_spline, PPoly
 from scipy.signal import savgol_filter
+import scipy.linalg as spl
 
 
 def line(xs, ys):
@@ -124,3 +125,36 @@ def interpolate_frames(keyFrameGeometries, ind, wantExtrapolate=True):
                         sorted(savedRoi0.items()), sorted(savedRoi1.items()))}
         res.append(savedRoi)
     return res
+
+
+def make_PCA(D, eigvals, get_indicators=False):
+    DTD = np.dot(D.T, D)
+    DTD /= np.diag(DTD).sum()
+    try:
+        kweigh = dict(eigvals=eigvals)
+        w, v = spl.eigh(DTD, **kweigh)
+    except TypeError:  # the kw 'eigvals' is gone
+        kweigh = dict(subset_by_index=eigvals)
+        w, v = spl.eigh(DTD, **kweigh)
+    # rec = np.dot(np.dot(v, np.diag(w)), v.T)
+    # print("diff DTD--decomposed(DTD) = {0}".format(np.abs(DTD-rec).sum()))
+
+    if get_indicators:
+        cs = w[:-1].cumsum()
+        m, n = D.shape
+        k = np.arange(1, n)  # up to n-1
+        IE = (cs[::-1]*k / (m*n*(n-k)))**0.5
+        IND = (cs[::-1] / (m*(n-k)))**0.5 / (n-k)**2
+        return w, v, IE, IND
+    else:
+        return w, v
+
+
+def auto_eigh(D, normalize_trace=False):
+    DTD = np.dot(D.T, D)
+    if normalize_trace:
+        DTD /= np.diag(DTD).sum()
+    w, v = spl.eigh(DTD)
+    # rec = np.dot(np.dot(v, np.diag(w)), v.T)
+    # print("diff DTD--decomposed(DTD) = {0}".format(np.abs(DTD-rec).sum()))
+    return w, v

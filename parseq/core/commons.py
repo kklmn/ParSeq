@@ -13,9 +13,10 @@ MIME_TYPE_HDF5 = 'parseq-hdf5-model-items'
 
 (DATA_COLUMN_FILE, DATA_DATASET, DATA_COMBINATION, DATA_FUNCTION, DATA_GROUP,
  DATA_BRANCH) = range(6)
-COMBINE_NONE, COMBINE_AVE, COMBINE_SUM, COMBINE_RMS, COMBINE_PCA, COMBINE_TT \
-    = range(6)
-combineNames = '', 'ave', 'sum', 'RMS', 'PCA', 'TT'
+(COMBINE_NONE, COMBINE_AVE, COMBINE_SUM, COMBINE_RMS, COMBINE_PCA_CLASSIC,
+    COMBINE_PCA_CUMULATIVE, COMBINE_TT) = range(7)
+combineNames = ('', 'ave', 'sum', 'RMS', 'PCA-classic', 'PCA-cumulative',
+                'target-transf')
 combineToolTips = '', 'average', 'sum', 'Root Mean Square', \
     'Principal Component Analysis', \
     'Target Transformation\n' \

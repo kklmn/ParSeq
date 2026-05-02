@@ -84,6 +84,10 @@ class Node(object):
         names of multidimensional arrays can be ended by a slice. Example:
         `checkShapes = ['theta', 'i0', 'xes3D[0]']`.
 
+    pcaNames: list of str
+        Optionally defines a list of arrays that can be used in PCA. If not
+        defined, 1D arrays excluding 'x' will be used in PCA.
+
     *auxArrays*: list of lists
         Can be useful only for data export. Array names are grouped together so
         that the 1st element in a group is an x array and the others are y
@@ -248,3 +252,19 @@ class Node(object):
                     if self.get_prop(key, 'role').startswith(role)]
         else:
             return [self.get_prop(key, prop) for key in scope]
+
+    def get_1D_data_arrays(self):
+        """Gives a list of all 1D arrays, starting with the 'x' array."""
+        roles = self.get_arrays_prop('role')
+        if 'x' not in roles:
+            return []
+        for key, role in zip(self.arrays, roles):
+            prl = role.lower()
+            if prl[0] == 'x':
+                res = [key]
+                break
+        for key, role in zip(self.arrays, roles):
+            prl = role.lower()
+            if prl[0] in ('y', 'z', '1'):
+                res.append(key)
+        return res
