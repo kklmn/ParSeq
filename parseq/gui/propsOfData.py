@@ -239,9 +239,15 @@ def updateDataFromEdit(edit, prop, convertType=None, textReplace=None, **kw):
 
     for it in csi.selectedItems:
         itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)
+        if isinstance(itContainer, dict) and (itAttr not in itContainer) and \
+                not prop.endswith(itAttr):
+            itContainer[itAttr] = []
+            itContainer, itAttr, itValue = cco.getDotAttr(it, prop, True)
         if itValue != txt:
             if isinstance(itContainer, list):
                 # cco.setDotAttr(it, prop, irb)
+                while len(itContainer) <= itAttr:
+                    itContainer.append(None)
                 itContainer[itAttr] = txt
                 it.hasChanged = True
             elif isinstance(itContainer, dict):
