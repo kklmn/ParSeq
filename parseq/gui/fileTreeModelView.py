@@ -1288,6 +1288,11 @@ class FileTreeView(qt.QTreeView):
                             s = node.obj[()].decode('utf-8')
                             action.triggered.connect(partial(self.copyVal, s))
                             menu.addAction(action)
+                        else:
+                            action = qt.QAction('Copy sub-path', menu)
+                            s = self._enrtySubpaths(paths)[0]
+                            action.triggered.connect(partial(self.copyVal, s))
+                            menu.addAction(action)
                     except Exception as err:
                         print("in onCustomContextMenu(): ", err)
 
