@@ -7,7 +7,8 @@ import sys; sys.path.append('../..')  # analysis:ignore
 from silx.gui import qt
 
 from parseq.gui.combineSpectra import CombineSpectraWidget
-from parseq.tests import testapp
+from parseq.tests import testapp, testNodeName
+from parseq.core import singletons as csi
 
 
 def test():
@@ -15,7 +16,7 @@ def test():
     testapp.load_test_data()
 
     app = qt.QApplication(sys.argv)
-    mainWindow = CombineSpectraWidget()
+    mainWindow = CombineSpectraWidget(node=csi.nodes[testNodeName])
     mainWindow.setWindowTitle("Combine")
     mainWindow.show()
     app.exec_()

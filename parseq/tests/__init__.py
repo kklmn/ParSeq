@@ -5,3 +5,5 @@ __date__ = "27 Aug 2022"
 
 import sys; sys.path.append('../..')  # analysis:ignore
 import parseq_XAS as testapp
+
+testNodeName = u'µd'  # in csi.nodes
