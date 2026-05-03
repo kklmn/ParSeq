@@ -148,7 +148,7 @@ class DataTreeModel(qt.QAbstractItemModel):
     def setData(self, index, value, role=qt.Qt.EditRole):
         if role == qt.Qt.EditRole:
             item = index.internalPointer()
-            item.set_data(index.column(), str(value))
+            item.set_data(index.column(), str(value.rstrip('\r\n ')))
 #            item.aliasExtra = None
             self.dataChanged.emit(index, index)
             self.needReplot.emit(True, True, 'setData')
