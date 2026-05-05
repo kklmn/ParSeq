@@ -82,13 +82,16 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 AUTO_CUTOFF = 0.7  # for 'spikes', fraction of max(d²y)
 
 
-def calc_correction(x, y, correction, datainds=None):
+def calc_correction(x, y, correction, datainds=None, axis=None):
     if 'lim' not in correction and 'range' in correction:  # compatibility
         correction['lim'] = correction.pop('range')
     if correction['kind'] == 'delete':
         lim = correction['lim']
-        args = np.argwhere((lim[0] < x) & (x < lim[1]))
-        return np.delete(x, args), np.delete(y, args)
+        if datainds is None:
+            args = np.argwhere((lim[0] < x) & (x < lim[1]))
+        else:
+            args = datainds
+        return np.delete(x, args, axis), np.delete(y, args, axis), args
     elif correction['kind'] == 'scale':
         lim = correction['lim']
         where = (lim[0] < x) & (x < lim[1])
@@ -144,7 +147,7 @@ def calc_correction(x, y, correction, datainds=None):
             argsd = np.intersect1d(where, args)
         else:
             argsd = datainds
-        return np.delete(x, argsd), np.delete(y, argsd), argsd
+        return np.delete(x, argsd, axis), np.delete(y, argsd, axis), argsd
     elif correction['kind'] == 'step':
         left = correction['left']
         right = correction['right']

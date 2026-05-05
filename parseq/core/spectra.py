@@ -1909,81 +1909,120 @@ class Spectrum(TreeItem):
 
         wasCorrected = False
         for correction in corrections:
-            # if correction['kind'] in ('delete',):
-            #     prop = 'raw'
-            # else:
-            #     prop = 'key'
-            prop = 'raw'
             if 'ndim' not in correction:
                 correction['ndim'] = 1
 
             if correction['ndim'] == 1:
-                xkeys = node.get_arrays_prop('name', role='x')
-                if len(xkeys) == 0:
-                    continue
-                # xkey = xkeys[0]
-                xkey = node.get_prop(xkeys[0], prop)
-                try:
-                    x0 = getattr(self, xkey)
-                except AttributeError:
-                    continue
-
-                corrKeys = []
-                datainds = None
+                xN = node.plotXArray
+                xNRaw = node.arrays[xN].get('raw', None)
+                xNames, dNames = [], []
                 excludeArrays = correction.get('excludeArrays', [])
-                for k, arr in node.arrays.items():
-                    key = node.get_prop(k, prop)
-                    if key == xkey:
+                for kName in node.arrays:
+                    ad = node.arrays[kName]
+                    if kName in (xNRaw, xN):
                         continue
-                    if key in excludeArrays:
+                    if kName in excludeArrays:
                         continue
-                    if 'abscissa' in arr:
-                        x = getattr(self, arr['abscissa'])
+                    if 'abscissa' in ad:
+                        xName = ad['abscissa']
+                        dName = kName
+                    elif 'raw' in ad:
+                        xName = xNRaw
+                        dName = ad['raw']
                     else:
-                        x = x0
-                    shapeBefore = x.shape
+                        xName = xN
+                        dName = kName
+                    xNames.append(xName)
+                    dNames.append(dName)
 
+                laterXs = {}
+                for xName, dName in zip(xNames, dNames):
+                    x = getattr(self, xName)
+                    shapeBefore = x.shape
                     try:
-                        y = getattr(self, key)
+                        y = getattr(self, dName)
                     except AttributeError:
                         continue
-                    if y is not None and y.shape == shapeBefore:
-                        res = calc_correction(x, y, correction, datainds)
-                        if res is None:
-                            continue
-                        wasCorrected = True
-                        xn, yn = res[:2]
-                        datainds = res[2] if len(res) > 2 else None
-                        if correction['kind'] in ('spline-',):
-                            setattr(self, key, y-yn)
-                        else:
-                            setattr(self, key, yn)
-                        corrKeys.append(key)
+                    if y is None or y.shape != shapeBefore:
+                        continue
+                    res = calc_correction(x, y, correction)
+                    if res is None:
+                        continue
+                    wasCorrected = True
+                    xn, yn = res[:2]
+                    if correction['kind'] in ('spline-',):
+                        setattr(self, dName, y-yn)
+                    else:
+                        setattr(self, dName, yn)
+                    laterXs[xName] = xn
 
                 if correction['kind'] in ('delete', 'spikes'):
+                    corrected = xNames + dNames
                     for nodeOther in csi.nodes.values():
                         if nodeOther is node:
                             continue
-                        xkeysOther = nodeOther.get_arrays_prop(
-                            'name', role='x')
-                        if len(xkeysOther) == 0:
-                            continue
-                        xkeyOther = xkeysOther[0]
-                        if xkeyOther != xkey:
-                            continue
-                        for k, arr in nodeOther.arrays.items():
-                            key = nodeOther.get_prop(k, prop)
-                            try:
-                                attr = getattr(self, key)
-                            except AttributeError:
+                        if hasattr(nodeOther, 'plotXArray') and \
+                                nodeOther.plotXArray in xNames:
+                            for kName in nodeOther.arrays:
+                                if kName in corrected:
+                                    continue
+                                if kName in excludeArrays:
+                                    continue
+                                role = nodeOther.get_prop(kName, 'role')
+                                if role[0] not in ('y', 'z', '1', 'o'):
+                                    continue
+                                x = getattr(self, nodeOther.plotXArray)
+                                shapeBefore = x.shape
+                                try:
+                                    arr = getattr(self, kName)
+                                except AttributeError:
+                                    continue
+                                if arr is None or arr.shape != shapeBefore:
+                                    continue
+                                aC = calc_correction(x, arr, correction)[1]
+                                setattr(self, kName, aC)
+                                corrected.append(kName)
+                        elif hasattr(nodeOther, 'checkShapes'):
+                            for xName in xNames:
+                                if xName in nodeOther.checkShapes:
+                                    break
+                            else:
                                 continue
-                            if key in corrKeys:
-                                continue
-                            if attr is not None and attr.shape == shapeBefore:
+                            for kName in nodeOther.checkShapes:
+                                if kName in corrected:
+                                    continue
+                                pos = kName.find('[')
+                                if pos > 0:
+                                    stem = kName[:pos]
+                                    sl = kName[pos+1:-1]
+                                    ax = eval(sl)
+                                else:
+                                    stem = kName
+                                    sl = '0'
+                                    ax = None
+                                x = getattr(self, xName)
+                                shapeBefore = x.shape[0]
+                                checkName = nodeOther.get_prop(stem, 'raw')
+                                try:
+                                    arr = getattr(self, checkName)
+                                except AttributeError:
+                                    continue
+                                try:
+                                    shape = arr.shape[eval(sl)] \
+                                        if arr is not None else []
+                                except IndexError:
+                                    continue
+
+                                if arr is None or shape != shapeBefore:
+                                    continue
                                 aC = calc_correction(
-                                    x, attr, correction, datainds)[1]
-                                setattr(self, key, aC)
-                    setattr(self, xkey, xn)
+                                    x, arr, correction, axis=ax)[1]
+                                setattr(self, checkName, aC)
+                                corrected.append(kName)
+
+                for xName in xNames:
+                    if xName in laterXs:
+                        setattr(self, xName, laterXs[xName])
 
             elif correction['ndim'] == 2:
                 pass
