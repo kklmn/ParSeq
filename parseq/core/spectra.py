@@ -1936,14 +1936,20 @@ class Spectrum(TreeItem):
                     dNames.append(dName)
 
                 laterXs = {}
+                indsX = {}
                 for xName, dName in zip(xNames, dNames):
-                    x = getattr(self, xName)
+                    try:
+                        x = getattr(self, xName)
+                    except AttributeError:
+                        continue
                     shapeBefore = x.shape
                     try:
                         y = getattr(self, dName)
                     except AttributeError:
                         continue
-                    if y is None or y.shape != shapeBefore:
+                    if y is None:
+                        continue
+                    if y.shape != shapeBefore:
                         continue
                     res = calc_correction(x, y, correction)
                     if res is None:
@@ -1954,7 +1960,9 @@ class Spectrum(TreeItem):
                         setattr(self, dName, y-yn)
                     else:
                         setattr(self, dName, yn)
-                    laterXs[xName] = xn
+                    laterXs[xName] = xn  # apply it after ('delete', 'spikes')
+                    if len(res) > 2:  # for ('delete', 'spikes')
+                        indsX[xName] = res[2]
 
                 if correction['kind'] in ('delete', 'spikes'):
                     corrected = xNames + dNames
@@ -1979,7 +1987,12 @@ class Spectrum(TreeItem):
                                     continue
                                 if arr is None or arr.shape != shapeBefore:
                                     continue
-                                aC = calc_correction(x, arr, correction)[1]
+                                if nodeOther.plotXArray in indsX:
+                                    datainds = indsX[nodeOther.plotXArray]
+                                else:
+                                    datainds = None
+                                aC = calc_correction(x, arr, correction,
+                                                     datainds=datainds)[1]
                                 setattr(self, kName, aC)
                                 corrected.append(kName)
                         elif hasattr(nodeOther, 'checkShapes'):
@@ -2015,8 +2028,13 @@ class Spectrum(TreeItem):
 
                                 if arr is None or shape != shapeBefore:
                                     continue
+                                if xName in indsX:
+                                    datainds = indsX[xName]
+                                else:
+                                    datainds = None
                                 aC = calc_correction(
-                                    x, arr, correction, axis=ax)[1]
+                                    x, arr, correction, datainds=datainds,
+                                    axis=ax)[1]
                                 setattr(self, checkName, aC)
                                 corrected.append(kName)
 
