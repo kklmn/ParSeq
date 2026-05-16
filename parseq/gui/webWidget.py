@@ -364,6 +364,8 @@ elif 'pyside2' in qt.BINDING.lower():
     import PySide2.QtWebEngineWidgets as myQtWeb
 elif 'pyside6' in qt.BINDING.lower():
     import PySide6.QtWebEngineWidgets as myQtWeb
+    import PySide6.QtWebEngineCore as myQtWebCore
+    myQtWeb.QWebEnginePage = myQtWebCore.QWebEnginePage
 else:
     raise ImportError("Cannot import any Python Qt package!")
 

@@ -17,6 +17,8 @@ import inspect
 import webbrowser
 
 from silx.gui import qt
+if qt.BINDING == 'PySide6':
+    from PySide6.QtGui import QGuiApplication
 
 # # path to ParSeq:
 # import sys; sys.path.append('..')  # analysis:ignore
@@ -197,7 +199,11 @@ class MainWindowParSeq(qt.QMainWindow):
         self.tabPos = tabPos
         self.webView = None
         self.busyIconThread = None
-        csi.screenFactor = qt.qApp.desktop().logicalDpiX() / 120.
+        if qt.BINDING == 'PySide6':
+            dpi = QGuiApplication.primaryScreen().logicalDotsPerInchX()
+        else:
+            dpi = qt.qApp.desktop().logicalDpiX()
+        csi.screenFactor = dpi / 120.
 
         # self.runIcon = qt.QIcon(osp.join(self.iconDir, 'parseq.ico'))
         # self.emptyIcon = qt.QIcon(qt.QPixmap.fromImage(qt.QImage.fromData(
@@ -680,8 +686,7 @@ class MainWindowParSeq(qt.QMainWindow):
                 continue
             if node.widget.tree is None:
                 continue
-            node.widget.tree.model().dataChanged.emit(
-                qt.QModelIndex(), qt.QModelIndex())
+            node.widget.tree.model().updateAll()
 
     def selChanged(self):
         if len(csi.selectedItems) == 0:
@@ -1025,7 +1030,10 @@ class MainWindowParSeq(qt.QMainWindow):
             configObject, 'Docks', 'floating', [False for node in csi.nodes])
         active = config.get(configObject, 'Docks', 'active', '')
 
-        maxRect = qt.QApplication.desktop().screenGeometry()
+        if qt.BINDING == 'PySide6':
+            maxRect = QGuiApplication.primaryScreen().geometry()
+        else:
+            maxRect = qt.QApplication.desktop().screenGeometry()
 
         for nodeStr, floatingState in zip(csi.nodes, floatingStates):
             for nodeWidget, (dock, node, tabName) in self.docks.items():

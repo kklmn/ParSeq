@@ -771,7 +771,7 @@ class PropWidget(qt.QWidget):
 
         if tName:
             tr = csi.transforms[tName]
-            csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            csi.model.updateAll()
             # tr.toNode.widget.replot()
             tr.fromNode.widget.replot()
             # for subnode in tr.toNode.downstreamNodes:
@@ -814,13 +814,16 @@ class PropWidget(qt.QWidget):
         self.updateProp(key, value, dataItems)
         self.spinBoxProps = None
 
-    def updatePropFromCheckBox(self, checkBox, dataItems, key, value):
+    def updatePropFromCheckBox(self, checkBox, dataItems, key, value=None):
         # checkBox = self.sender()  # doesn't work in PySide2
         # if not checkBox.hasFocus():  # never gets focus on Mac
         #     return
+        if value is None:  # 'PySide6' wtf!!!
+            value = checkBox.isChecked()
         self.updateProp(key, value, dataItems)
 
-    def updatePropFromRadioButton(self, rButton, dataItems, key, irb, value):
+    def updatePropFromRadioButton(self, rButton, dataItems, key, irb,
+                                  value=None):
         # if not checkBox.hasFocus():  # never gets focus on Mac
         #     return
         rButton.setChecked(True)

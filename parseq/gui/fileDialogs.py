@@ -224,8 +224,7 @@ class QPreviewPanel(qt.QWidget):
         self.previewContent.setPixmap(
             self.pms[self.pmIndex].scaled(
                 size.width(), size.height(),
-                aspectRatioMode=qt.Qt.KeepAspectRatio,
-                transformMode=qt.Qt.SmoothTransformation))
+                qt.Qt.KeepAspectRatio, qt.Qt.SmoothTransformation))
         self.previewLabel.setText('Preview: ' + self.pmNames[self.pmIndex])
 
     def sliderValueChanged(self, val):

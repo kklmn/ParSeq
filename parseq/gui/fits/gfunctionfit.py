@@ -171,7 +171,7 @@ class FunctionFitModel(qt.QAbstractTableModel):
             self.params = params
         self.endResetModel()
         if emit:
-            self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            self.updateAll()
 
     def moveItem(self, index, to):  # to = +1(up) or -1(down)
         if self.rowCount() == 0:
@@ -191,7 +191,7 @@ class FunctionFitModel(qt.QAbstractTableModel):
         vals.insert(wro, vals.pop(row))
         self.params = {k: v for k, v in zip(keys, vals)}
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
         return wro
 
     def removeItem(self, index):
@@ -203,7 +203,7 @@ class FunctionFitModel(qt.QAbstractTableModel):
         key = list(self.params.keys())[row]
         del self.params[key]
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
         return wro
 
     def removeItems(self, indexes):
@@ -216,7 +216,13 @@ class FunctionFitModel(qt.QAbstractTableModel):
             vals.pop(row)
         self.params = {k: v for k, v in zip(keys, vals)}
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
+
+    def updateAll(self):
+        topLeft = self.index(0, 0)
+        bottomRight = self.index(self.rowCount()-1, self.columnCount()-1)
+        if topLeft.isValid() and bottomRight.isValid():
+            self.dataChanged.emit(topLeft, bottomRight)
 
 
 class FunctionFitTableView(qt.QTableView):
@@ -262,9 +268,9 @@ class FunctionFitTableView(qt.QTableView):
         # self.setMinimumWidth(
         #     int(sum(self.columnWidths[:nC])*csi.screenFactor) + 30)
 
-        # self.setSelectionMode(qt.QAbstractItemView.NoSelection)
-        self.setSelectionMode(qt.QAbstractItemView.SingleSelection)
-        # self.setSelectionBehavior(qt.QAbstractItemView.SelectItems)
+        # self.setSelectionMode(self.SelectionMode.NoSelection)
+        self.setSelectionMode(self.SelectionMode.SingleSelection)
+        # self.setSelectionBehavior(self.SelectionBehavior.SelectItems)
         # self.setFocusPolicy(qt.Qt.NoFocus)
 
         self.setContextMenuPolicy(qt.Qt.CustomContextMenu)

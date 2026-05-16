@@ -3,6 +3,9 @@ __author__ = "Konstantin Klementiev"
 __date__ = "27 Aug 2022"
 # !!! SEE CODERULES.TXT !!!
 
+import os
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu"
+
 from silx.gui import qt
 
 import sys; sys.path.append('../..')  # analysis:ignore

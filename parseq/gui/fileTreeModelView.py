@@ -209,7 +209,10 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         # self.requestSaveExpand.emit()
         self.beginResetModel()
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        topLeft = self.index(0, 0)
+        bottomRight = self.index(self.rowCount()-1, self.columnCount()-1)
+        if topLeft.isValid() and bottomRight.isValid():
+            self.dataChanged.emit(topLeft, bottomRight)
 
     # def onLayoutChanged(self):
     #     self.requestRestoreExpand.emit()
@@ -987,7 +990,7 @@ class FileTreeView(qt.QTreeView):
         self.setIndentation(NODE_INDENTATION)
         self.setSortingEnabled(True)
         self.sortByColumn(0, qt.Qt.AscendingOrder)
-        self.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
+        self.setSelectionMode(self.SelectionMode.ExtendedSelection)
 
         self.setDragEnabled(True)
         self.setDragDropMode(qt.QAbstractItemView.DragOnly)
@@ -1088,7 +1091,10 @@ class FileTreeView(qt.QTreeView):
         # ModelTest(self.model(), self)
 
         model = self.getSourceModel()
-        model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        topLeft = model.index(0, 0)
+        bottomRight = model.index(model.rowCount()-1, model.columnCount()-1)
+        if topLeft.isValid() and bottomRight.isValid():
+            model.dataChanged.emit(topLeft, bottomRight)
 
         if preservedPath:
             self.gotoWhenReady(preservedPath)

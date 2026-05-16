@@ -129,7 +129,13 @@ class CalibrationModel(qt.QAbstractTableModel):
             self.dataCollection['slice'] = \
                 [':'] * len(self.dataCollection['base'])
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
+
+    def updateAll(self):
+        topLeft = self.index(0, 0)
+        bottomRight = self.index(self.rowCount()-1, self.columnCount()-1)
+        if topLeft.isValid() and bottomRight.isValid():
+            self.dataChanged.emit(topLeft, bottomRight)
 
 
 class ComboDelegate(qt.QItemDelegate):

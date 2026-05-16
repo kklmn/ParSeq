@@ -258,7 +258,7 @@ class EXAFSFitModel(qt.QAbstractTableModel):
                          enumerate(self.params) for key in shell]
         self.endResetModel()
         if emit:
-            self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            self.updateAll()
 
     def addMetaVar(self):
         if len(self.keys) == 0:
@@ -273,14 +273,20 @@ class EXAFSFitModel(qt.QAbstractTableModel):
         last = len(self.params) - 1
         self.keys.append([last, tryName])
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
 
     def deleteMetaVar(self, row, ish, key):
         self.beginResetModel()
         self.params[ish].pop(key)
         del self.keys[row]
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
+
+    def updateAll(self):
+        topLeft = self.index(0, 0)
+        bottomRight = self.index(self.rowCount()-1, self.columnCount()-1)
+        if topLeft.isValid() and bottomRight.isValid():
+            self.dataChanged.emit(topLeft, bottomRight)
 
 
 class EXAFSFitTableView(qt.QTableView):
@@ -329,8 +335,8 @@ class EXAFSFitTableView(qt.QTableView):
         # self.setMinimumWidth(
         #     int(sum(self.columnWidths[:nC])*csi.screenFactor) + 30)
 
-        self.setSelectionMode(qt.QAbstractItemView.SingleSelection)
-        # self.setSelectionBehavior(qt.QAbstractItemView.SelectItems)
+        self.setSelectionMode(self.SelectionMode.SingleSelection)
+        # self.setSelectionBehavior(self.SelectionBehavior.SelectItems)
         # self.setFocusPolicy(qt.Qt.NoFocus)
 
         self.setContextMenuPolicy(qt.Qt.CustomContextMenu)

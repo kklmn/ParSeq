@@ -78,7 +78,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             self.rootItem
         return parentItem.child_count()
 
-    def columnCount(self, parent):
+    def columnCount(self, parent=None):
         return len(csi.modelLeadingColumns) + len(csi.modelDataColumns)
 
     def flags(self, index):
@@ -112,8 +112,12 @@ class DataTreeModel(qt.QAbstractItemModel):
             return item.data(index.column())
         elif role == qt.Qt.CheckStateRole:
             if index.column() == 1:
-                return int(
-                    qt.Qt.Checked if item.isVisible else qt.Qt.Unchecked)
+                if qt.BINDING == 'PySide6':
+                    return int(qt.Qt.Checked.value if item.isVisible else
+                               qt.Qt.Unchecked.value)
+                else:
+                    return int(qt.Qt.Checked if item.isVisible else
+                               qt.Qt.Unchecked)
         elif role == qt.Qt.ToolTipRole:
             if csi.currentNode is not None:
                 node = csi.currentNode
@@ -159,10 +163,16 @@ class DataTreeModel(qt.QAbstractItemModel):
             return True
         return False
 
+    def updateAll(self):
+        topLeft = self.index(0, 0)
+        bottomRight = self.index(self.rowCount()-1, self.columnCount()-1)
+        if topLeft.isValid() and bottomRight.isValid():
+            self.dataChanged.emit(topLeft, bottomRight)
+
     def setVisible(self, item, value, emit=True):
         item.set_visible(value)
         if emit:
-            self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            self.updateAll()
             self.needReplot.emit(False, True, 'setVisible')
         if item is csi.dataRootItem:  # by click on header
             for it in csi.selectedItems:
@@ -233,7 +243,7 @@ class DataTreeModel(qt.QAbstractItemModel):
         ctr.connect_combined(items, parentItem)
         ctr.run_transforms(items, parentItem)
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
         self.selectItems(items)
         return items
 
@@ -278,7 +288,7 @@ class DataTreeModel(qt.QAbstractItemModel):
                 subItem.remove_from_parent()
                 self._removeFromGlobalLists(subItem)
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
         self.needReplot.emit(True, True, 'removeData')
 
     def undoRemove(self, undoEntry):
@@ -294,7 +304,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             else:
                 parentItem.childItems.insert(row, item)
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
         self.needReplot.emit(False, True, 'undoRemove')
 
     def moveItem(self, item, to):  # to = +1(up) or -1(down)
@@ -328,7 +338,7 @@ class DataTreeModel(qt.QAbstractItemModel):
         item.parentItem.init_colors()
         if not (parentItem is item.parentItem):
             parentItem.init_colors()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
 
     def groupItems(self, items):
         parentItem, row = items[0].parentItem, items[0].row()
@@ -353,7 +363,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             group.colorAutoUpdate = group.parentItem.colorAutoUpdate
         group.init_colors()
         group.parentItem.init_colors()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
         return group
 
     def ungroup(self, group):
@@ -365,7 +375,7 @@ class DataTreeModel(qt.QAbstractItemModel):
         parentItem.childItems.remove(group)
         self.endResetModel()
         parentItem.init_colors()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
 
     def supportedDropActions(self):
         return qt.Qt.MoveAction | qt.Qt.CopyAction
@@ -435,7 +445,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             self.endResetModel()
             for parent in parents:
                 parent.init_colors()
-            self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            self.updateAll()
             self.needReplot.emit(False, True, 'dropMimeData')
             return True
         elif mimedata.hasFormat(cco.MIME_TYPE_TEXT) or \
@@ -468,7 +478,7 @@ class DataTreeModel(qt.QAbstractItemModel):
             return False
 
     def invalidateData(self):
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
         self.needReplot.emit(False, True, 'invalidateData')
 
 
@@ -479,7 +489,7 @@ class HeaderModel(qt.QAbstractItemModel):
         self.node = node
         self.plotDimension = 1 if node is None else self.node.plotDimension
 
-    def columnCount(self, parent):
+    def columnCount(self, parent=None):
         return len(csi.modelLeadingColumns) + len(csi.modelDataColumns)
 
     def headerData(self, section, orientation, role):
@@ -703,7 +713,10 @@ class LineStyleDelegate(NodeDelegate):
                     dy += lineWidth
                     points = [qt.QPointF(x, y) for x, y in [
                         (xL-dx, yL-dy), (xL, yL), (xL-dx, yL+dy)]]
-                    painter.drawPolygon(points, 3)
+                    if qt.BINDING == 'PySide6':
+                        painter.drawPolygon(points)
+                    else:
+                        painter.drawPolygon(points, 3)
                     # painter.drawText(
                     #     rect, int(qt.Qt.AlignRight | qt.Qt.AlignVCenter),
                     #     RIGHT_SYMBOL)
@@ -860,7 +873,7 @@ class DataTreeView(qt.QTreeView):
         if csi.selectionModel is None:
             csi.selectionModel = SelectionModel(csi.model)
         self.setSelectionModel(csi.selectionModel)
-        self.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
+        self.setSelectionMode(self.SelectionMode.ExtendedSelection)
         self.setCustomSelectionMode()
         csi.selectionModel.selectionChanged.connect(self.selChanged)
 
@@ -941,7 +954,7 @@ class DataTreeView(qt.QTreeView):
         self.transformProgress.connect(self.updateProgress)
 
         self.makeActions()
-        self.model().dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.model().updateAll()
 
     def setCustomSelectionMode(self, mode=1):
         if mode == 0:
@@ -1089,10 +1102,17 @@ class DataTreeView(qt.QTreeView):
 
     def dataChanged(self, topLeft=qt.QModelIndex(),
                     bottomRight=qt.QModelIndex(), roles=[]):
-        if "qt5" in qt.BINDING.lower():
-            super().dataChanged(topLeft, bottomRight, roles)
-        else:
+        if not topLeft.isValid():
+            topLeft = csi.model.index(0, 0)
+        if not bottomRight.isValid():
+            bottomRight = csi.model.index(
+                csi.model.rowCount()-1, csi.model.columnCount()-1)
+        if not (topLeft.isValid() and bottomRight.isValid()):
+            return
+        if "qt4" in qt.BINDING.lower():
             super().dataChanged(topLeft, bottomRight)
+        else:
+            super().dataChanged(topLeft, bottomRight, roles)
         self.restoreExpand()
         csi.allLoadedItems[:] = []
         csi.allLoadedItems.extend(csi.dataRootItem.get_items())
@@ -1114,7 +1134,7 @@ class DataTreeView(qt.QTreeView):
         shouldUpdateModel = parentItem.colorAutoUpdate
         if shouldUpdateModel:
             parentItem.init_colors()
-            csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            csi.model.updateAll()
             csi.model.needReplot.emit(False, True, 'autoUpdateColors')
 
     def moveItems(self, to):

@@ -44,7 +44,10 @@ class CorrModel(qt.QAbstractTableModel):
         self.corr = corr if corr is not None else np.identity(len(self.names))
         self.endResetModel()
         if emit:
-            self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            topLeft = self.index(0, 0)
+            bottomRight = self.index(self.rowCount()-1, self.columnCount()-1)
+            if topLeft.isValid() and bottomRight.isValid():
+                self.dataChanged.emit(topLeft, bottomRight)
 
     def data(self, index, role):
         column, row = index.column(), index.row()

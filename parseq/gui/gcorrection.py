@@ -711,12 +711,12 @@ class CorrectionModel(qt.QAbstractTableModel):
         if roiManager is not None:
             self.roiManager = roiManager
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
 
     def reset(self):
         self.beginResetModel()
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
 
     def rowCount(self, parent=qt.QModelIndex()):
         return len(self.roiManager.getRois())
@@ -811,6 +811,14 @@ class CorrectionModel(qt.QAbstractTableModel):
                 return True
         return False
 
+    def updateAll(self):
+        if not hasattr(self, 'arrays'):
+            return
+        topLeft = self.index(0, 0)
+        bottomRight = self.index(self.rowCount()-1, self.columnCount()-1)
+        if topLeft.isValid() and bottomRight.isValid():
+            self.dataChanged.emit(topLeft, bottomRight)
+
 
 class CorrectionToolBar(qt.QToolBar):
     """A toolbar which hide itself if no actions are visible"""
@@ -865,8 +873,8 @@ class CorrectionTable(qt.QTableView):
         self.setModel(self.roiModel)
         self.setIconSize(qt.QSize(ICON_SIZE, ICON_SIZE))
 
-        self.setSelectionMode(self.SingleSelection)
-        self.setSelectionBehavior(self.SelectRows)
+        self.setSelectionMode(self.SelectionMode.SingleSelection)
+        self.setSelectionBehavior(self.SelectionBehavior.SelectRows)
         self.selectionModel().selectionChanged.connect(self.selChanged)
 
         horHeaders = self.horizontalHeader()  # QHeaderView instance
@@ -981,7 +989,7 @@ class CorrectionTable(qt.QTableView):
 
         row = rois.index(curRoi)
         ind1 = model.index(row, 3)
-        ind2 = model.index(row, 4)
+        ind2 = model.index(row, model.columnCount()-1)
         model.dataChanged.emit(ind1, ind2)
 
         if self.parent().isLive:
@@ -1065,7 +1073,7 @@ class CorrectionTable(qt.QTableView):
                 roi.excludeArrays = excludeArrays
 
         model.reset()
-        model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        model.updateAll()
 
 
 class Correction1DWidget(PropWidget):
@@ -1145,12 +1153,12 @@ class Correction1DWidget(PropWidget):
     def precisionXChanged(self, i):
         self.roiManager.precisionX = i
         model = self.table.roiModel
-        model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        model.updateAll()
 
     def precisionYChanged(self, i):
         self.roiManager.precisionY = i
         model = self.table.roiModel
-        model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        model.updateAll()
 
     def getCurrentCorrection(self):
         curRoi = self.roiManager.getCurrentRoi()

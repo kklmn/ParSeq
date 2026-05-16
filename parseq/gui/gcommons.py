@@ -550,7 +550,7 @@ class StateButtons(qt.QFrame):
         for button, name in zip(self.buttons, self.names):
             button.setChecked(name in active)
 
-    def buttonClicked(self, button, checked):
+    def buttonClicked(self, button, checked=None):
         self.statesActive.emit(self.getActive())
 
 
@@ -574,7 +574,7 @@ class StateButtonsExclusive(StateButtons):
         for button, name in zip(self.buttons, self.names):
             button.setChecked(name == active)
 
-    def buttonClicked(self, button, checked):
+    def buttonClicked(self, button, checked=None):
         button.setChecked(True)
         for but in self.buttons:
             if but is button:

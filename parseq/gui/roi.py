@@ -95,17 +95,17 @@ class RoiModel(qt.QAbstractTableModel):
         if roiManager is not None:
             self.roiManager = roiManager
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
 
     def reset(self):
         self.beginResetModel()
         self.endResetModel()
-        self.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        self.updateAll()
 
     def rowCount(self, parent=qt.QModelIndex()):
         return len(self.roiManager.getRois())
 
-    def columnCount(self, parent):
+    def columnCount(self, parent=None):
         return len(HEADERS)
 
     def headerData(self, section, orientation, role):
@@ -296,6 +296,12 @@ class RoiModel(qt.QAbstractTableModel):
         elif isinstance(roi, HorizontalRangeROI):
             roi.setRange(**kw)
 
+    def updateAll(self):
+        topLeft = self.index(0, 0)
+        bottomRight = self.index(self.rowCount()-1, self.columnCount()-1)
+        if topLeft.isValid() and bottomRight.isValid():
+            self.dataChanged.emit(topLeft, bottomRight)
+
 
 class RoiToolBar(qt.QToolBar):
     """A toolbar that hides itself if no actions are visible"""
@@ -361,8 +367,8 @@ class RoiTableView(qt.QTableView):
         self.roiModel = RoiModel(roiManager, fmt)
         self.setModel(self.roiModel)
 
-        self.setSelectionMode(self.SingleSelection)
-        self.setSelectionBehavior(self.SelectItems)
+        self.setSelectionMode(self.SelectionMode.SingleSelection)
+        self.setSelectionBehavior(self.SelectionBehavior.SelectItems)
         self.selectionModel().selectionChanged.connect(self.selChanged)
 
         horHeaders = self.horizontalHeader()  # QHeaderView instance
@@ -694,7 +700,7 @@ class RoiWidgetWithKeyFrames(RoiWidgetBase):
                 roi.setVisible(bool(use))
                 model.setRoi(roi, roiKW)
             model.reset()
-            model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            model.updateAll()
         self.bypassForSetup = False
 
     def _addKeyFrameWidget(self, key):
@@ -855,7 +861,7 @@ class RoiWidget(RoiWidgetBase):
                 model.setRoi(roi, roid)
 
         model.reset()
-        model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+        model.updateAll()
 
     def getCurrentRoi(self):
         curRoi = self.roiManager.getCurrentRoi()

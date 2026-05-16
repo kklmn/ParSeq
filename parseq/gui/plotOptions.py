@@ -565,7 +565,7 @@ class LineProps(qt.QDialog):
             for tab in self.tabs:
                 tab.color = color
 
-    def updateFromSpinBox(self, tab, what):
+    def updateFromSpinBox(self, tab, what, value=None):
         if what == "size":
             tab.symbolComboBox.repaint()
         elif what == "width":
@@ -686,7 +686,7 @@ class LineProps(qt.QDialog):
                     oprops.pop('symbol')
 
         if csi.model is not None:  # can be None in dialog test
-            csi.model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            csi.model.updateAll()
         return lineProps
 
     def accept(self):

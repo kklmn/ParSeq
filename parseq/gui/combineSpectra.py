@@ -5,6 +5,7 @@ __date__ = "23 Apr 2026"
 
 import numpy as np
 from silx.gui import qt
+from silx.gui.plot import PlotWidget, tools, actions
 
 # from ..core import spectra as csp
 from ..core import singletons as csi
@@ -12,7 +13,6 @@ from ..core import transforms as ctr
 from ..core import commons as cco
 from .propWidget import PropWidget
 from . import propsOfData as gpd
-from .plot import Plot1D
 from ..utils import math as uma
 from scipy.interpolate import interp1d
 
@@ -21,6 +21,8 @@ COLOR_GRADIENT_PCA2 = 'red'
 
 
 class CombineSpectraWidget(PropWidget):
+    deflinestyle = dict(linewidth=1, linestyle='-', symbol='o', symbolsize=3)
+
     def __init__(self, parent=None, node=None):
         super().__init__(parent, node)
         self.selectedItemsTT = []
@@ -33,12 +35,34 @@ class CombineSpectraWidget(PropWidget):
         self.stopHereCB.setEnabled(node is not None)
         layout.addWidget(self.stopHereCB)
         layout.addWidget(combineDataGroup)
-        self.plot = Plot1D(self)
-        for toolbar in self.plot.findChildren(qt.QToolBar):
-            toolbar.hide()
+        self.plot = PlotWidget(parent=self)
+        # self.plot = Plot1D(self)
+
+        kw = dict(parent=self, plot=self.plot)
+        self.toolbar = tools.InteractiveModeToolBar(**kw)
+        action = actions.control.ResetZoomAction(**kw)
+        self.toolbar.addAction(action)
+
+        action = actions.control.CurveStyleAction(**kw)
+        self.toolbar.addAction(action)
+        action = actions.control.GridAction(**kw)
+        self.toolbar.addAction(action)
+        action = actions.control.XAxisLogarithmicAction(**kw)
+        self.toolbar.addAction(action)
+        action = actions.control.YAxisLogarithmicAction(**kw)
+        self.toolbar.addAction(action)
+        action = actions.io.CopyAction(**kw)
+        self.toolbar.addAction(action)
+        action = actions.io.SaveAction(**kw)
+        self.toolbar.addAction(action)
+        self.toolbar.setIconSize(qt.QSize(18, 18))
+        layout.addWidget(self.toolbar)
+
         self.plot.setYAxisLogarithmic(True)
         self.plot.setGraphXLabel(label="k")
-        self.plot.setGraphYLabel(label="")
+        self.plot.setGraphYLabel("eigenvalues", "left")
+        self.plot.setGraphYLabel("IND", "right")
+        # self.plot.setGraphTitle("click on curves for description")
         # self.plot.setAxesMargins(0.1, 0.1, 0.1, 0.1)
         self.plot.setMinimumSize(100, 100)
         self.plot.hide()
@@ -123,6 +147,7 @@ class CombineSpectraWidget(PropWidget):
         self.combineStopCB.setEnabled(ind != cco.COMBINE_TT)
         self.combineMoveToGroupCB.setEnabled(ind != cco.COMBINE_TT)
         self.plot.setVisible(needN)
+        self.toolbar.setVisible(needN)
         if needN:
             self.combineN.setMaximum(len(csi.selectedItems))
             self.updatePCA()
@@ -218,7 +243,7 @@ class CombineSpectraWidget(PropWidget):
                 ctr.run_transforms([newItem], pit)
         if self.node.widget is not None:
             model.endResetModel()
-            model.dataChanged.emit(qt.QModelIndex(), qt.QModelIndex())
+            model.updateAll()
             if isMoveToGroup:
                 self.node.widget.tree.groupItems()
             model.selectItems(madeOf)
@@ -318,12 +343,16 @@ class CombineSpectraWidget(PropWidget):
         return w, v, IE, IND
 
     def plotPCA(self, w, IE, IND):
-        legend = 'scree plot'
+        legend = 'scree plot (left Y)'
         curve = self.plot.getCurve(legend)
         x, y = np.arange(len(w))+1, w
         if curve is None:
-            curve = self.plot.addCurve(
-                x, y, legend=legend, symbol='o', symbolsize=4, color='C0')
+            curve = self.plot.addCurve(x, y, legend=legend)
+            curve.setColor('C0')
+            curve.setLineStyle(self.deflinestyle['linestyle'])
+            curve.setLineWidth(self.deflinestyle['linewidth'])
+            curve.setSymbol(self.deflinestyle['symbol'])
+            curve.setSymbolSize(self.deflinestyle['symbolsize'])
         else:
             curve.setData(x, y)
 
@@ -332,17 +361,20 @@ class CombineSpectraWidget(PropWidget):
         # x, y = np.arange(len(IE))+1, IE
         # if curve is None:
         #     curve = self.plot.addCurve(
-        #         x, y, legend=legend, symbol='o', symbolsize=4, color='C1')
+        #         x, y, legend=legend, symbol='o', color='C1')
         # else:
         #     curve.setData(x, y)
 
-        legend = 'Malinowsky indicator IND'
+        legend = 'Malinowsky indicator IND (right Y)'
         curve = self.plot.getCurve(legend)
         x, y = np.arange(len(IND))+1, IND
         if curve is None:
-            curve = self.plot.addCurve(
-                x, y, yaxis='right', legend=legend, symbol='o', symbolsize=4,
-                color='C3')
+            curve = self.plot.addCurve(x, y, yaxis='right', legend=legend)
+            curve.setColor('C3')
+            curve.setLineStyle(self.deflinestyle['linestyle'])
+            curve.setLineWidth(self.deflinestyle['linewidth'])
+            curve.setSymbol(self.deflinestyle['symbol'])
+            curve.setSymbolSize(self.deflinestyle['symbolsize'])
         else:
             curve.setData(x, y)
 

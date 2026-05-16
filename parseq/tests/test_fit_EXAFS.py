@@ -36,7 +36,7 @@ class TestEXAFSFitWidget(qt.QWidget):
         layout = qt.QVBoxLayout()
 
         self.spectra = qt.QListWidget(self)
-        self.spectra.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
+        self.spectra.setSelectionMode(self.SelectionMode.ExtendedSelection)
         if fitData is not None:
             self.spectra.addItems([d.alias for d in fitData])
         self.spectra.setFixedHeight(48)
