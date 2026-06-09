@@ -435,8 +435,13 @@ def one_iteration(D, S, mcrData):
     revSTS = np.dot(np.dot(vs, np.diag(1/ws)), vs.T)
     SrevSTS = np.dot(S, revSTS)
     C = np.dot(D.T, SrevSTS)
-    C[C < 0.] = 0.
-    C[C > 1.] = 1.
+
+    # C[C < 0.] = 0.  # this is bad. Loss of information.
+    # C[C > 1.] = 1.  #
+    C -= C.min()
+    # C /= C.max()
+    C /= C.sum(axis=1)[:, None]  # very similar to C /= C.max()
+
     for col, d in zip(range(N), mcrData):
         constr = d['contype']
         val = d['convalue']
