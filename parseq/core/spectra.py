@@ -1537,8 +1537,11 @@ class Spectrum(TreeItem):
                     if xName is None:
                         continue
                     sumx = 0
-                    for data in madeOf:
-                        sumx += np.array(getattr(data, xName))
+                    try:
+                        for data in madeOf:
+                            sumx += np.array(getattr(data, xName))
+                    except AttributeError:
+                        continue
                     setattr(self, xName, sumx/ns)
 
             dimArray = None
@@ -1548,7 +1551,7 @@ class Spectrum(TreeItem):
                 if what in (
                         cco.COMBINE_AVE, cco.COMBINE_SUM, cco.COMBINE_RMS,
                         cco.COMBINE_PCA_CLASSIC, cco.COMBINE_PCA_CUMULATIVE,
-                        cco.COMBINE_TT):
+                        cco.COMBINE_TT, cco.COMBINE_MCR_ALS):
                     arrays = []
                     for data in madeOf:
                         arr = getattr(data, dName)
@@ -1598,6 +1601,17 @@ class Spectrum(TreeItem):
                         BTd = np.dot(B.T, d)
                         revBTBBTd = np.dot(revBTB, BTd)
                         v = np.dot(B, revBTBBTd)
+                    elif what == cco.COMBINE_MCR_ALS:
+                        iMCR, MCRrevCTC, MCRC, MCR = [
+                            self.dataFormat[key] for key in
+                            ('iMCR', 'MCR-ALS-revCTC', 'MCR-ALS-C', 'MCR-ALS')]
+                        self.MCR = MCR
+                        self.iMCR = iMCR
+                        self.MCRrevCTC = np.asarray(MCRrevCTC)
+                        self.MCRC = np.asarray(MCRC)
+                        D = np.array([ar for ar in arrays if ar is not None]).T
+                        CrevCTC = np.dot(MCRC, MCRrevCTC)
+                        v = np.dot(D, CrevCTC)[:, iMCR]
                 else:
                     raise ValueError("unknown data combination")
                 setattr(self, dName, v)
@@ -1747,7 +1761,13 @@ class Spectrum(TreeItem):
             elif isinstance(item.madeOf, (list, tuple)):
                 config.put(configProject, item.alias, 'madeOf',
                            str(item.madeOf))
-                dataFormat = cleanJSON(json.dumps(item.dataFormat))
+                dataFormatCopy = {}
+                for key, val in item.dataFormat.items():
+                    if isinstance(val, np.ndarray):
+                        dataFormatCopy[key] = val.tolist()
+                    else:
+                        dataFormatCopy[key] = val
+                dataFormat = cleanJSON(json.dumps(dataFormatCopy))
                 cf = item.dataFormat['combine']
                 dataFormat += "  # {0}='{1}'".format(cf, cco.combineNames[cf])
                 config.put(configProject, item.alias, 'dataFormat', dataFormat)

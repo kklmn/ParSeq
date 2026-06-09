@@ -145,10 +145,9 @@ class NodeWidget(qt.QWidget):
         self.fitLines = []
 
         self.makeSplitters()
-
         self.fillSplitterFiles()
+        self.fillSplitterPlot()  # before data, needed by combinations
         self.fillSplitterData()
-        self.fillSplitterPlot()
         self.fillSplitterCorrection()
         self.makeTransformWidget(self.splitterTransform)
         self.fillSplitterTransform()
@@ -1183,6 +1182,8 @@ class NodeWidget(qt.QWidget):
 
     def cancelPropsToPickedData(self):
         self.pendingPropDialog = None
+        if hasattr(self.pendingPropDialog, 'cancelPendingProps'):
+            self.pendingPropDialog.cancelPendingProps()
         self.pickWidget.setVisible(False)
         self.tree.setCustomSelectionMode()
         # csi.selectionModel.blockSignals(False)

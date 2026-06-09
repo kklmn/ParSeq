@@ -3,6 +3,7 @@ __author__ = "Konstantin Klementiev"
 __date__ = "19 Dec 2024"
 # !!! SEE CODERULES.TXT !!!
 
+import os
 import itertools
 from .logger import syslogger
 
@@ -14,13 +15,16 @@ MIME_TYPE_HDF5 = 'parseq-hdf5-model-items'
 (DATA_COLUMN_FILE, DATA_DATASET, DATA_COMBINATION, DATA_FUNCTION, DATA_GROUP,
  DATA_BRANCH) = range(6)
 (COMBINE_NONE, COMBINE_AVE, COMBINE_SUM, COMBINE_RMS, COMBINE_PCA_CLASSIC,
-    COMBINE_PCA_CUMULATIVE, COMBINE_TT) = range(7)
-combineNames = ('', 'ave', 'sum', 'RMS', 'PCA-classic', 'PCA-cumulative',
-                'target-transf')
-combineToolTips = '', 'average', 'sum', 'Root Mean Square', \
-    'Principal Component Analysis', \
-    'Target Transformation\n' \
-    'The basis set is selected later (after pressing Combine)'
+ COMBINE_PCA_CUMULATIVE, COMBINE_TT, COMBINE_MCR_ALS) = range(8)
+combineNames = (
+    '', 'average', 'sum', 'RMS', 'PCA-classic', 'PCA-cumulative',
+    'target-transf', 'MCR-ALS')
+combineToolTips = (
+    '', '', '', 'Root Mean Square',
+    'Principal Component Analysis', 'Cumulative Principal Component Analysis',
+    'Target Transformation\n'
+    'The basis set is selected later (after pressing Combine)',
+    'Multivariate Curve Resolution - Alternating Least Squares')
 
 DATA_STATE_GOOD = 1
 DATA_STATE_BAD = 0
@@ -289,10 +293,19 @@ def get_header(fname, readkwargs, searchAllLines=False):
         headerLen = readkwargs['skiprows']
     header = []
     try:
-        with open(fname, 'r', encoding="utf-8") as f:
+        if fname.endswith('.gz'):
+            import gzip
+            myOpen = gzip.open
+            kw = {}
+        else:
+            myOpen = open
+            kw = dict(encoding="utf-8")
+        with myOpen(fname, 'r', **kw) as f:
             for il, line in enumerate(f):
                 if il == MAX_HEADER_LINES and not searchAllLines:
                     break
+                if fname.endswith('.gz'):
+                    line = line.decode()
                 if ((headerLen >= 0) and (il < headerLen)) or \
                         line.startswith('#'):
                     header.append(line)

@@ -661,7 +661,8 @@ class PropWidget(qt.QWidget):
         if event.key() in (qt.Qt.Key_Enter, qt.Qt.Key_Return):
             self.updateDataFromUI()
         elif event.key() in (qt.Qt.Key_Escape, qt.Qt.Key_Backspace):
-            if self.node is not None:  # can be True with tests
+            if self.node is not None and self.node.widget is not None:
+                # can be None with tests
                 self.node.widget.cancelPropsToPickedData()
         event.accept()
 

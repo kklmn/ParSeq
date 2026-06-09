@@ -317,9 +317,11 @@ class ColumnFormatWidget(PropWidget):
                 it.read_data(runDownstream=True)
                 it.hasChanged = False
         if needReplot:
-            self.node.widget.replot(keepExtent=False)
+            if self.node.widget:  # can be None in tests
+                self.node.widget.replot(keepExtent=False)
             for subnode in self.node.downstreamNodes:
-                subnode.widget.replot(keepExtent=False)
+                if subnode.widget:  # can be None in tests
+                    subnode.widget.replot(keepExtent=False)
         # print([cco.getDotAttr(it, 'dataFormat') for it in csi.selectedItems])
 
     def getDataFormat(self, needHeader):

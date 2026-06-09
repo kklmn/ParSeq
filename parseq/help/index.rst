@@ -1,5 +1,5 @@
 .. ParSeq documentation master file,
-   it should at least contain the root `toctree` directive. 
+   it should at least contain the root `toctree` directive.
 
 .. include:: top.rst
 
@@ -13,8 +13,9 @@ User's Guide
    nodes.rst
    data.rst
    transforms.rst
-   corrections.rst
    widgets.rst
+   corrections.rst
+   combinations.rst
    fits.rst
 
    cite.rst

@@ -37,10 +37,10 @@ Main features
 -  Entering into the analysis pipeline at any node, not only at the head of the
    pipeline.
 
--  Creation of cross-data combinations (e.g. averaging, PCA) and their
-   propagation downstream the pipeline together with the parental data. The
-   possibility of termination of the parental data at any selected downstream
-   node.
+-  Creation of cross-data combinations (average, sum, RMS, classic PCA,
+   cumulative PCA, Target Transformation and MCR-ALS) and their propagation
+   downstream the pipeline together with the parental data. The possibility of
+   termination of the parental data at any selected downstream node.
 
 -  General data correction routines for 1D data: range deletion, scaling,
    replacement by a spline, deletion of spikes and jump correction.

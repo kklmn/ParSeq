@@ -85,8 +85,10 @@ class Node(object):
         `checkShapes = ['theta', 'i0', 'xes3D[0]']`.
 
     pcaNames: list of str
-        Optionally defines a list of arrays that can be used in PCA. If not
-        defined, 1D arrays excluding 'x' will be used in PCA.
+        Optionally defines a list of 1D arrays that can be used in PCA and
+        MCR-ALS. If not defined, 1D arrays starting with 'x' will be able to
+        use in PCA. The first array in the list, the one with 'x' role, will be
+        used for interpolation.
 
     *auxArrays*: list of lists
         Can be useful only for data export. Array names are grouped together so
@@ -137,7 +139,7 @@ class Node(object):
         # assigned automatically by transform:
         self.transformsIn = []
         if self.name in csi.nodes:
-            raise ValueError("The node's name is not unique!")
+            raise ValueError(f"The node's name {self.name} is not unique!")
         csi.nodes[self.name] = self
 
         roles = self.get_arrays_prop('role')

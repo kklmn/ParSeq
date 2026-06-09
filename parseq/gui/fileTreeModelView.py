@@ -18,6 +18,7 @@ import pickle
 import time
 import numpy as np
 import warnings
+import gzip
 
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"  # to work with external links
 os.environ["QT_FILESYSTEMMODEL_WATCH_FILES"] = '0'  # potentially heavy load!!
@@ -57,10 +58,16 @@ COLUMN_NAME_WIDTH = 250
 NODE_INDENTATION = 12
 
 
-def is_text_file(file_name):
+def is_text_file(fname):
     try:
+        if fname.endswith('.gz'):
+            myOpen = gzip.open
+            kw = {}
+        else:
+            myOpen = open
+            kw = dict(encoding="utf-8")
         # try open file in text mode
-        with open(file_name, 'r', encoding="utf-8") as check_file:
+        with myOpen(fname, 'r', **kw) as check_file:
             check_file.read()
             return True
     except:  # if fails then file is non-text (binary)  # noqa
@@ -1401,7 +1408,13 @@ class FileTreeView(qt.QTreeView):
         fname = model.filePath(ind)
         if qt.QFileInfo(fname).isDir():
             return
-        with open(fname, 'r', encoding="utf-8") as f:
+        if fname.endswith('.gz'):
+            myOpen = gzip.open
+            kw = {}
+        else:
+            myOpen = open
+            kw = dict(encoding="utf-8")
+        with myOpen(fname, 'r', **kw) as f:
             lines = f.readlines()
         self.transformNode.widget.metadata.setText(''.join(lines))
         # but = self.transformNode.widget.splitterButtons['metadata']

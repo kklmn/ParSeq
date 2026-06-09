@@ -11,6 +11,7 @@ from ..core import singletons as csi
 # from ..core import commons as cco
 from ..core import spectra as csp
 from ..third_party import xrt
+from . import gcommons as gco
 
 HEADERS = ['ref data', 'slice', 'energy', 'DCM', 'FWHM']
 columnWidths = [80, 44, 64, 64, 54]
@@ -30,7 +31,7 @@ class CalibrationModel(qt.QAbstractTableModel):
             return 0
         return len(self.dataCollection['base'])
 
-    def columnCount(self, parent):
+    def columnCount(self, parent=None):
         return max(len(self.dataCollection), len(self.headerList))
 
     def flags(self, index):
@@ -91,7 +92,11 @@ class CalibrationModel(qt.QAbstractTableModel):
             elif column == 1:  # slice
                 self.dataCollection['slice'][row] = value
             elif column == 2:  # E
-                self.dataCollection['energy'][row] = value
+                try:
+                    fvalue = float(value)
+                except ValueError:
+                    fvalue = value
+                self.dataCollection['energy'][row] = fvalue
             elif column == 3:  # DCM
                 self.dataCollection['DCM'][row] = value
             self.dataChanged.emit(index, index)
@@ -138,30 +143,6 @@ class CalibrationModel(qt.QAbstractTableModel):
             self.dataChanged.emit(topLeft, bottomRight)
 
 
-class ComboDelegate(qt.QItemDelegate):
-    def createEditor(self, parent, option, index):
-        combo = qt.QComboBox(parent)
-        combo.addItems(list(xrt.crystals.keys()) + ['none'])
-        combo.currentIndexChanged.connect(
-            partial(self.currentIndexChanged, combo))
-        return combo
-
-    def setEditorData(self, editor, index):
-        editor.blockSignals(True)
-        ind = editor.findText(index.model().data(index))
-        if ind < 0:
-            editor.setCurrentIndex(editor.count() - 1)
-        else:
-            editor.setCurrentIndex(ind)
-        editor.blockSignals(False)
-
-    def setModelData(self, editor, model, index):
-        model.setData(index, editor.currentText())
-
-    def currentIndexChanged(self, combo):
-        self.commitData.emit(combo)
-
-
 class CalibrateTableView(qt.QTableView):
     def __init__(self, parent, model):
         super().__init__(parent)
@@ -185,7 +166,8 @@ class CalibrateTableView(qt.QTableView):
         horHeaders.setStretchLastSection(False)
         horHeaders.setMinimumSectionSize(20)
 
-        self.setItemDelegateForColumn(3, ComboDelegate(self))
+        self.setItemDelegateForColumn(
+            3, gco.ComboDelegate(self, list(xrt.crystals.keys()) + ['none']))
         for i, cw in enumerate(columnWidths):
             self.setColumnWidth(i, int(cw*csi.screenFactor))
         self.setMinimumHeight(

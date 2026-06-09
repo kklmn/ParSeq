@@ -19,6 +19,7 @@ from silx.gui import qt, icons
 from ...core import singletons as csi
 from ...core.logger import syslogger
 from ...gui.roi import AutoRangeWidget
+from .. import gcommons as gco
 
 GOOD_BKGND = '#90ee90'
 BAD_BKGND = '#ff8877'
@@ -98,7 +99,7 @@ class CorrTableView(qt.QTableView):
         self.setCornerButtonEnabled(False)
         self.setModel(model)
 
-        horHeaders = UnderlinedHeaderView(qt.Qt.Horizontal, self)
+        horHeaders = gco.UnderlinedHeaderView(qt.Qt.Horizontal, self)
         horHeaders.setFixedHeight(self.cellSize)
         self.setHorizontalHeader(horHeaders)
         verHeaders = self.verticalHeader()  # QHeaderView instance
@@ -125,20 +126,6 @@ class CorrTableView(qt.QTableView):
 
         height = 4*self.cellSize + 2
         self.setMinimumHeight(height)
-
-
-class UnderlinedHeaderView(qt.QHeaderView):
-    "The separation line between header and table is missing on Windows 10/11."
-    BOTTOM_COLOR = qt.QColor('#cccccc')
-
-    def paintSection(self, painter, rect, logicalIndex):
-        painter.save()
-        super().paintSection(painter, rect, logicalIndex)
-        painter.restore()
-
-        painter.setPen(qt.QPen(qt.QColor(self.BOTTOM_COLOR), 0.5))
-        bottom = rect.bottom()
-        painter.drawLine(rect.left(), bottom, rect.right(), bottom)
 
 
 class FitWidget(qt.QWidget):

@@ -26,7 +26,7 @@ COLOR_LOAD_CANNOT = '#d03333'
 COLOR_UNDEFINED = '#ff160c'
 COLOR_ROI = '#f7b43e'
 COLOR_CORRECTION = '#ff55dd'
-COLOR_COMBINED = '#ff00ff'
+COLOR_COMBINED = '#ff44ff'
 
 GROUP_COLOR = qt.QColor('#f4f0f0')
 BUSY_COLOR_BGND = qt.QColor('#ffe9a1')
@@ -97,6 +97,20 @@ def makeGradientCollection(color1, color2, ncolor=8):
 
 def getColorName(color):
     return qt.QColor(color).name()
+
+
+class UnderlinedHeaderView(qt.QHeaderView):
+    "The separation line between header and table is missing on Windows 10/11."
+    BOTTOM_COLOR = qt.QColor('#cccccc')
+
+    def paintSection(self, painter, rect, logicalIndex):
+        painter.save()
+        super().paintSection(painter, rect, logicalIndex)
+        painter.restore()
+
+        painter.setPen(qt.QPen(qt.QColor(self.BOTTOM_COLOR), 0.5))
+        bottom = rect.bottom()
+        painter.drawLine(rect.left(), bottom, rect.right(), bottom)
 
 
 class CheckBoxDelegate(qt.QItemDelegate):
@@ -205,6 +219,38 @@ class MultiLineEditDelegate(qt.QStyledItemDelegate):
     # def updateEditorGeometry(self, editor, option, index):
     #     editor.setGeometry(option.rect.x(), option.rect.y(),
     #                        option.rect.width(), option.rect.height()-10)
+
+
+class ComboDelegate(qt.QItemDelegate):
+    def __init__(self, parent=None, itemsStr=[], alignment=None):
+        self.itemsStr = itemsStr
+        self.alignment = alignment
+        super().__init__(parent)
+
+    def createEditor(self, parent, option, index):
+        combo = qt.QComboBox(parent)
+        combo.addItems(self.itemsStr)
+        # combo.currentIndexChanged.connect(
+        #     partial(self.currentIndexChanged, combo))
+        if self.alignment is not None:
+            for i in range(combo.count()):
+                combo.setItemData(i, self.alignment, qt.Qt.TextAlignmentRole)
+        return combo
+
+    def setEditorData(self, editor, index):
+        editor.blockSignals(True)
+        ind = editor.findText(index.model().data(index))
+        if ind < 0:
+            editor.setCurrentIndex(editor.count() - 1)
+        else:
+            editor.setCurrentIndex(ind)
+        editor.blockSignals(False)
+
+    def setModelData(self, editor, model, index):
+        model.setData(index, editor.currentText())
+
+    # def currentIndexChanged(self, combo):
+    #     self.commitData.emit(combo)
 
 
 class DoubleSpinBoxDelegate(qt.QStyledItemDelegate):
@@ -414,7 +460,13 @@ class FlowLayout(qt.QLayout):
         line_height = 0
         spacing = self.spacing()
 
+        if self._item_list:
+            hMax = max([item.sizeHint().height() for item in self._item_list])
+        else:
+            hMax = None
         for item in self._item_list:
+            h = item.sizeHint().height()
+            dy = (hMax - h)//2 if hMax is not None else 0
             style = item.widget().style()
             layout_spacing_x = style.layoutSpacing(
                 qt.QSizePolicy.PushButton, qt.QSizePolicy.PushButton,
@@ -432,7 +484,7 @@ class FlowLayout(qt.QLayout):
                 line_height = 0
 
             if not test_only:
-                item.setGeometry(qt.QRect(qt.QPoint(x, y), item.sizeHint()))
+                item.setGeometry(qt.QRect(qt.QPoint(x, y+dy), item.sizeHint()))
 
             x = next_x
             line_height = max(line_height, item.sizeHint().height())
@@ -498,6 +550,7 @@ class StateButtons(qt.QFrame):
         if caption is not None:
             label = qt.QLabel(caption)
             layout.addWidget(label)
+            layout.setAlignment(label, qt.Qt.AlignBottom)
         # styleSheet = "QPushButton{border-radius: 4px;}" +\
         #     "QPushButton{background-color: lightsalmon;}" +\
         #     "QPushButton:checked{background-color: lightgreen;}" +\

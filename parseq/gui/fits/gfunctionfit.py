@@ -12,6 +12,7 @@ from ...core import singletons as csi
 from ...core.logger import syslogger
 from ...gui import gcommons as gco
 from . import gbasefit as gbf
+from .. import gcommons as gco
 
 from silx.gui import qt
 
@@ -235,7 +236,7 @@ class FunctionFitTableView(qt.QTableView):
         self.setModel(model)
 
         # horHeaders = self.horizontalHeader()  # QHeaderView instance
-        horHeaders = gbf.UnderlinedHeaderView(qt.Qt.Horizontal, self)
+        horHeaders = gco.UnderlinedHeaderView(qt.Qt.Horizontal, self)
         self.setHorizontalHeader(horHeaders)
 
         verHeaders = self.verticalHeader()  # QHeaderView instance

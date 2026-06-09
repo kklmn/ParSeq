@@ -13,6 +13,7 @@ from ...core import config
 from ...core.logger import syslogger
 from ...gui import gcommons as gco
 from . import gbasefit as gbf
+from .. import gcommons as gco
 
 from silx.gui import qt, icons
 
@@ -301,7 +302,7 @@ class EXAFSFitTableView(qt.QTableView):
         # horHeaders = self.horizontalHeader()  # QHeaderView instance
         # horHeaders.setStyleSheet(  # doesn't work
         #     "QHeaderView::section {border-bottom: 1px solid gray; }")
-        horHeaders = gbf.UnderlinedHeaderView(qt.Qt.Horizontal, self)
+        horHeaders = gco.UnderlinedHeaderView(qt.Qt.Horizontal, self)
         self.setHorizontalHeader(horHeaders)
         verHeaders = self.verticalHeader()  # QHeaderView instance
 

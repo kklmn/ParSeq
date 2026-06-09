@@ -1074,6 +1074,7 @@ class AutoRangeWidget(BaseRangeWidget):
         """
         super().__init__(parent)
         self.plot = plot
+        self.caption = caption
         self.is3dStack = hasattr(plot, '_plot')
         self.formatStr = formatStr
         if callable(defaultRange):
@@ -1125,6 +1126,13 @@ class AutoRangeWidget(BaseRangeWidget):
         self.panel.setLayout(self.panelLayout)
         layout.addWidget(self.panel)
         self.setLayout(layout)
+
+    def getRange(self):
+        if self.roi is None or self.rbAuto.isChecked():
+            ran = 'auto'
+        else:
+            ran = self.roi.getRange()
+        return ran
 
     def setRangeVisible(self, checked):
         if self.roi is None:

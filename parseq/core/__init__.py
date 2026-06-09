@@ -226,7 +226,7 @@ right.
 
 ParSeq implements a base fit class :class:`parseq.fits.basefit.Fit` and its
 widget mate :class:`parseq.gui.fits.gbasefit.FitWidget`. These are parent
-classes for ParSeq's Liner Combination Fit, Function Fit and EXAFS Fit.
+classes for ParSeq's Linear Combination Fit, Function Fit and EXAFS Fit.
 
 The actual fit worker for each fit process or thread is
 `scipy.optimize.curve_fit
@@ -237,12 +237,9 @@ Cross-data combinations
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 Data items in each transformation node can be combined to produce joint
-secondary data: average, sum, rms deviation and PCA components and Target
-Transformation. If the abscissas of the involved datasets are different,
-an interpolation is offered.
-
-Whenever the contributing data have been modified in an upstream
-transformation, the combined data will also update.
+secondary data: average, sum, rms deviation and only for 1D data: classic PCA,
+cumulative PCA, Target Transformation and MCR-ALS. If the abscissas of the
+involved datasets are different (for 1D data), an interpolation is offered.
 
 Standard data corrections
 ~~~~~~~~~~~~~~~~~~~~~~~~~

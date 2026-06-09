@@ -70,6 +70,8 @@ helpCorr = "parseq.readthedocs.io/corrections.html" if on_rtd else \
     pgww.MAINHELPCORR
 helpForm = "parseq.readthedocs.io/howto.html#file-tree-views-and-file-formats"\
     if on_rtd else pgww.MAINHELPFORM
+helpComb = "parseq.readthedocs.io/combinations.html" if on_rtd else \
+    pgww.MAINHELPCOMB
 
 rst_prolog = """
 .. role:: red
@@ -95,7 +97,12 @@ rst_prolog = """
    <a class="reference external" href="{2}">the general data format definitions
    of ParSeq</a>
 
-""".format(helpParSeq, helpCorr, helpForm)
+.. |combinations| raw:: html
+
+   <a class="reference external" href="{3}">an example of MCR-ALS analysis
+   applied to a series of operando XANES spectra of a catalyst</a>
+
+""".format(helpParSeq, helpCorr, helpForm, helpComb)
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
