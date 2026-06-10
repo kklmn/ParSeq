@@ -5,10 +5,10 @@ Data combinations
 
 The following data combinations are available: average, sum, RMS deviation, and
 only for 1D: classical PCA, cumulative PCA, target transformation and
-MCR-ALS. If the abscissas of the involved datasets differ (for 1D data),
-interpolation can be optionally applied. These operations are performed on all
-arrays defined in the `node.arrays` dictionary and result in the creation of
-one or more new datasets.
+MCR-ALS. If the abscissas of the involved 1D datasets differ, interpolation can
+be optionally applied. These operations are performed on all arrays defined in
+the `node.arrays` dictionary and result in the creation of one or more new
+datasets.
 
 Average, sum, rms deviation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -173,7 +173,7 @@ set to 2.
    :alt: &ensp;MCR-ALS of 70 XANES spectra during gas switching. C matrix.
 
 The solutions for :math:`S` and :math:`C` are not unique, as illustrated by the
-accompanying figures. In these examples, a low-pass constraint is applied to
+accompanying figures. In this example, a low-pass constraint is applied to
 :math:`C_2` ​. Varying this constraint leads to different solutions for both
 :math:`C` and :math:`S`. One might expect that these alternative solutions
 could be distinguished by the norm of the residual :math:`D - SC^T`. However,
@@ -194,8 +194,8 @@ Thus, even a continuum of possible solutions can provide meaningful insight and
 may still be scientifically valuable and publishable.
 
 The shown example can be scrutinized by running the script
-``parseq/tests/test_MCRWidget.py`` and/or by loading a ParSeq-XAS project file
-``parseq_XAS/saved/mcr.pspj``.
+``parseq/tests/test_MCRWidget.py`` and/or by loading the ParSeq-XAS project
+file ``parseq_XAS/saved/mcr.pspj``.
 
 .. [ALS] A de Juan, J Jaumot and R Tauler, Anal. Methods, **6** (2014) 4964.
 .. [Ni-MCR-ALS] N Kosinov (2026) unpublished, private communication.
@@ -347,8 +347,8 @@ def make_PCA(D, eigvals, get_indicators=False):
         cs = w[:-1].cumsum()
         m, n = D.shape
         k = np.arange(1, n)  # up to n-1
-        IE = (cs[::-1]*k / (m*n*(n-k)))**0.5
-        IND = (cs[::-1] / (m*(n-k)))**0.5 / (n-k)**2
+        IE = (np.abs(cs[::-1])*k / (m*n*(n-k)))**0.5
+        IND = (np.abs(cs[::-1]) / (m*(n-k)))**0.5 / (n-k)**2
         return w, v, IE, IND
     else:
         return w, v
@@ -388,11 +388,19 @@ def unlike(B, D, found):
 
 
 def initial(x, D, mcrData):
+    """
+    len(x) = m
+    D.shape = m, n
+    *mcrData*: list of dicts;
+        defaultMCRDict = dict(initialS='auto', positiveS=True, zeroC=False,
+                              constraintCKind='', constraintCValue=0.3)
+    """
+
     N = len(mcrData)
     B = None
     found = []
     for i, d in enumerate(mcrData):
-        ini = d['initial']
+        ini = d['initialS']
         if ini == 'auto':
             col = unlike(B, D, found)
         elif ini == 'start':
@@ -422,35 +430,60 @@ def initial(x, D, mcrData):
     return B
 
 
-def one_iteration(D, S, mcrData):
+def one_iteration(D, S, mcrData, weps=1e-20):
+    """
+    D.shape = m, n
+    S.shape = m, N
+    *mcrData*: list of dicts;
+        defaultMCRDict = dict(initialS='auto', positiveS=True, zeroC=False,
+                              constraintCKind='', constraintCValue=0.3)
+    """
     N = S.shape[1]
     n = D.shape[1]
     STS = np.dot(S.T, S)
     try:
         ws, vs = spl.eigh(STS)
     except ValueError:
-        print('equal spectra found!')
+        print('singular S^TS')
         return np.zeros_like(S), np.zeros((n, N)), np.zeros((N, N))
     # print('STS w', ws/ws.sum())
+    ws[ws < weps] = weps
     revSTS = np.dot(np.dot(vs, np.diag(1/ws)), vs.T)
     SrevSTS = np.dot(S, revSTS)
     C = np.dot(D.T, SrevSTS)
 
-    # C[C < 0.] = 0.  # this is bad. Loss of information.
-    # C[C > 1.] = 1.  #
-    C -= C.min()
+    # ==all these are bad:====================================================
+    # C[C < 0.] = 0.
+    # C[C > 1.] = 1.
+    # C -= C.min()
     # C /= C.max()
-    C /= C.sum(axis=1)[:, None]  # very similar to C /= C.max()
+    # # C /= C.sum(axis=1)[:, None]
+    # ========================================================================
 
+    C = np.abs(C)
+    norm = C.sum(axis=1)[:, None]
+    norm[norm == 0] = 1
+    C /= norm
+
+    changed = False
     for col, d in zip(range(N), mcrData):
-        constr = d['contype']
-        val = d['convalue']
-        if constr == '>':
-            C[C[:, col] < val, col] = val
-        elif constr == '<':
-            C[C[:, col] > val, col] = val
+        if d['zeroC']:
+            C[:, col] -= C[:, col].min()
+            changed = True
 
-    C /= C.sum(axis=1)[:, None]
+        val = d['constraintCValue']
+        if d['constraintCKind'] == '>':
+            C[C[:, col] < val, col] = val
+            changed = True
+        elif d['constraintCKind'] == '<':
+            C[C[:, col] > val, col] = val
+            changed = True
+
+    if changed:
+        norm = C.sum(axis=1)[:, None]
+        norm[norm == 0] = 1
+        C /= norm
+
     Cweight = C.sum(axis=0)
     Cind = np.argsort(Cweight)[::-1]
     Cweight = Cweight[Cind]
@@ -460,26 +493,31 @@ def one_iteration(D, S, mcrData):
     try:
         wc, vc = spl.eigh(CTC)
     except ValueError:
-        print('equal spectra found!')
+        print('singular C^TC')
         return np.zeros_like(S), np.zeros_like(C), np.zeros((N, N))
     # print('CTC w', wc/wc.sum())
-    wc[wc <= 0] = 1e-20
+    wc[wc < weps] = weps
     revCTC = np.dot(np.dot(vc, np.diag(1/wc)), vc.T)
     CrevCTC = np.dot(C, revCTC)
     S = np.dot(D, CrevCTC)
     for col, d in zip(range(N), mcrData):
-        constr = d['positive']
-        if constr:
-            S[S[:, col] < 0, col] = 0
+        if d['positiveS']:
+            # ==all these are bad:============================================
+            # S[S[:, col] < 0, col] = 0
+            # if sum(S[:, col] < 0) > 0:
+            #     S[:, col] -= S[:, col].min()
+            # ================================================================
+            S[:, col] = np.abs(S[:, col])
     return S, C, revCTC
 
 
-def mcr_als(e, D, mcrData, retErrors=False, eps=1e-16, maxIteration=1000):
+def mcr_als(e, D, mcrData, retErrors=False, eps=1e-16, weps=1e-20,
+            maxIteration=1000):
     S = initial(e, D, mcrData)
     m = len(e)
     normPrev = np.inf
     for niter in range(maxIteration):
-        S, C, revCTC = one_iteration(D, S, mcrData)
+        S, C, revCTC = one_iteration(D, S, mcrData, weps)
         epsD = D - np.dot(S, C.T)
         norm = spl.norm(epsD) / m  # can be directly compared with noise
         if abs(normPrev - norm) < eps:

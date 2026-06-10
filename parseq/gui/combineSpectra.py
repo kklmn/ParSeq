@@ -35,8 +35,8 @@ Target transformation
 
 Select a data item and choose the combination type "target-transformation".
 Then click the "Combine" button. A data selection dialog will appear, allowing
-to choose the set of basis spectra. After clicking "Apply", a new data item
-will be created under the original one, containing the resulting target
+to choose a set of basis spectra. After clicking "Apply", a new data item will
+be created under the original one, containing the resulting target
 transformation. Compare this new item with the original data.
 
 MCR-ALS
@@ -80,11 +80,12 @@ from . import gcommons as gco
 COLOR_GRADIENT_PCA1 = 'green'
 COLOR_GRADIENT_PCA2 = 'red'
 
-headerMCR = 'initial S', 'S>0', 'tie C', 'tie C val'
-headerMCRWidths = 90, 36, 40, 70
+headerMCR = 'initial S', 'S>0', 'C↓', 'tie C', 'tie C val'
+headerMCRWidths = 90, 36, 36, 40, 70
 initialMCR = 'auto', 'start', 'end', 'mean', 'reference'
 constraintMCR = '', '<', '>'
-defaultMCRDict = dict(initial='auto', positive=True, contype='', convalue=0.3)
+defaultMCRDict = dict(initialS='auto', positiveS=True, zeroC=False,
+                      constraintCKind='', constraintCValue=0.3)
 
 
 class RangeWidgetX(AutoRangeWidget):
@@ -153,6 +154,17 @@ class MCRModel(qt.QAbstractTableModel):
                 return headerMCR[section]
             elif role == qt.Qt.TextAlignmentRole:
                 return qt.Qt.AlignHCenter
+            elif role == qt.Qt.ToolTipRole:
+                if section == 0:  # initialS
+                    return 'initial guess for spectral component'
+                elif section == 1:  # S>0
+                    return "toggle constraint S>0"
+                elif section == 2:  # C↓
+                    return "toggle constraint min(C)=0"
+                elif section == 3:  # constraint kind
+                    return "constraint C kind"
+                elif section == 4:  # constraint value
+                    return 'constraint C value'
         elif orientation == qt.Qt.Vertical:
             if role == qt.Qt.DisplayRole:
                 return f'{section+1}'
@@ -169,10 +181,12 @@ class MCRModel(qt.QAbstractTableModel):
         if not index.isValid():
             return qt.Qt.NoItemFlags
         column, row = index.column(), index.row()
-        if column == 1:  # constraint value
+        if column == 1:  # S>0
             return qt.Qt.ItemIsEnabled | qt.Qt.ItemIsUserCheckable
-        elif column == 3:  # constraint value
-            if self.mcrData[row]['contype'] == '':
+        elif column == 2:  # C↓
+            return qt.Qt.ItemIsEnabled | qt.Qt.ItemIsUserCheckable
+        elif column == 4:  # constraint value
+            if self.mcrData[row]['constraintCKind'] == '':
                 return qt.Qt.NoItemFlags
             else:
                 return qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
@@ -184,45 +198,50 @@ class MCRModel(qt.QAbstractTableModel):
             return
         column, row = index.column(), index.row()
         if role in (qt.Qt.DisplayRole, qt.Qt.EditRole):
-            if column == 0:  # initial
-                if self.mcrData[row]['initial'] == initialMCR[-1]:
+            if column == 0:  # initialS
+                if self.mcrData[row]['initialS'] == initialMCR[-1]:
                     if 'refalias' in self.mcrData[row]:
                         return self.mcrData[row]['refalias']
                     else:
                         return ''
-                return self.mcrData[row]['initial']
-            elif column == 2:  # constraint type
-                return self.mcrData[row]['contype']
-            elif column == 3:  # constraint value
-                if self.mcrData[row]['contype'] == '':
+                return self.mcrData[row]['initialS']
+            elif column == 3:  # constraint kind
+                return self.mcrData[row]['constraintCKind']
+            elif column == 4:  # constraint value
+                if self.mcrData[row]['constraintCKind'] == '':
                     return ""
                 else:
-                    return f"{self.mcrData[row]['convalue']:.2f}"
+                    return f"{self.mcrData[row]['constraintCValue']:.2f}"
         elif role == qt.Qt.CheckStateRole:
             if column == 1:  # S>0
-                return qt.Qt.Checked if self.mcrData[row]['positive'] else \
+                return qt.Qt.Checked if self.mcrData[row]['positiveS'] else \
+                    qt.Qt.Unchecked
+            elif column == 2:  # C↓
+                return qt.Qt.Checked if self.mcrData[row]['zeroC'] else \
                     qt.Qt.Unchecked
         elif role == qt.Qt.ToolTipRole:
-            if column == 0:  # initial
+            if column == 0:  # initialS
                 return 'initial guess for spectral component'
             elif column == 1:  # S>0
                 return "constraint S>0"
-            elif column == 2:  # constraint type
-                return "constraint ('': none, '<': low-pass, '>': high-pass)"
-            elif column == 3:  # constraint value
-                return 'constraint value (0 < value < 1)'
+            elif column == 2:  # C↓
+                return "constraint min(C)=0"
+            elif column == 3:  # constraint kind
+                return "constraint C('': none, '<': low-pass, '>': high-pass)"
+            elif column == 4:  # constraint value
+                return 'constraint C value (0 < value < 1)'
         elif role == qt.Qt.TextAlignmentRole:
             return qt.Qt.AlignCenter
         elif role == gco.LIMITS_ROLE:  # return min, max, step
-            if column == 3:  # constraint value
+            if column == 4:  # constraint value
                 return 0.0, 1.0, 0.01
                 return
 
     def setData(self, index, value, role=qt.Qt.EditRole):
         column, row = index.column(), index.row()
         if role == qt.Qt.EditRole:
-            if column == 0:  # initial
-                self.mcrData[row]['initial'] = value
+            if column == 0:  # initialS
+                self.mcrData[row]['initialS'] = value
                 if value == initialMCR[-1]:
                     self.selectedItemsMCR = list(csi.selectedItems)
                     self.node.widget.preparePickData(
@@ -231,19 +250,23 @@ class MCRModel(qt.QAbstractTableModel):
                 else:
                     self.parent.updateMCR()
                 return True
-            elif column == 2:  # constraint type
-                self.mcrData[row]['contype'] = value
+            elif column == 3:  # constraint kind
+                self.mcrData[row]['constraintCKind'] = value
                 self.parent.updateMCR()
                 return True
-            elif column == 3:  # constraint value
-                self.mcrData[row]['convalue'] = value
+            elif column == 4:  # constraint value
+                self.mcrData[row]['constraintCValue'] = value
                 self.parent.updateMCR()
                 return True
             else:
                 return False
         elif role == qt.Qt.CheckStateRole:
             if column == 1:  # S>0
-                self.mcrData[row]['positive'] = bool(value)
+                self.mcrData[row]['positiveS'] = bool(value)
+                self.parent.updateMCR()
+                return True
+            elif column == 2:  # C↓
+                self.mcrData[row]['zeroC'] = bool(value)
                 self.parent.updateMCR()
                 return True
         return False
@@ -277,23 +300,25 @@ class MCRTableView(qt.QTableView):
             for i in range(len(headerMCRWidths)):
                 horHeaders.setResizeMode(i, qt.QHeaderView.Interactive)
             horHeaders.setResizeMode(0, qt.QHeaderView.Stretch)  # initial
-            horHeaders.setClickable(False)
+            horHeaders.setClickable(True)
         else:
             horHeaders.setSectionsMovable(False)
             for i in range(len(headerMCRWidths)):
                 horHeaders.setSectionResizeMode(i, qt.QHeaderView.Interactive)
             horHeaders.setSectionResizeMode(0, qt.QHeaderView.Stretch)
-            horHeaders.setSectionsClickable(False)
+            horHeaders.setSectionsClickable(True)
         horHeaders.setStretchLastSection(False)
         horHeaders.setMinimumSectionSize(20)
+        horHeaders.sectionClicked.connect(self.headerClicked)
 
         self.setItemDelegateForColumn(0, gco.ComboDelegate(self, initialMCR))
         self.setItemDelegateForColumn(1, gco.CheckBoxDelegate(self))
+        self.setItemDelegateForColumn(2, gco.CheckBoxDelegate(self))
         kw = dict(alignment=qt.Qt.AlignHCenter | qt.Qt.AlignVCenter)
         self.setItemDelegateForColumn(
-            2, gco.ComboDelegate(self, constraintMCR, **kw))
+            3, gco.ComboDelegate(self, constraintMCR, **kw))
         self.setItemDelegateForColumn(
-            3, gco.DoubleSpinBoxDelegate(self, **kw))
+            4, gco.DoubleSpinBoxDelegate(self, **kw))
 
         for i, cw in enumerate(headerMCRWidths):
             self.setColumnWidth(i, int(cw*csi.screenFactor))
@@ -301,6 +326,18 @@ class MCRTableView(qt.QTableView):
         self.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
         self.setSizeAdjustPolicy(qt.QAbstractScrollArea.AdjustToContents)
         self.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Minimum)
+
+    def headerClicked(self, column):
+        if column == 1:
+            for d in self.model().mcrData:
+                d['positiveS'] = not d['positiveS']
+        elif column == 2:
+            for d in self.model().mcrData:
+                d['zeroC'] = not d['zeroC']
+        else:
+            return
+        self.model().updateAll()
+        self.model().parent.updateMCR()
 
 
 class CombineSpectraWidget(PropWidget):
@@ -558,6 +595,11 @@ class CombineSpectraWidget(PropWidget):
             # if self.mcrPanel is not None:
             #     self.mcrPanel.setVisible(False)
             self.mcrData = [dict(comp) for comp in it.MCR]
+            # add possible missing dict items:
+            for d in self.mcrData:
+                for key, value in defaultMCRDict.items():
+                    if key not in d:
+                        d[key] = value
             if self.mcrPanel is not None:
                 self.mcrModel.updateAll()
                 self.mcrPanel.setEnabled(False)
@@ -620,7 +662,7 @@ class CombineSpectraWidget(PropWidget):
     def cancelPendingProps(self):
         ind = self.combineType.currentIndex()
         if ind == cco.COMBINE_MCR_ALS:
-            self.mcrData[self.mcrModel.pendingRow]['initial'] = initialMCR[0]
+            self.mcrData[self.mcrModel.pendingRow]['initialS'] = initialMCR[0]
             self.mcrData[self.mcrModel.pendingRow].pop('ref', None)
             self.mcrData[self.mcrModel.pendingRow].pop('refalias', None)
             self.mcrModel.updateAll()
@@ -801,9 +843,10 @@ class CombineSpectraWidget(PropWidget):
         S = self.mcrTasker.S
         self.replotMCRC(C)
         self.replotMCRS(S)
-        # if len(self.mcrData) > 1 and self.mcrData[1]['contype'] == '<':
+        # if len(self.mcrData) > 1 and self.mcrData[1]['constraintCKind'] == '<':
         #     bname = 'c:/ParSeq/parseq/tests/data/MCR-ALS/'
-        #     fn = '{0:02.0f}.dat.gz'.format(self.mcrData[1]['convalue']*100)
+        #     fn = '{0:02.0f}.dat.gz'.format(
+        #         self.mcrData[1]['constraintCValue']*100)
         #     np.savetxt(bname+'C'+fn, C)
         #     np.savetxt(bname+'S'+fn, S)
         #     np.savetxt(bname+'x.dat.gz', self.xD)
@@ -817,6 +860,8 @@ class CombineSpectraWidget(PropWidget):
         x = np.arange(n) + 1
         for iC in range(N):
             y = C[:, iC]
+            if len(y) != len(x):
+                continue
             legend = f'C{iC+1}'
             curve = self.plotMCR.getCurve(legend)
             if curve is None:
@@ -841,6 +886,8 @@ class CombineSpectraWidget(PropWidget):
             N = S.shape[1]
             for iS in range(N):
                 y = S[:, iS]
+                if len(y) != len(x):
+                    continue
                 legend = f'temporal MCR-ALS S{iS+1}'
                 curve = plot.getCurve(legend)
                 if curve is None:
@@ -938,7 +985,7 @@ class CombineSpectraWidget(PropWidget):
             mcrDataOut = []
             for d in self.mcrData[:NMCR]:
                 dout = {key: d[key] for key in defaultMCRDict.keys()}
-                if d['initial'] == initialMCR[-1]:
+                if d['initialS'] == initialMCR[-1]:
                     try:
                         dout['refalias'] = d['refalias']
                     except KeyError:

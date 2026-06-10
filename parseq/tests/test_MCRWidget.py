@@ -13,7 +13,7 @@ def test():
     import parseq_XAS as myapp
 
     myapp.make_pipeline(withGUI=True)
-    myapp.load_test_data_MCR(3)
+    myapp.load_test_data_MCR(5)
 
     qtArgs = ["--disable-gpu"]  # has to be set for morph-browser users
     app = qt.QApplication(qtArgs)
