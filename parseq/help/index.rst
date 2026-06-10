@@ -18,7 +18,6 @@ User's Guide
    combinations.rst
    fits.rst
 
-   cite.rst
    license.rst
 
 .. Indices and tables
