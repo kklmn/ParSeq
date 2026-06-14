@@ -349,12 +349,17 @@ class FunctionFitWidget(gbf.FitWidget):
        :align: center
        :alt: &ensp;A Function Fit example.
 
-    The formula operates numpy functions as attributes of `np`, e.g.
-    `np.exp(x)`. Additionally, these functions are defined:
+    The formula may use NumPy functions accessed as attributes of ``np``,
+    for example ``np.exp(x)``. In addition, the following helper functions
+    are available:
 
-    gau(x, m, s): normalized Gaussian function, m=center, s=sigma
+    *gau(x, m, s)*
+       normalized Gaussian function, where *m* is the center and *s*
+       is the standard deviation (sigma)
 
-    lor(x, m, s): normalized Lorentzian function, m=center, s=HWHM
+    *lor(x, m, s)*
+       normalized Lorentzian function, where *m* is the center and *s*
+       is the half-width at half-maximum (HWHM)
 
     """
 

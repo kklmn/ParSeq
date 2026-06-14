@@ -3,16 +3,18 @@ u"""
 Data correction widgets
 -----------------------
 
-The correction widget is located to the right of the main plot and is hidden
-by default. Use the vertical splitter button "data corrections" to get it
-visible. The correction widget is a table of corrections; each correction has a
-corresponding plot tool. Any correction can be modified in the plot and in the
-table. If the check box "live" is selected, the modifications in the plot tools
-and in the table are immediately applied, otherwise they are applied by the
-"Accept Corrections" button.
+The correction widget is located to the right of the main plot and is hidden by
+default. It can be made visible using the vertical splitter button labeled
+"data Corrections".
 
-Examine the table of corrections below and also the supplied test script
-`tests/test_dataCorrection.py`.
+The widget presents a table of corrections, where each correction is associated
+with a corresponding plot tool. Corrections can be modified either directly in
+the plot or within the table. If the "live" checkbox is enabled, changes made
+through the plot tools or the table are applied immediately; otherwise, they
+take effect only after clicking the "Accept Corrections" button.
+
+Refer to the table of corrections below and to the provided test script
+`tests/test_dataCorrection.py` for further details.
 
 +------------------+------------------+
 |    correction    | animated example |

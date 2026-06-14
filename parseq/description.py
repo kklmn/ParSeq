@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
 r"""
 Package ParSeq is a python software library for **Par**\ allel execution of
-**Seq**\ uential data analysis. It implements a general analysis framework that
-consists of transformation nodes -- intermediate stops along the data pipeline
-for data visualization, cross-data operations (e.g. taking average), providing
-user input and displaying status -- and transformations that connect the nodes.
+**Seq**\ uential data analysis workflows. It implements a general analysis
+framework built around transformation nodes -- intermediate steps in a data
+pipeline used for visualization, cross-data operations (e.g., averaging), user
+interaction and status reporting -- and the transformations that connect these
+nodes.
 
-It provides an adjustable data tree model (supports grouping, renaming, moving
-and drag-and-drop arrangement), tunable data format definitions, plotters for
-1D, 2D and 3D data, cross-data analysis routines and flexible widget work space
-suitable for single- and multi-screen computers. It also defines a structure to
-implement particular analysis pipelines as lightweight Python packages.
+ParSeq provides an adjustable data tree model that supports grouping, renaming,
+moving and drag-and-drop arrangement of datasets. It also includes customizable
+data format definitions, plotting tools for 1D, 2D, and 3D data, cross-data
+analysis routines and a flexible widget workspace suitable for both single- and
+multi-screen environments. ParSeq defines a structure for implementing specific
+analysis pipelines as lightweight Python packages.
 
-ParSeq is intended for synchrotron based techniques, first of all spectroscopy.
+ParSeq is primarily designed for synchrotron-based techniques, with a
+particular emphasis on spectroscopy.
 
-A screenshot of ParSeq-XAS (an EXAFS analysis pipeline) as an application
-example:
+An example application is ParSeq-XAS, an EXAFS analysis pipeline, shown in the
+screenshot below:
 
 .. image:: _images/XAS-foils.gif
    :scale: 60 %
@@ -23,59 +26,61 @@ example:
 Main features
 -------------
 
--  ParSeq allows creating analysis pipelines as lightweight Python packages.
+-  ParSeq enables the creation of analysis pipelines as lightweight Python
+   packages.
 
--  Flexible use of screen area by detachable/dockable transformation nodes
-   (parts of analysis pipeline).
+-  Flexible use of screen space through detachable and dockable transformation
+   nodes (components of the analysis pipeline).
 
--  Two ways of acting from GUI onto multiple data: (a) simultaneous work with
-   multiply selected data and (b) copying a specific parameter or a group of
-   parameters from active data items to later selected data items.
+-  Two modes of applying GUI actions to multiple datasets:
+   (a) simultaneous operations on multiple selected datasets, and
+   (b) copying individual parameters or parameter groups from active datasets
+   to subsequently selected datasets.
 
--  Undo and redo for most of treatment steps.
+-  Undo and redo support for most data processing steps.
 
--  Entering into the analysis pipeline at any node, not only at the head of the
-   pipeline.
+-  Ability to enter the analysis pipeline at any node, not only at its starting
+   point.
 
--  Creation of cross-data combinations (average, sum, RMS, classic PCA,
-   cumulative PCA, Target Transformation and MCR-ALS) and their propagation
-   downstream the pipeline together with the parental data. The possibility of
-   termination of the parental data at any selected downstream node.
+-  Creation of cross-data combinations (including average, sum, RMS, classical
+   PCA, cumulative PCA, Target Transformation and MCR-ALS), with downstream
+   propagation alongside the parent data. Parent datasets can optionally be
+   terminated at any selected downstream node.
 
--  General data correction routines for 1D data: range deletion, scaling,
-   replacement by a spline, deletion of spikes and jump correction.
+-  General data correction routines for 1D data, including range deletion,
+   scaling, spline replacement, spike removal, and jump correction.
 
--  Parallel execution of data transformations with multiprocessing or
-   multithreading (can be opted by the pipeline application).
+-  Parallel execution of data transformations using either multiprocessing or
+   multithreading (configurable by the pipeline application).
 
--  Optional curve fitting solvers, also executed in parallel for multiple data
-   items.
+-  Optional curve-fitting solvers, also supporting parallel execution across
+   multiple datasets.
 
--  Informative error handling that provides alerts and stack traceback with the
-   type and location of the occurred error.
+-  Informative error handling, providing alerts and stack traceback with the
+   type and location of errors.
 
--  Optional time profiling of the pipeline, as controlled by a command-line
-   argument.
+-  Optional time profiling of the pipeline, controllable via a command-line
+   option.
 
--  Export of the workflow into a project file. Export of data into various data
-   formats with accompanied Python scripts that visualize the exported data in
+-  Export of workflows to project files, as well as data export to various
+   formats, accompanied by Python scripts that visualize the exported data in
    publication-quality plots.
 
--  ParSeq understands container files (presently only hdf5) and adds them to
-   the system file tree as subfolders. The file tree, including hdf5
-   containers, is lazy loaded thus enabling big data collections.
+-  Support for container files (currently HDF5), which are represented as
+   subfolders within the system file tree. The file tree, including containers,
+   is lazy-loaded to efficiently handle large datasets.
 
--  A web viewer widget near each analysis widget displays help pages generated
-   from the analysis widget doc strings. The help pages are built by Sphinx at
-   the startup time.
+-  Integrated web viewer widget for each analysis node, displaying help pages
+   automatically generated from docstrings using Sphinx at startup.
 
--  The pipeline can be operated by the GUI or from a Python script without GUI.
+-  The pipeline can be executed either through the GUI or via Python scripts
+   (headless operation).
 
--  Optional automatic loading of new data during a measurement time.
+-  Optional automatic loading of new data during ongoing measurements.
 
-The mechanisms for creating nodes, transformations and curve fitting solvers,
-connecting them together and creating Qt widgets for the transformations and
-and curve fits are exemplified by separately installed analysis packages:
+The mechanisms for creating nodes, transformations, and curve-fitting solvers,
+as well as for connecting them and developing Qt widgets for transformations
+and curve fitting, are demonstrated in separately distributed packages:
 
 - `ParSeq-XAS <https://github.com/kklmn/ParSeq-XAS>`_
 - `ParSeq-XES-scan <https://github.com/kklmn/ParSeq-XES-scan>`_
@@ -83,29 +88,34 @@ and curve fits are exemplified by separately installed analysis packages:
 Running without installation
 ----------------------------
 
-Get the zip files of ParSeq and a ParSeq pipeline from GitHub. Unzip their
-folders (`parseq` and e.g. `parseq_XES_scan`) to the same suitable directory,
-install :ref:`dependencies <instructions>` and run the pipeline starter.
-One advantage of no installation is a single location of parseq served by any
-Python installation.
+Download the ZIP archives of ParSeq and a ParSeq pipeline from GitHub. Extract
+their contents (e.g., `parseq` and `parseq_XES_scan` folders) into the same
+suitable directory. Install the :ref:dependencies <instructions>, then run the
+pipeline starter.
+
+One advantage of this approach is that a single ParSeq installation can be
+shared across multiple Python environments.
 
 Running with installation
 -------------------------
 
 a) Install py `pip`: ``pip install parseq`` and e.g. ``pip install parseq-XAS``.
-b) Or install from unzipped GitHub archives: from folders with `pyproject.toml`
-   run ``python -m pip install .``.
+b) Alternatively, install from unzipped GitHub sources. Navigate to the
+   directories containing pyproject.toml and run: ``python -m pip install .``.
 
-After installation, the pipeline starters are runnable from command line, e.g.
-as ``parseq-XAS``.
+After installation, pipeline starters can be executed directly from the command
+line, for example: ``parseq-XAS``.
 
 Launch an example
 -----------------
 
-Run the `*_start.py` module of the pipeline (also available as commands if
-ParSeq and the ParSeq pipeline were installed, not just unzipped). You can try
-it with ``--help`` to explore the available options. An assumed usage pattern
-is to load a project `.pspj` file from GUI or from the starting command line.
+Run the `*_start.py` module of a pipeline. If ParSeq and the corresponding
+pipeline are installed (rather than simply unpacked), these starters are also
+available as command-line commands.
+
+You can invoke them with the ``--help`` option to explore the available
+parameters. A common usage pattern is to load a project (.pspj) file either
+from the GUI or directly via the command line at startup.
 
 Documentation
 -------------
@@ -118,7 +128,7 @@ Hosting and contact
 -------------------
 
 The ParSeq project is hosted on `GitHub <https://github.com/kklmn/ParSeq>`_.
-Please use the project's Issues tab to get help or report an issue.
+For support or to report issues, please use the repository’s Issues section.
 
 Citing ParSeq
 -------------

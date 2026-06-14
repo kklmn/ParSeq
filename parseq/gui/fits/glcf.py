@@ -568,7 +568,7 @@ class LCFTableView(qt.QTableView):
 
 
 class LCFWidget(gbf.FitWidget):
-    """
+    r"""
     .. imagezoom:: _images/LCF-plot.png
        :align: right
        :alt: &ensp;A collection of reference Cu K XANES spectra and two test
@@ -581,38 +581,41 @@ class LCFWidget(gbf.FitWidget):
 
     Consider the supplied project file `saved/Cu-LCF.pspj`.
 
-    In this example, 16 reference Cu K XANES spectra can be used as a basis set
-    of the linear combination fit (LCF). Two physical mixtures -- mix1 and mix2
-    -- were prepared for testing the fits.
+    In this example, 16 reference Cu K XANES spectra can be used as a basis
+    set for the Linear Combination Fit (LCF). Two physical mixtures,
+    *mix1* and *mix2*, were prepared to validate the fitting results.
 
-    There are two ways of adding reference spectra to the fit: from a list of
-    spectra in the popup menu and from the data tree after the popup menu
-    command "Add ref spectra".
+    Reference spectra can be added to the fit in two ways: from a list of
+    spectra available in the popup menu or from the data tree using the
+    popup menu command "Add ref spectra".
 
-    Each reference spectrum contributes with *two* fitting variables: weight
-    *w* and energy shift *ΔE*. The need for *ΔE*, its range and interpretation
-    remain on the user's side. One good reason for having free *ΔE*'s is a
-    possible energy variation when the spectra come from different sources.
+    Each reference spectrum introduces two fitting variables: weight
+    :math:`w` and energy shift :math:`\Delta E`. The necessity of
+    :math:`\Delta E`, as well as its range and interpretation, is left to
+    the user. Allowing :math:`\Delta E` to vary may be useful when spectra
+    originate from different sources with slightly misaligned energy
+    scales.
 
-    The weights *w* should have their range within the interval [0, 1]. In the
-    fit table, there is a third value -- δ -- that defines the view format and
-    also sets a step for the spin box editor of the initial *w* value. The
-    final values of the fitting parameters and their errors can be viewed with
-    a higher precision by cell tooltips.
+    The weights :math:`w` should typically be constrained within the
+    interval [0, 1]. In the fit table, an additional value, δ, defines the
+    display precision and sets the increment used by the spin-box editor
+    for the initial :math:`w` value. Final parameter values and their
+    uncertainties can be examined with higher precision via cell tooltips.
 
-    A fit variable can be fixed in three ways: by defining (a) a tie expression
-    "fixed", (b) a tie expression "=0.5" (or any other fixed value) and (c) the
-    [*min*, *max*] interval with min≥max, then *min* is the used fixed value.
+    A fitting variable can be fixed in three ways:
+    (a) by setting a tie expression ``"fixed"``,
+    (b) by assigning a constant tie expression such as ``"=0.5"``,
+    (c) by defining bounds with *min* ≥ *max*, the value is fixed at *min*.
 
-    Tie expressions may also interconnect the *w* variables. For this purpose,
-    they are given an integer index in brackets. Examine the tooltips of the
-    table headers. Additionally, *metavariables* can be defined by the user to
-    appear in tie expressions.
+    Tie expressions can also link multiple :math:`w` variables using their
+    indexed notation (e.g., ``w[1]``, ``w[2]``). Refer to the tooltips of
+    the table headers for details. In addition, user-defined
+    *metavariables* can be introduced and used in tie expressions.
 
-    The complete fit description can be copied from one data item to other data
-    items. The export of all fits is done by project saving. The project file
-    is a text file of the ini-file structure; it also includes all fit
-    settings.
+    The entire fit configuration can be copied from one data item to
+    others. All fitting results and settings can be exported by saving the
+    project. The project file is a text file in ini format and contains
+    the complete fit description.
     """
 
     def __init__(self, parent, worker, plot):

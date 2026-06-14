@@ -3,26 +3,26 @@ r"""
 Data corrections
 ----------------
 
-General (not pipeline-specific) data corrections were designed in ParSeq for
-the amendment of data distortions. One example of data correction is the
-removal of diffraction peaks arriving at a fluorescence detector during x-ray
-absorption measurements. In this case, diffraction peaks may appear as sharp
-artefacts seen by different detector channels at different x-ray energies. The
-correction can be a simple deletion of a few data points or a replacement by a
-spline segment, where the comparison with undistorted spectra can guide the
-decisions.
+General (pipeline-independent) data corrections in ParSeq are designed to
+address distortions in experimental data. One example is the removal of
+diffraction peaks that may appear in fluorescence detectors during X-ray
+absorption measurements. Such peaks can manifest as sharp artifacts, appearing
+at different X-ray energies across detector channels. Correction strategies may
+include removing affected data points or replacing them with spline segments,
+guided by comparison with undistorted spectra.
 
-The ParSeq corrections operate in a transformation node and are applied to all
-data arrays defined in that node. The corrections are calculated following the
-incoming transformations that lead to the node.
+ParSeq corrections are applied within a transformation node and affect all data
+arrays defined at that node. These corrections are executed after the upstream
+transformations that produce the node's input data.
 
 .. note::
-   When setting up a correction that depends on y-coordinates (e,g. spline
-   correction) in the ParSeq GUI, make sure that the plot widget does not
-   apply a normalization or any other modification affecting the y-axis.
+   When configuring a correction that depends on y-values (e.g. spline
+   correction) in the ParSeq GUI, ensure that the plot widget does not apply
+   normalization or any other transformation affecting the y-axis.
 
-In the present version, only 1D nodes can receive corrections. Each correction
-defines a dictionary of parameters. The following corrections are defined.
+In the current version, only 1D nodes support data corrections. Each correction
+is defined by a dictionary of parameters. The following corrections are
+available:
 
 +------------------+------------------+
 |    correction    |    description   |

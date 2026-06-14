@@ -473,7 +473,7 @@ class CombineSpectraWidget(PropWidget):
             xname = self.node.plotXArray
             self.xRangeWidget = RangeWidgetX(
                 self, self.node.widget.plot, f'{xname} range',
-                f'[{xname}.min, {xname}.max]', 'x-range',
+                f'[{xname}.min, {xname}.max]', 'MCR-ALS-range',
                 "#60aad6", "{0[0]:.1f}, {0[1]:.1f}", self.xRangeDefault)
             self.xRangeWidget.setRange('auto')
             self.xRangeWidget.rangeChanged.connect(self.xRangeChanged)
