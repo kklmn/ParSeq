@@ -391,16 +391,29 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                     continue
 
                 if (not isinstance(self.proxyModel, qt.QSortFilterProxyModel)
-                        and hasattr(self.transformNode, 'excludeFilters')):
-                    excluded = False
-                    for filt in self.transformNode.excludeFilters:
-                        filtNoStar = filt.replace('*', '')
-                        if filtNoStar in fname:
-                            excluded = True
-                            break
-                    if excluded:
-                        self.nodesNoHead.append(intId)
-                        continue
+                        and not fileInfo.isDir()):
+                    if (hasattr(self.transformNode, 'excludeFilters')
+                            and self.transformNode.excludeFilters):
+                        excluded = False
+                        for filt in self.transformNode.excludeFilters:
+                            filtNoStar = filt.replace('*', '')
+                            if filtNoStar in fname:
+                                excluded = True
+                                break
+                        if excluded:
+                            self.nodesNoHead.append(intId)
+                            continue
+                    if (hasattr(self.transformNode, 'includeFilters')
+                            and self.transformNode.includeFilters):
+                        included = False
+                        for filt in self.transformNode.includeFilters:
+                            filtNoStar = filt.replace('*', '')
+                            if filtNoStar in fname:
+                                included = True
+                                break
+                        if not included:
+                            self.nodesNoHead.append(intId)
+                            continue
 
                 ext = fileInfo.suffix()
                 if ext in NEXUS_HDF5_EXT:
@@ -408,9 +421,9 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                         self.beginInsertRows(indexFS, 0, -1)
 
                         # so far, async doesn't work: it fails on corrupt h5s:
-                        # self.h5Model.insertFileAsync(fname)  # in another Py
+                        self.h5Model.insertFileAsync(fname)  # in another Py
                         # therefore, it has to be synchronous:
-                        self.h5Model.insertFile(fname)  # blocks the main gui
+                        # self.h5Model.insertFile(fname)  # blocks the main gui
 
                         self.nodesHead.append(intId)
                         countHdf5 += 1
@@ -812,13 +825,23 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
             return indexFS
 
         indexFS = super().index(row, column, parent)
-        if (not isinstance(self.proxyModel, qt.QSortFilterProxyModel) and
-                hasattr(self.transformNode, 'excludeFilters')):
-            fileInfo = self.fileInfo(indexFS)
-            fileName = fileInfo.fileName()
-            for filt in self.transformNode.excludeFilters:
-                filtNoStar = filt.replace('*', '')
-                if filtNoStar in fileName:
+        fileInfo = self.fileInfo(indexFS)
+        fileName = fileInfo.fileName()
+        if (not isinstance(self.proxyModel, qt.QSortFilterProxyModel)
+                and not fileInfo.isDir()):
+            if (hasattr(self.transformNode, 'excludeFilters')
+                    and self.transformNode.excludeFilters):
+                for filt in self.transformNode.excludeFilters:
+                    filtNoStar = filt.replace('*', '')
+                    if filtNoStar in fileName:
+                        return qt.QModelIndex()
+            if (hasattr(self.transformNode, 'includeFilters')
+                    and self.transformNode.includeFilters):
+                for filt in self.transformNode.includeFilters:
+                    filtNoStar = filt.replace('*', '')
+                    if filtNoStar in fileName:
+                        break
+                else:
                     return qt.QModelIndex()
         return indexFS
 
@@ -1076,7 +1099,8 @@ class FileTreeView(qt.QTreeView):
 
             rootIndex = proxyModel.mapFromSource(rootIndex)
             if (isinstance(proxyModel, qt.QSortFilterProxyModel) and
-                    hasattr(self.transformNode, 'excludeFilters')):
+                    hasattr(self.transformNode, 'excludeFilters') and
+                    self.transformNode.excludeFilters):
                 model.proxyModel = proxyModel
                 # example: r"^((?!excl1)(?!excl2).)*$")
                 res = r"^("

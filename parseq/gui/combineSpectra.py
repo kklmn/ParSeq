@@ -638,7 +638,10 @@ class CombineSpectraWidget(PropWidget):
 
             model.beginResetModel()
             items = csi.selectedItems + self.selectedItemsTT
-            wPCA, vPCA = self.getPCA(items, interpolateTo=-1)[:2]
+            res = self.getPCA(items, interpolateTo=-1)
+            if res is None:
+                return
+            wPCA, vPCA = res[:2]
             dformat['wPCA'] = wPCA[::-1]
             dformat['vPCA'] = vPCA[:, ::-1]
             ci = self.combineInterpolateCB.isChecked()  # after self.getPCA()!
@@ -703,7 +706,10 @@ class CombineSpectraWidget(PropWidget):
                     self.D = None
                     return
 
-        w, v, IE, IND = self.getPCA()
+        res = self.getPCA()
+        if res is None:
+            return
+        w, v, IE, IND = res
         self.replotPCA(w[::-1], IE, IND)
 
         ind = self.combineType.currentIndex()
@@ -766,7 +772,10 @@ class CombineSpectraWidget(PropWidget):
         self.D = D[where, :]
 
     def getPCA(self, items=None, interpolateTo=0):
-        self.getD(items, interpolateTo)
+        try:
+            self.getD(items, interpolateTo)
+        except AttributeError:  # when only empty groups are present
+            return
         k, nN = self.D.shape
         eigvals = 0, nN-1
         w, v, IE, IND = uma.make_PCA(self.D, eigvals, get_indicators=True)
@@ -952,7 +961,10 @@ class CombineSpectraWidget(PropWidget):
         model = self.node.widget.tree.model()
         model.beginResetModel()
         if isPCA:
-            wPCA, vPCA = self.getPCA()[:2]
+            res = self.getPCA()
+            if res is None:
+                return
+            wPCA, vPCA = res[:2]
             dformat['NPCA'] = NPCA
             dformat['wPCA'] = wPCA[::-1]
             dformat['vPCA'] = vPCA[:, ::-1]

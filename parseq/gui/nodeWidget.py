@@ -532,7 +532,7 @@ class NodeWidget(qt.QWidget):
 
     def setIncludeFilter(self):
         txt = self.editIncludeFilter.text()
-        lst = [s.strip() for s in txt.split(',')]
+        lst = [s.strip() for s in txt.split(',')] if len(txt) > 0 else []
         if hasattr(self.node, 'includeFilters'):
             if lst == self.node.includeFilters:
                 return
@@ -550,7 +550,7 @@ class NodeWidget(qt.QWidget):
 
     def setExcludeFilter(self):
         txt = self.editExcludeFilter.text()
-        lst = [s.strip() for s in txt.split(',')]
+        lst = [s.strip() for s in txt.split(',')] if len(txt) > 0 else []
         if hasattr(self.node, 'excludeFilters'):
             if lst == self.node.excludeFilters:
                 return
@@ -1234,12 +1234,25 @@ class NodeWidget(qt.QWidget):
 
         selectedIndexes = self.files.selectionModel().selectedRows()
         if len(selectedIndexes) == 0:
+            selectedIndex = self.files.model().indexFileName(fileNamesFull[0])
+        else:
+            selectedIndex = selectedIndexes[0]
+
+        try:
+            dataStruct = selectedIndex.data(gft.LOAD_DATASET_ROLE)
+            if dataStruct is None:
+                df = self.files.transformNode.auto_format(
+                    fileNamesFull[0], ftype='column')
+                if df:
+                    cf = self.files.transformNode.widget.columnFormat
+                    cf.setDataFormat(df)
+                    df['dataSource'] = df.pop('datasource')
+                    df['conversionFactors'] = df.pop('conversionfactors')
+            else:
+                colRecs, df = dataStruct
+        except Exception:
+            print('unknown data format')
             return
-        selectedIndex = selectedIndexes[0]
-        dataStruct = selectedIndex.data(gft.LOAD_DATASET_ROLE)
-        if dataStruct is None:
-            return
-        colRecs, df = dataStruct
 
         # spectraInOneFile = 1
         # for col in colRecs:  # col is a list of (expr, d[xx]-expr, data-keys)
