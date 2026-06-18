@@ -4,10 +4,15 @@ Version history
 ---------------
 
 Current GitHub code (modified 9 Jun 2026):
+    -
+
+2026.6.0 (18 Jun 2026):
     - Add MCR-ALS to data combinations, including
       :ref:`docs and an example <combinations>`.
     - Split PCA into PCA-classic and PCA-cumulative.
     - Adapt to new Python Qt bindings.
+    - Improved interaction with the file system, particularly when using
+      filters.
 
 2026.4.0 (17 Apr 2026):
     - Add slices to data conversion.
