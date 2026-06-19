@@ -90,8 +90,8 @@ Running without installation
 
 Download the ZIP archives of ParSeq and a ParSeq pipeline from GitHub. Extract
 their contents (e.g., `parseq` and `parseq_XES_scan` folders) into the same
-suitable directory. Install the :ref:dependencies <instructions>, then run the
-pipeline starter.
+suitable directory. Install the :ref:`dependencies <instructions>`, then run
+the pipeline starter.
 
 One advantage of this approach is that a single ParSeq installation can be
 shared across multiple Python environments.
