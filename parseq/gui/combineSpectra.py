@@ -60,7 +60,7 @@ __author__ = "Konstantin Klementiev"
 __date__ = "9 Jun 2026"
 # !!! SEE CODERULES.TXT !!!
 
-# from functools import partial
+from functools import partial
 import os
 import numpy as np
 from scipy.interpolate import interp1d
@@ -362,9 +362,17 @@ class CombineSpectraWidget(PropWidget):
 
         kw1 = dict(parent=self, plot=self.plotPCA)
         self.toolbarPCA = tools.InteractiveModeToolBar(**kw1)
+        col1 = '#6F917C'
+        tt1 = 'PCA scree and Malinowsky indicator IND'
+
         kw2 = dict(parent=self, plot=self.plotMCR)
+        col2 = '#6F7C91'
+        tt2 = 'MCR-ALS C matrix'
         self.toolbarMCR = tools.InteractiveModeToolBar(**kw2)
-        for toolbar, kw in zip((self.toolbarPCA, self.toolbarMCR), (kw1, kw2)):
+
+        for toolbar, kw, color, tt in zip(
+                (self.toolbarPCA, self.toolbarMCR), (kw1, kw2), (col1, col2),
+                (tt1, tt2)):
             action = actions.control.ResetZoomAction(**kw)
             toolbar.addAction(action)
             action = actions.control.CurveStyleAction(**kw)
@@ -380,6 +388,15 @@ class CombineSpectraWidget(PropWidget):
             action = actions.io.SaveAction(**kw)
             toolbar.addAction(action)
             toolbar.setIconSize(qt.QSize(18, 18))
+            butVisible = gco.EyeButton('', toolbar)
+            butVisible.setToolTip(f'show/hide "{tt}" plot')
+            butVisible.setStyleSheet("QPushButton{color: " + color + ";}")
+            butVisible.setFixedSize(30, 22)
+            butVisible.setCheckable(True)
+            butVisible.setChecked(True)
+            butVisible.clicked.connect(
+                partial(self.setPlotVisible, kw['plot']))
+            toolbar.addWidget(butVisible)
 
         self.plotPCA.setYAxisLogarithmic(True)
         self.plotPCA.setGraphXLabel(label="k")
@@ -578,6 +595,7 @@ class CombineSpectraWidget(PropWidget):
         if len(csi.selectedItems) == 0:
             return
         MCRC = None
+        allAreMCRSpectra = False
         for it in csi.selectedItems:
             if not hasattr(it, 'MCRC'):
                 allAreMCRSpectra = False
@@ -670,6 +688,9 @@ class CombineSpectraWidget(PropWidget):
             self.mcrData[self.mcrModel.pendingRow].pop('refalias', None)
             self.mcrModel.updateAll()
 
+    def setPlotVisible(self, plot, checked):
+        plot.setVisible(checked)
+
     def getRef(self, data):
         self.mcrData[self.mcrModel.pendingRow]['refalias'] = data.alias
         arrName = self.combineArray.currentText()
@@ -680,9 +701,10 @@ class CombineSpectraWidget(PropWidget):
         self.updateMCR()
 
     def plotPCASlot(self, msg):
-        if msg['event'] == 'mouseClicked':
-            N = round(msg['x'])
-            self.combineN.setValue(N)
+        pass
+        # if msg['event'] == 'mouseClicked':
+        #     N = round(msg['x'])
+        #     self.combineN.setValue(N)
 
     def updatePCA(self):
         if len(csi.selectedItems) < 2:

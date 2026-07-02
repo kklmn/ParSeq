@@ -704,8 +704,8 @@ class EyeButton(qt.QPushButton):
     rEyelashes = 2 if sys.platform == "darwin" else 2 \
         if sys.platform == "linux" else 2
 
-    def __init__(self, orientation=qt.Qt.Horizontal, parent=None, node=None):
-        super().__init__(orientation, parent)
+    def __init__(self, txt='', parent=None, node=None):
+        super().__init__(txt, parent)
         self.node = node
         self.plotDimension = 1 if node is None else self.node.plotDimension
 

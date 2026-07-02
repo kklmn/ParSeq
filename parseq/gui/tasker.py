@@ -8,7 +8,7 @@ from silx.gui import qt
 
 
 class Tasker(qt.QObject):
-    ready = qt.pyqtSignal(qt.QWidget, str, str, dict, float, list)
+    ready = qt.pyqtSignal(qt.QWidget, str, str, int, dict, float, list)
 
     def prepare(self, task, params={}, runDownstream=None, dataItems=None,
                 starter=None):
@@ -32,6 +32,7 @@ class Tasker(qt.QObject):
         errorItems = self.task.run(
             params=self.params, runDownstream=self.runDownstream,
             dataItems=self.dataItems)
+        lenDataItems = len(self.dataItems)
         self.thread().terminate()
         self.timeEnd = time.time()
         self.timeDuration = self.timeEnd - self.timeStart
@@ -42,5 +43,5 @@ class Tasker(qt.QObject):
         else:
             trStr = self.task.name
 
-        self.ready.emit(self.starter, self.task.name, trStr, self.params,
-                        self.timeDuration, errorItems)
+        self.ready.emit(self.starter, self.task.name, trStr, lenDataItems,
+                        self.params, self.timeDuration, errorItems)

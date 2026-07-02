@@ -219,8 +219,8 @@ class Transform(object):
         syslogger.info(
             'run "{0}" in {1} {2}{3}'.format(
                 self.name, len(workers), wt, '' if len(workers) == 1 else 's'))
-        if self.sendSignals:
-            csi.mainWindow.beforeDataTransformSignal.emit(workedItems)
+        # if self.sendSignals:
+        #     csi.mainWindow.beforeDataTransformSignal.emit(workedItems)
 
         for worker, item in zip(workers, workedItems):
             if 'progress' in args and self.sendSignals:
@@ -260,15 +260,15 @@ class Transform(object):
             if 'progress' in args and self.sendSignals:
                 self._get_progressN(item.alias)
 
-        if self.sendSignals:
-            csi.mainWindow.afterDataTransformSignal.emit(workedItems)
+        # if self.sendSignals:
+        #     csi.mainWindow.afterDataTransformSignal.emit(workedItems)
 
     @logger(minLevel=20, attrs=[(0, 'name')])
     def _run_single_worker(self, data, args):
         data.beingTransformed = self.name
         data.transfortm_t0 = time.time()
-        if self.sendSignals:
-            csi.mainWindow.beforeDataTransformSignal.emit([data])
+        # if self.sendSignals:
+        #     csi.mainWindow.beforeDataTransformSignal.emit([data])
         syslogger.info('run "{0}" for {1}'.format(self.name, data.alias))
         try:
             argVals = [data]
@@ -314,8 +314,8 @@ class Transform(object):
             data.state[self.toNode.name] = res
         data.beingTransformed = False
         data.transfortmTimes[self.name] = time.time() - data.transfortm_t0
-        if self.sendSignals:
-            csi.mainWindow.afterDataTransformSignal.emit([data])
+        # if self.sendSignals:
+        #     csi.mainWindow.afterDataTransformSignal.emit([data])
 
     @logger(minLevel=20, attrs=[(0, 'name')])
     def run(self, params={}, updateUndo=True, runDownstream=True,
@@ -353,6 +353,8 @@ class Transform(object):
                 'IMPORTANT: remove "self" from "run_main()" parameters as'
                 ' this is a static method, not an instance method!')
 
+        if self.sendSignals:
+            csi.mainWindow.beforeDataTransformSignal.emit(items)
         for data in items:
             # if (not self.isHeadTransform and
             #         data.state[self.fromNode.name] == cco.DATA_STATE_BAD):
@@ -405,6 +407,8 @@ class Transform(object):
             if len(workers) > 0:
                 self._run_multi_worker(workers, workedItems, args)
 
+        if self.sendSignals:
+            csi.mainWindow.afterDataTransformSignal.emit(items)
         postItems = [it for it in items
                      if it.state[self.toNode.name] == cco.DATA_STATE_GOOD]
         self.run_post(postItems, runDownstream)

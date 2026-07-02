@@ -921,15 +921,16 @@ class MainWindowParSeq(qt.QMainWindow):
         super().closeEvent(event)
 
     def updateItemView(self, state, items):
+        # if not (1 < len(items) < 20):  # becomes too slow
+        #     return
         if state == 1:
             try:
-                for item in items:
-                    ind = csi.model.indexFromItem(item)
-                    # nodes = [csi.currentNode]
-                    nodes = csi.nodes.values()
-                    for node in nodes:
-                        node.widget.tree.model().dataChanged.emit(ind, ind)
-                    node.widget.tree.update()
+                node = csi.currentNode
+                # nodes = csi.nodes.values()
+                ind0 = csi.model.indexFromItem(items[0])
+                indN = csi.model.indexFromItem(items[-1])
+                node.widget.tree.model().dataChanged.emit(ind0, indN)
+                node.widget.tree.update()
             except TypeError:  # when an item is removed during transformation
                 pass
 
@@ -952,11 +953,12 @@ class MainWindowParSeq(qt.QMainWindow):
             # dock.setStyleSheet(ss)
 
     def displayStatusMessage(self, txt, starter=None, trName='', what='',
-                             props={}, duration=0, errorList=None):
+                             lenData=0, props={}, duration=0, errorList=None):
         if 'ready' in txt:
             factor, unit, ff = (1e3, 'ms', '{0:.0f}') if duration < 1 else (
                 1, 's', '{0:.1f}')
-            ss = what + ' finished in ' + ff + ' {1}'
+            many = f' of {lenData} datasets' if lenData > 1 else ''
+            ss = what + many + ' finished in ' + ff + ' {1}'
             if errorList:
                 errNames = [it.alias for it in errorList]
                 combinedNames = cco.combine_names(errNames)

@@ -12,8 +12,11 @@ from parseq.gui.mainWindow import MainWindowParSeq
 def test():
     import parseq_XAS as myapp
 
+    # csi.plotBackend = 'mpl'
+    csi.DEBUG_LEVEL = 100
+
     myapp.make_pipeline(withGUI=True)
-    myapp.load_test_data_MCR(5)
+    myapp.load_test_data_MCR(7)
 
     qtArgs = ["--disable-gpu"]  # has to be set for morph-browser users
     app = qt.QApplication(qtArgs)
