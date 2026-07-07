@@ -895,6 +895,7 @@ class NodeWidget(qt.QWidget):
                             if not noLine:
                                 curve = self.plot.addCurve(
                                     x0, y+dy, legend=curveLabel,
+                                    resetzoom=False,
                                     color=item.color, z=z, **plotProps)
                         else:
                             curve.setData(x0, y+dy)
@@ -1040,8 +1041,8 @@ class NodeWidget(qt.QWidget):
             syslogger.log(100, 'extraPlot in {0} failed: {1}'.format(
                 self.node.name, err))
 
-        # if self.wasNeverPlotted and node.plotDimension == 1:
-        #     self.plot.resetZoom()
+        if self.wasNeverPlotted and node.plotDimension == 1:
+            self.plot.resetZoom()
         self.wasNeverPlotted = False
 
     @logger(minLevel=50, attrs=[(0, 'node')])
@@ -1054,7 +1055,7 @@ class NodeWidget(qt.QWidget):
                 if curve is None:
                     self.plot.addCurve(
                         x, y, legend=curveLabel, color=item.color, z=z,
-                        **plotProps)
+                        resetzoom=False, **plotProps)
                 else:
                     curve.setData(x, y)
                     curve.setZValue(z)
