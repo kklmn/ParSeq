@@ -72,7 +72,7 @@ from ..core import singletons as csi
 from ..core import transforms as ctr
 from ..core import commons as cco
 from .propWidget import PropWidget
-from . import propsOfData as gpd
+# from . import propsOfData as gpd
 from ..utils import math as uma
 from .roi import AutoRangeWidget
 from . import gcommons as gco
@@ -106,25 +106,25 @@ class MCRTasker(qt.QObject):
         self.eps = 1e-16
         self.maxIteration = 1000
 
-    def prepare(self, node, x, D, mcrData, retErrors=False):
+    def prepare(self, node, x, D, mcrData, returnBand=False):
         self.node = node
         self.x = x
         self.D = D
         self.mcrData = mcrData
-        self.retErrors = retErrors
+        self.returnBand = returnBand
 
     def run(self):
         csi.mainWindow.beforeTransformSignal.emit(self.node.widget)
         self.node.widget.onTransform = True
 
         res = uma.mcr_als(
-            self.x, self.D, self.mcrData, retErrors=self.retErrors,
+            self.x, self.D, self.mcrData, returnBand=self.returnBand,
             eps=self.eps, maxIteration=self.maxIteration)
-        if self.retErrors:
-            self.S, self.C, self.revCTC, self.Cfit = res
+        self.S, self.C, self.revCTC = res[:3]
+        if self.returnBand:
+            self.Sm, self.Sp, self.Cm, self.Cp = res[3:]
         else:
-            self.S, self.C, self.revCTC = res
-            self.Cfit = None
+            self.Sm, self.Sp, self.Cm, self.Cp = [None]*4
 
         self.node.widget.onTransform = False
         self.thread().terminate()
@@ -865,25 +865,25 @@ class CombineSpectraWidget(PropWidget):
         N = self.combineN.value()
         mcrData = self.mcrData[:N]
 
-        retErrors = False
-        self.mcrTasker.prepare(self.node, self.xD, self.D, mcrData, retErrors)
+        returnBand = True
+        self.mcrTasker.prepare(self.node, self.xD, self.D, mcrData, returnBand)
         self.mcrThread.start()
 
     def doneMCR(self):
-        C = self.mcrTasker.C
-        S = self.mcrTasker.S
-        self.replotMCRC(C)
-        self.replotMCRS(S)
-        # if len(self.mcrData) > 1 and self.mcrData[1]['constraintCKind'] == '<':
-        #     bname = 'c:/ParSeq/parseq/tests/data/MCR-ALS/'
-        #     fn = '{0:02.0f}.dat.gz'.format(
-        #         self.mcrData[1]['constraintCValue']*100)
-        #     np.savetxt(bname+'C'+fn, C)
-        #     np.savetxt(bname+'S'+fn, S)
-        #     np.savetxt(bname+'x.dat.gz', self.xD)
-        #     np.savetxt(bname+'D.dat.gz', self.D)
+        C, Cm, Cp = self.mcrTasker.C, self.mcrTasker.Cm, self.mcrTasker.Cp
+        S, Sm, Sp = self.mcrTasker.S, self.mcrTasker.Sm, self.mcrTasker.Sp
+        self.replotMCRC(C, Cm, Cp)
+        self.replotMCRS(S, Sm, Sp)
 
-    def replotMCRC(self, C):
+        # bname = 'c:/ParSeq/parseq/tests/data/MCR-ALS/'
+        # fn = '{0:02.0f}.dat.gz'.format(
+        #     self.mcrData[1]['constraintCValue']*100)
+        # np.savetxt(bname+'C'+fn, C)
+        # np.savetxt(bname+'S'+fn, S)
+        # np.savetxt(bname+'x.dat.gz', self.xD)
+        # np.savetxt(bname+'D.dat.gz', self.D)
+
+    def replotMCRC(self, C, Cm=None, Cp=None):
         self.plotMCR.clearCurves()
         if C is None:
             return
@@ -893,22 +893,47 @@ class CombineSpectraWidget(PropWidget):
             y = C[:, iC]
             if len(y) != len(x):
                 continue
+            color = gco.colorCycle1[iC % 10]
             legend = f'C{iC+1}'
             curve = self.plotMCR.getCurve(legend)
             if curve is None:
                 curve = self.plotMCR.addCurve(x, y, legend=legend)
-                curve.setColor(f'C{iC % 10}')
+                curve.setColor(color)
                 curve.setLineStyle(self.deflinestyle['linestyle'])
                 curve.setLineWidth(self.deflinestyle['linewidth'])
                 curve.setSymbol(self.deflinestyle['symbol'])
                 curve.setSymbolSize(self.deflinestyle['symbolsize'])
             else:
                 curve.setData(x, y)
+            if Cm is not None:
+                ym = Cm[:, iC]
+                legend = f'Cm{iC+1}'
+                curve = self.plotMCR.getCurve(legend)
+                if curve is None:
+                    curve = self.plotMCR.addCurve(
+                        x, ym, legend=legend, fill=True, baseline=y)
+                    curve.setColor(color+'50')
+                    curve.setLineStyle('-')
+                    curve.setLineWidth(0.5)
+                else:
+                    curve.setData(x, ym, baseline=y)
+            if Cp is not None:
+                yp = Cp[:, iC]
+                legend = f'Cp{iC+1}'
+                curve = self.plotMCR.getCurve(legend)
+                if curve is None:
+                    curve = self.plotMCR.addCurve(
+                        x, yp, legend=legend, fill=True, baseline=y)
+                    curve.setColor(color+'50')
+                    curve.setLineStyle('-')
+                    curve.setLineWidth(0.5)
+                else:
+                    curve.setData(x, yp, baseline=y)
 
         # minLim, _ = self.plotMCR.getGraphYLimits('left')
         self.plotMCR.setGraphYLimits(0, 1, 'left')
 
-    def replotMCRS(self, S):
+    def replotMCRS(self, S, Sm=None, Sp=None):
         if self.node.plotDimension != 1:
             return
         plot = self.node.widget.plot
@@ -919,17 +944,43 @@ class CombineSpectraWidget(PropWidget):
                 y = S[:, iS]
                 if len(y) != len(x):
                     continue
-                legend = f'temporal MCR-ALS S{iS+1}'
+                color = gco.colorCycle1[iS % 10]
+                legend = f'temporal MCR-ALS S_{iS+1}'
                 curve = plot.getCurve(legend)
                 if curve is None:
                     curve = plot.addCurve(x, y, legend=legend)
-                    curve.setColor(f'C{iS % 10}')
+                    curve.setColor(color)
                     curve.setLineStyle(self.deflinestyle['linestyle'])
                     curve.setLineWidth(self.deflinestyle['linewidth'])
                     curve.setSymbol(self.deflinestyle['symbol'])
                     curve.setSymbolSize(self.deflinestyle['symbolsize'])
                 else:
                     curve.setData(x, y)
+                if Sm is not None:
+                    ym = Sm[:, iS]
+                    legend = f'temporal MCR-ALS Sm{iS+1}'
+                    curve = plot.getCurve(legend)
+                    if curve is None:
+                        curve = plot.addCurve(
+                            x, ym, legend=legend, fill=True, baseline=y)
+                        curve.setColor(color+'50')
+                        curve.setLineStyle('-')
+                        curve.setLineWidth(0.5)
+                    else:
+                        curve.setData(x, ym, baseline=y)
+                if Sp is not None:
+                    yp = Sp[:, iS]
+                    legend = f'temporal MCR-ALS Sp{iS+1}'
+                    curve = plot.getCurve(legend)
+                    if curve is None:
+                        curve = plot.addCurve(
+                            x, yp, legend=legend, fill=True, baseline=y)
+                        curve.setColor(color+'50')
+                        curve.setLineStyle('-')
+                        curve.setLineWidth(0.5)
+                    else:
+                        curve.setData(x, yp, baseline=y)
+
         else:
             N = 0
 
@@ -939,7 +990,7 @@ class CombineSpectraWidget(PropWidget):
                 sN = legend.split()[-1]
                 if sN.startswith('S'):
                     try:
-                        vN = eval(sN[1:])
+                        vN = eval(sN[2:])
                         if vN > N:
                             plot.removeItem(item)
                     except Exception:

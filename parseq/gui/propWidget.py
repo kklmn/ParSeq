@@ -754,8 +754,8 @@ class PropWidget(qt.QWidget):
                 self._onTransformThreadReady(self, trName, props=params)
 
     # @logger(minLevel=50, attrs=[(0, 'node')])
-    def _onTransformThreadReady(
-            self, starter, tName='', tStr='', props={}, duration=0, err=None):
+    def _onTransformThreadReady(self, starter, tName='', tStr='', lenData=0,
+                                props={}, duration=0, err=None):
         if starter is not self:
             return
         self.updateStatusWidgets()

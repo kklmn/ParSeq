@@ -921,8 +921,8 @@ class MainWindowParSeq(qt.QMainWindow):
         super().closeEvent(event)
 
     def updateItemView(self, state, items):
-        # if not (1 < len(items) < 20):  # becomes too slow
-        #     return
+        if len(items) == 0:
+            return
         if state == 1:
             try:
                 node = csi.currentNode

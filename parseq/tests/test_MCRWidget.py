@@ -12,7 +12,7 @@ from parseq.gui.mainWindow import MainWindowParSeq
 def test():
     import parseq_XAS as myapp
 
-    # csi.plotBackend = 'mpl'
+    csi.plotBackend = 'mpl'
     csi.DEBUG_LEVEL = 100
 
     myapp.make_pipeline(withGUI=True)

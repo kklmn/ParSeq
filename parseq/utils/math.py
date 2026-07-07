@@ -211,7 +211,7 @@ import numpy as np
 from scipy.interpolate import make_interp_spline, PPoly, interp1d
 from scipy.signal import savgol_filter
 import scipy.linalg as spl
-from scipy.optimize import curve_fit
+# from scipy.optimize import curve_fit
 
 
 def line(xs, ys):
@@ -430,6 +430,57 @@ def initial(x, D, mcrData):
     return B
 
 
+def constrain_C(C, mcrData, S=None):
+    # C[C < 0.] = 0.
+    # C[C > 1.] = 1.
+    C = np.abs(C)
+    norm = C.sum(axis=1)[:, None]
+    norm[norm == 0] = 1
+    C /= norm
+
+    Cweight = C.sum(axis=0)
+    Cind = np.argsort(Cweight)[::-1]
+    # Cweight = Cweight[Cind]
+    C = C[:, Cind]
+    if S is not None:
+        S[:, :] = S[:, Cind]  # in-place change of columns
+
+    changed = False
+    N = C.shape[1]
+    for col, d in zip(range(N), mcrData):
+        if d['zeroC']:
+            C[:, col] -= C[:, col].min()
+            changed = True
+
+        val = d['constraintCValue']
+        if d['constraintCKind'] == '>':
+            C[C[:, col] < val, col] = val
+            changed = True
+        elif d['constraintCKind'] == '<':
+            C[C[:, col] > val, col] = val
+            changed = True
+
+    if changed:
+        norm = C.sum(axis=1)[:, None]
+        norm[norm == 0] = 1
+        C /= norm
+
+    return C
+
+
+def constrain_S(S, mcrData):
+    N = S.shape[1]
+    for col, d in zip(range(N), mcrData):
+        if d['positiveS']:
+            # ==all these are bad:============================================
+            # S[S[:, col] < 0, col] = 0
+            # if sum(S[:, col] < 0) > 0:
+            #     S[:, col] -= S[:, col].min()
+            # ================================================================
+            S[:, col] = np.abs(S[:, col])
+    return S
+
+
 def one_iteration(D, S, mcrData, weps=1e-20):
     """
     D.shape = m, n
@@ -450,44 +501,7 @@ def one_iteration(D, S, mcrData, weps=1e-20):
     ws[ws < weps] = weps
     revSTS = np.dot(np.dot(vs, np.diag(1/ws)), vs.T)
     SrevSTS = np.dot(S, revSTS)
-    C = np.dot(D.T, SrevSTS)
-
-    # ==all these are bad:====================================================
-    # C[C < 0.] = 0.
-    # C[C > 1.] = 1.
-    # C -= C.min()
-    # C /= C.max()
-    # # C /= C.sum(axis=1)[:, None]
-    # ========================================================================
-
-    C = np.abs(C)
-    norm = C.sum(axis=1)[:, None]
-    norm[norm == 0] = 1
-    C /= norm
-
-    changed = False
-    for col, d in zip(range(N), mcrData):
-        if d['zeroC']:
-            C[:, col] -= C[:, col].min()
-            changed = True
-
-        val = d['constraintCValue']
-        if d['constraintCKind'] == '>':
-            C[C[:, col] < val, col] = val
-            changed = True
-        elif d['constraintCKind'] == '<':
-            C[C[:, col] > val, col] = val
-            changed = True
-
-    if changed:
-        norm = C.sum(axis=1)[:, None]
-        norm[norm == 0] = 1
-        C /= norm
-
-    Cweight = C.sum(axis=0)
-    Cind = np.argsort(Cweight)[::-1]
-    Cweight = Cweight[Cind]
-    C = C[:, Cind]  # [:, Cweight > 0]
+    C = constrain_C(np.dot(D.T, SrevSTS), mcrData, S)
 
     CTC = np.dot(C.T, C)
     try:
@@ -499,20 +513,12 @@ def one_iteration(D, S, mcrData, weps=1e-20):
     wc[wc < weps] = weps
     revCTC = np.dot(np.dot(vc, np.diag(1/wc)), vc.T)
     CrevCTC = np.dot(C, revCTC)
-    S = np.dot(D, CrevCTC)
-    for col, d in zip(range(N), mcrData):
-        if d['positiveS']:
-            # ==all these are bad:============================================
-            # S[S[:, col] < 0, col] = 0
-            # if sum(S[:, col] < 0) > 0:
-            #     S[:, col] -= S[:, col].min()
-            # ================================================================
-            S[:, col] = np.abs(S[:, col])
+    S = constrain_S(np.dot(D, CrevCTC), mcrData)
     return S, C, revCTC
 
 
-def mcr_als(e, D, mcrData, retErrors=False, eps=1e-16, weps=1e-20,
-            maxIteration=1000):
+def mcr_als(e, D, mcrData, returnBand=False, eps=1e-16, weps=1e-20,
+            maxIteration=1000, nBandSamples=1000):
     S = initial(e, D, mcrData)
     m = len(e)
     normPrev = np.inf
@@ -527,17 +533,89 @@ def mcr_als(e, D, mcrData, retErrors=False, eps=1e-16, weps=1e-20,
         #     print(niter, 'eps', norm, normPrev)
     print('niter', niter, 'norm', norm)
 
-    if retErrors:
-        Cfit = []
-        n = D.shape[1]
-        for ispectrum in range(n):
-            p0 = C[ispectrum, :]
-            popt, pcov = curve_fit(
-                lambda x, *coeffs: np.dot(S, coeffs), e, D[:, ispectrum], p0,
-                sigma=1e-2, absolute_sigma=True, bounds=(0, 1))
-            Cfit.append(popt)
-            print(ispectrum, popt, np.sqrt(np.diag(pcov)))
-        Cfit = np.array(Cfit)
-        return S, C, revCTC, Cfit
+    if returnBand:
+        # Cfit = []
+        # n = D.shape[1]
+        # for ispectrum in range(n):
+        #     p0 = C[ispectrum, :]
+        #     popt, pcov = curve_fit(
+        #         lambda x, *coeffs: np.dot(S, coeffs), e, D[:, ispectrum], p0,
+        #         sigma=1e-2, absolute_sigma=True, bounds=(0, 1))
+        #     Cfit.append(popt)
+        #     print(ispectrum, popt, np.sqrt(np.diag(pcov)))
+        # Cfit = np.array(Cfit)
+        # return S, C, revCTC, Cfit
+
+        Cm = np.zeros_like(C)
+        Cp = np.zeros_like(C)
+        Sm = np.zeros_like(S)
+        Sp = np.zeros_like(S)
+        # Cm = np.array(C)
+        # Cp = np.array(C)
+        # Sm = np.array(S)
+        # Sp = np.array(S)
+        # try:
+        #     CTCinv = spl.inv(np.dot(C.T, C))
+        # except (spl.LinAlgError, spl.LinAlgWarning, ValueError):
+        #     return S, C, revCTC, Sm, Sp, Cm, Cp
+        # Smin = S.min()
+        # Smax = S.max()
+        # dS = Smax - Smin
+        uMC = 0
+        N = S.shape[1]
+        for iMC in range(nBandSamples):
+            # V = np.random.rand(N, N)
+            # V /= V.sum(axis=1)[:, None]
+            # CV = np.dot(C, V)
+            # CV = constrain_C(CV, mcrData, S)
+            # V = np.dot(CTCinv, np.dot(C.T, CV))
+            # norm = V.sum(axis=1)[:, None]
+            # norm[norm == 0] = 1
+            # V /= norm
+            # try:
+            #     W = spl.inv(V.T)
+            # except (spl.LinAlgError, spl.LinAlgWarning, ValueError):
+            #     continue
+            # SW = np.dot(S, W)
+            # Sneg = ((SW < Smin-0.5*dS) | (SW > Smax+0.5*dS)).sum()
+            # if Sneg > 0:
+            #     continue
+            # SW = constrain_S(SW, mcrData)
+
+            W = np.random.rand(N, N)
+            W /= W.sum(axis=0)
+            try:
+                Winv = spl.inv(W)
+            except spl.LinAlgError:
+                continue
+            SW = constrain_S(np.dot(S, W), mcrData)
+            CV = np.dot(C, Winv.T)
+            CV = constrain_C(CV, mcrData, SW)
+
+            # for simple averaging, separately negative and positive deltas:
+            # Cm += np.where(CV < C, CV, C)
+            # Cp += np.where(CV > C, CV, C)
+            # Sm += np.where(SVTinv < S, SVTinv, S)
+            # Sp += np.where(SVTinv > S, SVTinv, S)
+
+            # for rms averaging, separately negative and positive deltas:
+            Cm += np.where(CV < C, (CV-C)**2, 0)
+            Cp += np.where(CV > C, (CV-C)**2, 0)
+            Sm += np.where(SW < S, (SW-S)**2, 0)
+            Sp += np.where(SW > S, (SW-S)**2, 0)
+            uMC += 1
+
+            # # for maximum deviations:
+            # Cm = np.minimum(Cm, CV)
+            # Cp = np.maximum(Cp, CV)
+            # Sm = np.minimum(Sm, SW)
+            # Sp = np.maximum(Sp, SW)
+
+        if uMC == 0:
+            uMC = 1
+        # return S, C, revCTC, Sm/uMC, Sp/uMC, Cm/uMC, Cp/uMC
+        return S, C, revCTC, S-(Sm/uMC)**0.5, S+(Sp/uMC)**0.5, \
+            C-(Cm/uMC)**0.5, C+(Cp/uMC)**0.5
+        # return S, C, revCTC, Sm, Sp, Cm, Cp
 
     return S, C, revCTC
