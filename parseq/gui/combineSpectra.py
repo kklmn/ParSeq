@@ -841,7 +841,10 @@ class CombineSpectraWidget(PropWidget):
 
         legend = 'min IND'
         marker = self.plotPCA.getCurve(legend)
-        x = IND.argmin() + 1
+        if len(IND) > 0:
+            x = IND.argmin() + 1
+        else:
+            x = 0
         if marker is None:
             marker = self.plotPCA.addXMarker(
                 x, legend, 'min IND', '#009000', yaxis='right')

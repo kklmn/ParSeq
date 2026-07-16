@@ -83,6 +83,10 @@ rst_prolog = """
 
       <br>
 
+.. |clear-float| raw:: html
+
+   <div style="clear: both;"></div>
+
 .. |ParSeq framework| raw:: html
 
    <a class="reference external" href="{0}">the ParSeq framework</a>

@@ -3,8 +3,12 @@
 Version history
 ---------------
 
-Current GitHub code (modified 9 Jun 2026):
-    -
+Current GitHub code (modified 16 Jul 2026):
+    - Add rms bands to MCR-ALS.
+    - Add a large reduction example to MCR-ALS:
+      :ref:`docs and an example <combinations>`.
+    - Dramatically improve plotting speed of large datasets by
+      ``resetzoom=False`` in silx.gui.plot.Plot1D.addCurve()
 
 2026.6.0 (18 Jun 2026):
     - Add MCR-ALS to data combinations, including

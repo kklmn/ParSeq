@@ -895,7 +895,7 @@ class NodeWidget(qt.QWidget):
                             if not noLine:
                                 curve = self.plot.addCurve(
                                     x0, y+dy, legend=curveLabel,
-                                    resetzoom=False,
+                                    resetzoom=False,  # heavily affects speed!
                                     color=item.color, z=z, **plotProps)
                         else:
                             curve.setData(x0, y+dy)

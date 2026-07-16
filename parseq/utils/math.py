@@ -92,19 +92,11 @@ independence of the basis spectra.
 MCR-ALS
 ~~~~~~~
 
-.. imagezoom:: _images/MCR0.png
-   :alt: &ensp;70 XANES spectra during gas switching.
-   :align: right
-
 The Multivariate Curve Resolution–Alternating Least Squares (MCR-ALS) method
-[ALS]_ enables the decomposition (with potentially many valid solutions) of an
-:math:`m×n` data matrix :math:`D` into the product of :math:`N` basic
+[Tauler-ALS]_ enables the decomposition (with potentially many valid solutions)
+of an :math:`m×n` data matrix :math:`D` into the product of :math:`N` basic
 components collected in the matrix :math:`S` (:math:`m×N`) and :math:`N`
 concentration profiles collected in the matrix :math:`C` (:math:`n×N`):
-
-.. imagezoom:: _images/PCA.png
-   :align: left
-   :alt: &ensp;Eigenvalue analysis of 70 XANES spectra during gas switching.
 
 .. math::
     D = SC^T
@@ -112,10 +104,16 @@ concentration profiles collected in the matrix :math:`C` (:math:`n×N`):
 
 This section describes the ParSeq implementation of MCR-ALS.
 
+.. imagezoom:: _images/PCA.png
+   :align: left
+   :alt: &ensp;Eigenvalue analysis of 70 XANES spectra during gas switching.
+
 The first step is to determine the number of basic components, :math:`N`. This
-can be guided by examining the scree plot and Malinowski's IND function. In
-practice, however, these methods often do not yield a definitive result, and
-the value of :math:`N` is typically guessed.
+can be guided by examining the `scree plot
+<https://en.wikipedia.org/wiki/Scree_plot>`_ (a plot of eigenvalues vs their
+ordinal index) and Malinowski's IND function. In practice, however, these
+methods often do not yield a definitive result, and the value of :math:`N` is
+typically guessed.
 
 The second step is to obtain an initial estimate of :math:`S`. Often, one
 component (i.e., one column of :math:`S`) is known from the sample history and
@@ -135,25 +133,73 @@ The transformations are given by :math:`C = D^TS(S^TS)^{-1}` and
 :math:`S = DC(C^TC)^{-1}`.
 After each transformation, common constraints are enforced: non-negativity of
 :math:`C` and optionally :math:`S`, and mass balance (i.e. the sum of each row
-of :math:`C` equals 1). Additionally, prior to applying the mass balance
+of :math:`C` equals 1). Prior to applying any constraints, the columns of
+:math:`C` and :math:`S` are simultaneously sorted by the integrated column
+weights of :math:`C`. Additionally, prior to applying the mass balance
 constraint, lower and/or upper bounds may be imposed on individual columns of
 :math:`C`. These alternating transformations are repeated until convergence is
 achieved. If :math:`S^TS` or :math:`C^TC` becomes singular, the iterative
 scheme fails to converge to a solution.
 
-The final step is to estimate the uncertainties in :math:`C`. One possible
-approach is to perform linear combination fitting (LCF) using the obtained
-:math:`S` as the basis set. However, the fit quality is typically dominated by
-systematic uncertainties, which leads to a significant underestimation of the
-error bars. This functionality is still under development in ParSeq.
+The final step is to estimate the uncertainties in :math:`S` and :math:`C`.
+One possible approach is to perform linear combination fitting (LCF) using the
+obtained :math:`S` as the basis set. However, the fit quality is typically
+dominated by systematic uncertainties, which leads to a significant
+underestimation of the error bars. For this reason, the LCF approach was
+discarded in ParSeq.
 
-The figures in this section present an example of MCR-ALS applied to a series
-of operando spectra of a Ni-containing catalyst, measured in a capillary cell
-at the Balder/MAX-IV beamline during gas switching [Ni-MCR-ALS]_. The dataset
-consists of 70 XANES spectra showing subtle variations in both the edge
-position and the white-line region.
+Instead, ParSeq employs the rotation-matrix approach of [Tauler-boundaries]_,
+although with a different implementation. Equation :math:numref:`ALS` can be
+rewritten by inserting an :math:`N\times N` identity matrix :math:`I` and
+decomposing it into the product of a matrix :math:`T` (initially arbitrary,
+only invertible) and its inverse :math:`T^{-1}`. These two matrices define new
+effective matrices :math:`S'` and :math:`C'`:
 
-The scree plot and Malinowski’s IND function suggest that the number of
+.. math::
+    D = SIC^T = STT^{-1}C^T = (ST)(CT^{-1T})^T \equiv S'C'^T.
+
+We require the matrices :math:`S'` and :math:`C'` to retain the same physical
+meaning as :math:`S` and :math:`C`. To preserve the normalization of the columns
+of :math:`S'`, each column of :math:`T` must sum to unity (*column-normalized*).
+Likewise, to preserve mass balance in :math:`C'`, each row of :math:`T^{-1T}`
+(column of :math:`T^{-1}`) must also be normalized. In fact, satisfying either
+condition automatically guarantees the other, as follows from the theorem that
+the inverse of a square column-normalized matrix is itself column-normalized.
+
+The inverse of a dense positive matrix generally contains negative elements.
+Consequently, it is impossible to enforce non-negativity simultaneously in both
+:math:`S'` and :math:`C'`, which can be addressed by *interpreting* negative
+values in :math:`C'` (concentrations) or :math:`S'` (spectra) as carrying the
+same meaning as their positive counterparts.
+
+Random realizations of :math:`T` generate an ensemble of matrices :math:`S'` and
+:math:`C'`, enabling the estimation of uncertainties in :math:`S` and :math:`C`.
+In ParSeq, :math:`T` is sampled as a non-negative column-normalized matrix,
+thereby preserving both the sign and the normalization of the spectra in
+:math:`S' = ST`. The corresponding concentration matrix is obtained as
+:math:`C' = {\rm abs}(CT^{-T})`, followed by row normalization to restore mass
+balance. Positive and negative RMS deviations from :math:`S` and :math:`C` are
+then computed from an ensemble of random realizations of :math:`T` (1000 by
+default).
+
+.. [Tauler-ALS] R Tauler, A Smilde, BR Kowalski, J. Chemometrics **9** (1995) 31.
+.. [Tauler-boundaries] R Tauler, J. Chemometrics **15** (2001) 627.
+
+Examples of MCR-ALS
+^^^^^^^^^^^^^^^^^^^
+
+.. imagezoom:: _images/MCR0.png
+   :alt: &ensp;70 XANES spectra during gas switching.
+   :align: right
+
+.. rubric:: 1. Ni-containing catalyst: Oxidation.
+
+A series of operando spectra of a Ni-containing catalyst measured in a
+capillary cell at the Balder/MAX-IV beamline during gas switching [Ni-MCR-ALS]_.
+The dataset consists of 63 XANES spectra showing subtle variations in both the
+edge position and the white-line region, see on the right.
+
+The scree plot and Malinowski's IND function suggest that the number of
 independent components is 3. This would imply transitions between two main
 states with a third, likely transient, intermediate state. However, the ALS
 analysis does not yield a physically meaningful concentration profile
@@ -193,17 +239,62 @@ possible using computational spectroscopy or other complementary techniques.
 Thus, even a continuum of possible solutions can provide meaningful insight and
 may still be scientifically valuable and publishable.
 
+.. imagezoom:: _images/MCRS-Ni.png
+   :align: left
+   :alt: &ensp;MCR-ALS analysis of 63 Ni-K spectra, S matrix. The main pure
+         component 1 (blue) is metallic, and the pure component 2 (orange) is
+         oxidic, shifted to higher energy.
+
+.. imagezoom:: _images/MCRC-Ni.png
+   :align: right
+   :alt: &ensp;MCR-ALS analysis of 63 Ni-K spectra, C matrix. The main pure
+         component 1 (blue) is metallic, and the pure component 2 (orange) is
+         oxidic, shifted to higher energy.
+
+For a low-pass constraint :math:`C_2<0.1`, the resulting matrices :math:`S` and
+:math:`C` are displayed on the left and right, with the RMS deviation bands
+plotted by shaded colors.
+
 The shown example can be scrutinized by running the script
 ``parseq/tests/test_MCRWidget.py`` and/or by loading the ParSeq-XAS project
 file ``parseq_XAS/saved/mcr.pspj``.
 
-.. [ALS] A de Juan, J Jaumot and R Tauler, Anal. Methods, **6** (2014) 4964.
-.. [Ni-MCR-ALS] N Kosinov (2026) unpublished, private communication.
+.. [Ni-MCR-ALS] N Kosinov (2026) private communication, unpublished.
 
+|clear-float|
+
+.. rubric:: 2. Ce-containing catalyst: Reduction
+
+.. imagezoom:: _images/MCRS-Ce.png
+   :align: left
+   :alt: &ensp;MCR-ALS analysis of 1102 Ce-L3 spectra, S matrix. The main pure
+         component 1 (blue) is Ce4+, and the pure component 2 (orange) is Ce3+,
+         shifted to lower energy.
+
+.. imagezoom:: _images/MCRC-Ce.png
+   :align: right
+   :alt: &ensp;MCR-ALS analysis of 1102 Ce-L3 spectra, C matrix. The main pure
+         component 1 (blue) is Ce4+, and the pure component 2 (orange) is Ce3+,
+         shifted to lower energy.
+
+A series of 1102 Ce L3-edge XANES spectra of a 1.5 wt% Pt/CeO2 catalyst
+during cyclic reduction and oxidation conditions [Ce-MCR-ALS]_.
+
+The shown example can be scrutinized by running the script
+``parseq/tests/test_MCRWidget.py`` and/or by loading the ParSeq-XAS project
+file ``parseq_XAS/saved/mcr-ceria-big.pspj``. Warning: This is a big dataset!
+Data loading can take a minute.
+
+.. [Ce-MCR-ALS] A Martini (2026), private communication. A similar MCR analysis
+   is present in Fig. 21 in [Martini_Crystals]_. Dataset from [Guda_JSR]_.
+.. [Martini_Crystals] A Martini and E Borfecchia, Crystals **10** (2020) 664.
+.. [Guda_JSR] A Guda et al, J. Synchrotron Rad. **25** (2018) 989.
+
+|clear-float|
 
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "9 Jun 2026"
+__date__ = "16 Jul 2026"
 # !!! SEE CODERULES.TXT !!!
 
 import numpy as np
@@ -430,7 +521,7 @@ def initial(x, D, mcrData):
     return B
 
 
-def constrain_C(C, mcrData, S=None):
+def constrain_C(C, mcrData):
     # C[C < 0.] = 0.
     # C[C > 1.] = 1.
     C = np.abs(C)
@@ -442,8 +533,6 @@ def constrain_C(C, mcrData, S=None):
     Cind = np.argsort(Cweight)[::-1]
     # Cweight = Cweight[Cind]
     C = C[:, Cind]
-    if S is not None:
-        S[:, :] = S[:, Cind]  # in-place change of columns
 
     changed = False
     N = C.shape[1]
@@ -465,7 +554,7 @@ def constrain_C(C, mcrData, S=None):
         norm[norm == 0] = 1
         C /= norm
 
-    return C
+    return C, Cind
 
 
 def constrain_S(S, mcrData):
@@ -501,7 +590,8 @@ def one_iteration(D, S, mcrData, weps=1e-20):
     ws[ws < weps] = weps
     revSTS = np.dot(np.dot(vs, np.diag(1/ws)), vs.T)
     SrevSTS = np.dot(S, revSTS)
-    C = constrain_C(np.dot(D.T, SrevSTS), mcrData, S)
+    C, Cind = constrain_C(np.dot(D.T, SrevSTS), mcrData)
+    S = S[:, Cind]
 
     CTC = np.dot(C.T, C)
     try:
@@ -550,53 +640,41 @@ def mcr_als(e, D, mcrData, returnBand=False, eps=1e-16, weps=1e-20,
         Cp = np.zeros_like(C)
         Sm = np.zeros_like(S)
         Sp = np.zeros_like(S)
-        # Cm = np.array(C)
-        # Cp = np.array(C)
-        # Sm = np.array(S)
-        # Sp = np.array(S)
-        # try:
-        #     CTCinv = spl.inv(np.dot(C.T, C))
-        # except (spl.LinAlgError, spl.LinAlgWarning, ValueError):
-        #     return S, C, revCTC, Sm, Sp, Cm, Cp
-        # Smin = S.min()
-        # Smax = S.max()
-        # dS = Smax - Smin
         uMC = 0
         N = S.shape[1]
         for iMC in range(nBandSamples):
+            # # going from C':
             # V = np.random.rand(N, N)
             # V /= V.sum(axis=1)[:, None]
             # CV = np.dot(C, V)
-            # CV = constrain_C(CV, mcrData, S)
-            # V = np.dot(CTCinv, np.dot(C.T, CV))
-            # norm = V.sum(axis=1)[:, None]
-            # norm[norm == 0] = 1
-            # V /= norm
+            # CV, CVind = constrain_C(CV, mcrData)
             # try:
             #     W = spl.inv(V.T)
             # except (spl.LinAlgError, spl.LinAlgWarning, ValueError):
             #     continue
-            # SW = np.dot(S, W)
-            # Sneg = ((SW < Smin-0.5*dS) | (SW > Smax+0.5*dS)).sum()
-            # if Sneg > 0:
-            #     continue
-            # SW = constrain_S(SW, mcrData)
+            # Scomp = S[:, CVind]
+            # SW = constrain_S(np.dot(Scomp, W), mcrData)
+            # SW += Scomp.min(axis=0) - SW.min(axis=0)
+            # SW *= Scomp.max(axis=0) / SW.max(axis=0)
 
+            # going from S':
             W = np.random.rand(N, N)
             W /= W.sum(axis=0)
             try:
                 Winv = spl.inv(W)
             except spl.LinAlgError:
                 continue
-            SW = constrain_S(np.dot(S, W), mcrData)
-            CV = np.dot(C, Winv.T)
-            CV = constrain_C(CV, mcrData, SW)
+            CV, Cind = constrain_C(np.dot(C, Winv.T), mcrData)
+            SW = constrain_S(np.dot(S, W)[:, Cind], mcrData)
 
-            # for simple averaging, separately negative and positive deltas:
-            # Cm += np.where(CV < C, CV, C)
-            # Cp += np.where(CV > C, CV, C)
-            # Sm += np.where(SVTinv < S, SVTinv, S)
-            # Sp += np.where(SVTinv > S, SVTinv, S)
+            # # going from two independent transformation matrices:
+            # V = np.random.rand(N, N)
+            # V /= V.sum(axis=1)[:, None]
+            # CV = np.dot(C, V)
+            # CV, CVind = constrain_C(CV, mcrData)
+            # W = np.random.rand(N, N)
+            # W /= W.sum(axis=0)
+            # SW = constrain_S(np.dot(S, W), mcrData)
 
             # for rms averaging, separately negative and positive deltas:
             Cm += np.where(CV < C, (CV-C)**2, 0)
@@ -605,17 +683,9 @@ def mcr_als(e, D, mcrData, returnBand=False, eps=1e-16, weps=1e-20,
             Sp += np.where(SW > S, (SW-S)**2, 0)
             uMC += 1
 
-            # # for maximum deviations:
-            # Cm = np.minimum(Cm, CV)
-            # Cp = np.maximum(Cp, CV)
-            # Sm = np.minimum(Sm, SW)
-            # Sp = np.maximum(Sp, SW)
-
         if uMC == 0:
             uMC = 1
-        # return S, C, revCTC, Sm/uMC, Sp/uMC, Cm/uMC, Cp/uMC
         return S, C, revCTC, S-(Sm/uMC)**0.5, S+(Sp/uMC)**0.5, \
             C-(Cm/uMC)**0.5, C+(Cp/uMC)**0.5
-        # return S, C, revCTC, Sm, Sp, Cm, Cp
 
     return S, C, revCTC

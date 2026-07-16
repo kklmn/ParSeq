@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "9 Jun 2026"
+__date__ = "16 Jul 2026"
 
 from silx.gui import qt
 
@@ -16,7 +16,14 @@ def test():
     csi.DEBUG_LEVEL = 100
 
     myapp.make_pipeline(withGUI=True)
-    myapp.load_test_data_MCR(7)
+    # 1: dataFName = 'Cu30_1_0.txt.gz', dLabel = 'wide-Cu2O+CuO'
+    # 2: dataFName = 'Cu30_0.7_0.3.txt.gz', dLabel = 'narrow-Cu2O+CuO'
+    # 3: dataFName = 'NiCo.txt.gz', dLabel = 'NiCo'
+    # 4: dataFName = 'CoNi.txt.gz', dLabel = 'CoNi'
+    # 5: dataFName = 'MES-Ni.txt.gz', dLabel = 'Ni-mono'
+    # 6: dataFName = 'MES-Co.txt.gz', dLabel = 'Co-mono'
+    # 7: dataFName = 'ceria.dat.gz', dLabel = 'ceria'
+    myapp.load_test_data_MCR(5)  # see the case description above
 
     qtArgs = ["--disable-gpu"]  # has to be set for morph-browser users
     app = qt.QApplication(qtArgs)
