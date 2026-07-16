@@ -177,7 +177,7 @@ Random realizations of :math:`T` generate an ensemble of matrices :math:`S'` and
 In ParSeq, :math:`T` is sampled as a non-negative column-normalized matrix,
 thereby preserving both the sign and the normalization of the spectra in
 :math:`S' = ST`. The corresponding concentration matrix is obtained as
-:math:`C' = {\rm abs}(CT^{-T})`, followed by row normalization to restore mass
+:math:`C' = {\rm abs}(CT^{-1T})`, followed by row normalization to restore mass
 balance. Positive and negative RMS deviations from :math:`S` and :math:`C` are
 then computed from an ensemble of random realizations of :math:`T` (1000 by
 default).
