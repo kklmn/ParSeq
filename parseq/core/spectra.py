@@ -844,9 +844,12 @@ class Spectrum(TreeItem):
             if self.alias == 'auto':
                 tmpalias = osp.splitext(basename)[0]
                 if '::' in self.madeOf:
-                    h5name = osp.splitext(osp.basename(
-                        self.madeOf[:self.madeOf.find('::')]))[0]
-                    tmpalias = '/'.join([h5name, tmpalias])
+                    pos = self.madeOf.find('::')
+                    h5name = osp.splitext(osp.basename(self.madeOf[:pos]))[0]
+                    if pos == len(self.madeOf)-2:  # ends with '::'
+                        tmpalias = h5name
+                    else:
+                        tmpalias = '/'.join([h5name, tmpalias])
 
                 if self.aliasExtra:
                     tmpalias += ': {0}'.format(self.aliasExtra)
@@ -1477,10 +1480,13 @@ class Spectrum(TreeItem):
             if fromNode.plotDimension == 1:
                 xN = fromNode.plotXArray
                 xNRaw = fromNode.arrays[xN].get('raw', None)
+            else:
+                xN, xNRaw = None, None
             xNames, dNames, dims = [], [], []
             for kName in fromNode.arrays:
                 ad = fromNode.arrays[kName]
-                if fromNode.plotDimension == 1:
+                # if fromNode.plotDimension == 1:
+                if True:
                     if kName in (xNRaw, xN):
                         continue
                     if 'abscissa' in ad:
@@ -1614,9 +1620,12 @@ class Spectrum(TreeItem):
                         v = np.dot(D, CrevCTC)[:, iMCR]
                 else:
                     raise ValueError("unknown data combination")
-                setattr(self, dName, v)
+
                 if dim == fromNode.plotDimension:
+                    setattr(self, dName, v)
                     dimArray = v
+                elif dim < fromNode.plotDimension:
+                    setattr(self, dName, v/ns)
 
             self.meta['length'] = len(dimArray) if dimArray is not None else 0
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
