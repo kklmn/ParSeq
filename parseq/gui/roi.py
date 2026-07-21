@@ -1446,6 +1446,8 @@ class PointRoiWidget(qt.QWidget):
 
     def setPosition(self, pos):
         if self.roi is None:
+            if pos == 0:  # default no-foi value
+                return
             if pos is None:
                 return
             else:  # make roi
