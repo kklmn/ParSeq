@@ -89,6 +89,11 @@ def setRangeWidgetFromData(rWidget, prop):
     rWidget.setRange(common)
 
 
+def setPointRoiWidgetFromData(pWidget, prop):
+    common = getCommonPropInSelectedItems(prop)
+    pWidget.setPosition(common)
+
+
 def setStateButtonsFromData(sb, prop):
     common = getCommonPropInSelectedItems(prop)
     sb.setActive(common)

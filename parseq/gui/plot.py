@@ -96,6 +96,7 @@ class Plot1D(splot.PlotWindow):
             menu.addMenu(self._zoomEnabledAxesMenu)
         menu.addSeparator()
         menu.addAction(self._crosshairAction)
+        self._sigDefaultContextMenu.emit(menu)
 
         plotArea = self.getWidgetHandle()
         globalPosition = plotArea.mapToGlobal(pos)

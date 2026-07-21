@@ -27,32 +27,39 @@ if csi.onMac:
 
 
 class RoiManager(RegionOfInterestManager):
-    def __init__(self, parent):
+    def __init__(self, parent, label=None, removable=True):
         super().__init__(parent)
         self.setColor(gco.COLOR_ROI)
+        self.roiLabel = label
+        self.removable = removable
         self.sigRoiAdded.connect(self.updateAddedRegionOfInterest)
 
     def updateAddedRegionOfInterest(self, roi):
         # silx.gui.plot.tools.roi.RegionOfInterestManager.ROI_CLASSES:
         if roi.getName() == '':
-            if isinstance(roi, RectangleROI):
-                name = 'rect'
-            elif isinstance(roi, ArcROI):
-                name = 'arc'
-            elif isinstance(roi, BandROI):
-                name = 'band'
-                roi.setAvailableInteractionModes([BandROI.UnboundedMode])
-            elif isinstance(roi, (CrossROI, PointROI)):
-                name = 'p'
-            elif isinstance(roi, HorizontalRangeROI):
-                name = 'range'
-            roi.setName('{0}{1}'.format(name, len(self.getRois())))
+            n = len(self.getRois())
+            if self.roiLabel:
+                sind = str(n) if n > 1 else ''
+                roi.setName(self.roiLabel+sind)
+            else:
+                if isinstance(roi, RectangleROI):
+                    name = 'rect'
+                elif isinstance(roi, ArcROI):
+                    name = 'arc'
+                elif isinstance(roi, BandROI):
+                    name = 'band'
+                    roi.setAvailableInteractionModes([BandROI.UnboundedMode])
+                elif isinstance(roi, (CrossROI, PointROI)):
+                    name = 'p'
+                elif isinstance(roi, HorizontalRangeROI):
+                    name = 'range'
+                roi.setName('{0}{1}'.format(name, n))
 
         try:
             roi.setLineWidth(0.5)
             roi.setLineStyle('-')
-        except AttributeError as e:
-            # print(e)
+        except AttributeError as err:
+            # print(err)
             pass
         # roi.setSymbolSize(5)
         roi.setSelectable(True)
@@ -62,7 +69,7 @@ class RoiManager(RegionOfInterestManager):
         """when the default plot context menu is about to be displayed"""
         roi = self.getCurrentRoi()
         if roi is not None:
-            if roi.isEditable():
+            if roi.isEditable() and self.removable:
                 # Filter by data position
                 plot = self.parent()
                 pos = plot.getWidgetHandle().mapFromGlobal(qt.QCursor.pos())
@@ -308,7 +315,6 @@ class RoiToolBar(qt.QToolBar):
 
     def __init__(self, parent, roiManager, roiClassNames):
         super().__init__(parent)
-        # self.setStyleSheet('QToolBar{margin: 0px 10px;}')
         self.setIconSize(qt.QSize(24, 24))
 
         # to add more, add classes from:
@@ -889,9 +895,9 @@ class BaseRangeWidget(qt.QWidget):
         needNew = False
         if self.roiManager is None:
             if self.is3dStack:
-                self.roiManager = RoiManager(self.plot._plot)
+                self.roiManager = RoiManager(self.plot._plot, removable=False)
             else:
-                self.roiManager = RoiManager(self.plot)
+                self.roiManager = RoiManager(self.plot, removable=False)
             needNew = True
         else:
             if len(self.roiManager.getRois()) == 0:
@@ -1380,3 +1386,105 @@ class SplitRangeWidget(BaseRangeWidget):
         if hasattr(self, 'visibleCB'):
             self.visibleCB.setChecked(on)
         self.toggleVisible(on)
+
+
+class PointRoiWidget(qt.QWidget):
+    roiChanged = qt.pyqtSignal(list)
+
+    def __init__(self, parent, plot, tooltip, roiName, color, roiMaxN=1):
+        super().__init__(parent)
+        self.plot = plot
+        self.tooltip = tooltip
+        self.roiName = roiName
+        self.roiManager = RoiManager(plot, label=roiName)
+        self.roiMaxN = roiMaxN
+        self.roi = None
+        self.color = color
+        self.roiClass = 'PointROI'
+        self.blockRoiFinished = False
+
+        layout = qt.QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.roiToolbar = RoiToolBar(self, self.roiManager, [self.roiClass])
+        actions = self.roiToolbar.actions()
+        for action in actions:
+            toolButton = self.roiToolbar.widgetForAction(action)
+            toolButton.setStyleSheet(gco.stateButtonStyleSheet.replace(
+                'QPushButton', 'QToolButton'))
+        height = 16
+        self.roiToolbar.setIconSize(qt.QSize(height, height))
+        layout.addWidget(self.roiToolbar)
+        self.setLayout(layout)
+
+        if tooltip:
+            self.roiToolbar.actions()[0].setToolTip(tooltip)
+
+        self.roiManager.sigRoiAdded.connect(self.updateAddedRoi)
+        self.roiManager.sigRoiAboutToBeRemoved.connect(self.removeRoi)
+
+    def updateAddedRoi(self, roi):
+        if self.plot is None:
+            return
+        self.enableAction()
+        self.roi = roi
+        roi.setColor(self.color)
+        roi.sigEditingFinished.connect(self.roiFinished)
+        if not self.blockRoiFinished:
+            self.roiFinished()
+
+    def roiFinished(self):
+        if self.roi is None:
+            return
+        self.enableAction()
+        x, y = self.roi.getPosition()
+        self.roiChanged.emit([x, y])
+
+    def removeRoi(self, roi):
+        self.enableAction(1)  # force True
+        self.roiChanged.emit([None])
+        self.roi = None
+
+    def setPosition(self, pos):
+        if self.roi is None:
+            if pos is None:
+                return
+            else:  # make roi
+                self.roiManager.setCurrentRoi(None)
+                self.roiManager.clear()
+                if self.roiClass == 'CrossROI':
+                    roi = CrossROI()
+                elif self.roiClass == 'PointROI':
+                    roi = PointROI()
+                else:
+                    raise ValueError('unsupported point ROI')
+                roi.setPosition(pos)
+                roi.setVisible(True)
+                self.blockRoiFinished = True
+                self.roiManager.addRoi(roi)
+                self.blockRoiFinished = False
+                self.roiManager.setCurrentRoi(roi)
+        else:  # self.roi is not None
+            if pos == 0:  # default no-foi value, delete roi
+                self.roiManager.removeRoi(self.roi)
+                self.roi = None
+            elif pos is None:  # delete roi
+                pass
+            else:
+                self.roi.setPosition(pos)
+
+    def showRoi(self, value):
+        if self.roi is None:
+            return
+        self.roi.setVisible(value)
+
+    def enableAction(self, value=True):
+        if isinstance(value, bool):
+            if value:
+                rois = self.roiManager.getRois()
+                value = len(rois) < self.roiMaxN
+        elif isinstance(value, int):  # force value
+            pass
+
+        actions = self.roiToolbar.actions()
+        for action in actions:
+            action.setEnabled(value)

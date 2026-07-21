@@ -5,7 +5,7 @@ extended by the hdf5 model from silx (silx.gui.hdf5.Hdf5TreeModel), so that
 hdf5 containers can be viewed in the same tree.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "26 Aug 2025"
+__date__ = "20 Jul 2026"
 # !!! SEE CODERULES.TXT !!!
 
 
@@ -608,6 +608,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         lres = []
         try:
             datas = df.get('dataSource', [])  # from dataEdits
+            dataps = []
             roles = self.transformNode.get_arrays_prop('role')
             nds = self.transformNode.get_arrays_prop('ndim')
             slcs = df.get('slices', ['' for ds in datas])  # from sliceEdits
@@ -619,6 +620,16 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                 if len(data) == 0:
                     return
                 colEval = self.interpretArrayFormula(data, nodeH5, 'h5')
+                if colEval is None:  # try for Balder data
+                    datap = data.replace('instrument/', 'entry/instrument/')
+                    datap = datap.replace('measurement/', 'entry/measurement/')
+                    colEval = self.interpretArrayFormula(datap, nodeH5, 'h5')
+                    if colEval is not None:
+                        dataps.append(datap)
+                    else:
+                        dataps.append(data)
+                else:
+                    dataps.append(data)
                 if colEval is None:
                     return
                 if nd:
@@ -639,6 +650,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         except Exception as e:
             syslogger.error('Exception in tryLoadHDF5Dataset():\n'+str(e))
             return
+        df['dataSource'] = dataps
         return lres, df
 
     def tryLoadDataset(self, index):
@@ -907,7 +919,7 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
         nodeTypes = [self.nodeType(index) for index in indexes0]
         if nodeTypes.count(nodeTypes[0]) != len(nodeTypes):  # not all equal
             return
-        if nodeTypes[0] in (NODE_HDF5_HEAD, NODE_FS):
+        if nodeTypes[0] == NODE_FS:
             indexesFS = []
             for index in indexes0:
                 if checkValidity:
@@ -915,10 +927,13 @@ class FileSystemWithHdf5Model(qt.QFileSystemModel):
                         return
                 indexesFS.append(index)
             return super().mimeData(indexesFS)
-        elif nodeTypes[0] == NODE_HDF5:
+        elif nodeTypes[0] in (NODE_HDF5, NODE_HDF5_HEAD):
             paths = []
             for index in indexes0:
-                indexH5 = self.mapToH5(index)
+                if nodeTypes[0] == NODE_HDF5:
+                    indexH5 = self.mapToH5(index)
+                elif nodeTypes[0] == NODE_HDF5_HEAD:
+                    indexH5 = self.mapFStoH5(index)
                 if checkValidity:
                     if self.tryLoadHDF5Dataset(indexH5) is None:
                         return
@@ -1729,7 +1744,10 @@ class FileTreeView(qt.QTreeView):
             end = path.find('::') if '::' in path else None
             head = path[start:end]
             dirname = osp.dirname(osp.abspath(head)).replace('\\', '/')
-            pathType = NODE_HDF5
+            if end and (end == len(path)-2):  # path ends with '::'
+                pathType = NODE_HDF5_HEAD
+            else:
+                pathType = NODE_HDF5
         else:
             if qt.QFileInfo(path).isDir():
                 dirname = osp.abspath(path).replace('\\', '/')
@@ -1743,6 +1761,8 @@ class FileTreeView(qt.QTreeView):
                 index = model.indexFromH5Path(path)
             elif pathType == NODE_FS:
                 index = model.indexFileName(path)
+            elif pathType == NODE_HDF5_HEAD:
+                index = model.indexFileName(head)
         else:
             model.pendingPath = (dirname, path) if callback else None
             index = model.indexFileName(dirname)

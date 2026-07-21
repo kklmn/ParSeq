@@ -39,6 +39,29 @@ MATHERROR_COLOR = qt.QColor('#ffa500')
 
 LIMITS_ROLE = qt.Qt.UserRole + 1
 
+stateButtonStyleSheet = """
+QPushButton {
+    border-style: outset;
+    border-width: 2px;
+    border-radius: 5px;
+    border-color: lightsalmon;}
+QPushButton:checked {
+    border-style: inset;
+    border-width: 2px;
+    border-radius: 5px;
+    border-color: lightgreen;}
+QPushButton:hover {
+    border-style: solid;
+    border-width: 2px;
+    border-radius: 5px;
+    border-color: lightblue;}
+QPushButton:disabled {
+    border-style: outset;
+    border-width: 2px;
+    border-radius: 5px;
+    border-color: lightgray;}
+"""
+
 
 def getFormatStr(step):
     if 0.1 <= step < 1:
@@ -546,42 +569,22 @@ class StateButtons(qt.QFrame):
         self.default = default
 
         self.buttons = []
-        layout = FlowLayout()
+        # layout = FlowLayout()
+        layout = qt.QHBoxLayout()
         if caption is not None:
             label = qt.QLabel(caption)
             layout.addWidget(label)
             layout.setAlignment(label, qt.Qt.AlignBottom)
-        # styleSheet = "QPushButton{border-radius: 4px;}" +\
-        #     "QPushButton{background-color: lightsalmon;}" +\
-        #     "QPushButton:checked{background-color: lightgreen;}" +\
-        #     "QPushButton:hover{{background-color: {0};}}".format(COLOR_ROI)
-        styleSheet = """
-        QPushButton {
-            border-style: outset;
-            border-width: 2px;
-            border-radius: 5px;
-            border-color: lightsalmon;}
-        QPushButton:checked {
-            border-style: inset;
-            border-width: 2px;
-            border-radius: 5px;
-            border-color: lightgreen;}
-        QPushButton:hover {
-            border-style: solid;
-            border-width: 2px;
-            border-radius: 5px;
-            border-color: lightblue;}
-        """
         for name in names:
             strName = str(name)
             but = qt.QPushButton(strName)
             but.setCheckable(True)
 
             bbox = but.fontMetrics().boundingRect(strName)
-            but.setFixedSize(bbox.width()+12, bbox.height()+4)
+            but.setFixedSize(bbox.width()+12, bbox.height()+6)
             # but.setToolTip("go to the key frame")
             but.clicked.connect(partial(self.buttonClicked, but))
-            but.setStyleSheet(styleSheet)
+            but.setStyleSheet(stateButtonStyleSheet)
 
             self.buttons.append(but)
             layout.addWidget(but)

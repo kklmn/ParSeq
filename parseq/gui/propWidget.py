@@ -36,7 +36,8 @@ from . import propsOfData as gpd
 
 propWidgetTypes = (
     'edit', 'label', 'spinbox', 'groupbox', 'checkbox', 'pushbutton',
-    'tableview', 'combobox', 'rangewidget', 'statebuttons', 'correction')
+    'tableview', 'combobox', 'rangewidget', 'statebuttons', 'correction',
+    'pointroi')
 
 spinBoxDelay = 100  # ms
 
@@ -586,6 +587,10 @@ class PropWidget(qt.QWidget):
                         widget.sigCorrectionChanged.connect(
                             partial(self.updatePropFromCorrections, widget,
                                     dataItems, prop))
+                    elif iwt == 11:  # 'pointroi'
+                        widget.roiChanged.connect(
+                            partial(self.updatePropFromPointRoi, widget,
+                                    dataItems, prop))
                     break
             else:
                 raise ValueError("unknown widgetType {0}".format(className))
@@ -697,6 +702,8 @@ class PropWidget(qt.QWidget):
                 return
             # if '.' not in key:
             key = cco.expandTransformParam(key)
+            if value == 'convertToNone':
+                value = None
             gur.pushTransformToUndo(self, dataItems, [key], [value])
             if isinstance(key, (list, tuple)):
                 param = key[-1]
@@ -883,6 +890,13 @@ class PropWidget(qt.QWidget):
                     it.hasChanged = False
             self.updateProp(key, corrs, dataItems)
 
+    def updatePropFromPointRoi(self, widget, dataItems, key, value):
+        # if not widget.hasFocus():  # unclear if this is needed
+        #     return
+        if value == [None]:
+            value = 'convertToNone'
+        self.updateProp(key, value, dataItems)
+
     def setUIFromData(self):
         for widget in self.exclusivePropGroups:
             dd = self.exclusivePropGroups[widget]
@@ -927,6 +941,8 @@ class PropWidget(qt.QWidget):
                         highlight, names = None, []
                     sbut = self.node.widget.splitterButtons['data corrections']
                     sbut.setHighlight(highlight, names)
+            elif widgetTypeIndex == 11:  # 'pointroi'
+                gpd.setPointRoiWidgetFromData(widget, prop)
         self.updateStatusWidgets()
         try:
             self.extraSetUIFromData()
