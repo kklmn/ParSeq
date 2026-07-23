@@ -53,7 +53,7 @@ BKGND = {cco.DATA_STATE_GOOD: None,
 
 FONT_COLOR_TAG = ['black', gco.COLOR_HDF5_HEAD, gco.COLOR_FS_COLUMN_FILE,
                   gco.COLOR_UNDEFINED, gco.COLOR_ROI, gco.COLOR_COMBINED,
-                  'cyan']
+                  '#008b8b']
 # LEFT_SYMBOL = u"\u25c4"  # ◄
 # RIGHT_SYMBOL = u"\u25ba"  # ►
 # SELECTION_ALPHA = 0.5
@@ -1005,10 +1005,19 @@ class DataTreeView(qt.QTreeView):
         iconL = self.style().standardIcon(qt.QStyle.SP_FileDialogDetailedView)
         self.actionLines.setIcon(iconL)
 
-    def _addAction(self, text, slot, shortcut=None):
-        action = qt.QAction(text, self)
-        action.triggered.connect(slot)
-        if shortcut:
+        self.colorTagWidget = gco.ColorTagWidget(FONT_COLOR_TAG)
+        self.colorTagWidget.colorSelected.connect(self.setColorTag)
+        self.actionColorTag = self._addAction("colortag")
+
+    def _addAction(self, text, slot=None, shortcut=None):
+        if "colortag" in text:
+            action = qt.QWidgetAction(self)
+            action.setDefaultWidget(self.colorTagWidget)
+        else:
+            action = qt.QAction(text, self)
+        if slot is not None:
+            action.triggered.connect(slot)
+        if shortcut is not None:
             action.setShortcut(qt.QKeySequence(shortcut))
         action.setShortcutContext(qt.Qt.WidgetWithChildrenShortcut)
         self.addAction(action)
@@ -1052,6 +1061,8 @@ class DataTreeView(qt.QTreeView):
                     except AttributeError:
                         pass
                 menu.addAction(self.actionLines)
+        menu.addSeparator()
+        menu.addAction(self.actionColorTag)
 
         for item in csi.selectedTopItems:
             if not hasattr(item, 'error'):
@@ -1136,6 +1147,13 @@ class DataTreeView(qt.QTreeView):
             parentItem.init_colors()
             csi.model.updateAll()
             csi.model.needReplot.emit(False, True, 'autoUpdateColors')
+
+    def setColorTag(self, icolor):
+        for it in csi.selectedItems:
+            it.colorTag = icolor
+            ind = csi.model.indexFromItem(it)
+            csi.model.dataChanged.emit(ind, ind)
+        # print('setColorTag', color)
 
     def moveItems(self, to):
         for topItem in csi.selectedTopItems[::to]:

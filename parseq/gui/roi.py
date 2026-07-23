@@ -745,7 +745,8 @@ class RoiWidgetWithKeyFrames(RoiWidgetBase):
 
 
 class RoiWidget(RoiWidgetBase):
-    def __init__(self, parent, plot, roiClassNames, roiMaxN=1, fmt='auto'):
+    def __init__(self, parent, plot, roiClassNames, roiMaxN=1, fmt='auto',
+                 color='auto'):
         """
         *roiClassNames*: sequence of class names to appear in the toolbar
         *roiMaxN*: max number of rois in the tabel
@@ -759,6 +760,7 @@ class RoiWidget(RoiWidgetBase):
             self.roiManager = RoiManager(plot)
 
         self.roiMaxN = roiMaxN
+        self.color = color
 
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -855,6 +857,8 @@ class RoiWidget(RoiWidgetBase):
                 roi.setVisible(True)
                 model.setRoi(roi, roid)
                 self.roiManager.addRoi(roi)
+                if self.color != 'auto':
+                    roi.setColor(self.color)  # has to be after addROI
             self.roiManager.setCurrentRoi(roi)
         else:
             for roi, roid in zip(rois, roiDicts):

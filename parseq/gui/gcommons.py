@@ -786,3 +786,45 @@ class EyeButton(qt.QPushButton):
         mouseOver = bool(opt.state & qt.QStyle.State_MouseOver)
         self.paintEye(painter, self.rect(), color, colorb, mouseOver)
         painter.restore()
+
+
+class ColorButton(qt.QPushButton):
+    colorSelected = qt.pyqtSignal(int)
+
+    def __init__(self, icolor, color):
+        super().__init__()
+        self.color = qt.QColor(color)
+        self.setFixedSize(18, 18)
+        self.setStyleSheet(f"""
+            QPushButton {{background: {self.color.name()};}}
+            QPushButton:hover {{border: 1px solid gray;}}""")
+        self.clicked.connect(lambda: self.colorSelected.emit(icolor))
+
+
+class ColorTagWidget(qt.QWidget):
+    colorSelected = qt.pyqtSignal(int)
+
+    def __init__(self, colors):
+        super().__init__()
+
+        layout = qt.QHBoxLayout(self)
+        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setSpacing(4)
+
+        iconLabel = qt.QLabel()
+        iconCT = icons.getQIcon('colormap')
+        iconLabel.setPixmap(iconCT.pixmap(20, 20))
+        layout.addWidget(iconLabel)
+        vSeparator = qt.QFrame()
+        vSeparator.setFrameShape(qt.QFrame.Shape.VLine)
+        vSeparator.setFrameShadow(qt.QFrame.Shadow.Sunken)
+        layout.addWidget(vSeparator)
+        iconText = qt.QLabel('Assign color tag')
+        layout.addWidget(iconText)
+
+        for icolor, color in enumerate(colors):
+            btn = ColorButton(icolor, color)
+            btn.colorSelected.connect(self.colorSelected)
+            layout.addWidget(btn)
+
+        layout.addStretch()
