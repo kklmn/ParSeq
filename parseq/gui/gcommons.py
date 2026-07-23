@@ -797,7 +797,7 @@ class ColorButton(qt.QPushButton):
         self.setFixedSize(18, 18)
         self.setStyleSheet(f"""
             QPushButton {{background: {self.color.name()};}}
-            QPushButton:hover {{border: 1px solid gray;}}""")
+            QPushButton:hover {{border: 2px solid gray;}}""")
         self.clicked.connect(lambda: self.colorSelected.emit(icolor))
 
 
@@ -828,3 +828,4 @@ class ColorTagWidget(qt.QWidget):
             layout.addWidget(btn)
 
         layout.addStretch()
+        self.setToolTip("this color will be used to display data alias")

@@ -53,7 +53,7 @@ BKGND = {cco.DATA_STATE_GOOD: None,
 
 FONT_COLOR_TAG = ['black', gco.COLOR_HDF5_HEAD, gco.COLOR_FS_COLUMN_FILE,
                   gco.COLOR_UNDEFINED, gco.COLOR_ROI, gco.COLOR_COMBINED,
-                  '#008b8b']
+                  '#008b8b', '#a9a9a9', '#006400', '#8b0000']
 # LEFT_SYMBOL = u"\u25c4"  # ◄
 # RIGHT_SYMBOL = u"\u25ba"  # ►
 # SELECTION_ALPHA = 0.5
