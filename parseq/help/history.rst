@@ -3,12 +3,14 @@
 Version history
 ---------------
 
-Current GitHub code (modified 16 Jul 2026):
+Current GitHub code (modified 23 Jul 2026):
     - Add rms bands to MCR-ALS.
     - Add an example on reduction of ceria to MCR-ALS examples:
       :ref:`docs and an example <combinations>`.
     - Dramatically improve plotting speed of large datasets by
       ``resetzoom=False`` in silx.gui.plot.Plot1D.addCurve()
+    - Add user-selected color tag to data items. This color is used to display
+      data alias in the data tree.
 
 2026.6.0 (18 Jun 2026):
     - Add MCR-ALS to data combinations, including
