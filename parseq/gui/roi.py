@@ -316,6 +316,8 @@ class RoiToolBar(qt.QToolBar):
     def __init__(self, parent, roiManager, roiClassNames):
         super().__init__(parent)
         self.setIconSize(qt.QSize(24, 24))
+        self.setStyleSheet(  # the toolbar is visible in macOS
+            "QToolBar {background-color: transparent; border: none;}")
 
         # to add more, add classes from:
         # silx.gui.plot.tools.roi.RegionOfInterestManager.ROI_CLASSES:
@@ -348,6 +350,8 @@ class RoiToolBar(qt.QToolBar):
             action = roiManager.getInteractionModeAction(roiClass)
             action.setSingleShot(True)
             self.addAction(action)
+        # self.setSizePolicy(qt.QSizePolicy.Maximum, qt.QSizePolicy.Fixed)
+        # self.adjustSize()
 
         self.modeSelectorAction = RoiModeSelectorAction(self)
         self.modeSelectorAction.setRoiManager(roiManager)
@@ -1410,6 +1414,7 @@ class PointRoiWidget(qt.QWidget):
         layout = qt.QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         self.roiToolbar = RoiToolBar(self, self.roiManager, [self.roiClass])
+        # self.roiToolbar.setFixedSize(self.roiToolbar.iconSize())
         actions = self.roiToolbar.actions()
         for action in actions:
             toolButton = self.roiToolbar.widgetForAction(action)

@@ -321,7 +321,8 @@ class MCRTableView(qt.QTableView):
             4, gco.DoubleSpinBoxDelegate(self, **kw))
 
         for i, cw in enumerate(headerMCRWidths):
-            self.setColumnWidth(i, int(cw*csi.screenFactor))
+            fs = 1.5 if (csi.onMac and (i > 0)) else 1
+            self.setColumnWidth(i, int(cw*csi.screenFactor*fs))
 
         self.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
         self.setSizeAdjustPolicy(qt.QAbstractScrollArea.AdjustToContents)
@@ -742,6 +743,8 @@ class CombineSpectraWidget(PropWidget):
     def getD(self, items=None, interpolateTo=0):
         if items is None:
             items = csi.selectedItems
+        if len(items) == 0:
+            return
         x = getattr(items[interpolateTo], self.pcaNames[0])
         arrName = self.combineArray.currentText()
         interpolate = self.combineInterpolateCB.isChecked()
@@ -862,6 +865,8 @@ class CombineSpectraWidget(PropWidget):
     def updateMCR(self):
         if self.D is None:
             self.getD()
+        if self.D is None:
+            return
         if self.D.shape[1] < 2:
             return
 

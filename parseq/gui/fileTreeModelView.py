@@ -1449,11 +1449,12 @@ class FileTreeView(qt.QTreeView):
             return
         if fname.endswith('.gz'):
             myOpen = gzip.open
-            kw = {}
+            kw = dict(encoding="utf-8")
         else:
             myOpen = open
             kw = dict(encoding="utf-8")
-        with myOpen(fname, 'r', **kw) as f:
+
+        with myOpen(fname, 'rt', **kw) as f:
             lines = f.readlines()
         self.transformNode.widget.metadata.setText(''.join(lines))
         # but = self.transformNode.widget.splitterButtons['metadata']
