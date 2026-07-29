@@ -432,6 +432,9 @@ except AttributeError:
                 try:
                     settings.setAttribute(
                         myQtWeb.QWebEngineSettings.ShowScrollBars, False)
+                    settings.setAttribute(
+                        myQtWeb.QWebEngineSettings.
+                        LocalContentCanAccessRemoteUrls, True)
                 except AttributeError:  # added in Qt 5.10
                     pass
 

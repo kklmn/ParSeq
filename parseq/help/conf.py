@@ -56,8 +56,14 @@ if not on_rtd:
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 # extensions = ['sphinx.ext.autodoc', 'sphinx.ext.pngmath']
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax',
+extensions = ['sphinx.ext.autodoc',
+              'sphinx.ext.mathjax',
+              # 'sphinx.ext.imgmath',
               'sphinxcontrib.jquery', 'sphinx_tabs.tabs', 'animation']
+mathjax_options = {
+    'async': 'async'
+}
+# imgmath_image_format = 'svg'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -257,3 +263,5 @@ html_scaled_image_link = False
 
 # with mathjax@4, :math: is broken in QWebEnginePage, so we use @3:
 mathjax_path = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'
+# mathjax_path = "mathjax/tex-svg.js"
+# mathjax_path = "https://cloudflare.com"
