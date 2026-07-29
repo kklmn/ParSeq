@@ -395,7 +395,7 @@ class CombineSpectraWidget(PropWidget):
             butVisible.setFixedSize(30, 22)
             butVisible.setCheckable(True)
             butVisible.setChecked(True)
-            butVisible.clicked.connect(
+            butVisible.toggled.connect(
                 partial(self.setPlotVisible, kw['plot']))
             toolbar.addWidget(butVisible)
 
@@ -689,7 +689,7 @@ class CombineSpectraWidget(PropWidget):
             self.mcrData[self.mcrModel.pendingRow].pop('refalias', None)
             self.mcrModel.updateAll()
 
-    def setPlotVisible(self, plot, checked):
+    def setPlotVisible(self, plot, checked=True):
         plot.setVisible(checked)
 
     def getRef(self, data):
