@@ -33,6 +33,7 @@ from ..core import config
 from ..core.logger import logger, syslogger
 from . import undoredo as gur
 from . import propsOfData as gpd
+from . import gcommons as gco
 
 propWidgetTypes = (
     'edit', 'label', 'spinbox', 'groupbox', 'checkbox', 'pushbutton',
@@ -177,7 +178,7 @@ class PropWidget(qt.QWidget):
     def contextMenuEvent(self, event):
         if not self.propWidgets:
             return
-        widgetsOver = self._widgetsAt(event.globalPos())
+        widgetsOver = self._widgetsAt(gco.eventGlobalPosition(event))
         out = [w in self.propWidgets or w in self.propGroups or
                w in self.exclusivePropGroups for w in widgetsOver]
         if sum(out) == 0:
@@ -207,7 +208,7 @@ class PropWidget(qt.QWidget):
         for w in widgetsOver:  # editingFinished is emitted before menu.exec_
             self.extraContextMenu(menu, w)
             w.blockSignals(True)
-        menu.exec_(event.globalPos())
+        menu.exec_(gco.eventGlobalPosition(event))
         for w in widgetsOver:
             w.blockSignals(False)
 

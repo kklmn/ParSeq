@@ -679,13 +679,13 @@ class MyTabBar(qt.QTabBar):
     reshuffled = qt.pyqtSignal()
 
     def mousePressEvent(self, event):
-        self.setMovable(self.tabAt(event.pos()) < self.count()-1)
-        self.movingTabInd = self.tabAt(event.pos())
+        self.setMovable(self.tabAt(gco.eventPosition(event)) < self.count()-1)
+        self.movingTabInd = self.tabAt(gco.eventPosition(event))
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event)
-        if self.movingTabInd != self.tabAt(event.pos()):
+        if self.movingTabInd != self.tabAt(gco.eventPosition(event)):
             self.reshuffled.emit()
 
 

@@ -122,6 +122,18 @@ def getColorName(color):
     return qt.QColor(color).name()
 
 
+def eventPosition(event):
+    if hasattr(event, 'position'):
+        return event.position().toPoint()
+    return event.pos()
+
+
+def eventGlobalPosition(event):
+    if hasattr(event, 'globalPosition'):
+        return event.globalPosition().toPoint()
+    return event.globalPos()
+
+
 class UnderlinedHeaderView(qt.QHeaderView):
     "The separation line between header and table is missing on Windows 10/11."
     BOTTOM_COLOR = qt.QColor('#cccccc')
