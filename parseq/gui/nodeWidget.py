@@ -1033,6 +1033,10 @@ class NodeWidget(qt.QWidget):
         if keepExtent:
             self._restorePlotState()
 
+        # important: do it before transformWidget.extraPlot()
+        if self.wasNeverPlotted and node.plotDimension == 1:
+            self.plot.resetZoom()
+
         try:
             for transformWidget in self.transformWidgets:
                 if hasattr(transformWidget, 'extraPlot'):
@@ -1041,8 +1045,6 @@ class NodeWidget(qt.QWidget):
             syslogger.log(100, 'extraPlot in {0} failed: {1}'.format(
                 self.node.name, err))
 
-        if self.wasNeverPlotted and node.plotDimension == 1:
-            self.plot.resetZoom()
         self.wasNeverPlotted = False
 
     @logger(minLevel=50, attrs=[(0, 'node')])
