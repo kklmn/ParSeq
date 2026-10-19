@@ -39,7 +39,9 @@ installed beforehand. Look into ParSeq's `pyproject.toml` and find them ander
 
 ::
 
-    pip install sphinxcontrib-jquery autopep8 h5py hdf5plugin silx psutil pyqtwebengine docutils distro colorama sphinx_tabs siphash24
+    pip install sphinxcontrib-jquery autopep8 h5py hdf5plugin silx psutil
+    pip install pyqtwebengine docutils distro colorama sphinx_tabs siphash24
+    pip install scikit-image setuptools scipy matplotlib
 
 A typical pitfall in this scenario is the presence of ParSeq at multiple
 locations on your computer. To discover which ParSeq package is actually in use,

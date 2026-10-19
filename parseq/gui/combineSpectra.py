@@ -1110,6 +1110,8 @@ class CombineSpectraWidget(PropWidget):
                 newItems.append(newItem)
             ctr.run_transforms(newItems, grMCR, runParallel=False)
         else:
+            ci = self.combineInterpolateCB.isChecked()
+            dformat['combineInterpolate'] = ci
             last = csi.selectedItems[-1]
             pit = last.parentItem
             newItem = pit.insert_item(madeOf, last.row()+1, **kw)

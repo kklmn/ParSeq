@@ -99,19 +99,22 @@ class TreeItem(object):
             items = self.get_items()
             if self.has_groups():
                 childCount = self.child_count()
-                tip = "{0} top group{1} with {2} item{3}".format(
+                inside = "{0} top group{1} with {2} item{3}".format(
                     childCount, 's' if childCount > 1 else '',
                     len(items), 's' if len(items) > 1 else '')
             else:
                 if len(items) == 0:
                     return "no items"
-                tip = "{0} item{1}".format(
+                inside = "{0} item{1}".format(
                     len(items), 's' if len(items) > 1 else '')
-            if hasattr(self, 'alias'):
-                tip = ': '.join([self.alias, tip])
+
+            tip = f'<b>Group</b> {self.alias}' if hasattr(self, 'alias') else ''
+            if tip:
+                tip += '<br>'
+            tip += f'<b>Contains</b> {inside}'
             if hasattr(self, 'wPCA'):
                 ws = ['{0:.3g}'.format(w) for w in self.wPCA]
-                tip += '\nws=[{0}]'.format(', '.join(ws))
+                tip += '<br><b>PCA</b> ws=[{0}]'.format(', '.join(ws))
             return tip
         else:
             res = ""
@@ -120,13 +123,15 @@ class TreeItem(object):
                     res = self.name
             elif hasattr(self, 'madeOf'):  # instance of Spectrum
                 if self.error is not None:
-                    res = self.error
+                    res = f"<b>Error:</b><br>{self.error}"
                 elif self.beingTransformed:
                     res = '{0} is {1:.0f}% done'.format(self.beingTransformed,
                                                         self.progress*100)
                 elif isinstance(self.madeOf, (str, dict, tuple, list)):
                     if isinstance(self.madeOf, str):
-                        res = str(self.madeOf)
+                        nbpath = self.madeOf.replace("/", "\u2044")
+                        res = "<span style='white-space: nowrap;'>"\
+                            f"<b>Data file:</b> {nbpath}</span>"
                     elif isinstance(self.madeOf, (tuple, list)) and\
                             'combine' in self.dataFormat:
                         what = self.dataFormat['combine']
@@ -137,49 +142,55 @@ class TreeItem(object):
                             if what == cco.COMBINE_TT:
                                 names = names[:-1]
                         cNames = cco.combine_names(names)
+                        cNames = "<span style='white-space: nowrap;'>"\
+                            f"{cNames}</span>"
                         if what in (cco.COMBINE_PCA_CLASSIC,
                                     cco.COMBINE_PCA_CUMULATIVE):
-                            res = '{0} of {1}\nbase={2}'.format(
+                            res = '<b>{0}</b> of {1}<br>base={2}'.format(
                                 cco.combineNames[what], self.alias, cNames)
                             if hasattr(self, 'wPCA'):
                                 ws = ['{0:.3g}'.format(w) for w in self.wPCA]
-                                res += '\nw={0}, ws=[{1}]'.format(
+                                res += '<br><b>PCA:</b> w={0}, ws=[{1}]'.format(
                                     ws[self.iPCA], ', '.join(ws))
                         elif what == cco.COMBINE_TT:
                             it = self.madeOf[-1]
                             ws = ', '.join(
                                 ['{0:.3g}'.format(w) for w in self.wPCA]) \
                                 if hasattr(self, 'wPCA') else '...'
-                            res = '{0} of {1}\nbase={2}\nw=[{3}]'.format(
-                                cco.combineNames[what], it.alias, cNames, ws)
+                            res = '<b>{0}</b> of {1}<br>base={2}<br>w=[{3}]'\
+                                .format(cco.combineNames[what], it.alias,
+                                        cNames, ws)
                         else:
-                            res = '{0} of [{1}]'.format(
+                            res = '<b>{0}</b> of [{1}]'.format(
                                 cco.combineNames[what], cNames)
                         # res = self.meta['shortText']
                     else:
                         res = ""
+
                     if self.aliasExtra:
                         res += ': {0}'.format(self.aliasExtra)
+
                     dataSource = self.dataFormat.get('dataSource', [])
                     for ds in dataSource:
                         if isinstance(ds, str):
                             if ds.startswith('silx'):
                                 if res:
-                                    res += '\n'
+                                    res += '<br>'
                                 res += ds
+
                     if csi.currentNode is not None:
                         node = csi.currentNode
                         if self.state[node.name] == cco.DATA_STATE_NOTFOUND:
                             if res:
-                                res += '\n'
+                                res += '<br>'
                             res += 'data not found!'
                         elif self.state[node.name] == cco.DATA_STATE_BAD:
                             if res:
-                                res += '\n'
+                                res += '<br>'
                             res += 'incompatible data shapes in {0}'.format(
                                 node.name)
                             if hasattr(self, 'badShapes'):
-                                res += ':\n'
+                                res += ':<br>'
                                 res += ', '.join(
                                     ['{0}={1}'.format(k, v) for
                                      k, v in self.badShapes.items()])
@@ -187,36 +198,37 @@ class TreeItem(object):
                             try:
                                 if self.originNodeName is not None:
                                     if res:
-                                        res += '\n'
-                                    res += 'this data starts at node "{0}"'\
-                                        .format(self.originNodeName)
+                                        res += '<br>'
+                                    res += "<b>Starting node</b> {0}".format(
+                                        self.originNodeName)
                                 if self.terminalNodeName is not None:
-                                    res += \
-                                        '\nthis data terminates at node "{0}"'\
-                                        .format(self.terminalNodeName)
+                                    res += "<br><b>Ending node</b> {0}".format(
+                                        self.terminalNodeName)
+
                                 if node.plotDimension == 1:
                                     arr = getattr(self, node.plotXArray)
                                     sh = arr.shape[0]
-                                    whatSize = 'size of one 1D array'
+                                    whatSize = 'Size of one 1D array'
                                 elif node.plotDimension == 2:
                                     arr = getattr(self, node.plot2DArray)
                                     sh = arr.shape
-                                    whatSize = 'size of 2D array'
+                                    whatSize = 'Size of 2D array'
                                 elif node.plotDimension == 3:
                                     arr = getattr(self, node.plot3DArray)
                                     sh = arr.shape
-                                    whatSize = 'size of 3D array'
+                                    whatSize = 'Size of 3D array'
                                 else:
                                     arr = None
                                     sh = None
                                     whatSize = 'size'
                                 if sh:
-                                    nl = '\n' if res else ''
-                                    what = 'shape' if node.plotDimension > 1\
-                                        else 'length'
-                                    res += nl + '{0}: {1}'.format(what, sh)
+                                    nl = '<br>' if res else ''
+                                    what = 'Shape' if node.plotDimension > 1\
+                                        else 'Length'
+                                    res += nl + '<b>{0}</b>: {1}'.format(
+                                        what, sh)
                                     size = arr.nbytes
-                                    res += '\n{0}: {1}'.format(
+                                    res += '<br><b>{0}</b>: {1}'.format(
                                         whatSize, format_memory_size(size))
                                 for tr in node.transformsIn:
                                     if tr.name not in self.transfortmTimes:
@@ -225,28 +237,28 @@ class TreeItem(object):
                                     factor, unit, ff = \
                                         (1e3, 'ms', '{1:.0f}') if tt < 1\
                                         else (1, 's', '{1:.1f}')
-                                    ss = '\nmade by "{0}" in ' + ff + ' {2}'
+                                    ss = '<br>made by "{0}" in ' + ff + ' {2}'
                                     res += ss.format(tr.name, tt*factor, unit)
                             except Exception as e:
-                                res += '\n' + str(e)
+                                res += '<br>' + str(e)
                         elif self.state[node.name] == cco.DATA_STATE_UNDEFINED:
                             if self.originNodeName is not None or \
                                     self.terminalNodeName is not None:
                                 if self.originNodeName is not None:
                                     if res:
-                                        res += '\n'
+                                        res += '<br>'
                                     res += 'This data starts at node "{0}"'\
                                         .format(self.originNodeName)
                                 if self.terminalNodeName is not None:
                                     if res:
-                                        res += '\n'
+                                        res += '<br>'
                                     res += 'This data finishes at node "{0}"'\
                                         .format(self.terminalNodeName)
                             else:
                                 res += 'This node is out of the pipeline'\
                                     ' for this data'
                         elif self.state[node.name] == cco.DATA_STATE_MATHERROR:
-                            res += '\nSee the error message in `metadata` '\
+                            res += '<br>See the error message in `metadata` '\
                                 'widget for this data item '\
                                 '(click the splitter button first)'
 
@@ -1631,8 +1643,8 @@ class Spectrum(TreeItem):
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
         except AssertionError:
             self.state[fromNode.name] = cco.DATA_STATE_MATHERROR
-            msg = 'The array {0} differs in length from the others. '\
-                'Use "interpolate".'.format(dName)
+            msg = 'The array {0} differs in length from the other 1D arrays.'\
+                '\nUse "interpolate".'.format(dName)
             self.meta['text'] += msg
             syslogger.log(100, 'calc_combined of {0} ended with error:\n{1}'
                           .format(self.alias, msg))
