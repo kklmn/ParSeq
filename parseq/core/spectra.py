@@ -1643,7 +1643,10 @@ class Spectrum(TreeItem):
                     setattr(self, dName, v)
                     dimArray = v
                 elif dim < fromNode.plotDimension:
-                    setattr(self, dName, v/ns)
+                    if what == cco.COMBINE_SUM:
+                        setattr(self, dName, v/ns)
+                    else:
+                        setattr(self, dName, v)
 
             self.meta['length'] = len(dimArray) if dimArray is not None else 0
             self.state[fromNode.name] = cco.DATA_STATE_GOOD
@@ -1654,15 +1657,15 @@ class Spectrum(TreeItem):
             self.meta['text'] += msg
             syslogger.log(100, '{0} of {1} ended with AssertionError:\n{2}'
                           .format('calc_combined', self.alias, msg))
-        except AttributeError as e:
+        except AttributeError as err:
             self.state[fromNode.name] = cco.DATA_STATE_BAD
-            msg = str(e)
+            msg = str(err)
             self.meta['text'] += msg
             syslogger.log(100, '{0} of {1} ended with AttributeError:\n{2}'
                           .format('calc_combined', self.alias, msg))
-        except ValueError as e:
+        except ValueError as err:
             self.state[fromNode.name] = cco.DATA_STATE_BAD
-            msg = str(e)
+            msg = str(err)
             self.meta['text'] += msg
             syslogger.log(100, '{0} of {1} ended with ValueError:\n{2}'
                           .format('calc_combined', self.alias, msg))
