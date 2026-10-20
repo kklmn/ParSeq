@@ -1573,10 +1573,16 @@ class Spectrum(TreeItem):
                     arrays = []
                     for data in madeOf:
                         arr = getattr(data, dName)
-                        if combineInterpolate and arr is not None:
+                        if arr is None:
+                            arrays.append(arr)
+                            continue
+                        if isinstance(arr, np.ndarray):
+                            is0D = arr.ndim == 0
+                        else:
+                            is0D = True
+                        if combineInterpolate and not is0D:
                             x = getattr(data, xName)
-                            interp = interp1d(x, arr, fill_value="extrapolate",
-                                              assume_sorted=True)
+                            interp = interp1d(x, arr, fill_value="extrapolate")
                             arrays.append(interp(x0))
                         else:
                             arrays.append(arr)
@@ -1646,20 +1652,20 @@ class Spectrum(TreeItem):
             msg = 'The array {0} differs in length from the other 1D arrays.'\
                 '\nUse "interpolate".'.format(dName)
             self.meta['text'] += msg
-            syslogger.log(100, 'calc_combined of {0} ended with error:\n{1}'
-                          .format(self.alias, msg))
+            syslogger.log(100, '{0} of {1} ended with AssertionError:\n{2}'
+                          .format('calc_combined', self.alias, msg))
         except AttributeError as e:
             self.state[fromNode.name] = cco.DATA_STATE_BAD
             msg = str(e)
             self.meta['text'] += msg
-            syslogger.log(100, 'calc_combined of {0} ended with error:\n{1}'
-                          .format(self.alias, msg))
+            syslogger.log(100, '{0} of {1} ended with AttributeError:\n{2}'
+                          .format('calc_combined', self.alias, msg))
         except ValueError as e:
             self.state[fromNode.name] = cco.DATA_STATE_BAD
             msg = str(e)
             self.meta['text'] += msg
-            syslogger.log(100, 'calc_combined of {0} ended with error:\n{1}'
-                          .format(self.alias, msg))
+            syslogger.log(100, '{0} of {1} ended with ValueError:\n{2}'
+                          .format('calc_combined', self.alias, msg))
 
     @logger(minLevel=50, attrs=[(0, 'alias')])
     def branch_data(self):
