@@ -1552,7 +1552,10 @@ class Spectrum(TreeItem):
             if combineInterpolate:
                 for xName in xNames:
                     assert xName is not None
-                    setattr(self, xName, np.array(getattr(it0, xName)))
+                    x0 = getattr(it0, xName, None)
+                    if x0 is None:
+                        continue
+                    setattr(self, xName, np.array(x0))
             else:  # x and 0D as average over all contributing spectra
                 for xName in xNames:
                     if xName is None:
@@ -1568,7 +1571,9 @@ class Spectrum(TreeItem):
             dimArray = None
             for xName, dName, dim in zip(xNames, dNames, dims):
                 if combineInterpolate:
-                    x0 = getattr(it0, xName)
+                    x0 = getattr(it0, xName, None)
+                    if x0 is None:
+                        continue
                 if what in (
                         cco.COMBINE_AVE, cco.COMBINE_SUM, cco.COMBINE_RMS,
                         cco.COMBINE_PCA_CLASSIC, cco.COMBINE_PCA_CUMULATIVE,
@@ -1991,15 +1996,11 @@ class Spectrum(TreeItem):
                 laterXs = {}
                 indsX = {}
                 for xName, dName in zip(xNames, dNames):
-                    try:
-                        x = getattr(self, xName)
-                    except AttributeError:
+                    x = getattr(self, xName, None)
+                    if x is None:
                         continue
                     shapeBefore = x.shape
-                    try:
-                        y = getattr(self, dName)
-                    except AttributeError:
-                        continue
+                    y = getattr(self, dName, None)
                     if y is None:
                         continue
                     if y.shape != shapeBefore:
@@ -2032,12 +2033,11 @@ class Spectrum(TreeItem):
                                 role = nodeOther.get_prop(kName, 'role')
                                 if role[0] not in ('y', 'z', '1', 'o'):
                                     continue
-                                x = getattr(self, nodeOther.plotXArray)
-                                shapeBefore = x.shape
-                                try:
-                                    arr = getattr(self, kName)
-                                except AttributeError:
+                                x = getattr(self, nodeOther.plotXArray, None)
+                                if x is None:
                                     continue
+                                shapeBefore = x.shape
+                                arr = getattr(self, kName, None)
                                 if arr is None or arr.shape != shapeBefore:
                                     continue
                                 if nodeOther.plotXArray in indsX:
@@ -2066,12 +2066,13 @@ class Spectrum(TreeItem):
                                     stem = kName
                                     sl = '0'
                                     ax = None
-                                x = getattr(self, xName)
+                                x = getattr(self, xName, None)
+                                if x is None:
+                                    continue
                                 shapeBefore = x.shape[0]
                                 checkName = nodeOther.get_prop(stem, 'raw')
-                                try:
-                                    arr = getattr(self, checkName)
-                                except AttributeError:
+                                arr = getattr(self, checkName, None)
+                                if arr is None:
                                     continue
                                 try:
                                     shape = arr.shape[eval(sl)] \
