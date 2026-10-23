@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "17 Feb 2023"
+__date__ = "22 Oct 2026"
 # !!! SEE CODERULES.TXT !!!
 
 # import time
@@ -13,7 +13,7 @@ from silx.gui.plot.tools.roi import (
     RegionOfInterestManager, RoiModeSelectorAction)
 from silx.gui.plot.items.roi import (
     ArcROI, RectangleROI, BandROI, CrossROI, PointROI, HorizontalRangeROI,
-    InteractionModeMixIn)
+    LineROI, HorizontalLineROI, VerticalLineROI, InteractionModeMixIn)
 
 from . import gcommons as gco
 from ..core import singletons as csi
@@ -43,18 +43,23 @@ class RoiManager(RegionOfInterestManager):
                 roi.setName(self.roiLabel+sind)
             else:
                 if isinstance(roi, RectangleROI):
-                    name = 'rect'
+                    name = 'rct'
                 elif isinstance(roi, ArcROI):
                     name = 'arc'
                 elif isinstance(roi, BandROI):
-                    name = 'band'
+                    name = 'bnd'
                     roi.setAvailableInteractionModes([BandROI.UnboundedMode])
                 elif isinstance(roi, (CrossROI, PointROI)):
                     name = 'p'
                 elif isinstance(roi, HorizontalRangeROI):
-                    name = 'range'
+                    name = 'rng'
+                elif isinstance(roi, LineROI):
+                    name = 'ln'
+                elif isinstance(roi, HorizontalLineROI):
+                    name = 'hln'
+                elif isinstance(roi, VerticalLineROI):
+                    name = 'vln'
                 roi.setName('{0}{1}'.format(name, n))
-
         try:
             roi.setLineWidth(0.5)
             roi.setLineStyle('-')
@@ -214,6 +219,15 @@ class RoiModel(qt.QAbstractTableModel):
             return dict(kind=roi.__class__.__name__, name=roi.getName(),
                         use=roi.isVisible(),
                         vmin=range_[0], vmax=range_[1])
+        elif isinstance(roi, LineROI):
+            begin, end = roi.getEndPoints()  # -> tuple[np.ndarray, np.ndarray]
+            return dict(kind=roi.__class__.__name__, name=roi.getName(),
+                        use=roi.isVisible(),
+                        begin=begin, end=end)
+        elif isinstance(roi, (HorizontalLineROI, VerticalLineROI)):
+            return dict(kind=roi.__class__.__name__, name=roi.getName(),
+                        use=roi.isVisible(),
+                        pos=roi.getPosition())
         else:
             return dict()
 
@@ -262,6 +276,17 @@ class RoiModel(qt.QAbstractTableModel):
             fmt = self.getFmt('range')
             s = 'range: {0[0]:.3f}, {0[1]:.3f}' if fmt == 'auto' else fmt
             text = s.format(range_)
+        elif isinstance(roi, LineROI):
+            begin, end = roi.getEndPoints()  # -> tuple[np.ndarray, np.ndarray]
+            fmt = self.getFmt('begin')
+            s = 'begin: {0[0]:.3f}, {0[1]:.3f}\n'\
+                'end: {1[0]:.3f}, {1[1]:.3f}' if fmt == 'auto' else fmt
+            text = s.format(begin, end)
+        elif isinstance(roi, (HorizontalLineROI, VerticalLineROI)):
+            pos = roi.getPosition()
+            fmt = self.getFmt('pos')
+            s = 'pos: {0:.3f}' if fmt == 'auto' else fmt
+            text = s.format(pos)
         else:
             text = ''
         return text
@@ -287,6 +312,10 @@ class RoiModel(qt.QAbstractTableModel):
                 kw = res
             elif isinstance(roi, HorizontalRangeROI):
                 kw = dict(vmin=res['range'][0], vmax=res['range'][1])
+            elif isinstance(roi, LineROI):
+                kw = res
+            elif isinstance(roi, (HorizontalLineROI, VerticalLineROI)):
+                kw = res
             else:
                 return False
             self.setRoi(roi, kw)
@@ -302,6 +331,10 @@ class RoiModel(qt.QAbstractTableModel):
             roi.setPosition(kw['pos'])
         elif isinstance(roi, HorizontalRangeROI):
             roi.setRange(**kw)
+        elif isinstance(roi, LineROI):
+            roi.setEndPoints(kw['begin'], kw['end'])
+        elif isinstance(roi, (HorizontalLineROI, VerticalLineROI)):
+            roi.setPosition(**kw)
 
     def updateAll(self):
         topLeft = self.index(0, 0)
@@ -313,7 +346,7 @@ class RoiModel(qt.QAbstractTableModel):
 class RoiToolBar(qt.QToolBar):
     """A toolbar that hides itself if no actions are visible"""
 
-    def __init__(self, parent, roiManager, roiClassNames):
+    def __init__(self, parent, roiManager, roiClassNames, actionToolTips=None):
         super().__init__(parent)
         self.setIconSize(qt.QSize(24, 24))
         self.setStyleSheet(  # the toolbar is visible in macOS
@@ -332,7 +365,10 @@ class RoiToolBar(qt.QToolBar):
         # roi_items.VerticalLineROI,
         # roi_items.ArcROI,
         # roi_items.HorizontalRangeROI,
-        for roiClassName in roiClassNames:
+
+        if not actionToolTips:
+            actionToolTips = [None for klass in roiClassNames]
+        for roiClassName, actionToolTip in zip(roiClassNames, actionToolTips):
             if roiClassName == 'RectangleROI':
                 roiClass = RectangleROI
             elif roiClassName == 'ArcROI':
@@ -345,10 +381,18 @@ class RoiToolBar(qt.QToolBar):
                 roiClass = PointROI
             elif roiClassName == 'HorizontalRangeROI':
                 roiClass = HorizontalRangeROI
+            elif roiClassName == 'LineROI':
+                roiClass = LineROI
+            elif roiClassName == 'HorizontalLineROI':
+                roiClass = HorizontalLineROI
+            elif roiClassName == 'VerticalLineROI':
+                roiClass = VerticalLineROI
             else:
                 raise ValueError('unsupported ROI {0}'.format(roiClassName))
             action = roiManager.getInteractionModeAction(roiClass)
             action.setSingleShot(True)
+            if actionToolTip:
+                action.setToolTip('Add ' + actionToolTip)
             self.addAction(action)
         # self.setSizePolicy(qt.QSizePolicy.Maximum, qt.QSizePolicy.Fixed)
         # self.adjustSize()
@@ -485,7 +529,7 @@ class RoiWidgetBase(qt.QWidget):
                     ys = np.arange(sh[0])[:, None]
                     mask = uma.get_roi_mask(geom, xs, ys)
                     model.roiCounts[row] = frame[mask].sum()
-                elif isinstance(roi, BandROI):
+                elif isinstance(roi, (BandROI, LineROI)):
                     if self.dataToCountX is not None:
                         xs = self.dataToCountX[None, :]
                     else:
@@ -494,7 +538,8 @@ class RoiWidgetBase(qt.QWidget):
                         ys = self.dataToCountY[:, None]
                     else:
                         ys = np.arange(sh[0])[:, None]
-                    mask = uma.get_roi_mask(geom, xs, ys)
+                    w = ys[1]-ys[0] if isinstance(roi, LineROI) else None
+                    mask = uma.get_roi_mask(geom, xs, ys, w=w)
                     model.roiCounts[row] = frame[mask].sum()
                 elif isinstance(roi, (CrossROI, PointROI)):
                     x, y = geom['pos']
@@ -513,6 +558,26 @@ class RoiWidgetBase(qt.QWidget):
                     ix = abs(min(ix, sh[1]-1))
                     iy = abs(min(iy, sh[0]-1))
                     model.roiCounts[row] = frame[iy, ix]
+                elif isinstance(roi, HorizontalLineROI):
+                    y = geom['pos']
+                    ys = self.dataToCountY
+                    if ys is not None:
+                        dy = ys[1] - ys[0]
+                        iy = np.searchsorted(ys+dy, y)
+                    else:
+                        iy = int(y)
+                    iy = abs(min(iy, sh[0]-1))
+                    model.roiCounts[row] = frame[iy, :].sum()
+                elif isinstance(roi, VerticalLineROI):
+                    x = geom['pos']
+                    xs = self.dataToCountX
+                    if xs is not None:
+                        dx = xs[1] - xs[0]
+                        ix = np.searchsorted(xs+dx, x)
+                    else:
+                        ix = int(x)
+                    ix = abs(min(ix, sh[1]-1))
+                    model.roiCounts[row] = frame[:, ix].sum()
             except IndexError as e:
                 syslogger.error(str(e))
                 model.roiCounts[row] = 0
@@ -749,11 +814,12 @@ class RoiWidgetWithKeyFrames(RoiWidgetBase):
 
 
 class RoiWidget(RoiWidgetBase):
-    def __init__(self, parent, plot, roiClassNames, roiMaxN=1, fmt='auto',
-                 color='auto'):
+    def __init__(self, parent, plot, roiClassNames, actionToolTips=None,
+                 roiMaxN=1, roiMaxNPerClass=1, fmt='auto', color='auto'):
         """
         *roiClassNames*: sequence of class names to appear in the toolbar
-        *roiMaxN*: max number of rois in the tabel
+        *roiMaxN*: max total number of rois in the table
+        *roiMaxNPerClass*: max number of rois of a particular class
         """
         super().__init__(parent)
         self.plot = plot
@@ -764,12 +830,14 @@ class RoiWidget(RoiWidgetBase):
             self.roiManager = RoiManager(plot)
 
         self.roiMaxN = roiMaxN
+        self.roiMaxNPerClass = roiMaxNPerClass
         self.color = color
 
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self.roiToolbar = RoiToolBar(self, self.roiManager, roiClassNames)
+        self.roiToolbar = RoiToolBar(self, self.roiManager, roiClassNames,
+                                     actionToolTips)
         layout.addWidget(self.roiToolbar)
 
         self.table = RoiTableView(self, self.roiManager, fmt=fmt)
@@ -789,8 +857,13 @@ class RoiWidget(RoiWidgetBase):
     def syncRoi(self):
         rois = self.roiManager.getRois()
         actions = self.roiToolbar.actions()
+        roiClasses = [roi.__class__.__name__ for roi in rois]
         for action in actions:
-            action.setEnabled(len(rois) < self.roiMaxN)
+            enabled = len(rois) < self.roiMaxN
+            if enabled and hasattr(action, 'getRoiClass'):
+                klass = action.getRoiClass().__name__
+                enabled = roiClasses.count(klass) < self.roiMaxNPerClass
+            action.setEnabled(enabled)
         for roi in rois:
             self._updateRoiLabelPos(roi)
         self.table.updateRoiTableSize()
@@ -853,6 +926,12 @@ class RoiWidget(RoiWidgetBase):
                     roi = PointROI()
                 elif kind == 'HorizontalRangeROI':
                     roi = HorizontalRangeROI()
+                elif kind == 'LineROI':
+                    roi = LineROI()
+                elif kind == 'HorizontalLineROI':
+                    roi = HorizontalLineROI()
+                elif kind == 'VerticalLineROI':
+                    roi = VerticalLineROI()
                 else:
                     # continue
                     raise ValueError('unsupported ROI "{0}"'.format(kind))
@@ -886,6 +965,14 @@ class RoiWidget(RoiWidgetBase):
         rois = self.roiManager.getRois()
         model = self.table.roiModel
         return [model.getRoiGeometry(roi) for roi in rois]
+
+    # def setActionToolTip(self, klass, tooltip):
+    #     actions = self.roiToolbar.actions()
+    #     for action in actions:
+    #         if hasattr(action, 'getRoiClass') and \
+    #                 action.getRoiClass().__name__ == klass:
+    #             action.setToolTip('Add ' + tooltip)
+    #             break
 
 
 class BaseRangeWidget(qt.QWidget):

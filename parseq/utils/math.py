@@ -356,7 +356,7 @@ def smooth_savgol(y, npoints):
     return savgol_filter(y, max(npoints, 4), 3)  # polynomial order 3
 
 
-def get_roi_mask(geom, xs, ys):
+def get_roi_mask(geom, xs, ys, w=None):
     if geom['kind'] == 'RectangleROI':
         x, y = geom['origin']
         w, h = geom['size']
@@ -366,11 +366,11 @@ def get_roi_mask(geom, xs, ys):
         r1, r2 = geom['innerRadius'], geom['outerRadius']
         dist2 = (xs-x)**2 + (ys-y)**2
         return (dist2 >= r1**2) & (dist2 <= r2**2)
-    elif geom['kind'] == 'BandROI':
+    elif geom['kind'] in ['BandROI', 'LineROI']:
         x1, y1 = geom['begin']
         x2, y2 = geom['end']
         k, b = line((x1, x2), (y1, y2))
-        w = geom['width']
+        w = geom['width'] if w is None else w
         return (ys >= k*xs + b - w/2) & (ys <= k*xs + b + w/2)
     elif geom['kind'] == 'HorizontalRangeROI':
         vmin, vmax = geom['vmin'], geom['vmax']
