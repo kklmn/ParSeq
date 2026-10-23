@@ -17,8 +17,11 @@ sys.path.append('../../Ray-tracing')
 home = os.path.expanduser("~")
 sys.path.append(home)
 
+import numpy as np
+
 try:
     import xrt.backends.raycing.materials as rm
+    import xrt.backends.raycing.materials.crystals as rmx
 except ImportError:
     rm = None
 
@@ -33,3 +36,34 @@ refl, rc = dict(), dict()
 for cryst in crystals:
     refl[cryst] = None
     rc[cryst] = None
+
+
+def validate_reflex(reflexStr):
+    try:
+        i = next((n for n, c in enumerate(reflexStr) if c.isdigit()),
+                 len(reflexStr))
+        xtalStr, hklStr = reflexStr[:i], reflexStr[i:]
+        if xtalStr in rmx.__all__:
+            return xtalStr, hklStr
+    except Exception:
+        return
+
+
+def get_reflex_energy(reflexStr, thetaDeg):
+    res = validate_reflex(reflexStr)
+    if res is None:
+        return
+    xtalStr, hklStr = res
+    if xtalStr == 'Si':
+        xtal = rm.CrystalSi(hkl=hklStr)
+    else:
+        xtal = getattr(rmx, xtalStr)(hkl=hklStr)
+
+    try:
+        theta = np.radians(thetaDeg)
+        E0raw = rm.ch / (2 * xtal.d * np.sin(theta))
+        dTheta = xtal.get_dtheta_symmetric_Bragg(E0raw)
+        E0 = rm.ch / (2 * xtal.d * np.sin(theta + dTheta))
+        return E0
+    except Exception as err:
+        print(err)
