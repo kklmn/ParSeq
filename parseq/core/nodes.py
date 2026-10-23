@@ -100,6 +100,16 @@ class Node(object):
         directory. This image will be an icon in the node tab. If not given,
         a generic icon for the given data dimension will be used.
 
+    A Node can define an `auto_format()` method that determines the data format
+    for a given file path. It is primarily intended for column-based files whose
+    column structure is defined dynamically with their headers.
+
+    A Node can also define an `extra_read()` method to create auxiliary objects
+    and add them to the data object after the main Node arrays have been read.
+    Some specialized data containers may optionally store variables that
+    facilitate data analysis. The `extra_read()` method provides access to such
+    variables.
+
     """
 
     properties = ('qLabel', 'qUnit', 'raw', 'role', 'plotLabel', 'plotUnit',

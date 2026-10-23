@@ -16,7 +16,7 @@ Qt, where the user does not have to know about the underlying objects and
 methods.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "22 Apr 2024"
+__date__ = "22 Oct 2026"
 # !!! SEE CODERULES.TXT !!!
 
 # import sys
@@ -1344,6 +1344,9 @@ class Spectrum(TreeItem):
             toSave += self.madeOf[end:]
         config.put(config.configLoad, 'Data', fromNode.name, toSave)
         config.write_configs('transform, load')
+
+        if hasattr(fromNode, 'extra_read'):
+            fromNode.extra_read(self)
 
     def interpret_array_formula(self, colStr, treeObj=None):
         if "np." in colStr:
