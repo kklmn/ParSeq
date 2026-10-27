@@ -4,6 +4,13 @@ __date__ = "16 Feb 2019"
 # !!! SEE CODERULES.TXT !!!
 
 import os
+import sys
+
+if sys.platform == "linux":
+    os.environ["PYOPENGL_PLATFORM"] = "glx"
+if sys.platform == "darwin":
+    os.environ["QT_STYLE_OVERRIDE"] = "Fusion"
+
 import numpy as np
 
 from silx.gui import qt
@@ -23,7 +30,7 @@ class Plot1D(splot.PlotWindow):
             parent=parent, backend=backend, resetzoom=True, autoScale=True,
             logScale=True, grid=True, curveStyle=True, colormap=False,
             aspectRatio=False, yInverted=False, copy=True, save=True,
-            print_=False, control=True, position=position, roi=False,
+            print_=False, control=False, position=position, roi=False,
             mask=False, fit=False)
         if parent is None:
             self.setWindowTitle('Plot1D')
