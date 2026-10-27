@@ -395,8 +395,7 @@ class MainWindowParSeq(qt.QMainWindow):
                 dock.dimIcon = qt.QIcon(pixNorm)
                 pixBusy = qt.QPixmap(pixNorm)
                 painter = qt.QPainter(pixBusy)
-                painter.setCompositionMode(
-                    qt.QPainter.CompositionMode_SourceIn)
+                painter.setCompositionMode(qt.QPainter.CompositionMode_SourceIn)
                 painter.fillRect(pixBusy.rect(), gco.BUSY_COLOR_ICON)
                 painter.end()
                 dock.dimIconBusy = qt.QIcon(pixBusy)
@@ -693,8 +692,6 @@ class MainWindowParSeq(qt.QMainWindow):
             self.statusBarLeft.setText(' ')
             self.statusBarCenter.setText(' ')
             return
-        selNames = [it.alias for it in csi.selectedItems]
-        combinedNames = cco.combine_names(selNames)
 
         cLoaded = len([it for it in csi.allLoadedItems if it.dataType in
                        [cco.DATA_DATASET, cco.DATA_COLUMN_FILE]])
@@ -709,8 +706,10 @@ class MainWindowParSeq(qt.QMainWindow):
         self.saveAction.setEnabled(cData > 0)
         cSelected = len(csi.selectedItems)
         if cSelected:
-            self.statusBarLeft.setText('{0} selected: {1}'.format(
-                cSelected, combinedNames))
+            selNames = [it.alias for it in csi.selectedItems]
+            combinedNames = cco.combine_names(selNames)
+            self.statusBarLeft.setText('{0} selected{1}{2}'.format(
+                cSelected, ': ' if combinedNames else '', combinedNames))
         else:
             self.statusBarLeft.setText('')
         self.statusBarLeft.update()
