@@ -16,7 +16,7 @@ The selected items can be accessed by core.singletons.selectedItems and
 core.singletons.selectedTopItems lists.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "29 Oct 2025"
+__date__ = "27 Oct 2026"
 # !!! SEE CODERULES.TXT !!!
 
 # import sys
@@ -176,7 +176,9 @@ class DataTreeModel(qt.QAbstractItemModel):
             self.needReplot.emit(False, True, 'setVisible')
         if item is csi.dataRootItem:  # by click on header
             for it in csi.selectedItems:
-                self.setVisible(it, True, True)
+                self.setVisible(it, True, False)
+            if emit:
+                self.needReplot.emit(False, True, 'setVisible')
             return
         if item.parentItem is csi.dataRootItem:
             return
@@ -1083,9 +1085,10 @@ class DataTreeView(qt.QTreeView):
         elif column == 1:
             if self.plotDimension == 1:
                 csi.model.setVisible(
-                    csi.dataRootItem, not csi.dataRootItem.isVisible, True)
+                    csi.dataRootItem, not csi.dataRootItem.isVisible, False)
             # else:
                 # csi.model.setVisible(csi.dataRootItem, False, True)
+            csi.model.needReplot.emit(False, True, 'headerClicked')
         else:
             node, key = csi.modelDataColumns[column-leadingColumns]
             role = node.get_prop(key, 'role')
@@ -1244,14 +1247,13 @@ class DataTreeView(qt.QTreeView):
         if self.plotDimension == 1:
             if not csi.dataRootItem.isVisible:  # visible are those selected
                 for it in csi.selectedItems:
-                    csi.model.setVisible(it, value, emit)
+                    csi.model.setVisible(it, value, False)
                 for it in csi.allLoadedItems:  # unselect the others
                     if it in csi.selectedItems:
                         continue
                     csi.model.setVisible(it, False, False)
-            else:
-                if emit:
-                    csi.model.needReplot.emit(False, True, '_setVisibleItems')
+            if emit:
+                csi.model.needReplot.emit(False, True, '_setVisibleItems')
         else:
             if value:
                 it = csi.selectedItems[0]
