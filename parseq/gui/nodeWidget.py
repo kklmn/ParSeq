@@ -4,16 +4,16 @@ __date__ = "23 Nov 2024"
 # !!! SEE CODERULES.TXT !!!
 
 import sys
-import os
+# import os
 import os.path as osp
 import webbrowser
 from collections import Counter
 from functools import partial
 import traceback
-import time
+# import time
 import glob
 
-from silx.gui import qt, colors, icons
+from silx.gui import qt, colors
 
 from ..core import singletons as csi
 from ..core import commons as cco
@@ -174,6 +174,7 @@ class NodeWidget(qt.QWidget):
         # # doesn't work in Linux:
         # self.fileSystemWatcher = qt.QFileSystemWatcher(self)
         self.setMinimumWidth(600)
+        self.nreplots = 0
 
     def gotoLastData(self):
         self.files.gotoLastData()
@@ -290,10 +291,17 @@ class NodeWidget(qt.QWidget):
 
         self.autoPanel.setLayout(layoutAP)
 
+        icon = self.style().standardIcon(qt.QStyle.SP_MediaSkipBackward)
+        iconSize = 32
+        pixmap = icon.pixmap(iconSize, iconSize)
+        painter = qt.QPainter(pixmap)
+        painter.setCompositionMode(qt.QPainter.CompositionMode_SourceIn)
+        painter.fillRect(pixmap.rect(), qt.QColor("#32cd32"))
+        painter.end()
         gotoLastButton = qt.QToolButton()
         self.gotoLastButton = gotoLastButton
-        gotoLastButton.setFixedSize(24, 24)
-        gotoLastButton.setIcon(icons.getQIcon('last'))
+        gotoLastButton.setFixedSize(iconSize, iconSize)
+        gotoLastButton.setIcon(qt.QIcon(pixmap))
         gotoLastButton.clicked.connect(self.gotoLastData)
         color = qt.QColor(gco.COLOR_LOAD_CAN)
         color.setAlphaF(0.32)
@@ -301,7 +309,7 @@ class NodeWidget(qt.QWidget):
             "QToolButton{border-radius: 8px;}"
             "QToolButton:hover{background-color: " +
             color.name(qt.QColor.HexArgb) + ";}")
-        tt = "Go to the latest loaded data"
+        tt = "Go back to the latest loaded data"
         if configLoad.has_option('Data', self.node.name):
             tt += "\n" + configLoad.get('Data', self.node.name)
         gotoLastButton.setToolTip(tt)
@@ -823,6 +831,8 @@ class NodeWidget(qt.QWidget):
                 ystep = None
 
         if node.plotDimension == 1:
+            if csi.currentNode == node:
+                self.nreplots += 1
             if needClear:
                 self.plot.clearCurves()
             self.plot.clearImages()
@@ -1210,6 +1220,7 @@ class NodeWidget(qt.QWidget):
             dataCount = len(csi.allLoadedItems)
             self.setWindowTitle('{0} total; {1}'.format(dataCount, selNames))
 
+    @logger(minLevel=50, attrs=[(0, 'node')])
     def updateNodeForSelectedItems(self):
         # time.sleep(0.01)  # roi counts do not update with 0 wait
         self.updateSplittersForSelectedItems()
