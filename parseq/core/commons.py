@@ -147,7 +147,7 @@ def common_substring(strs, isReversed=False):
 #         label = cleft + '[' + ', '.join(numStr) + ']' + cright
 #     return label
 
-def combine_names(names, minLenLeft=2, minLenRight=2):
+def combine_names(names, minLenLeft=2, minLenRight=2, maxLen=42):
     def get_chunk(cleft):
         sub = names[iname:iname+dname-1]
         if len(sub) == 1:
@@ -170,6 +170,8 @@ def combine_names(names, minLenLeft=2, minLenRight=2):
         return ''
     elif len(names) == 1:
         return names[0]
+    elif len(names) > maxLen:
+        return ''
     elif all(name == names[0] for name in names[1:]):
         return names[0]
 
