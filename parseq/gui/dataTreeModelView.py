@@ -1273,12 +1273,21 @@ class DataTreeView(qt.QTreeView):
                     self.header().update()
 
     def selChanged(self, selected=None, deselected=None):
+        def treeOrderKey(index):  # sort in top-to-bottom appearance
+            path = []
+            while index.isValid():
+                path.append(index.row())
+                index = index.parent()
+            return tuple(reversed(path))
+
         if self.hasFocus():
             csi.currentNode = self.node
         if not self.isDockVisible:
             return
 
-        selectedIndexes = csi.selectionModel.selectedRows()
+        # selectedIndexes = csi.selectionModel.selectedRows()
+        selectedIndexes = sorted(csi.selectionModel.selectedRows(),
+                                 key=treeOrderKey)
         items = csi.model.getItems(selectedIndexes)
         if len(items) == 0:
             mode = qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Rows
