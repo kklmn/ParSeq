@@ -227,8 +227,8 @@ class LineProps(qt.QDialog):
         else:
             self.isGroupSelected = True  # all selected items are groups
 
-        lsi = len(csi.selectedTopItems)
         if self.isGroupSelected:
+            lsi = len(csi.selectedTopItems)
             if lsi == 1:
                 group = csi.selectedTopItems[0]
                 txt = '... of group <b>{0}</b> with {1} item{2}'.format(
@@ -239,6 +239,7 @@ class LineProps(qt.QDialog):
             else:
                 txt = ''
         else:
+            lsi = len(csi.selectedItems)
             if csi.selectedTopItems == csi.dataRootItem.get_nongroups():
                 self.isTopGroupSelected = True
                 txt = "... of all top level data"
@@ -638,7 +639,7 @@ class LineProps(qt.QDialog):
                     delColorIndividual(item)
             else:
                 colorCycle = gco.makeGradientCollection(
-                    self.color1, self.color2)
+                    self.color1, self.color2, len(csi.selectedItems))
                 for item, color in zip(csi.selectedItems, colorCycle):
                     item.color = color
 
