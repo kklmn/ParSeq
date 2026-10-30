@@ -41,11 +41,13 @@ LIMITS_ROLE = qt.Qt.UserRole + 1
 
 stateButtonStyleSheet = """
 QPushButton {
+    background-color: colorr;
     border-style: outset;
     border-width: 2px;
     border-radius: 5px;
     border-color: lightsalmon;}
 QPushButton:checked {
+    background-color: colorg;
     border-style: inset;
     border-width: 2px;
     border-radius: 5px;
@@ -596,7 +598,27 @@ class StateButtons(qt.QFrame):
             but.setFixedSize(bbox.width()+12, bbox.height()+6)
             # but.setToolTip("go to the key frame")
             but.clicked.connect(partial(self.buttonClicked, but))
-            but.setStyleSheet(stateButtonStyleSheet)
+            inst = qt.QCoreApplication.instance()
+            wcolor = inst.palette().color(qt.QPalette.Window)
+            r, g, b, a = wcolor.getRgb()
+            if wcolor.lightness() < 136:
+                factor = 150
+                rr = min(255, r * factor // 100)
+                gg = min(255, g * factor // 100)
+                colorr = qt.QColor(rr, g, b, a)
+                colorg = qt.QColor(r, gg, b, a)
+            else:
+                factor = 105
+                rr = min(255, r * 100 // factor)
+                gg = min(255, g * 100 // factor)
+                bb = min(255, b * 100 // factor)
+                colorr = qt.QColor(r, gg, bb, a)
+                colorg = qt.QColor(rr, g, bb, a)
+            colors = dict(colorr=colorr.name(), colorg=colorg.name())
+            modified = str(stateButtonStyleSheet)
+            for k, v in colors.items():
+                modified = modified.replace(k, v)
+            self.setStyleSheet(modified)
 
             self.buttons.append(but)
             layout.addWidget(but)
