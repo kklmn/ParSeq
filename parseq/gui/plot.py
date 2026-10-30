@@ -127,6 +127,16 @@ class Plot2D(splot.ImageView):
             msg = f"Position: ({int(row)}, {int(column)}), Value: {value:.4g}"
         self.setGraphTitle(msg)
 
+    def setBackgroundColor(self, color):
+        super().setBackgroundColor(color)
+        self._histoHPlot.setBackgroundColor(color)
+        self._histoVPlot.setBackgroundColor(color)
+
+    def setDataBackgroundColor(self, color):
+        super().setDataBackgroundColor(color)
+        self._histoHPlot.setDataBackgroundColor(color)
+        self._histoVPlot.setDataBackgroundColor(color)
+
 
 class Plot3D(splot.StackView):
     posInfo = [

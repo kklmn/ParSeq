@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "8 May 2023"
+__date__ = "30 Oct 2026"
 # !!! SEE CODERULES.TXT !!!
 
 import time
@@ -9,14 +9,16 @@ from silx.gui import qt
 
 class Tasker(qt.QObject):
     ready = qt.pyqtSignal(qt.QWidget, str, str, int, dict, float, list)
+    select = qt.pyqtSignal(qt.QWidget, list)
 
     def prepare(self, task, params={}, runDownstream=None, dataItems=None,
-                starter=None):
+                starter=None, postSelect=False):
         self.task = task
         self.params = params
         self.runDownstream = runDownstream  # used only with transforms
         self.dataItems = dataItems
         self.starter = starter
+        self.postSelect = postSelect
 
     def getTransformNames(self, transform):
         res = [transform.name]
@@ -36,6 +38,8 @@ class Tasker(qt.QObject):
         self.thread().terminate()
         self.timeEnd = time.time()
         self.timeDuration = self.timeEnd - self.timeStart
+        if self.postSelect:
+            self.select.emit(self.starter, self.dataItems)
         self.dataItems = None  # remove the reference to data
         if self.runDownstream:  # used only with transforms
             transformNames = self.getTransformNames(self.task)

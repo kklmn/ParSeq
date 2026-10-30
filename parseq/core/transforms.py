@@ -730,7 +730,7 @@ def connect_combined(items, parentItem):
         pass
 
 
-def run_transforms(items, parentItem, runParallel=True):
+def run_transforms(items, parentItem, runParallel=True, postSelect=False):
     topItems = [it for it in items if it in parentItem.childItems]
     try:
         bottomItems = [it for it in items if it not in parentItem.childItems
@@ -754,8 +754,8 @@ def run_transforms(items, parentItem, runParallel=True):
                     runParallel:
                 # with a threaded transform
                 widget = tr.widget if hasattr(tr, 'widget') else None
-                csi.tasker.prepare(
-                    tr, runDownstream=True, dataItems=its, starter=widget)
+                csi.tasker.prepare(tr, runDownstream=True, dataItems=its,
+                                   starter=widget, postSelect=postSelect)
                 csi.tasker.thread().start()
             else:
                 # if len(itemsByOrigin) > 1, the transforms cannot be

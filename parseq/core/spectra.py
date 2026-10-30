@@ -969,7 +969,7 @@ class Spectrum(TreeItem):
         u"""
         This method inserts a data item *name* into the list of children. All
         other key word parameters lumped into *kwargs* are the same as of
-        :meth:`__init__` and additionally *configData* that can pass an
+        :meth:`__init__()` and additionally *configData* that can pass an
         instance `config.ConfigParser()` that contains a saved project.
         """
 

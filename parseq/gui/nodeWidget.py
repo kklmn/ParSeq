@@ -10,7 +10,7 @@ import webbrowser
 from collections import Counter
 from functools import partial
 import traceback
-# import time
+import time
 import glob
 
 from silx.gui import qt, colors
@@ -46,40 +46,47 @@ class QSplitterButton(qt.QPushButton):
         self.rawText = str(text)
         self.sbmargin = sbmargin
         self.isVertical = isVertical
-        fontSize = "12" if sys.platform == "darwin" else "8.5" \
+        self.customFontSize = "12" if sys.platform == "darwin" else "8.5" \
             if sys.platform == "linux" else "8"
+        myFont = qt.QFont()
+        myFont.setPointSize(int(float(self.customFontSize)))
+        self.fm = qt.QFontMetrics(myFont)
+
+    def setHighlight(self, colors=None, names=[]):
         grad = "x1: 0, y1: 1, x2: 0, y2: 0"
-        bottomMargin = '-1' if isVertical else '-3'
-        self.ss0 = """
+        bottomMargin = '0' if self.isVertical else '0'
+        ss0 = """
             QPushButton {
-                font-size: """ + fontSize + """pt; color: color1;
+                font-size: """ + self.customFontSize + """pt; color: color1;
                 text-align: bottom; border-radius: 6px;
-                margin: 0px 0px """ + bottomMargin + """px 0px;
+                margin: 0px 0px """ + bottomMargin + """px 0px; padding: 0px;
                 background-color: qlineargradient(
                 """ + grad + """, stop: 0 color2, stop: 1 color3);}
             QPushButton:disabled {color: #777777;}
             QPushButton:hover {
                 background-color: qlineargradient(
                 """ + grad + """, stop: 0 #6087cefa, stop: 1 #7097eeff);} """
-        myFont = qt.QFont()
-        myFont.setPointSize(int(float(fontSize)))
-        self.fm = qt.QFontMetrics(myFont)
-        self.setHighlight()
-
-    def setHighlight(self, colors=None, names=[]):
         if colors is None:
-            colors = dict(color1='#151575', color2='#e6e7ea', color3='#cacbce')
+            pal = self.parent().palette()
+            tcolor = pal.color(qt.QPalette.Text).name()
+            bcolor = pal.color(qt.QPalette.Window)
+            wcolor1 = bcolor.name()
+            if bcolor.lightness() < 136:
+                wcolor2 = pal.color(qt.QPalette.Window).lighter(300).name()
+            else:
+                wcolor2 = pal.color(qt.QPalette.Window).darker(120).name()
+            colors = dict(color1=tcolor, color2=wcolor1, color3=wcolor2)
         txt = self.rawText
         if names:
             txt += ': ' + ' + '.join(names)
         self.setText(txt)
         width = self.fm.width(txt) + 3*self.sbmargin
         if self.isVertical:
-            self.setFixedSize(int(SPLITTER_WIDTH*csi.screenFactor), width)
+            self.setFixedSize(int(SPLITTER_WIDTH*csi.screenFactor)+1, width)
         else:
-            self.setFixedSize(width, int(SPLITTER_WIDTH*csi.screenFactor))
+            self.setFixedSize(width, int(SPLITTER_WIDTH*csi.screenFactor)+2)
 
-        modified = str(self.ss0)
+        modified = str(ss0)
         for k, v in colors.items():
             modified = modified.replace(k, v)
         self.setStyleSheet(modified)
@@ -176,6 +183,27 @@ class NodeWidget(qt.QWidget):
         self.setMinimumWidth(600)
         self.nreplots = 0
 
+    def initColorTheme(self):
+        wcolor = self.palette().color(qt.QPalette.Window).name()
+        bcolor = self.palette().color(qt.QPalette.Base).name()
+        self.splitter.setStyleSheet(  # has to be after docking
+            "QSplitterHandle:hover {} "
+            "QSplitter {background-color: "+wcolor+";"
+            "border: 1px solid "+wcolor+";}"
+            "QSplitter::handle{background-color: "+wcolor+";"
+            "border: none;}"
+            "QSplitter::handle:hover {background-color: #6087cefa;"
+            "margin: 5px;}")
+
+        self.plot.setBackgroundColor(wcolor)
+        self.plot.setDataBackgroundColor(bcolor)
+        # self.plot.setDataBackgroundColor(qt.QColor('white'))
+        tcolor = self.palette().color(qt.QPalette.Text).name()
+        self.plot.setForegroundColor(tcolor)
+
+        for but in self.findChildren(QSplitterButton):
+            but.setHighlight()
+
     def gotoLastData(self):
         self.files.gotoLastData()
         if configLoad.has_section('Format_'+self.node.name):
@@ -201,10 +229,6 @@ class NodeWidget(qt.QWidget):
         #     "margin: 5px;}"
         #     "QSplitter::handle:vertical:hover{background-color: #6087cefa;"
         #     "margin: 5px;}")
-        self.splitter.setStyleSheet(
-            "QSplitterHandle:hover {} "
-            "QSplitter::handle:hover{background-color: #6087cefa;"
-            "margin: 5px;}")
 
         self.splitterFiles = qt.QSplitter(self.splitter)
         self.splitterFiles.setOrientation(qt.Qt.Vertical)
@@ -292,7 +316,7 @@ class NodeWidget(qt.QWidget):
         self.autoPanel.setLayout(layoutAP)
 
         icon = self.style().standardIcon(qt.QStyle.SP_MediaSkipBackward)
-        iconSize = 32
+        iconSize = 24
         pixmap = icon.pixmap(iconSize, iconSize)
         painter = qt.QPainter(pixmap)
         painter.setCompositionMode(qt.QPainter.CompositionMode_SourceIn)
@@ -302,6 +326,7 @@ class NodeWidget(qt.QWidget):
         self.gotoLastButton = gotoLastButton
         gotoLastButton.setFixedSize(iconSize, iconSize)
         gotoLastButton.setIcon(qt.QIcon(pixmap))
+        gotoLastButton.setIconSize(qt.QSize(32, 32))
         gotoLastButton.clicked.connect(self.gotoLastData)
         color = qt.QColor(gco.COLOR_LOAD_CAN)
         color.setAlphaF(0.32)
@@ -840,6 +865,7 @@ class NodeWidget(qt.QWidget):
             nPlottedItems = 0
             leftAxisColumns, rightAxisColumns = [], []
             leftAxisUnits, rightAxisUnits = [], []
+            curveLabels = []
             for item in csi.allLoadedItems:
                 if not self.shouldPlotItem(item):
                     for yN in node.plotYArrays + self.fitLines:
@@ -848,7 +874,7 @@ class NodeWidget(qt.QWidget):
                     continue
                 try:
                     x = getattr(item, node.plotXArray)
-                except AttributeError:
+                except AttributeError as err:
                     continue
                 if (csi.nodes[item.originNodeName] is node and
                         'conversionFactors' in item.dataFormat):
@@ -860,7 +886,7 @@ class NodeWidget(qt.QWidget):
                 for yN, cN in zip(node.plotYArrays, convs):
                     try:
                         y = getattr(item, yN)
-                    except AttributeError:
+                    except AttributeError as err:
                         continue
                     if y is None:
                         continue
@@ -868,7 +894,7 @@ class NodeWidget(qt.QWidget):
                     curve = self.plot.getCurve(curveLabel)
                     try:
                         plotProps = dict(item.plotProps[node.name][yN])
-                    except Exception:
+                    except Exception as err:
                         plotProps = dict()
                     symbolsize = plotProps.pop('symbolsize', 2)
                     hidden = plotProps.pop('hidden', False)
@@ -903,6 +929,7 @@ class NodeWidget(qt.QWidget):
                             noLine = (ls == qt.Qt.NoPen or lw <= 0) and \
                                 (not sy or (sy in noSymbols) or ss <= 0)
                             if not noLine:
+                                curveLabels.append(curveLabel)
                                 curve = self.plot.addCurve(
                                     x0, y+dy, legend=curveLabel,
                                     resetzoom=False,  # heavily affects speed!

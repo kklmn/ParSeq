@@ -113,6 +113,7 @@ class PropWidget(qt.QWidget):
         self.read_ini_properties()
 
         if csi.tasker is not None:
+            csi.tasker.select.connect(self._onTransformThreadSelect)
             csi.tasker.ready.connect(self._onTransformThreadReady)
 
     def read_ini_properties(self):
@@ -760,6 +761,12 @@ class PropWidget(qt.QWidget):
                 tr = csi.transforms[trName]
                 tr.run(params=params, dataItems=trData)
                 self._onTransformThreadReady(self, trName, props=params)
+
+    def _onTransformThreadSelect(self, starter, items):
+        if starter is not self:
+            return
+        csi.model.updateAll()
+        csi.model.selectItems(items)
 
     # @logger(minLevel=50, attrs=[(0, 'node')])
     def _onTransformThreadReady(self, starter, tName='', tStr='', lenData=0,

@@ -16,7 +16,7 @@ The selected items can be accessed by core.singletons.selectedItems and
 core.singletons.selectedTopItems lists.
 """
 __author__ = "Konstantin Klementiev"
-__date__ = "27 Oct 2026"
+__date__ = "30 Oct 2026"
 # !!! SEE CODERULES.TXT !!!
 
 # import sys
@@ -131,10 +131,19 @@ class DataTreeModel(qt.QAbstractItemModel):
             if item.beingTransformed and index.column() == 0:
                 return BUSY_BKGND
             if item.childItems:  # is a group
-                return GROUP_BKGND
+                # return GROUP_BKGND
+                return
             color = BKGND[item.get_state(nodeName)] if nodeName else None
+            # if color == UNDEFINED_BKGND:
+            #     inst = qt.QCoreApplication.instance()
+            #     tcolor = inst.palette().color(qt.QPalette.AlternateBase)
+            #     return tcolor
             return color
         elif role == qt.Qt.ForegroundRole:
+            if item.childItems:  # is a group
+                inst = qt.QCoreApplication.instance()
+                tcolor = inst.palette().color(qt.QPalette.Text)
+                return tcolor
             if index.column() < len(csi.modelLeadingColumns):
                 return qt.QColor(FONT_COLOR_TAG[item.colorTag])
             else:
@@ -243,10 +252,8 @@ class DataTreeModel(qt.QAbstractItemModel):
         self.beginResetModel()
         items = parentItem.insert_data(data, insertAt, **kwargs)
         ctr.connect_combined(items, parentItem)
-        ctr.run_transforms(items, parentItem)
+        ctr.run_transforms(items, parentItem, postSelect=True)
         self.endResetModel()
-        self.updateAll()
-        self.selectItems(items)
         return items
 
     def selectItems(self, items=None):
@@ -929,8 +936,8 @@ class DataTreeView(qt.QTreeView):
                 (COLUMN_NAME_WIDTH + COLUMN_EYE_WIDTH + totalWidth) *
                 csi.screenFactor), 100))
 
-        self.setStyleSheet("QTreeView"
-                           "{selection-background-color: #cceeff;}")
+        self.setStyleSheet(
+            "QTreeView {selection-background-color: #cceeff;}")
 
         self.collapsed.connect(self.collapse)
         self.expanded.connect(self.expand)
@@ -1319,3 +1326,9 @@ class DataTreeView(qt.QTreeView):
         item.progress = progress if item.beingTransformed else 1.
         ind = csi.model.indexFromItem(item)
         self.model().dataChanged.emit(ind, ind)
+
+    # def drawRow(self, painter, option, index):
+    #     option2 = qt.QStyleOptionViewItem(option)
+    #     if index.column() == 0:
+    #         option2.state &= ~qt.QStyle.State_Selected
+    #     super().drawRow(painter, option2, index)

@@ -130,7 +130,8 @@ class QDockWidgetNoClose(qt.QDockWidget):  # ignores Alt+F4 on undocked widget
         # self.titleIcon.setVisible(state == 1)
 
         pal = self.title.palette()
-        color = gco.BUSY_COLOR_FGND if state == 1 else 'black'
+        color = gco.BUSY_COLOR_FGND if state == 1 else \
+            self.palette().color(qt.QPalette.WindowText).name()
         pal.setColor(qt.QPalette.WindowText, qt.QColor(color))
         self.title.setPalette(pal)
         self.update()
@@ -370,14 +371,15 @@ class MainWindowParSeq(qt.QMainWindow):
             dock = QDockWidgetNoClose(tabName, self)
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
-            dock.defStyleSheet = "QDockWidget {font-weight: 800;}"\
-                "QDockWidget::title {background: " + ACTIVE_TAB_BKND + \
-                "; padding-left: 20px; padding-top: 4px;}"
-            dock.setStyleSheet(dock.defStyleSheet)
+            # dock.defStyleSheet = "QDockWidget {font-weight: 800;}"\
+            #     "QDockWidget::title {background: " + ACTIVE_TAB_BKND + \
+            #     "; padding-left: 20px; padding-top: 4px;}"
+            # dock.setStyleSheet(dock.defStyleSheet)
             self.addDockWidget(qt.Qt.LeftDockWidgetArea, dock)
             nodeWidget = NodeWidget(node, dock)
             # nodeWidget = None  # for testing app closure
             dock.setWidget(nodeWidget)
+            nodeWidget.initColorTheme()  # has to be after docking
 
             if node.plotDimension is None:
                 dock.dimIcon = qt.QIcon()
@@ -449,18 +451,18 @@ class MainWindowParSeq(qt.QMainWindow):
         # elif self.tabPos in [qt.QTabWidget.West, qt.QTabWidget.East]:
         #     pS = "padding-top: 5; padding-bottom: 5;}"
 
-        style = "QTabWidget>QWidget>QWidget {background: palette(window);"\
-            " color: white;}"\
-            "QTabBar::tab {padding: 2px 10px -2px 10px;"\
-            "margin-left: 1px; margin-right: 1px; IB} "\
-            "QTabBar::tab:hover {background: #6087cefa;}"\
-            "QTabBar::tab:selected {border-top: 2px solid lightblue; "\
-            "font-weight: 600; AB}"
-        # if csi.onMac:
-        AB = f"background: {ACTIVE_TAB_BKND}; height: {ICON_SIZE+2};"
-        IB = f"height: {ICON_SIZE};"
-        style = style.replace("AB", AB).replace("IB", IB)
-        self.tabWidget.setStyleSheet(style)
+        # style = "QTabWidget>QWidget>QWidget {background: palette(window);"\
+        #     " color: white;}"\
+        #     "QTabBar::tab {padding: 2px 10px -2px 10px;"\
+        #     "margin-left: 1px; margin-right: 1px; IB} "\
+        #     "QTabBar::tab:hover {background: #6087cefa;}"\
+        #     "QTabBar::tab:selected {border-top: 2px solid lightblue; "\
+        #     "font-weight: 600; AB}"
+        # # if csi.onMac:
+        # AB = f"background: {ACTIVE_TAB_BKND}; height: {ICON_SIZE+2};"
+        # IB = f"height: {ICON_SIZE};"
+        # style = style.replace("AB", AB).replace("IB", IB)
+        # self.tabWidget.setStyleSheet(style)
         iconSize = int(ICON_SIZE*0.9)
         for itab, tabName in enumerate(tabNames):
             self.tabWidget.setTabToolTip(itab, tabName)
@@ -474,10 +476,10 @@ class MainWindowParSeq(qt.QMainWindow):
             dock = QDockWidgetNoClose(tabName, self)
             dock.setAllowedAreas(qt.Qt.AllDockWidgetAreas)
             dock.setFeatures(dockFeatures)
-            dock.defStyleSheet = "QDockWidget {font-weight: 800;}"\
-                "QDockWidget::title {background: " + ACTIVE_TAB_BKND + \
-                "; padding-left: 20px; padding-top: 4px;}"
-            dock.setStyleSheet(dock.defStyleSheet)
+            # dock.defStyleSheet = "QDockWidget {font-weight: 800;}"\
+            #     "QDockWidget::title {background: " + ACTIVE_TAB_BKND + \
+            #     "; padding-left: 20px; padding-top: 4px;}"
+            # dock.setStyleSheet(dock.defStyleSheet)
             self.addDockWidget(qt.Qt.LeftDockWidgetArea, dock)
             self.webView = gww.QWebView(self)
             self.webView.page().setLinkDelegationPolicy(2)
@@ -940,7 +942,8 @@ class MainWindowParSeq(qt.QMainWindow):
         if dock.isFloating():
             dock.setFloatingTabColor(state)
         else:
-            color = gco.BUSY_COLOR_FGND if state == 1 else 'black'
+            color = gco.BUSY_COLOR_FGND if state == 1 else \
+                self.palette().color(qt.QPalette.Text).name()
             itab = self.getTabIndex(tabName)
             if itab is None:
                 return
@@ -1089,3 +1092,31 @@ class MainWindowParSeq(qt.QMainWindow):
 
     def save_script(self, fname, plots, h5plots, lib='mpl'):
         csr.save_script(fname, plots, h5plots, lib=lib)
+
+
+def setPalette(app, theme):
+    if theme == 'dark':
+        pal = qt.QPalette()
+        pal.setColor(qt.QPalette.Window, qt.QColor(53, 53, 53))
+        pal.setColor(qt.QPalette.WindowText, qt.Qt.white)
+        pal.setColor(qt.QPalette.Base, qt.QColor(35, 35, 35))
+        pal.setColor(qt.QPalette.AlternateBase, qt.QColor(53, 53, 53))
+        pal.setColor(qt.QPalette.ToolTipBase, qt.QColor(25, 25, 25))
+        pal.setColor(qt.QPalette.ToolTipText, qt.Qt.white)
+        pal.setColor(qt.QPalette.Text, qt.Qt.white)
+        pal.setColor(qt.QPalette.Button, qt.QColor(53, 53, 53))
+        pal.setColor(qt.QPalette.ButtonText, qt.Qt.white)
+        pal.setColor(qt.QPalette.BrightText, qt.Qt.red)
+        pal.setColor(qt.QPalette.Link, qt.QColor(42, 130, 218))
+        pal.setColor(qt.QPalette.Highlight, qt.QColor(42, 130, 218))
+        pal.setColor(qt.QPalette.HighlightedText, qt.QColor(35, 35, 35))
+        pal.setColor(qt.QPalette.Active, qt.QPalette.Button,
+                     qt.QColor(53, 53, 53))
+        pal.setColor(qt.QPalette.Disabled, qt.QPalette.ButtonText,
+                     qt.Qt.darkGray)
+        pal.setColor(qt.QPalette.Disabled, qt.QPalette.WindowText,
+                     qt.Qt.darkGray)
+        pal.setColor(qt.QPalette.Disabled, qt.QPalette.Text, qt.Qt.darkGray)
+        pal.setColor(qt.QPalette.Disabled, qt.QPalette.Light,
+                     qt.QColor(53, 53, 53))
+        app.setPalette(pal)
