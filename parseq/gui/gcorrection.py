@@ -1145,7 +1145,8 @@ class Correction1DWidget(PropWidget):
         if node is not None:
             self.corr_param_name = 'correction_' + node.name
             self.registerPropWidget(
-                self.table, 'correction', self.corr_param_name)
+                self.table, 'correction', self.corr_param_name,
+                ifFocused=(self.table, self.acceptButton, plot))
 
         self.setSizePolicy(qt.QSizePolicy.Minimum, qt.QSizePolicy.Minimum)
 

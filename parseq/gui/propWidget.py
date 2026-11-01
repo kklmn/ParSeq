@@ -588,7 +588,7 @@ class PropWidget(qt.QWidget):
                     elif iwt == 10:  # 'correction' from gui.gcorrection
                         widget.sigCorrectionChanged.connect(
                             partial(self.updatePropFromCorrections, widget,
-                                    dataItems, prop))
+                                    dataItems, prop, **kw))
                     elif iwt == 11:  # 'pointroi'
                         widget.roiChanged.connect(
                             partial(self.updatePropFromPointRoi, widget,
@@ -869,9 +869,17 @@ class PropWidget(qt.QWidget):
         #     return
         self.updateProp(key, value, dataItems)
 
-    def updatePropFromCorrections(self, widget, dataItems, key):
-        # # if not widget.hasFocus():  # unclear if this is needed
-        # #     return
+    def updatePropFromCorrections(self, widget, dataItems, key, ifFocused=()):
+        if len(ifFocused) > 0:
+            for w in ifFocused:
+                if w.hasFocus():
+                    break
+            else:
+                return
+        else:
+            if not widget.hasFocus():
+                return
+
         corrs = widget.getCorrections()
 
         if dataItems is None:
