@@ -29,7 +29,7 @@ dependencies = [
     "sphinx>=1.6.2", "sphinxcontrib-jquery", "sphinx_tabs", "autopep8",
     "h5py", "silx>=2.2.0", "hdf5plugin", "psutil",
     "pyqtwebengine", "docutils", "distro", "colorama",
-    "xafsmass>=1.6.0"
+    "xafsmass>=1.6.0", "scikit-image", "setuptools"
 ]
 
 [project.urls]
