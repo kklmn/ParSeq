@@ -210,7 +210,7 @@ class QColorLoop(qt.QPushButton):
             painter.setPen(pen)
             pos = round((ic+1.5) * self.LINE_WIDTH)
             painter.drawLine(rect.left() + 2*self.LINE_WIDTH, pos,
-                             rect.right() - 2*self.LINE_WIDTH, pos)
+                             rect.right() - 2*self.LINE_WIDTH + 1, pos)
         painter.restore()
 
 
