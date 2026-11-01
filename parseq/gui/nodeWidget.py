@@ -32,7 +32,7 @@ from . import gcommons as gco
 from .plotOptions import lineStyles, noSymbols
 
 SPLITTER_WIDTH = 18 if sys.platform == "darwin" else 14
-SPLITTER_BUTTON_MARGIN = 6
+SPLITTER_BUTTON_MARGIN = 10
 
 COLORMAP = 'viridis'
 
@@ -76,7 +76,7 @@ class QSplitterButton(qt.QPushButton):
             else:
                 wcolor2 = pal.color(qt.QPalette.Window).darker(120).name()
             colors = dict(color1=tcolor, color2=wcolor1, color3=wcolor2)
-        txt = self.rawText
+        txt = str(self.rawText)
         if names:
             txt += ': ' + ' + '.join(names)
         self.setText(txt)
