@@ -59,7 +59,7 @@ def check_pypi_version():
         import distutils.version as dv
         import json
         PyPI = 'https://pypi.python.org/pypi/parseq/json'
-        req = requests.get(PyPI)
+        req = requests.get(PyPI, timeout=5)
         if req.status_code != requests.codes.ok:
             return
         rels = json.loads(req.text)['releases']
