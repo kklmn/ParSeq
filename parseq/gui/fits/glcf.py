@@ -8,7 +8,6 @@ from functools import partial
 
 from ...core import singletons as csi
 from ...fits.lcf import LCF
-from ...gui import gcommons as gco
 from . import gbasefit as gbf
 from .. import gcommons as gco
 
@@ -21,7 +20,9 @@ class LCFModel(qt.QAbstractTableModel):
     are the fitting parameters. Optionally, the spectra may get a shift in
     abscissa also found in the fitting.
     """
-    HEADERS = ['ref spectra', 'w', 'w [min, max, δ]', 'w tie', 'w±',
+    HEADERS = ['ref spectra ("{0}" vs "{1}")'.format(
+               LCF.allDataAttrs['y'], LCF.allDataAttrs['x']),
+               'w', 'w [min, max, δ]', 'w tie', 'w±',
                'Δ{0}', 'Δ{0} [min, max, δ]', 'Δ{0} tie', 'Δ{0}±']
     xName, xUnit = 'E', 'eV'
     MAXMETAVARS = 3
@@ -29,6 +30,8 @@ class LCFModel(qt.QAbstractTableModel):
     def __init__(self, worker):
         super().__init__()
         self.worker = worker
+        self.HEADERS[0] = 'ref spectra ("{0}" vs "{1}")'.format(
+               worker.allDataAttrs['y'], worker.allDataAttrs['x'])
         self.xVary = worker.xVary
         self.setParams()
 
