@@ -10,7 +10,7 @@ import webbrowser
 from collections import Counter
 from functools import partial
 import traceback
-import time
+# import time
 import glob
 
 from silx.gui import qt, colors
@@ -23,6 +23,7 @@ from ..core.logger import logger, syslogger
 from ..gui import fileTreeModelView as gft
 from ..gui.fileTreeModelView import FileTreeView
 from ..gui.dataTreeModelView import DataTreeView
+from ..gui.treeNavigation import TreeNavigatorSlider
 from ..gui.plot import Plot1D, Plot2D, Plot3D
 from .import webWidget as gww
 from ..gui.columnFormat import ColumnFormatWidget
@@ -382,11 +383,17 @@ class NodeWidget(qt.QWidget):
         self.tree = DataTreeView(self.node, splitterInner)
         self.tree.model().needReplot.connect(self.replot)
         self.tree.selectionModel().selectionChanged.connect(self.selChanged)
+        treeNavigatorSlider = TreeNavigatorSlider(self.tree, self)
+        treeNavigatorSlider.setFixedHeight(200)
+        layoutT = qt.QHBoxLayout()
+        layoutT.setContentsMargins(0, 0, 0, 0)
+        layoutT.addWidget(self.tree)
+        layoutT.addWidget(treeNavigatorSlider, alignment=qt.Qt.AlignTop)
 
         layout = qt.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.pickWidget)
-        layout.addWidget(self.tree)
+        layout.addLayout(layoutT)
         splitterInner.setLayout(layout)
 
         self.combiner = CombineSpectraWidget(self.splitterData, self.node)
@@ -856,7 +863,7 @@ class NodeWidget(qt.QWidget):
                 ystep = None
 
         if node.plotDimension == 1:
-            if csi.currentNode == node:
+            if csi.currentNode is node:
                 self.nreplots += 1
             if needClear:
                 self.plot.clearCurves()
@@ -1263,6 +1270,10 @@ class NodeWidget(qt.QWidget):
         self.updateFits()
 
     def shouldUpdateFileModel(self):
+        if self.splitter.sizes()[0] == 0:
+            return
+        if not (csi.currentNode is self.node):
+            return
         for it in csi.selectedItems:
             if it.dataType in (cco.DATA_COLUMN_FILE, cco.DATA_DATASET) and\
                     csi.nodes[it.originNodeName] is self.node:
