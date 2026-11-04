@@ -285,11 +285,15 @@ class Fit:
                 proxy = DataProxy()
                 proxy.alias = str(data.alias)
                 if hasattr(self, 'allDataAttrs'):
-                    xname = self.allDataAttrs['x']
-                    setattr(proxy, xname, getattr(data, xname))
-                    yname = self.allDataAttrs['y']
-                    setattr(proxy, yname, getattr(data, yname))
-                allData.append(proxy)
+                    try:
+                        xname = self.allDataAttrs['x']
+                        yname = self.allDataAttrs['y']
+                        setattr(proxy, xname, getattr(data, xname))
+                        setattr(proxy, yname, getattr(data, yname))
+                        allData.append(proxy)
+                    except AttributeError as err:
+                        print('Error in making DataProxy() for spectrum '
+                              '{0}:\n{1}'.format(data, err))
 
         # inArrays = [self.dataAttrs['x'], self.dataAttrs['y']]
         inArrays = [self.dataAttrs[key] for key in self.dataAttrs.keys()
