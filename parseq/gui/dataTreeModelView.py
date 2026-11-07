@@ -23,7 +23,7 @@ __date__ = "30 Oct 2026"
 from functools import partial
 import pickle
 
-from silx.gui import qt
+from silx.gui import qt, icons
 
 from ..core import commons as cco
 from ..core import singletons as csi
@@ -98,8 +98,8 @@ class DataTreeModel(qt.QAbstractItemModel):
             res |= qt.Qt.ItemIsEnabled
 
         cond = index.column() == 0  # editable for all items in column 0
-#        item = index.internalPointer()
-#        cond = cond and item.childItems  # editable only if is a group
+        # item = index.internalPointer()
+        # cond = cond and item.childItems  # editable only if is a group
         if cond:
             res |= qt.Qt.ItemIsEditable
         return res
@@ -112,12 +112,12 @@ class DataTreeModel(qt.QAbstractItemModel):
             return item.data(index.column())
         elif role == qt.Qt.CheckStateRole:
             if index.column() == 1:
+                vis = item.isVisible or getattr(item, 'isVisibleAsRef', False)
                 if qt.BINDING == 'PySide6':
-                    return int(qt.Qt.Checked.value if item.isVisible else
+                    return int(qt.Qt.Checked.value if vis else
                                qt.Qt.Unchecked.value)
                 else:
-                    return int(qt.Qt.Checked if item.isVisible else
-                               qt.Qt.Unchecked)
+                    return int(qt.Qt.Checked if vis else qt.Qt.Unchecked)
         elif role == qt.Qt.ToolTipRole:
             if csi.currentNode is not None:
                 node = csi.currentNode
@@ -162,7 +162,7 @@ class DataTreeModel(qt.QAbstractItemModel):
         if role == qt.Qt.EditRole:
             item = index.internalPointer()
             item.set_data(index.column(), str(value.rstrip('\r\n ')))
-#            item.aliasExtra = None
+            # item.aliasExtra = None
             self.dataChanged.emit(index, index)
             self.needReplot.emit(True, True, 'setData')
             return True
@@ -597,8 +597,11 @@ class DataCheckDelegate(NodeDelegate):
         painter.save()
         painter.setRenderHint(qt.QPainter.Antialiasing, True)
         painter.setPen(qt.Qt.NoPen)
-        # bd = index.data(qt.Qt.BackgroundRole)
-        bd = index.model().data(index, qt.Qt.BackgroundRole, self.nodeName)
+        if self.nodeName:
+            # bd = index.data(qt.Qt.BackgroundRole)
+            bd = index.model().data(index, qt.Qt.BackgroundRole, self.nodeName)
+        else:
+            bd = None
         if (option.state & qt.QStyle.State_Selected or
             option.state & qt.QStyle.State_MouseOver) and bd not in [
                 BAD_BKGND, UNDEFINED_BKGND, NOTFOUND_BKGND, MATHERROR_BKGND]:
@@ -1014,6 +1017,13 @@ class DataTreeView(qt.QTreeView):
         iconL = self.style().standardIcon(qt.QStyle.SP_FileDialogDetailedView)
         self.actionLines.setIcon(iconL)
 
+        if self.plotDimension == 1:
+            self.actionPermVisible = self._addAction(
+                "Permanently visible", self.permVisible)
+            # iconEye = icons.getQIcon('eye')
+            # self.actionPermVisible.setIcon(iconEye)
+            self.actionPermVisible.setCheckable(True)
+
         self.colorTagWidget = gco.ColorTagWidget(FONT_COLOR_TAG)
         self.colorTagWidget.colorSelected.connect(self.setColorTag)
         self.actionColorTag = self._addAction("colortag")
@@ -1055,6 +1065,10 @@ class DataTreeView(qt.QTreeView):
         menu.addAction(self.actionRemove)
 
         if self.node is not None:
+            if self.plotDimension == 1 and len(csi.selectedTopItems) == 1:
+                menu.addSeparator()
+                menu.addAction(self.actionPermVisible)
+
             if self.node.columnCount > 0:
                 menu.addSeparator()
                 if isGroupSelected or csi.selectedTopItems == \
@@ -1249,6 +1263,10 @@ class DataTreeView(qt.QTreeView):
             return
         lineDialog = LineProps(self, self.node, key)
         lineDialog.exec_()
+
+    def permVisible(self, checked):
+        item = csi.selectedTopItems[0]
+        item.isVisibleAsRef = bool(checked)
 
     def _setVisibleItems(self, value, emit=True):
         if self.plotDimension == 1:

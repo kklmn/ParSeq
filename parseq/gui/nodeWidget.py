@@ -683,6 +683,11 @@ class NodeWidget(qt.QWidget):
                 position = [(xLbl, lambda x, y: x), (yLbl, lambda x, y: y)]
             self.plot = Plot1D(self.splitterPlot, position=position,
                                **self.backend)
+            # try:
+            #     self.plot._backend.fig.tight_layout()
+            # except Exception as err:
+            #     print(err)
+            #     pass
             self.plot.getXAxis().setLabel(xLbl)
             self.plot.getYAxis().setLabel(yLbl)
         else:
@@ -771,7 +776,7 @@ class NodeWidget(qt.QWidget):
         if item.state[self.node.name] != cco.DATA_STATE_GOOD:
             return False
         if not item.isVisible:
-            return False
+            return getattr(item, 'isVisibleAsRef', False)
         return True
 
     def _storePlotState(self):
