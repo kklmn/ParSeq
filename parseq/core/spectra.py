@@ -123,7 +123,8 @@ class TreeItem(object):
                     res = self.name
             elif hasattr(self, 'madeOf'):  # instance of Spectrum
                 if self.error is not None:
-                    res = f"<b>Error:</b><br>{self.error}"
+                    error = self.error.replace('\n', '<br>')
+                    res = f"<b>Error:</b><br>{error}"
                 elif self.beingTransformed:
                     res = '{0} is {1:.0f}% done'.format(self.beingTransformed,
                                                         self.progress*100)
