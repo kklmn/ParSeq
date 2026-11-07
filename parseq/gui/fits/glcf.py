@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "12 Jan 2025"
+__date__ = "7 Nov 2026"
 # !!! SEE CODERULES.TXT !!!
 
 import copy
@@ -22,10 +22,10 @@ class LCFModel(qt.QAbstractTableModel):
     """
     HEADERS = ['ref spectra ("{0}" vs "{1}")'.format(
                LCF.allDataAttrs['y'], LCF.allDataAttrs['x']),
-               'w', 'w [min, max, δ]', 'w tie', 'w±',
+               '', 'w', 'w [min, max, δ]', 'w tie', 'w±',
                'Δ{0}', 'Δ{0} [min, max, δ]', 'Δ{0} tie', 'Δ{0}±']
     xName, xUnit = 'E', 'eV'
-    MAXMETAVARS = 3
+    MAXMETAVARS = 4
 
     def __init__(self, worker):
         super().__init__()
@@ -57,31 +57,36 @@ class LCFModel(qt.QAbstractTableModel):
         ref = self.params[row]
         if column == 0:
             if self.isMeta(index):
-                if 'pinhole' in ref['name']:
+                if 'pinhole' in ref['name'] or 'matrix' in ref['name']:
                     res = qt.Qt.ItemIsEnabled
                 else:
                     res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
             else:
                 res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsUserCheckable
-        elif column in (1, 2):  # w, wBounds
+        elif column == 1:  # toggle visible reference spectra
+            if self.isMeta(index):
+                res = qt.Qt.ItemIsEnabled
+            else:
+                res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsUserCheckable
+        elif column in (2, 3):  # w, wBounds
             res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable | \
                 qt.Qt.ItemIsSelectable
-        elif column in (3,):  # wtie
+        elif column in (4,):  # wtie
             res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
-        elif column in (4,):  # wError
+        elif column in (5,):  # wError
             res = qt.Qt.NoItemFlags
-        elif column in (5, 6):  # dx, dxBounds
+        elif column in (6, 7):  # dx, dxBounds
             if self.isMeta(index):
                 res = qt.Qt.NoItemFlags
             else:
                 res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable | \
                     qt.Qt.ItemIsSelectable
-        elif column in (7,):  # dEtie
+        elif column in (8,):  # dEtie
             if self.isMeta(index):
                 res = qt.Qt.NoItemFlags
             else:
                 res = qt.Qt.ItemIsEnabled | qt.Qt.ItemIsEditable
-        elif column in (8,):  # dEError
+        elif column in (9,):  # dEError
             res = qt.Qt.NoItemFlags
         return res
 
@@ -96,32 +101,34 @@ class LCFModel(qt.QAbstractTableModel):
             if column == 0:  # name
                 if self.isMeta(index):
                     if role == qt.Qt.DisplayRole:
-                        if 'pinhole' in ref['name']:
+                        if 'pinhole' in ref['name'] or 'matrix' in ref['name']:
                             return ref['name']
                         return 'metavariable "{0}"'.format(ref['name'])
                     elif role == qt.Qt.EditRole:
                         return ref['name']
                 return ref['name']
-            key = 'w' if column in [1, 2, 3, 4] else 'dx'
+            elif column == 1:  # toggle visible reference spectra
+                return ''
+            key = 'w' if column in [2, 3, 4, 5] else 'dx'
             keyb = key + 'Bounds'
             lim = ref[keyb]
             fmt = gco.getFormatStr(lim[2])
-            if column in (1, 5):  # w, ΔE
-                if self.isMeta(index) and column == 5:
-                    return
-                return fmt.format(ref[key])
-            elif column in (2, 6):  # w-bounds, dE-bounds
+            if column in (2, 6):  # w, ΔE
                 if self.isMeta(index) and column == 6:
                     return
-                return '[{0}, {1}, {2}]'.format(*[fmt.format(s) for s in lim])
-            elif column in (3, 7):  # wtie, dEtie
+                return fmt.format(ref[key])
+            elif column in (3, 7):  # w-bounds, dE-bounds
                 if self.isMeta(index) and column == 7:
+                    return
+                return '[{0}, {1}, {2}]'.format(*[fmt.format(s) for s in lim])
+            elif column in (4, 8):  # wtie, dEtie
+                if self.isMeta(index) and column == 8:
                     return
                 keyt = key + 'tie'
                 if keyt in ref:
                     return ref[keyt].replace('dx', 'd{0}'.format(self.xName))
-            elif column in (4, 8):  # w-error, ΔE-error
-                if self.isMeta(index) and column == 8:
+            elif column in (5, 9):  # w-error, ΔE-error
+                if self.isMeta(index) and column == 9:
                     return
                 keye = key + 'Error'
                 if keye in ref and ref['use']:
@@ -132,37 +139,48 @@ class LCFModel(qt.QAbstractTableModel):
             if column == 0:
                 if not self.isMeta(index):
                     return qt.Qt.Checked if ref['use'] else qt.Qt.Unchecked
+            elif column == 1 and not self.isMeta(index):
+                for item in csi.allLoadedItems:
+                    if item.alias == ref['name']:
+                        break
+                else:
+                    return qt.Qt.Unchecked
+                isVisible = getattr(item, 'isVisibleAsRef', False)
+                return qt.Qt.Checked if isVisible else qt.Qt.Unchecked
         elif role == qt.Qt.TextAlignmentRole:
             if column == 0:
                 return qt.Qt.AlignLeft | qt.Qt.AlignVCenter
+            elif column == 1:
+                return qt.Qt.AlignCenter
             else:
                 return qt.Qt.AlignHCenter | qt.Qt.AlignVCenter
         elif role == qt.Qt.ToolTipRole:
             if column == 0:
                 if self.isMeta(index):
-                    if 'pinhole' in ref['name']:
-                        res = 'This is a pinhole fraction.\n'\
-                            'Alternatively, use it in pinhole correction,\n'\
-                            'see `data corrections` panel.'
+                    if 'pinhole' in ref['name'] or 'matrix' in ref['name']:
+                        res = 'This is a section for pinhole modelling.\n'\
+                            'Alternatively, pinhole can be corrected,\n'\
+                            'see `data corrections` panel and\n'\
+                            'the help section "Pinhole correction".'
                     else:
                         res = 'This is a metavariable.'\
                             '\nRemember to tie it to a fit variable.'
                     return res
-            if column in [1, 4, 5, 8]:
-                key = 'w' if column in [1, 4] else 'dx'
+            if column in [2, 5, 6, 9]:
+                key = 'w' if column in [2, 5] else 'dx'
                 keyb = key + 'Bounds'
                 lim = ref[keyb]
                 fmtLonger = gco.getFormatStr(lim[2]*0.001)
                 keye = key + 'Error'
                 if column in (1, 5):  # w, ΔE
                     return fmtLonger.format(ref[key])
-                elif column in (4, 8):  # w-error, ΔE-error
+                elif column in (5, 9):  # w-error, ΔE-error
                     keye = key + 'Error'
                     if keye in ref:
                         return fmtLonger.format(ref[keye])
         elif role == qt.Qt.BackgroundRole:
-            if column in (3, 7):  # wtie, dEtie
-                key = 'w' if column == 3 else 'dx'
+            if column in (4, 8):  # wtie, dEtie
+                key = 'w' if column == 4 else 'dx'
                 keyt = key + 'tie'
                 if keyt in ref:
                     if len(ref[keyt]) < 2:
@@ -175,9 +193,9 @@ class LCFModel(qt.QAbstractTableModel):
                             return qt.QColor(gbf.BAD_BKGND)
         elif role == gco.LIMITS_ROLE:  # return min, max, step
             ref = self.params[row]
-            if column == 1:  # w
+            if column == 2:  # w
                 return ref['wBounds']
-            elif column == 5:  # ΔE
+            elif column == 6:  # ΔE
                 return ref['dxBounds']
             else:
                 return
@@ -188,7 +206,7 @@ class LCFModel(qt.QAbstractTableModel):
         if role == qt.Qt.EditRole:
             column, row = index.column(), index.row()
             ref = self.params[row]
-            key = 'w' if column in [1, 2, 3, 4] else 'dx'
+            key = 'w' if column in [2, 3, 4, 5] else 'dx'
             if column == 0:
                 if not value.isidentifier():
                     return False
@@ -196,9 +214,9 @@ class LCFModel(qt.QAbstractTableModel):
                     ref['name'] = value
                 else:
                     return False
-            elif column in (1, 5):  # w, ΔE
+            elif column in (2, 6):  # w, ΔE
                 ref[key] = float(value)
-            elif column in (2, 6):  # wBounds, dEBounds
+            elif column in (3, 7):  # wBounds, dEBounds
                 try:
                     tmp = eval(value)
                 except Exception:
@@ -207,7 +225,7 @@ class LCFModel(qt.QAbstractTableModel):
                     return False
                 keyb = key + 'Bounds'
                 ref[keyb] = [float(t) for t in tmp]
-            elif column in (3, 7):  # wtie, dEtie
+            elif column in (4, 8):  # wtie, dEtie
                 keyt = key + 'tie'
                 if len(value) < 2 and keyt in ref:
                     del ref[keyt]
@@ -218,9 +236,19 @@ class LCFModel(qt.QAbstractTableModel):
             return True
         elif role == qt.Qt.CheckStateRole:
             column, row = index.column(), index.row()
+            ref = self.params[row]
             if column == 0:
-                ref = self.params[row]
                 ref['use'] = bool(value)
+                self.dataChanged.emit(index, self.index(row, -1))
+                return True
+            elif column == 1:
+                for item in csi.allLoadedItems:
+                    if item.alias == ref['name']:
+                        break
+                else:
+                    return False
+                item.isVisibleAsRef = bool(value)
+                csi.model.needReplot.emit(True, True, 'LCF')
                 self.dataChanged.emit(index, self.index(row, -1))
                 return True
         return False
@@ -242,30 +270,32 @@ class LCFModel(qt.QAbstractTableModel):
                 if section == 0:
                     return 'data name (alias) of reference data'
                 elif section == 1:
-                    return 'weight'
+                    return 'make reference spectra permanently visible'
                 elif section == 2:
+                    return 'weight'
+                elif section == 3:
                     return 'weight bounds and step\n'\
                         'click the header to apply a selected cell to all rows'
-                elif section == 3:
+                elif section == 4:
                     return 'either `fixed` or str starting with = or > or < '\
                         "\nand followed by a Python expression of other w's "\
                         "\nas `w[int]`, where int index is 1-based, same "\
                         "\nas the row number, e.g. `=0.5-w[1]`"
-                elif section == 4:
-                    return 'fitting error of weight'
                 elif section == 5:
-                    return 'Δ{0} ({1})'.format(self.xName, self.xUnit)
+                    return 'fitting error of weight'
                 elif section == 6:
+                    return 'Δ{0} ({1})'.format(self.xName, self.xUnit)
+                elif section == 7:
                     return 'Δ{0} bounds and step ({1})\nclick the header to'\
                         ' apply a selected cell to all rows'.format(
                             self.xName, self.xUnit)
-                elif section == 7:
+                elif section == 8:
                     return 'either `fixed` or str starting with = or > or < '\
                         "\nand followed by an expression of other Δ{0}'s "\
                         "\nas `d{0}[int]`, where int index is 1-based, same "\
                         "\nas the row number, e.g. `=d{0}[1]`".format(
                             self.xName)
-                elif section == 8:
+                elif section == 9:
                     return 'fitting error of Δ{0} ({1})'.format(
                         self.xName, self.xUnit)
 
@@ -306,8 +336,8 @@ class LCFModel(qt.QAbstractTableModel):
         entry = dict(LCF.defaultEntry)
         if isMeta:
             entry['isMeta'] = True  # important is its presence, not its value
-            if 'pinhole' in name:
-                entry['wBounds'] = [0., 0.99, 0.01]
+            if 'pinhole' in name or 'matrix' in name:
+                entry['wBounds'] = [0., 0.999, 0.001]
         entry['name'] = name
         self.params.append(entry)
         self.endResetModel()
@@ -363,9 +393,67 @@ class LCFModel(qt.QAbstractTableModel):
             self.dataChanged.emit(topLeft, bottomRight)
 
 
+class EyeHeader(gco.UnderlinedHeaderView):
+    EYE_PUPIL = qt.QColor('black')
+    EYE_IRIS = qt.QColor('#87aecf')  # blue
+    EYE_BROW = qt.QColor('#999999')
+
+    def paintEye(self, painter, rect, pupilR=1.5):
+        color = self.EYE_IRIS
+        painter.setBrush(color)
+        painter.setPen(color)
+        radius0 = 5*csi.screenFactor
+        painter.drawEllipse(rect.center(), radius0, radius0)
+        color = self.EYE_PUPIL
+        painter.setBrush(color)
+        painter.setPen(color)
+        radius1 = pupilR*csi.screenFactor
+        painter.drawEllipse(rect.center(), radius1, radius1)
+        painter.setPen(qt.QPen(self.EYE_BROW, 1.5))
+        c0 = rect.center()
+        x0, y0 = c0.x(), c0.y()
+        ww, hh = round(min(2.5*radius0, rect.width()//2)), round(radius0)
+        painter.drawArc(
+            x0-ww, round(y0-radius0), ww*2, hh*5+1, 35*16, 110*16)
+        painter.drawArc(
+            x0-ww, round(y0+radius0), ww*2, -hh*5+3, -35*16, -110*16)
+
+    def paintSection(self, painter, rect, logicalIndex):
+        painter.save()
+        super().paintSection(painter, rect, logicalIndex)
+        painter.restore()
+        painter.setRenderHint(qt.QPainter.Antialiasing, True)
+        if logicalIndex == 1:
+            self.paintEye(painter, rect, pupilR=2.8)
+
+
+class CenteredCheckBoxDelegate(qt.QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        if not (index.flags() & qt.Qt.ItemIsUserCheckable):
+            return
+        checked = index.data(qt.Qt.CheckStateRole) == qt.Qt.Checked
+        opt = qt.QStyleOptionButton()
+        opt.state |= qt.QStyle.State_Enabled
+        opt.state |= qt.QStyle.State_On if checked else qt.QStyle.State_Off
+        style = qt.QApplication.style()
+        indicator = style.subElementRect(
+            qt.QStyle.SE_CheckBoxIndicator, opt, None)
+
+        opt.rect = qt.QStyle.alignedRect(option.direction, qt.Qt.AlignCenter,
+                                         indicator.size(), option.rect)
+        style.drawControl(qt.QStyle.CE_CheckBox, opt, painter)
+
+    def editorEvent(self, event, model, option, index):
+        if event.type() == qt.QEvent.MouseButtonRelease:
+            value = index.data(qt.Qt.CheckStateRole)
+            model.setData(index, qt.Qt.Unchecked if value == qt.Qt.Checked else
+                          qt.Qt.Checked, qt.Qt.CheckStateRole)
+            return True
+        return super().editorEvent(event, model, option, index)
+
+
 class LCFTableView(qt.QTableView):
-    pinhole_fraction_name = 'pinhole_fraction'
-    columnWidths = [140, 55, 170, 80, 50, 55, 140, 80, 50]
+    columnWidths = [140, 30, 55, 170, 80, 50, 55, 140, 80, 50]
     if csi.onMac:
         columnWidths = [int(cw*1.5) for cw in columnWidths]
 
@@ -374,7 +462,7 @@ class LCFTableView(qt.QTableView):
         self.setModel(model)
 
         # horHeaders = self.horizontalHeader()  # QHeaderView instance
-        horHeaders = gco.UnderlinedHeaderView(qt.Qt.Horizontal, self)
+        horHeaders = EyeHeader(qt.Qt.Horizontal, self)
         self.setHorizontalHeader(horHeaders)
 
         verHeaders = self.verticalHeader()  # QHeaderView instance
@@ -400,10 +488,11 @@ class LCFTableView(qt.QTableView):
 
         for i, cw in enumerate(self.columnWidths[:nC]):
             self.setColumnWidth(i, int(cw*csi.screenFactor))
-        for i in [1, 5]:
+        for i in [2, 6]:
             kw = dict(alignment=qt.Qt.AlignHCenter | qt.Qt.AlignVCenter)
             self.setItemDelegateForColumn(
                 i, gco.DoubleSpinBoxDelegate(self, **kw))
+        self.setItemDelegateForColumn(1, CenteredCheckBoxDelegate(self))
 
         self.setMinimumHeight(
             (horHeaders.height()+1) * max(3, model.rowCount()+1))
@@ -428,18 +517,34 @@ class LCFTableView(qt.QTableView):
             self.model().dataChanged.emit(self.model().index(0, column),
                                           self.model().index(rows-1, column))
             return
+        elif column == 1:
+            for row in range(rows):
+                ref = self.model().params[row]
+                if 'isMeta' in ref:
+                    continue
+                for it in csi.allLoadedItems:
+                    if it.alias == ref['name']:
+                        break
+                else:
+                    continue
+                it.isVisibleAsRef = not getattr(it, 'isVisibleAsRef', False)
+            csi.model.needReplot.emit(True, True, 'LCF')
+            self.model().dataChanged.emit(self.model().index(0, column),
+                                          self.model().index(rows-1, column))
+            return
 
         if not self.selectionModel().hasSelection():
             return
         if column != self.currentIndex().column():
             return
-        if column == 1:
+
+        if column == 2:
             keyd = 'w'
-        elif column == 2:
+        elif column == 3:
             keyd = 'wBounds'
-        elif column == 5:
-            keyd = 'dx'
         elif column == 6:
+            keyd = 'dx'
+        elif column == 7:
             keyd = 'dxBounds'
         ref0 = self.model().params[self.currentIndex().row()]
         for row in range(rows):
@@ -465,7 +570,7 @@ class LCFTableView(qt.QTableView):
 
         self.actionAddPinholeCorrection = self._addAction(
             "Add pinhole fraction as a fitting variable",
-            partial(self.addRefSpectrum, self.pinhole_fraction_name, True))
+            partial(self.addRefSpectrum, LCF.pinhole_names, True))
         tooltip = "make `data corrections` pane visible"\
             "\nto see `pinhole correction` widget"
         self.actionAddPinholeCorrection.setToolTip(tooltip)
@@ -507,7 +612,7 @@ class LCFTableView(qt.QTableView):
         menu.addAction(self.actionAddPinholeCorrection)
         found = False
         for entry in self.model().params:
-            if entry['name'] == self.pinhole_fraction_name:
+            if 'pinhole' in entry['name'] or 'matrix' in entry['name']:
                 found = True
                 break
         self.actionAddPinholeCorrection.setEnabled(not found)
@@ -527,7 +632,12 @@ class LCFTableView(qt.QTableView):
         self.model().worker.node.widget.preparePickData(self)
 
     def addRefSpectrum(self, name, isMeta=False):
-        newRow = self.model().appendRef(name, isMeta)
+        if isinstance(name, (list, tuple)):
+            for iname in name:
+                newRow = self.model().appendRef(iname, isMeta)
+        else:
+            newRow = self.model().appendRef(name, isMeta)
+
         if newRow is None:
             return
         newInd = self.model().index(newRow, 0)

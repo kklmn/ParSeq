@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = "Konstantin Klementiev"
-__date__ = "15 Apr 2026"
+__date__ = "7 Nov 2026"
 # !!! SEE CODERULES.TXT !!!
 
 # import os.path as osp
@@ -28,6 +28,8 @@ class LCF(Fit):
     allDataAttrs = dict(x='x', y='y')
     ioAttrs = {'range': 'lcf_xRange', 'params': 'lcf_params',
                'result': 'lcf_result'}
+    pinhole_names = ['empty_pinhole_fraction', 'matrix_pinhole_fraction',
+                     'matrix_absorption_fraction']
 
     @classmethod
     def make_model_curve(cls, data, allData):
@@ -332,8 +334,11 @@ class LCF(Fit):
                     fill_value='extrapolate', assume_sorted=True)
                 res += wi * f(x)
 
-        if 'pinhole_fraction' in refs:
-            dd = refs['pinhole_fraction']
+        for ph_name in cls.pinhole_names:
+            if ph_name not in refs:
+                break
+        else:
+            dd = refs['empty_pinhole_fraction']
             e_full = dd['e_full']
             f_pre = interpolate.interp1d(
                 e_full, dd['pre_edge'], kind='cubic', copy=False,
@@ -343,12 +348,24 @@ class LCF(Fit):
                 e_full, dd['post_edge'], kind='cubic', copy=False,
                 fill_value='extrapolate', assume_sorted=True)
             post_edge = f_post(x)
-            frac = _locals['pinhole_fraction']
-            mud_true = res*(post_edge-pre_edge) + pre_edge
-            mud_dist = -np.log((1-frac)*np.exp(-mud_true) + frac)
-            pre = -np.log((1-frac)*np.exp(-pre_edge) + frac)
+
+            x = _locals['empty_pinhole_fraction']
+            y = _locals['matrix_pinhole_fraction']
+            z = _locals['matrix_absorption_fraction']
+
+            mud_true_pre = np.log(
+                np.abs((1-x-y) / (np.exp(-pre_edge)-x-y*np.exp(-z*pre_edge))))
+            mud_true_post = np.log(
+                np.abs((1-x-y) / (np.exp(-post_edge)-x-y*np.exp(-z*pre_edge))))
+
+            mud_true = res*(mud_true_post-mud_true_pre) + mud_true_pre
+            mud_dist = -np.log(np.abs((1-x-y)*np.exp(-mud_true) + x +
+                               y*np.exp(-z*pre_edge)))
+            pre = -np.log(np.abs((1-x-y)*np.exp(-mud_true_pre) + x +
+                          y*np.exp(-z*pre_edge)))
             mud_dist -= pre
-            jump = -np.log((1-frac)*np.exp(-post_edge) + frac) - pre
-            res = mud_dist / jump
+            jump = -np.log(np.abs((1-x-y)*np.exp(-mud_true_post) + x +
+                           y*np.exp(-z*pre_edge))) - pre
+            res = np.abs(mud_dist / jump)
 
         return res
