@@ -308,7 +308,7 @@ class LCF(Fit):
             assert len(refs) == len(_dx)
 
         kdt = kd + 'tie'
-        res = 0.
+        res = np.zeros_like(x)
         for (k, ref), wi, sh in zip(refs.items(), _w, _dx):
             if 'wtie' in ref:
                 wtie = ref['wtie']
