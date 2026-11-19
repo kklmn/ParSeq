@@ -1216,12 +1216,14 @@ class Spectrum(TreeItem):
                     ds = int(ds)
                 except Exception:
                     pass
-                if isinstance(ds, str) and "Col" in ds:
-                    regex = re.compile('Col([0-9]*)')
-                    # remove possible duplicates by list(dict.fromkeys())
-                    subkeys = list(dict.fromkeys(regex.findall(ds)))
-                    for ch in subkeys:
-                        cols = max(cols, int(ch))
+                if isinstance(ds, str):
+                    ds = ds.replace('col', 'Col')
+                    if "Col" in ds:
+                        regex = re.compile('Col([0-9]*)')
+                        # remove possible duplicates by list(dict.fromkeys())
+                        subkeys = list(dict.fromkeys(regex.findall(ds)))
+                        for ch in subkeys:
+                            cols = max(cols, int(ch))
                 elif isinstance(ds, int):
                     cols = max(cols, ds)
             # important for column files that have incomplete columns:
