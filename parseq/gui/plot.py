@@ -34,6 +34,7 @@ class Plot1D(splot.PlotWindow):
             mask=False, fit=False)
         if parent is None:
             self.setWindowTitle('Plot1D')
+        self.maxAllY = None
 
         self._zoomBackAction = ZoomBackAction(plot=self, parent=self)
         self._crosshairAction = CrosshairAction(plot=self, parent=self)

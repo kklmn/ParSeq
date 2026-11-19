@@ -878,6 +878,7 @@ class NodeWidget(qt.QWidget):
             leftAxisColumns, rightAxisColumns = [], []
             leftAxisUnits, rightAxisUnits = [], []
             curveLabels = []
+            self.plot.maxAllY = None
             for item in csi.allLoadedItems:
                 if not self.shouldPlotItem(item):
                     for yN in node.plotYArrays + self.fitLines:
@@ -949,6 +950,13 @@ class NodeWidget(qt.QWidget):
                         else:
                             curve.setData(x0, y+dy)
                             curve.setZValue(z)
+
+                        yMax = (y+dy).max()
+                        if self.plot.maxAllY is None:
+                            self.plot.maxAllY = yMax
+                        else:
+                            self.plot.maxAllY = max(self.plot.maxAllY, yMax)
+
                     except (Exception, AssertionError) as err:
                         try:
                             lengthx = len(x0)
